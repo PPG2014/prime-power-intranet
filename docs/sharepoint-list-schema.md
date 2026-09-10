@@ -2,7 +2,7 @@
 
 เอกสารสำหรับส่งให้ผู้ดูแล SharePoint สร้างรายการ (List) ก่อนเริ่มพัฒนา
 
-> **อัปเดต** เพิ่ม L15 Sections และคอลัมน์ Section กับ Level ใน L02 — สร้างเพิ่มได้เลย ไม่กระทบ List เดิมเว็บ
+> **อัปเดต** เพิ่ม L15 Sections, L16 Projects และคอลัมน์ Section / Project / Level / Oversees ใน L02 — สร้างเพิ่มได้เลย ไม่กระทบ List เดิมเว็บ
 
 - **Site:** https://primepowertl.sharepoint.com/sites/Intranet_PrimePower — ดูแลโดย intranet.pr@primepower.co.th
 - **Graph hostname:** `primepowertl.sharepoint.com` · **sitePath:** `/sites/Intranet_PrimePower`
@@ -110,6 +110,19 @@ List หลักที่ List อื่นอ้างอิงถึง **ต
 และเวลามีแผนกใหม่ต้องเข้าไปแก้นิยามคอลัมน์ ซึ่งผู้ดูแลทั่วไปทำไม่ได้
 ส่วนแบบ List เพิ่มแถวจากหน้าจัดการข้อมูลได้เลย และฝั่งผู้ใช้เห็นเป็น dropdown เหมือนกัน
 
+### L16 — Projects (ทะเบียนโครงการ)
+
+ใช้กับฝ่ายที่ทำงานแบบแยกตามโครงการ เช่นฝ่ายบริหารโครงการ
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อโครงการ |
+| ProjectCode | Single line of text | รหัสโครงการ เช่น PJ-2569-01 |
+| Department | Lookup → L01.Title | ฝ่ายเจ้าของโครงการ |
+| Status | Choice | `เตรียมงาน` / `กำลังดำเนินการ` / `ส่งมอบแล้ว` / `ปิดโครงการ` |
+| SortOrder | Number | |
+| IsActive | Yes/No | ปิดโครงการแล้วให้ตั้ง No จะไม่ขึ้นเป็นตัวเลือกใหม่ แต่คนที่ผูกไว้ยังแสดงอยู่ |
+
 ### L02 — Directory (บุคลากร)
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
@@ -120,6 +133,7 @@ List หลักที่ List อื่นอ้างอิงถึง **ต
 | Position | Single line of text | ตำแหน่ง |
 | Department | Lookup → L01.Title | ฝ่าย |
 | Section | Lookup → L15.Title | แผนกย่อย เว้นว่างได้ |
+| Project | Lookup → L16.Title (**Allow multiple values**) | โครงการที่สังกัด เลือกได้หลายโครงการ · แสดงเฉพาะฝ่ายที่ระบุใน Settings คีย์ ProjectDepartments |
 | Oversees | Lookup → L01.Title (**Allow multiple values**) | ใช้กับผู้อำนวยการที่ดูแลหลายฝ่าย เว้นว่างสำหรับคนทั่วไป |
 | Level | Choice | 5 ตัวเลือก ดูด้านล่าง |
 | Email | Single line of text | อีเมลบริษัท |
@@ -389,6 +403,8 @@ List หลักที่ List อื่นอ้างอิงถึง **ต
 | SupportEmail | it@primepower.co.th | |
 | SupportHours | จันทร์–ศุกร์ 08:30–17:30 น. | |
 | PopupInterval | 5 | วินาทีต่อการเลื่อนประกาศหนึ่งใบ |
+| ExecutiveGroup | ผู้บริหาร | ชื่อกลุ่มที่ปักไว้บนสุดของหน้าบุคลากร |
+| ProjectDepartments | ฝ่ายบริหารโครงการ | ฝ่ายที่ทำงานแบบแยกตามโครงการ คั่นด้วยจุลภาค |
 
 ---
 

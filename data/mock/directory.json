@@ -13,7 +13,8 @@
   "IsActive": true,
   "Level": "1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 2,
@@ -29,7 +30,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 3,
@@ -45,7 +47,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 4,
@@ -61,7 +64,8 @@
   "IsActive": true,
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 5,
@@ -69,15 +73,16 @@
   "NameEN": "Anucha Rakthai",
   "Nickname": "ชา",
   "Position": "เจ้าหน้าที่ไอที",
-  "Department": "ฝ่ายทรัพยากรบุคคล",
+  "Department": "ฝ่ายประสานงานและอำนวยการ",
   "Email": "anucha.r@primepower.co.th",
-  "Extension": "302",
+  "Extension": "216",
   "PhotoUrl": "",
   "SortOrder": 5,
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 6,
@@ -93,7 +98,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 7,
@@ -109,7 +115,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 8,
@@ -125,7 +132,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 9,
@@ -141,7 +149,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 10,
@@ -157,7 +166,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 11,
@@ -173,7 +183,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 12,
@@ -189,7 +200,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 13,
@@ -205,7 +217,8 @@
   "IsActive": true,
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 14,
@@ -221,7 +234,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 15,
@@ -237,7 +251,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 16,
@@ -253,7 +268,8 @@
   "IsActive": true,
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 17,
@@ -269,7 +285,8 @@
   "IsActive": true,
   "Level": "5 — บุคลากรในแผนก",
   "Section": "",
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 18,
@@ -285,7 +302,8 @@
   "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
   "SortOrder": 18,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 19,
@@ -301,7 +319,8 @@
   "Level": "3 — รองผู้จัดการฝ่าย",
   "SortOrder": 19,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 20,
@@ -317,7 +336,8 @@
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 20,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 21,
@@ -333,7 +353,8 @@
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 21,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 22,
@@ -349,7 +370,8 @@
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 22,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 23,
@@ -365,7 +387,8 @@
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 23,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 24,
@@ -381,7 +404,8 @@
   "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 24,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 25,
@@ -397,7 +421,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 25,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 26,
@@ -413,7 +438,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 26,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 27,
@@ -429,7 +455,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 27,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 28,
@@ -445,7 +472,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 28,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 29,
@@ -461,7 +489,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 29,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 30,
@@ -477,7 +506,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 30,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 31,
@@ -493,7 +523,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 31,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 32,
@@ -509,7 +540,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 32,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 33,
@@ -525,7 +557,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 33,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 34,
@@ -541,7 +574,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 34,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 35,
@@ -557,7 +591,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 35,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 36,
@@ -573,7 +608,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 36,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 37,
@@ -589,7 +625,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 37,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 38,
@@ -605,7 +642,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 38,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 39,
@@ -621,7 +659,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 39,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 40,
@@ -637,7 +676,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 40,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 41,
@@ -653,7 +693,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 41,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 42,
@@ -669,7 +710,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 42,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 43,
@@ -685,7 +727,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 43,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 44,
@@ -701,7 +744,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 44,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 45,
@@ -717,7 +761,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 45,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 46,
@@ -733,7 +778,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 46,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 47,
@@ -749,7 +795,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 47,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 48,
@@ -765,7 +812,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 48,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 49,
@@ -781,7 +829,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 49,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 50,
@@ -797,7 +846,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 50,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 51,
@@ -813,7 +863,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 51,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 52,
@@ -829,7 +880,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 52,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 53,
@@ -845,7 +897,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 53,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 54,
@@ -861,7 +914,8 @@
   "Level": "5 — บุคลากรในแผนก",
   "SortOrder": 54,
   "IsActive": true,
-  "Oversees": []
+  "Oversees": [],
+  "Project": ""
  },
  {
   "id": 55,
@@ -881,6 +935,313 @@
   ],
   "Level": "1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
   "SortOrder": 55,
+  "IsActive": true,
+  "Project": ""
+ },
+ {
+  "id": 56,
+  "Title": "ปกรณ์ วิริยะกุล 1",
+  "NameEN": "Pakorn Wiriyakul 1",
+  "Nickname": "กร",
+  "Position": "วิศวกรโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง",
+   "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้"
+  ],
+  "Email": "pj56@primepower.co.th",
+  "Extension": "400",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 56,
+  "IsActive": true
+ },
+ {
+  "id": 57,
+  "Title": "ชลธิชา เพชรรัตน์ 1",
+  "NameEN": "Chonthicha Petcharat 1",
+  "Nickname": "ชล",
+  "Position": "เจ้าหน้าที่ควบคุมเอกสาร",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+   "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)"
+  ],
+  "Email": "pj57@primepower.co.th",
+  "Extension": "401",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 57,
+  "IsActive": true
+ },
+ {
+  "id": 58,
+  "Title": "อภิชาติ ยั่งยืน 1",
+  "NameEN": "Apichat Youngyuen 1",
+  "Nickname": "ชาติ",
+  "Position": "โฟร์แมน",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง"
+  ],
+  "Email": "pj58@primepower.co.th",
+  "Extension": "402",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 58,
+  "IsActive": true
+ },
+ {
+  "id": 59,
+  "Title": "สุพัตรา ทองใบ 1",
+  "NameEN": "Supattra Thongbai 1",
+  "Nickname": "พัด",
+  "Position": "เจ้าหน้าที่จัดซื้อโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง"
+  ],
+  "Email": "pj59@primepower.co.th",
+  "Extension": "403",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 59,
+  "IsActive": true
+ },
+ {
+  "id": 60,
+  "Title": "ปกรณ์ วิริยะกุล 2",
+  "NameEN": "Pakorn Wiriyakul 2",
+  "Nickname": "กร",
+  "Position": "วิศวกรโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด"
+  ],
+  "Email": "pj60@primepower.co.th",
+  "Extension": "410",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 60,
+  "IsActive": true
+ },
+ {
+  "id": 61,
+  "Title": "ชลธิชา เพชรรัตน์ 2",
+  "NameEN": "Chonthicha Petcharat 2",
+  "Nickname": "ชล",
+  "Position": "เจ้าหน้าที่ควบคุมเอกสาร",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด"
+  ],
+  "Email": "pj61@primepower.co.th",
+  "Extension": "411",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 61,
+  "IsActive": true
+ },
+ {
+  "id": 62,
+  "Title": "อภิชาติ ยั่งยืน 2",
+  "NameEN": "Apichat Youngyuen 2",
+  "Nickname": "ชาติ",
+  "Position": "โฟร์แมน",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด"
+  ],
+  "Email": "pj62@primepower.co.th",
+  "Extension": "412",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 62,
+  "IsActive": true
+ },
+ {
+  "id": 63,
+  "Title": "สุพัตรา ทองใบ 2",
+  "NameEN": "Supattra Thongbai 2",
+  "Nickname": "พัด",
+  "Position": "เจ้าหน้าที่จัดซื้อโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด"
+  ],
+  "Email": "pj63@primepower.co.th",
+  "Extension": "413",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 63,
+  "IsActive": true
+ },
+ {
+  "id": 64,
+  "Title": "ปกรณ์ วิริยะกุล 3",
+  "NameEN": "Pakorn Wiriyakul 3",
+  "Nickname": "กร",
+  "Position": "วิศวกรโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้"
+  ],
+  "Email": "pj64@primepower.co.th",
+  "Extension": "420",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 64,
+  "IsActive": true
+ },
+ {
+  "id": 65,
+  "Title": "ชลธิชา เพชรรัตน์ 3",
+  "NameEN": "Chonthicha Petcharat 3",
+  "Nickname": "ชล",
+  "Position": "เจ้าหน้าที่ควบคุมเอกสาร",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้"
+  ],
+  "Email": "pj65@primepower.co.th",
+  "Extension": "421",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 65,
+  "IsActive": true
+ },
+ {
+  "id": 66,
+  "Title": "อภิชาติ ยั่งยืน 3",
+  "NameEN": "Apichat Youngyuen 3",
+  "Nickname": "ชาติ",
+  "Position": "โฟร์แมน",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้"
+  ],
+  "Email": "pj66@primepower.co.th",
+  "Extension": "422",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 66,
+  "IsActive": true
+ },
+ {
+  "id": 67,
+  "Title": "สุพัตรา ทองใบ 3",
+  "NameEN": "Supattra Thongbai 3",
+  "Nickname": "พัด",
+  "Position": "เจ้าหน้าที่จัดซื้อโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้"
+  ],
+  "Email": "pj67@primepower.co.th",
+  "Extension": "423",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 67,
+  "IsActive": true
+ },
+ {
+  "id": 68,
+  "Title": "ปกรณ์ วิริยะกุล 4",
+  "NameEN": "Pakorn Wiriyakul 4",
+  "Nickname": "กร",
+  "Position": "วิศวกรโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)"
+  ],
+  "Email": "pj68@primepower.co.th",
+  "Extension": "430",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 68,
+  "IsActive": true
+ },
+ {
+  "id": 69,
+  "Title": "ชลธิชา เพชรรัตน์ 4",
+  "NameEN": "Chonthicha Petcharat 4",
+  "Nickname": "ชล",
+  "Position": "เจ้าหน้าที่ควบคุมเอกสาร",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)"
+  ],
+  "Email": "pj69@primepower.co.th",
+  "Extension": "431",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 69,
+  "IsActive": true
+ },
+ {
+  "id": 70,
+  "Title": "อภิชาติ ยั่งยืน 4",
+  "NameEN": "Apichat Youngyuen 4",
+  "Nickname": "ชาติ",
+  "Position": "โฟร์แมน",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)"
+  ],
+  "Email": "pj70@primepower.co.th",
+  "Extension": "432",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 70,
+  "IsActive": true
+ },
+ {
+  "id": 71,
+  "Title": "สุพัตรา ทองใบ 4",
+  "NameEN": "Supattra Thongbai 4",
+  "Nickname": "พัด",
+  "Position": "เจ้าหน้าที่จัดซื้อโครงการ",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Section": "",
+  "Project": [
+   "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)"
+  ],
+  "Email": "pj71@primepower.co.th",
+  "Extension": "433",
+  "PhotoUrl": "",
+  "Oversees": [],
+  "Level": "5 — บุคลากรในแผนก",
+  "SortOrder": 71,
   "IsActive": true
  }
 ]

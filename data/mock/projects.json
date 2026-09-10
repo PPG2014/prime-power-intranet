@@ -1,0 +1,38 @@
+[
+ {
+  "id": 1,
+  "Title": "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง",
+  "ProjectCode": "PJ-2569-01",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Status": "กำลังดำเนินการ",
+  "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 2,
+  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+  "ProjectCode": "PJ-2569-02",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Status": "กำลังดำเนินการ",
+  "SortOrder": 2,
+  "IsActive": true
+ },
+ {
+  "id": 3,
+  "Title": "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้",
+  "ProjectCode": "PJ-2569-03",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Status": "กำลังดำเนินการ",
+  "SortOrder": 3,
+  "IsActive": true
+ },
+ {
+  "id": 4,
+  "Title": "งานบำรุงรักษาสถานีไฟฟ้า ภาคตะวันออก (สัญญา 3 ปี)",
+  "ProjectCode": "PJ-2568-11",
+  "Department": "ฝ่ายบริหารโครงการ",
+  "Status": "กำลังดำเนินการ",
+  "SortOrder": 4,
+  "IsActive": true
+ }
+]

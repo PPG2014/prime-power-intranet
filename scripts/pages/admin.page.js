@@ -1,7 +1,7 @@
 import { esc, $, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
-import { formBody, collect, bindDependents } from '../admin/entity-form.js';
+import { formBody, collect, bindDependents, bindPhoto } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { clearCaches } from '../utils/dept.js';
@@ -45,8 +45,12 @@ export async function render(ctx) {
               <th class="col-actions"></th></tr></thead>
             <tbody>${rows.length ? rows.map((r, i) => `<tr>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
-              ${s.columns.map((c) => `<td>${esc(
-                typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่') : (r[c] ?? '—'))}</td>`).join('')}
+              ${s.columns.map((c) => c === 'PhotoUrl'
+                ? `<td class="col-thumb">${r[c] ? `<img src="${r[c]}" alt="">` : '—'}</td>`
+                : `<td>${esc(
+                typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
+                : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
+                : (r[c] ?? '—'))}</td>`).join('')}
               <td class="col-actions">
                 ${s.sortField ? `<span class="move-group">
                   <button class="btn-move" data-up="${r.id}" title="เลื่อนขึ้น"
@@ -83,6 +87,7 @@ async function openEditor(key, record) {
              <button class="btn btn-primary" id="save">${isNew ? 'เพิ่มรายการ' : 'บันทึกการแก้ไข'}</button>`,
   });
   bindDependents(s);
+  bindPhoto(s);
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async () => {
     const data = collect(s);

@@ -1,5 +1,6 @@
 /** เรียงและจัดกลุ่มตามลำดับฝ่ายในสมุดโทรศัพท์ ไม่ใช่เรียงตามตัวอักษร */
 import { list } from '../services/data.js';
+import { settings } from './settings.js';
 
 let cached = null;
 export async function departments() {
@@ -26,8 +27,21 @@ export async function sections() {
 /** เรียกหลังผู้ดูแลแก้ข้อมูล เพื่อให้หน้าอื่นเห็นลำดับใหม่ทันที */
 export function clearCaches() { cached = null; cachedSections = null; }
 
+/**
+ * ลำดับการแสดงกลุ่มบนหน้าเว็บ
+ * ชื่อกลุ่มที่ไม่ได้อยู่ในทะเบียนหน่วยงาน เช่น "ผู้บริหาร" ให้ปักไว้บนสุดเสมอ
+ * ตั้งค่าได้ที่ ⚙ จัดการข้อมูล → ตั้งค่าระบบ คีย์ ExecutiveGroup
+ */
+export async function groupOrder() {
+  const cfg = await settings();
+  const pinned = (cfg.ExecutiveGroup || 'ผู้บริหาร')
+    .split(',').map((x) => x.trim()).filter(Boolean);
+  return [...pinned, ...(await departments()).map((d) => d.Title)]
+    .filter((v, i, a) => a.indexOf(v) === i);
+}
+
 export async function groupByDepartment(rows, key = 'Department') {
-  const order = (await departments()).map((d) => d.Title);
+  const order = await groupOrder();
   const seen = [];
   rows.forEach((r) => { if (!seen.includes(r[key])) seen.push(r[key]); });
   seen.sort((a, b) => {

@@ -1,6 +1,6 @@
 import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
-import { groupByDepartment, extensionOf, sections } from '../utils/dept.js';
+import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
 import { toArray } from '../admin/entity-form.js';
 import { state, setState } from '../core/state.js';
 
@@ -33,12 +33,17 @@ function levelOf(p) {
 const card = (p, cls = '') => `
   <article class="staff-card ${cls}">
     <div class="staff-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
+      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="staff-info">
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
       <div class="staff-en">${esc(p.NameEN)}</div>
       <div class="staff-pos">${esc(p.Position)}</div>
+      ${toArray(p.Project).length
+        ? `<div class="project-tag" title="${esc(toArray(p.Project).join(' · '))}">🏗 ${
+            toArray(p.Project).length > 1
+              ? `${toArray(p.Project).length} โครงการ`
+              : esc(toArray(p.Project)[0])}</div>` : ''}
       ${toArray(p.Oversees).length > 1
         ? `<div class="oversee-tag" title="${esc(toArray(p.Oversees).join(' · '))}"
             >ดูแล ${toArray(p.Oversees).length} ฝ่าย</div>` : ''}
@@ -51,7 +56,7 @@ const card = (p, cls = '') => `
 const miniCard = (p) => `
   <article class="mini-card">
     <div class="mini-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
+      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="mini-name">${esc(p.Title)}</div>
     ${p.Nickname ? `<div class="mini-nick">(${esc(p.Nickname)})</div>` : ''}
@@ -67,7 +72,7 @@ const miniCard = (p) => `
  * ระดับ 1–3 จัดกึ่งกลางเป็นแถว ๆ ระดับ 4 เรียงเป็นตารางปกติ
  * ระดับ 2 ที่มีสองคนจะอยู่ซ้าย-ขวาของแถวเดียวกัน ใต้ระดับ 1
  */
-function orgChart(people, secOrderList = []) {
+function orgChart(people, secOrderList = [], groupKey = 'Section') {
   const at = (n) => people.filter((p) => levelOf(p) === n)
                           .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   const tiers = TOP_TIERS.map(at);
@@ -90,10 +95,13 @@ function orgChart(people, secOrderList = []) {
     .filter((v, i, a) => a.indexOf(v) === i);
   const sections = [];
   staff.forEach((p) => {
-    const key = p.Section || '';
-    let g = sections.find((x) => x.name === key);
-    if (!g) sections.push((g = { name: key, rows: [] }));
-    g.rows.push(p);
+    // ช่องโครงการเลือกได้หลายค่า คนหนึ่งจึงอาจอยู่ได้หลายกลุ่ม
+    const keys = groupKey === 'Project' ? toArray(p[groupKey]) : [p[groupKey] || ''];
+    (keys.length ? keys : ['']).forEach((key) => {
+      let g = sections.find((x) => x.name === key);
+      if (!g) sections.push((g = { name: key, rows: [] }));
+      g.rows.push(p);
+    });
   });
   sections.sort((a, b) => {
     const i = secOrder.indexOf(a.name), j = secOrder.indexOf(b.name);
@@ -106,7 +114,7 @@ function orgChart(people, secOrderList = []) {
       ? sections.map((g) => `
           <section class="sec-group">
             <div class="sec-head">
-              <h3>${esc(g.name || 'ไม่ระบุแผนก')}</h3>
+              <h3>${esc(g.name || (groupKey === 'Project' ? 'ยังไม่ระบุโครงการ' : 'ไม่ระบุแผนก'))}</h3>
               <span>${g.rows.length} คน</span>
             </div>
             <div class="staff-grid">${g.rows.map((p) => card(p)).join('')}</div>
@@ -141,8 +149,7 @@ export async function render(ctx) {
     });
     if (extra.length) {
       groups = [...groups, ...extra];
-      const order = (await import('../utils/dept.js')).departments;
-      const names = (await order()).map((x) => x.Title);
+      const names = await groupOrder();
       groups.sort((a, b) => {
         const i = names.indexOf(a.name), j = names.indexOf(b.name);
         return (i < 0 ? 999 : i) - (j < 0 ? 999 : j);
@@ -150,6 +157,10 @@ export async function render(ctx) {
     }
   }
   const secList = (await sections()).map((x) => x.Title);
+  const { settings } = await import('../utils/settings.js');
+  const cfg = await settings();
+  const projectDepts = String(cfg.ProjectDepartments || '')
+    .split(',').map((x) => x.trim()).filter(Boolean);
   const exts = await Promise.all(groups.map((g) => extensionOf(g.name)));
 
   return `
@@ -174,7 +185,7 @@ export async function render(ctx) {
             <h2>${esc(g.name)}</h2>
             <span class="dept-meta">${g.rows.length} คน${exts[i] ? ` · ต่อ ${esc(exts[i])}` : ''}</span>
           </div>
-          ${orgChart(g.rows, secList)}
+          ${orgChart(g.rows, secList, projectDepts.includes(g.name) ? 'Project' : 'Section')}
         </section>`).join('')
       : `<div class="panel"><div class="empty">ไม่พบรายชื่อที่ตรงกับคำค้น ลองค้นด้วยชื่อเล่นหรือชื่อฝ่าย</div></div>`}
     </div>

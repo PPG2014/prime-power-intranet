@@ -84,3 +84,5 @@
 .check-item { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 400; margin: 0; }
 .check-item input { width: auto; }
 @media (max-width: 600px) { .check-list { grid-template-columns: 1fr; } }
+.project-tag { margin-top: 5px; font-size: 11.5px; color: var(--muted); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
