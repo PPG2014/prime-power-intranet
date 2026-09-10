@@ -24,3 +24,7 @@ nav a[aria-current="page"] { background: #e0edfa; border-color: var(--blue); col
   padding: 2px 9px; border-radius: 20px; margin-left: 10px; }
 .topbar button { color: #cfe0f2; font-size: 12.5px; margin-left: 12px; }
 .topbar button:hover { color: #fff; text-decoration: underline; }
+.topbar .who { margin-right: 4px; }
+.signout-btn { border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
+  padding: 3px 12px; color: #cfe0f2; font-size: 12px; margin-left: 10px; }
+.signout-btn:hover { background: rgba(255,255,255,.14); color: #fff; text-decoration: none; }

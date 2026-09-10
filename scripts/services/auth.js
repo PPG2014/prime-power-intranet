@@ -105,7 +105,10 @@ export async function getToken() {
 }
 
 export async function signOut() {
-  if (CONFIG.dataSource === 'mock') return;
+  if (CONFIG.dataSource === 'mock') {
+    location.reload();   // โหมดตัวอย่างไม่มีเซสชันจริง แค่กลับไปหน้าเข้าสู่ระบบ
+    return;
+  }
   const app = await client();
   await app.logoutRedirect({ postLogoutRedirectUri: CONFIG.auth.redirectUri });
 }

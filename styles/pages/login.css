@@ -26,16 +26,23 @@ body.login-mode { background: var(--navy); }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
 .login-banner {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 55%, var(--green) 145%);
-  color: #fff; padding: 34px 32px 30px; text-align: center;
+  background: #fff; color: var(--ink); padding: 32px 32px 26px; text-align: center;
+  border-bottom: 1px solid var(--line-soft); position: relative;
 }
-.login-logo { background: #fff; border-radius: 12px; padding: 12px 18px; display: inline-block;
-  margin-bottom: 20px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
-.login-logo img { height: 34px; width: auto; }
-.login-banner h1 { color: #fff; font-size: 21px; font-weight: 700; line-height: 1.45; margin-bottom: 6px; }
-.login-banner p { color: #bcd8f2; font-size: 13.5px; margin: 0; }
+/* เส้นไล่เฉดบาง ๆ คั่นระหว่างส่วนหัวสีขาวกับเนื้อหาด้านล่าง */
+.login-banner::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
+  background: linear-gradient(90deg, var(--navy), var(--blue) 45%, var(--green));
+}
+.login-logo { display: inline-block; margin-bottom: 18px; }
+.login-logo img { height: 40px; width: auto; }
+.login-banner h1 { color: var(--navy); font-size: 21px; font-weight: 700; line-height: 1.45; margin-bottom: 6px; }
+.login-banner p { color: var(--muted); font-size: 13.5px; margin: 0; }
 
-.login-body { padding: 30px 32px 26px; }
+.login-body {
+  padding: 30px 32px 26px;
+  background: linear-gradient(170deg, #f7fbff 0%, #eef6fb 45%, #edf7f1 100%);
+}
 .login-body h2 { font-size: 22px; text-align: center; letter-spacing: .01em; }
 .login-sub { text-align: center; color: var(--muted); font-size: 13.5px; margin: 6px 0 24px; }
 
@@ -56,20 +63,20 @@ body.login-mode { background: var(--navy); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .login-note { display: flex; gap: 12px; margin-top: 22px; padding: 15px 16px;
-  background: #eff7f2; border: 1px solid #cbe6d8; border-left: 4px solid var(--green);
+  background: rgba(255, 255, 255, .75); border: 1px solid #cbe6d8; border-left: 4px solid var(--green);
   border-radius: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
 .login-note b { display: block; color: var(--green-dark); font-size: 13.5px; margin-bottom: 3px; }
 .note-icon { font-size: 15px; line-height: 1.4; }
 
 .login-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 14px;
   color: var(--dim); font-size: 11.5px; }
-.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: #d7e3ec; }
 .login-fine { font-size: 11.5px; color: var(--dim); line-height: 1.75; text-align: center; margin: 0; }
 
 .login-error { background: #fdf3f2; border: 1px solid #f0c9c5; color: var(--danger);
   border-radius: 10px; padding: 13px 16px; font-size: 13px; line-height: 1.7; margin-bottom: 18px; }
 
-.login-foot { padding: 16px 32px; border-top: 1px solid var(--line-soft); background: #fafbfc;
+.login-foot { padding: 16px 32px; border-top: 1px solid #dfeaf2; background: #e9f2f7;
   text-align: center; font-size: 11.5px; color: var(--dim); }
 .mode-pill { background: var(--warn); color: #fff; font-weight: 600; padding: 2px 9px;
   border-radius: 20px; margin-left: 8px; }

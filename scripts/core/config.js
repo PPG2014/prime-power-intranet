@@ -7,7 +7,7 @@ export const CONFIG = {
   appName: 'Prime Power Group',
 
   /** 'mock' = อ่านจาก data/mock ตอนพัฒนา | 'sharepoint' = ของจริง */
-  dataSource: 'mock',
+  dataSource: 'sharepoint',
 
   /** ได้จากการจดทะเบียนแอปใน Entra ID — ค่าสองตัวนี้ไม่ใช่ความลับ */
   auth: {

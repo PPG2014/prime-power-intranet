@@ -28,12 +28,10 @@ function enter(user) {
   setState({ user, isAdmin: user.isAdmin }, { silent: true });
 
   $('#topbar-actions').innerHTML = `
-    <span>👤 ${esc(user.name)}</span>
-    ${CONFIG.dataSource === 'mock'
-      ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>'
-      : '<button id="signout">ออกจากระบบ</button>'}`;
-  const out = $('#signout');
-  if (out) out.onclick = signOut;
+    ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}
+    <span class="who">👤 ${esc(user.name)}</span>
+    <button id="signout" class="signout-btn">ออกจากระบบ</button>`;
+  $('#signout').onclick = () => signOut();
 
   $('#burger').onclick = function () {
     const open = $('#nav').classList.toggle('open');
