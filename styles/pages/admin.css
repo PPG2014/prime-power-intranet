@@ -65,3 +65,7 @@
 .photo-status { font-size: 12px; line-height: 1.6; min-height: 1.2em; }
 .photo-status.ok { color: var(--ok); }
 .photo-status.bad { color: var(--danger); }
+.mock-warning { background: #fff4e0; border: 1px solid #f0d6a8; border-left: 4px solid var(--warn);
+  border-radius: var(--radius); padding: 14px 18px; margin-bottom: var(--gap);
+  font-size: 13px; color: #8a5a00; line-height: 1.75; }
+.mock-warning b { display: block; font-size: 14px; margin-bottom: 3px; }

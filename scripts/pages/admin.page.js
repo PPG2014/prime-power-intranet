@@ -4,6 +4,7 @@ import { SCHEMA } from '../admin/schema.js';
 import { formBody, collect, bindDependents, bindPhoto } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
+import { CONFIG } from '../core/config.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 
@@ -28,6 +29,11 @@ export async function render(ctx) {
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
       <p class="page-lead">เพิ่ม แก้ไข หรือลบข้อมูลทุกชุดที่แสดงบนเว็บ โดยไม่ต้องแก้ไขโค้ด</p>
+      ${CONFIG.dataSource !== 'sharepoint' ? `<div class="mock-warning">
+        <b>⚠ กำลังใช้ข้อมูลตัวอย่าง ไม่ใช่ข้อมูลจริงจาก SharePoint</b>
+        สิ่งที่แก้ในหน้านี้จะหายเมื่อรีเฟรช และไม่ถูกบันทึกลง SharePoint
+        แก้ได้ที่ไฟล์ scripts/core/config.js บรรทัด dataSource ให้เป็น 'sharepoint'
+      </div>` : ''}
 
       <div class="admin-layout">
         <nav class="set-nav">
@@ -67,7 +73,7 @@ export async function render(ctx) {
           <div class="panel-note">
             ${s.hint ? esc(s.hint) + '<br>' : ''}
             ${s.sortField ? 'กดปุ่ม ↑ ↓ เพื่อจัดลำดับใหม่ ผลจะเปลี่ยนทันทีทุกหน้าที่แสดงข้อมูลชุดนี้<br>' : ''}
-            ข้อมูลชุดนี้เก็บใน SharePoint List ชื่อ <b>${esc(s.list)}</b> ·
+            ข้อมูลชุดนี้เก็บใน SharePoint List <b>${esc(s.spName || s.list)}</b> ·
             แก้ที่นี่หรือแก้ใน SharePoint โดยตรงก็ได้ ผลลัพธ์เหมือนกัน
           </div>
         </div>

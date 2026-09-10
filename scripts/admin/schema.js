@@ -8,7 +8,7 @@
  */
 export const SCHEMA = {
   departments: {
-    title: 'หน่วยงานและเบอร์ต่อ', icon: '📞', list: 'departments', sortField: 'SortOrder',
+    title: 'หน่วยงานและเบอร์ต่อ', icon: '📞', list: 'departments', spName: 'Departments', sortField: 'SortOrder',
     hint: 'ลำดับในตารางนี้คือลำดับที่แสดงบนหน้าบุคลากร หน้าแบบฟอร์ม และสมุดโทรศัพท์',
     columns: ['Title', 'Extension'],
     labels:  { Title: 'ชื่อหน่วยงาน', Extension: 'เบอร์ต่อ' },
@@ -20,7 +20,7 @@ export const SCHEMA = {
   },
 
   sections: {
-    title: 'แผนก', icon: '🗂', list: 'sections', sortField: 'SortOrder',
+    title: 'แผนก', icon: '🗂', list: 'sections', spName: 'Sections', sortField: 'SortOrder',
     hint: 'ทะเบียนแผนกย่อยภายในฝ่าย ใช้เป็นตัวเลือกในหน้าบุคลากร เพื่อไม่ให้พิมพ์ชื่อแผนกไม่ตรงกัน',
     columns: ['Title', 'Department'],
     labels: { Title: 'ชื่อแผนก', Department: 'อยู่ใต้ฝ่าย' },
@@ -33,7 +33,7 @@ export const SCHEMA = {
   },
 
   projects: {
-    title: 'โครงการ', icon: '🏗', list: 'projects', sortField: 'SortOrder',
+    title: 'โครงการ', icon: '🏗', list: 'projects', spName: 'Projects', sortField: 'SortOrder',
     hint: 'ทะเบียนโครงการ ใช้เป็นตัวเลือกให้บุคลากรในฝ่ายที่ทำงานแบบแยกตามโครงการ',
     columns: ['ProjectCode', 'Title', 'Department', 'Status'],
     labels: { ProjectCode: 'รหัสโครงการ', Title: 'ชื่อโครงการ',
@@ -49,7 +49,7 @@ export const SCHEMA = {
   },
 
   directory: {
-    title: 'บุคลากร', icon: '👥', list: 'directory', sortField: 'SortOrder',
+    title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
     columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section', 'Project'],
     labels: { PhotoUrl: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
@@ -86,7 +86,7 @@ export const SCHEMA = {
   },
 
   formCatalog: {
-    title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', sortField: 'SortOrder',
+    title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', spName: 'FormCatalog', sortField: 'SortOrder',
     columns: ['Icon', 'FormCode', 'Title', 'Department', 'Badge'],
     labels: { Icon: 'ไอคอน', FormCode: 'รหัส', Title: 'ชื่อแบบฟอร์ม',
               Department: 'ฝ่าย', Badge: 'ป้ายกำกับ' },
@@ -107,7 +107,7 @@ export const SCHEMA = {
   },
 
   policies: {
-    title: 'นโยบายบริษัท', icon: '📕', list: 'policies', sortField: 'SortOrder',
+    title: 'นโยบายบริษัท', icon: '📕', list: 'policies', spName: 'Policies', sortField: 'SortOrder',
     columns: ['DocCode', 'Title', 'Revision', 'EffectiveDate'],
     labels: { DocCode: 'เลขที่', Title: 'ชื่อเอกสาร', Revision: 'ฉบับแก้ไข', EffectiveDate: 'ประกาศใช้' },
     fields: [
@@ -123,7 +123,7 @@ export const SCHEMA = {
   },
 
   documents: {
-    title: 'เอกสารและคู่มือ', icon: '📚', list: 'documents', sortField: 'SortOrder',
+    title: 'เอกสารและคู่มือ', icon: '📚', list: 'documents', spName: 'Documents', sortField: 'SortOrder',
     columns: ['Icon', 'Title', 'DocType', 'Department', 'LastUpdated'],
     labels: { Icon: 'ไอคอน', Title: 'ชื่อเอกสาร', DocType: 'ประเภท',
               Department: 'ฝ่าย', LastUpdated: 'อัปเดต' },
@@ -141,7 +141,7 @@ export const SCHEMA = {
   },
 
   news: {
-    title: 'ข่าวประกาศ', icon: '📢', list: 'news',
+    title: 'ข่าวประกาศ', icon: '📢', list: 'news', spName: 'News',
     columns: ['Title', 'PublishDate', 'IsPinned'],
     labels: { Title: 'หัวข้อ', PublishDate: 'วันที่', IsPinned: 'ปักหมุด' },
     fields: [
@@ -154,7 +154,7 @@ export const SCHEMA = {
   },
 
   announcements: {
-    title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements', sortField: 'SortOrder',
+    title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements', spName: 'Announcements', sortField: 'SortOrder',
     columns: ['Title', 'AnnounceType', 'Department', 'PublishDate'],
     labels: { Title: 'หัวข้อ', AnnounceType: 'รูปแบบ', Department: 'ฝ่าย', PublishDate: 'วันที่' },
     fields: [
@@ -172,7 +172,7 @@ export const SCHEMA = {
   },
 
   rooms: {
-    title: 'ห้องประชุม', icon: '📆', list: 'rooms', sortField: 'SortOrder',
+    title: 'ห้องประชุม', icon: '📆', list: 'rooms', spName: 'Rooms', sortField: 'SortOrder',
     columns: ['Title', 'Location', 'Capacity'],
     labels: { Title: 'ชื่อห้อง', Location: 'ที่ตั้ง', Capacity: 'ความจุ' },
     fields: [
@@ -187,7 +187,7 @@ export const SCHEMA = {
   },
 
   settings: {
-    title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings',
+    title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings', spName: 'Settings',
     columns: ['Title', 'Value', 'Description'],
     labels: { Title: 'ชื่อค่า', Value: 'ค่า', Description: 'ความหมาย' },
     fields: [

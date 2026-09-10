@@ -6,8 +6,12 @@
 export const CONFIG = {
   appName: 'Prime Power Group',
 
-  /** 'mock' = อ่านจาก data/mock ตอนพัฒนา | 'sharepoint' = ของจริง */
-  dataSource: 'mock',
+  /**
+   * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
+   * ถ้าตั้งเป็น mock จะมีป้ายสีส้มขึ้นบนแถบบนสุดและในหน้าจัดการข้อมูล
+   * อย่าลืมสลับกลับเป็น sharepoint ก่อนอัปขึ้นเซิร์ฟเวอร์
+   */
+  dataSource: 'sharepoint',
 
   /** ได้จากการจดทะเบียนแอปใน Entra ID — ค่าสองตัวนี้ไม่ใช่ความลับ */
   auth: {
