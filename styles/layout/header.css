@@ -20,3 +20,7 @@ nav a[aria-current="page"] { background: #e0edfa; border-color: var(--blue); col
   nav.open { display: flex; flex-direction: column; position: absolute; left: 0; right: 0;
     top: var(--header-h); background: var(--canvas); border-bottom: 1px solid var(--line); padding: var(--gap-sm); }
 }
+.mode-tag { background: var(--warn); color: #fff; font-size: 11px; font-weight: 600;
+  padding: 2px 9px; border-radius: 20px; margin-left: 10px; }
+.topbar button { color: #cfe0f2; font-size: 12.5px; margin-left: 12px; }
+.topbar button:hover { color: #fff; text-decoration: underline; }

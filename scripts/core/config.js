@@ -11,9 +11,20 @@ export const CONFIG = {
 
   /** ได้จากการจดทะเบียนแอปใน Entra ID — ค่าสองตัวนี้ไม่ใช่ความลับ */
   auth: {
-    clientId: '00000000-0000-0000-0000-000000000000',
-    tenantId: '00000000-0000-0000-0000-000000000000',
-    scopes: ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All', 'Calendars.Read.Shared'],
+    clientId: '4e75dabb-44b1-486f-bc4f-82ee14be22ea',
+    tenantId: '2ca2640f-6b35-45d1-930b-9b4ee11fb711',
+    /** ขอเท่าที่ใช้จริงตอนนี้ — เพิ่ม Calendars.Read.Shared ตอนทำหน้าห้องประชุมแบบดึงสด */
+    scopes: ['User.Read', 'Sites.ReadWrite.All'],
+    /**
+     * URL ที่เด้งกลับหลังล็อกอิน — คำนวณจากที่อยู่ปัจจุบัน จึงใช้ได้ทั้งบน GitHub Pages
+     * และบน localhost โดยไม่ต้องแก้โค้ด ค่าที่ได้จะลงท้ายด้วย / เสมอ
+     * ต้องลงทะเบียน URL แบบมี / ปิดท้ายไว้ใน Entra ID ให้ตรงกัน
+     */
+    get redirectUri() {
+      return typeof location === 'undefined'
+        ? ''
+        : location.origin + location.pathname.replace(/[^/]*$/, '');
+    },
   },
 
   sharepoint: {

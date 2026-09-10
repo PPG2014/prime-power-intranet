@@ -2,17 +2,38 @@
 import { startRouter } from './core/router.js';
 import { render, startRendering } from './core/render.js';
 import { setState } from './core/state.js';
-import { signIn } from './services/auth.js';
-import { $ } from './core/dom.js';
+import { currentUser, startLogin, signOut, ALLOWED_DOMAIN } from './services/auth.js';
+import { renderLogin, clearLogin } from './components/login-screen.js';
+import { CONFIG } from './core/config.js';
+import { esc, $ } from './core/dom.js';
 
-async function boot() {
-  try {
-    const user = await signIn();
-    setState({ user, isAdmin: user.isAdmin }, { silent: true });
-    $('#topbar-actions').innerHTML = `<span>👤 ${user.name}</span>`;
-  } catch (err) {
-    console.warn('ยังไม่ได้เข้าสู่ระบบ:', err.message);
-  }
+/** แสดงหน้าเข้าสู่ระบบ พร้อมข้อความผิดพลาดถ้ามี */
+function showLogin(error) {
+  renderLogin({
+    error,
+    onSignIn: async () => {
+      try {
+        const user = await startLogin();
+        if (user) enter(user);            // โหมดข้อมูลตัวอย่าง ไม่ต้องเด้งออกไป
+      } catch (err) {
+        showLogin(esc(err.message));
+      }
+    },
+  });
+}
+
+/** เข้าสู่หน้าเว็บหลักหลังยืนยันตัวตนแล้ว */
+function enter(user) {
+  clearLogin();
+  setState({ user, isAdmin: user.isAdmin }, { silent: true });
+
+  $('#topbar-actions').innerHTML = `
+    <span>👤 ${esc(user.name)}</span>
+    ${CONFIG.dataSource === 'mock'
+      ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>'
+      : '<button id="signout">ออกจากระบบ</button>'}`;
+  const out = $('#signout');
+  if (out) out.onclick = signOut;
 
   $('#burger').onclick = function () {
     const open = $('#nav').classList.toggle('open');
@@ -21,6 +42,20 @@ async function boot() {
 
   startRendering();
   startRouter(render);
+}
+
+async function boot() {
+  try {
+    const user = await currentUser();
+    if (user) enter(user);
+    else showLogin();
+  } catch (err) {
+    console.error(err);
+    const denied = /consent|permission|AADSTS65001/i.test(err.message);
+    showLogin(denied
+      ? `ยังไม่ได้รับอนุมัติสิทธิ์เข้าถึงข้อมูล — ต้องให้ผู้ดูแล Microsoft 365 อนุมัติสิทธิ์ให้ระบบก่อน`
+      : esc(err.message));
+  }
 }
 
 boot();

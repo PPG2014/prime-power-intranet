@@ -1,0 +1,83 @@
+/* หน้าเข้าสู่ระบบ — ซ่อนโครงเว็บปกติทั้งหมด */
+body.login-mode .topbar,
+body.login-mode header,
+body.login-mode footer { display: none; }
+body.login-mode { background: var(--navy); }
+
+.login-stage {
+  min-height: 100vh; display: grid; place-items: center; padding: 32px 16px;
+  position: relative; overflow: hidden;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #0a7bd4 0%, transparent 58%),
+    radial-gradient(900px 560px at 88% 108%, #00a94f 0%, transparent 55%),
+    linear-gradient(140deg, #001f45 0%, #00397a 42%, #006f8e 74%, #00854a 100%);
+}
+
+/* วงกลมเบลอสองวง ให้พื้นหลังไม่แบน */
+.login-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .38; pointer-events: none; }
+.orb-a { width: 460px; height: 460px; top: -140px; left: -110px; background: #00a94f; }
+.orb-b { width: 520px; height: 520px; bottom: -200px; right: -140px; background: #0a7bd4; }
+
+.login-card {
+  position: relative; width: 100%; max-width: 460px; background: #fff;
+  border-radius: 22px; overflow: hidden; box-shadow: 0 30px 70px rgba(0, 12, 30, .42);
+  animation: rise .4s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+.login-banner {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 55%, var(--green) 145%);
+  color: #fff; padding: 34px 32px 30px; text-align: center;
+}
+.login-logo { background: #fff; border-radius: 12px; padding: 12px 18px; display: inline-block;
+  margin-bottom: 20px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+.login-logo img { height: 34px; width: auto; }
+.login-banner h1 { color: #fff; font-size: 21px; font-weight: 700; line-height: 1.45; margin-bottom: 6px; }
+.login-banner p { color: #bcd8f2; font-size: 13.5px; margin: 0; }
+
+.login-body { padding: 30px 32px 26px; }
+.login-body h2 { font-size: 22px; text-align: center; letter-spacing: .01em; }
+.login-sub { text-align: center; color: var(--muted); font-size: 13.5px; margin: 6px 0 24px; }
+
+.ms-button {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 15px 20px; border-radius: 12px; font-size: 15px; font-weight: 600; color: #fff;
+  background: linear-gradient(120deg, var(--navy), var(--blue) 55%, var(--green));
+  background-size: 220% 100%; background-position: 0 0;
+  box-shadow: 0 8px 22px rgba(0, 57, 122, .30); transition: .3s;
+}
+.ms-button:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 57, 122, .38); }
+.ms-button:disabled { opacity: .75; cursor: default; }
+.ms-button svg { background: #fff; border-radius: 4px; padding: 3px; box-sizing: content-box; }
+
+.spinner { width: 17px; height: 17px; border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.login-note { display: flex; gap: 12px; margin-top: 22px; padding: 15px 16px;
+  background: #eff7f2; border: 1px solid #cbe6d8; border-left: 4px solid var(--green);
+  border-radius: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+.login-note b { display: block; color: var(--green-dark); font-size: 13.5px; margin-bottom: 3px; }
+.note-icon { font-size: 15px; line-height: 1.4; }
+
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0 14px;
+  color: var(--dim); font-size: 11.5px; }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.login-fine { font-size: 11.5px; color: var(--dim); line-height: 1.75; text-align: center; margin: 0; }
+
+.login-error { background: #fdf3f2; border: 1px solid #f0c9c5; color: var(--danger);
+  border-radius: 10px; padding: 13px 16px; font-size: 13px; line-height: 1.7; margin-bottom: 18px; }
+
+.login-foot { padding: 16px 32px; border-top: 1px solid var(--line-soft); background: #fafbfc;
+  text-align: center; font-size: 11.5px; color: var(--dim); }
+.mode-pill { background: var(--warn); color: #fff; font-weight: 600; padding: 2px 9px;
+  border-radius: 20px; margin-left: 8px; }
+
+@media (max-width: 480px) {
+  .login-banner { padding: 28px 22px 24px; }
+  .login-banner h1 { font-size: 18px; }
+  .login-body { padding: 26px 22px 22px; }
+  .ms-button { font-size: 14px; padding: 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .login-card { animation: none; } }
