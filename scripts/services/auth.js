@@ -7,21 +7,28 @@
  */
 import { CONFIG } from '../core/config.js';
 
-const MSAL_CDN = 'https://alcdn.msauth.net/browser/3.28.1/js/msal-browser.min.js';
+/**
+ * ไฟล์ MSAL เก็บไว้ในโปรเจกต์เอง ไม่ดึงจาก CDN
+ * เพราะเครือข่ายองค์กรหลายแห่งบล็อก CDN ภายนอก และเพื่อให้เวอร์ชันนิ่ง
+ * อัปเดตด้วย: npm pack @azure/msal-browser แล้วคัดลอก lib/msal-browser.min.js มาทับ
+ */
+const MSAL_SRC = 'assets/vendor/msal-browser.min.js';
 
 let msal = null;
 let account = null;
 
-/** โหลด MSAL จาก CDN เมื่อถึงเวลาใช้จริงเท่านั้น */
+/** โหลด MSAL เมื่อถึงเวลาใช้จริงเท่านั้น */
 async function loadMsal() {
   if (window.msal) return window.msal;
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = MSAL_CDN;
+    s.src = MSAL_SRC;
     s.onload = resolve;
-    s.onerror = () => reject(new Error('โหลดไลบรารีเข้าสู่ระบบไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ต'));
+    s.onerror = () => reject(new Error(
+      'โหลดไลบรารีเข้าสู่ระบบไม่สำเร็จ — ตรวจว่าไฟล์ assets/vendor/msal-browser.min.js อัปโหลดขึ้นเซิร์ฟเวอร์แล้ว'));
     document.head.appendChild(s);
   });
+  if (!window.msal) throw new Error('ไลบรารีเข้าสู่ระบบโหลดแล้วแต่เรียกใช้ไม่ได้');
   return window.msal;
 }
 
