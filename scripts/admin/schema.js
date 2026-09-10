@@ -8,28 +8,55 @@
  */
 export const SCHEMA = {
   departments: {
-    title: 'หน่วยงานและเบอร์ต่อ', icon: '📞', list: 'departments',
-    columns: ['Title', 'Extension', 'SortOrder'],
-    labels:  { Title: 'ชื่อหน่วยงาน', Extension: 'เบอร์ต่อ', SortOrder: 'ลำดับ' },
+    title: 'หน่วยงานและเบอร์ต่อ', icon: '📞', list: 'departments', sortField: 'SortOrder',
+    hint: 'ลำดับในตารางนี้คือลำดับที่แสดงบนหน้าบุคลากร หน้าแบบฟอร์ม และสมุดโทรศัพท์',
+    columns: ['Title', 'Extension'],
+    labels:  { Title: 'ชื่อหน่วยงาน', Extension: 'เบอร์ต่อ' },
     fields: [
       { key: 'Title', label: 'ชื่อหน่วยงาน', type: 'text', required: true },
       { key: 'Extension', label: 'เบอร์ต่อ', type: 'text', help: 'เว้นว่างได้หากยังไม่มีเบอร์' },
-      { key: 'SortOrder', label: 'ลำดับการแสดงผล', type: 'number' },
+      { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
+    ],
+  },
+
+  sections: {
+    title: 'แผนก', icon: '🗂', list: 'sections', sortField: 'SortOrder',
+    hint: 'ทะเบียนแผนกย่อยภายในฝ่าย ใช้เป็นตัวเลือกในหน้าบุคลากร เพื่อไม่ให้พิมพ์ชื่อแผนกไม่ตรงกัน',
+    columns: ['Title', 'Department'],
+    labels: { Title: 'ชื่อแผนก', Department: 'อยู่ใต้ฝ่าย' },
+    fields: [
+      { key: 'Title', label: 'ชื่อแผนก', type: 'text', required: true,
+        help: 'เช่น แผนกออกแบบระบบไฟฟ้า' },
+      { key: 'Department', label: 'อยู่ใต้ฝ่าย', type: 'lookup', from: 'departments' },
       { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
     ],
   },
 
   directory: {
-    title: 'บุคลากร', icon: '👥', list: 'directory',
-    columns: ['Title', 'Nickname', 'Position', 'Department', 'Extension'],
-    labels: { Title: 'ชื่อ-สกุล', Nickname: 'ชื่อเล่น', Position: 'ตำแหน่ง',
-              Department: 'ฝ่าย', Extension: 'เบอร์ต่อ' },
+    title: 'บุคลากร', icon: '👥', list: 'directory', sortField: 'SortOrder',
+    hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
+    columns: ['Title', 'Position', 'Department', 'Section', 'Level'],
+    labels: { Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง', Department: 'ฝ่าย',
+              Section: 'แผนก', Level: 'ระดับ' },
     fields: [
       { key: 'Title', label: 'ชื่อ-สกุล (ไทย)', type: 'text', required: true },
       { key: 'Nickname', label: 'ชื่อเล่น', type: 'text' },
       { key: 'NameEN', label: 'ชื่อ-สกุล (อังกฤษ)', type: 'text' },
       { key: 'Position', label: 'ตำแหน่ง', type: 'text' },
       { key: 'Department', label: 'ฝ่าย', type: 'lookup', from: 'departments' },
+      { key: 'Section', label: 'แผนก', type: 'lookup', from: 'sections',
+        dependsOn: 'Department', matchField: 'Department', allowEmpty: true,
+        emptyHint: '— ฝ่ายนี้ยังไม่มีแผนกย่อย —',
+        help: 'แสดงเฉพาะแผนกที่อยู่ใต้ฝ่ายที่เลือกไว้ · เพิ่มแผนกใหม่ได้ที่เมนู 🗂 แผนก' },
+      { key: 'Oversees', label: 'ดูแลฝ่าย (เลือกได้หลายฝ่าย)', type: 'multilookup', from: 'departments',
+        help: 'ใช้กับผู้อำนวยการที่ดูแลมากกว่าหนึ่งฝ่าย ระบบจะแสดงบนสุดของทุกฝ่ายที่เลือก โดยเก็บข้อมูลไว้ที่เดียว' },
+      { key: 'Level', label: 'ระดับในผังฝ่าย', type: 'choice',
+        options: ['1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด',
+                  '2 — ผู้จัดการฝ่าย / รองผู้บริหาร',
+                  '3 — รองผู้จัดการฝ่าย',
+                  '4 — ผู้จัดการแผนก / เลขานุการ',
+                  '5 — บุคลากรในแผนก'],
+        help: 'ระดับ 1–4 แสดงกึ่งกลางเรียงจากบนลงล่าง ระดับ 5 เรียงเป็นตารางใต้ผัง' },
       { key: 'Email', label: 'อีเมล', type: 'text', help: 'name@primepower.co.th' },
       { key: 'Extension', label: 'เบอร์ต่อ', type: 'text' },
       { key: 'IsActive', label: 'ยังทำงานอยู่', type: 'yesno' },
@@ -37,7 +64,7 @@ export const SCHEMA = {
   },
 
   formCatalog: {
-    title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog',
+    title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', sortField: 'SortOrder',
     columns: ['Icon', 'FormCode', 'Title', 'Department', 'Badge'],
     labels: { Icon: 'ไอคอน', FormCode: 'รหัส', Title: 'ชื่อแบบฟอร์ม',
               Department: 'ฝ่าย', Badge: 'ป้ายกำกับ' },
@@ -58,7 +85,7 @@ export const SCHEMA = {
   },
 
   policies: {
-    title: 'นโยบายบริษัท', icon: '📕', list: 'policies',
+    title: 'นโยบายบริษัท', icon: '📕', list: 'policies', sortField: 'SortOrder',
     columns: ['DocCode', 'Title', 'Revision', 'EffectiveDate'],
     labels: { DocCode: 'เลขที่', Title: 'ชื่อเอกสาร', Revision: 'ฉบับแก้ไข', EffectiveDate: 'ประกาศใช้' },
     fields: [
@@ -74,7 +101,7 @@ export const SCHEMA = {
   },
 
   documents: {
-    title: 'เอกสารและคู่มือ', icon: '📚', list: 'documents',
+    title: 'เอกสารและคู่มือ', icon: '📚', list: 'documents', sortField: 'SortOrder',
     columns: ['Icon', 'Title', 'DocType', 'Department', 'LastUpdated'],
     labels: { Icon: 'ไอคอน', Title: 'ชื่อเอกสาร', DocType: 'ประเภท',
               Department: 'ฝ่าย', LastUpdated: 'อัปเดต' },
@@ -105,7 +132,7 @@ export const SCHEMA = {
   },
 
   announcements: {
-    title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements',
+    title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements', sortField: 'SortOrder',
     columns: ['Title', 'AnnounceType', 'Department', 'PublishDate'],
     labels: { Title: 'หัวข้อ', AnnounceType: 'รูปแบบ', Department: 'ฝ่าย', PublishDate: 'วันที่' },
     fields: [
@@ -123,7 +150,7 @@ export const SCHEMA = {
   },
 
   rooms: {
-    title: 'ห้องประชุม', icon: '📆', list: 'rooms',
+    title: 'ห้องประชุม', icon: '📆', list: 'rooms', sortField: 'SortOrder',
     columns: ['Title', 'Location', 'Capacity'],
     labels: { Title: 'ชื่อห้อง', Location: 'ที่ตั้ง', Capacity: 'ความจุ' },
     fields: [

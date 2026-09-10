@@ -88,3 +88,5 @@ body.login-mode { background: var(--navy); }
   .ms-button { font-size: 14px; padding: 14px 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .login-card { animation: none; } }
+.login-error b { color: #8f1d17; }
+.login-error br { line-height: 2.1; }

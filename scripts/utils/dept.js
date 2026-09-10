@@ -3,9 +3,28 @@ import { list } from '../services/data.js';
 
 let cached = null;
 export async function departments() {
-  if (!cached) cached = (await list('departments')).filter((d) => d.IsActive !== false);
+  if (!cached) {
+    cached = (await list('departments'))
+      .filter((d) => d.IsActive !== false)
+      .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+  }
   return cached;
 }
+
+let cachedSections = null;
+
+/** ทะเบียนแผนก เรียงตามลำดับที่ผู้ดูแลตั้งไว้ */
+export async function sections() {
+  if (!cachedSections) {
+    cachedSections = (await list('sections'))
+      .filter((s) => s.IsActive !== false)
+      .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+  }
+  return cachedSections;
+}
+
+/** เรียกหลังผู้ดูแลแก้ข้อมูล เพื่อให้หน้าอื่นเห็นลำดับใหม่ทันที */
+export function clearCaches() { cached = null; cachedSections = null; }
 
 export async function groupByDepartment(rows, key = 'Department') {
   const order = (await departments()).map((d) => d.Title);

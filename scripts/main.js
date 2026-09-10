@@ -16,7 +16,8 @@ function showLogin(error) {
         const user = await startLogin();
         if (user) enter(user);            // โหมดข้อมูลตัวอย่าง ไม่ต้องเด้งออกไป
       } catch (err) {
-        showLogin(esc(err.message));
+        console.error(err);
+        showLogin(explain(err));
       }
     },
   });
@@ -42,6 +43,34 @@ function enter(user) {
   startRouter(render);
 }
 
+/** แปลรหัสผิดพลาดของไมโครซอฟท์เป็นข้อความที่บอกได้ว่าต้องทำอะไรต่อ */
+function explain(err) {
+  const msg = String(err && (err.errorCode || err.message) || err);
+
+  if (/AADSTS50011|redirect_uri/i.test(msg))
+    return `URL ที่เด้งกลับไม่ตรงกับที่ลงทะเบียนไว้ใน Entra ID<br>
+            ต้องเพิ่ม <b>${location.origin + location.pathname.replace(/[^/]*$/, '')}</b>
+            ไว้ในหน้า Authentication แบบ Single-page application`;
+
+  if (/AADSTS65001|consent_required|interaction_required/i.test(msg))
+    return `ยังไม่ได้รับอนุมัติสิทธิ์เข้าถึงข้อมูล — ต้องให้ผู้ดูแล Microsoft 365 ขององค์กรอนุมัติสิทธิ์ให้ระบบก่อน
+            จึงจะใช้งานได้`;
+
+  if (/access_denied/i.test(msg))
+    return `การเข้าสู่ระบบถูกปฏิเสธ เป็นได้สองกรณี<br>
+            <b>1.</b> กดยกเลิกในหน้าขออนุญาตของไมโครซอฟท์ — ลองกดปุ่มด้านล่างอีกครั้งแล้วกดยอมรับ<br>
+            <b>2.</b> องค์กรกำหนดให้ผู้ดูแลเป็นผู้อนุมัติเท่านั้น — ต้องส่งเรื่องให้ฝ่ายไอที`;
+
+  if (/AADSTS50020|AADSTS50105|user_not_in/i.test(msg))
+    return `บัญชีนี้ไม่มีสิทธิ์เข้าใช้ระบบ ต้องใช้บัญชีอีเมลของบริษัทที่ลงท้ายด้วย @primepower.co.th`;
+
+  if (/msal-browser|โหลดไลบรารี/i.test(msg))
+    return `โหลดไลบรารีเข้าสู่ระบบไม่สำเร็จ — ตรวจว่าไฟล์ assets/vendor/msal-browser.min.js
+            อัปโหลดขึ้นเซิร์ฟเวอร์ครบแล้ว`;
+
+  return esc(msg);
+}
+
 async function boot() {
   try {
     const user = await currentUser();
@@ -49,10 +78,7 @@ async function boot() {
     else showLogin();
   } catch (err) {
     console.error(err);
-    const denied = /consent|permission|AADSTS65001/i.test(err.message);
-    showLogin(denied
-      ? `ยังไม่ได้รับอนุมัติสิทธิ์เข้าถึงข้อมูล — ต้องให้ผู้ดูแล Microsoft 365 อนุมัติสิทธิ์ให้ระบบก่อน`
-      : esc(err.message));
+    showLogin(explain(err));
   }
 }
 

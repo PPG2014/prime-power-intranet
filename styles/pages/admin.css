@@ -31,3 +31,11 @@
   .set-nav { position: static; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   .field-grid { grid-template-columns: 1fr; }
 }
+.col-no { width: 56px; text-align: center; color: var(--dim); font-size: 12.5px; }
+.move-group { display: inline-flex; margin-right: 6px; }
+.btn-move { border: 1px solid var(--line); background: var(--surface); width: 26px; height: 26px;
+  font-size: 13px; color: var(--navy); line-height: 1; }
+.btn-move:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.btn-move:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+.btn-move:hover:not(:disabled) { background: #e8f1fa; border-color: var(--blue-light); z-index: 1; position: relative; }
+.btn-move:disabled { color: #c8ced6; cursor: default; }
