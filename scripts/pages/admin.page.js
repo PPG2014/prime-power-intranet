@@ -1,10 +1,11 @@
 import { esc, $, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
-import { formBody, collect, bindDependents, bindPhoto } from '../admin/entity-form.js';
+import { formBody, collect, bindDependents, bindPhoto, bindFiles, toFiles } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
+import { thaiDateShort } from '../utils/format.js';
 import { showAnnouncements } from '../components/announcement-popup.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
@@ -68,6 +69,8 @@ export async function render(ctx) {
                 : `<td>${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
+                : c === 'Files' ? (toFiles(r[c]).length ? '📎 ' + toFiles(r[c]).length : '—')
+                : /Date|Updated/.test(c) ? (thaiDateShort(r[c]) || '—')
                 : (r[c] ?? '—'))}</td>`).join('')}
               <td class="col-actions">
                 ${s.sortField ? `<span class="move-group">
@@ -106,15 +109,31 @@ async function openEditor(key, record) {
   });
   bindDependents(s);
   bindPhoto(s);
+  bindFiles(s);
   $('#cancel').onclick = closeModal;
-  $('#save').onclick = async () => {
+  $('#save').onclick = async (ev) => {
     const data = collect(s);
     if (!data) return;
-    if (isNew) await create(s.list, data);
-    else await update(s.list, record.id, data);
-    clearCaches();
-    closeModal();
-    rerender();
+
+    const btn = ev.currentTarget;
+    const err = $('#form-error');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'กำลังบันทึก…';
+
+    try {
+      if (isNew) await create(s.list, data);
+      else await update(s.list, record.id, data);
+      clearCaches();
+      closeModal();
+      rerender();
+    } catch (e) {
+      console.error(e);
+      err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(e.message)}`;
+      err.hidden = false;
+      btn.disabled = false;
+      btn.textContent = label;
+    }
   };
 }
 
@@ -146,8 +165,13 @@ export function mount(ctx) {
     const r = rows.find((x) => String(x.id) === String(id));
     if (!r) return;
     if (!confirm(`ต้องการลบ "${r.Title}" ออกจาก${s.title} ใช่หรือไม่`)) return;
-    await remove(s.list, id);
-    clearCaches();
-    rerender();
+    try {
+      await remove(s.list, id);
+      clearCaches();
+      rerender();
+    } catch (e) {
+      console.error(e);
+      alert('ลบไม่สำเร็จ — ' + e.message);
+    }
   });
 }

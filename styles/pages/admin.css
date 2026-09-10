@@ -69,3 +69,13 @@
   border-radius: var(--radius); padding: 14px 18px; margin-bottom: var(--gap);
   font-size: 13px; color: #8a5a00; line-height: 1.75; }
 .mock-warning b { display: block; font-size: 14px; margin-bottom: 3px; }
+.file-field { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.file-list { width: 100%; }
+.file-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); margin-bottom: 6px;
+  background: var(--surface); }
+.file-icon { font-size: 15px; }
+.file-name { flex: 1; min-width: 0; font-size: 13.5px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.file-meta { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.file-empty { font-size: 12.5px; color: var(--dim); padding: 8px 0; }

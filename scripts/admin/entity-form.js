@@ -3,12 +3,30 @@ import { esc, $ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { CONFIG } from '../core/config.js';
-import { uploadPhoto, kb } from '../services/photos.js';
+import { uploadPhoto, uploadFile, kb, fileSize, fileKind } from '../services/photos.js';
 
 /** รูปที่เลือกไว้ในฟอร์มที่เปิดอยู่ เก็บเป็น data URL */
 let draftPhoto = '';
+/** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
+let draftFiles = [];
 
 /** ค่าหลายรายการอาจมาเป็นอาร์เรย์ (จาก SharePoint) หรือสตริงคั่นจุลภาค (จากข้อมูลตัวอย่าง) */
+/** ค่าจาก SharePoint มาเป็น ISO ส่วนช่อง input ต้องการ YYYY-MM-DD */
+export const toDateInput = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** ไฟล์แนบเก็บเป็น JSON ในคอลัมน์ข้อความ แปลงกลับให้ปลอดภัยแม้ข้อมูลเสีย */
+export const toFiles = (v) => {
+  if (Array.isArray(v)) return v;
+  try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+};
+
 export const toArray = (v) =>
   Array.isArray(v) ? v : String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
 
@@ -80,7 +98,17 @@ export async function formBody(schema, record = {}) {
     const help = f.help ? `<div class="field-help">${esc(f.help)}</div>` : '';
     let input;
 
-    if (f.type === 'photo') {
+    if (f.type === 'files') {
+      draftFiles = toFiles(v);
+      input = `<div class="file-field">
+        <div class="file-list" id="${id}_list"></div>
+        <label class="btn-mini upload-btn" for="${id}_input">+ แนบไฟล์</label>
+        <input type="file" id="${id}_input" multiple hidden
+          accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.dwg">
+        <div class="photo-status" id="${id}_status"></div>
+      </div>
+      <input type="hidden" id="${id}">`;
+    } else if (f.type === 'photo') {
       draftPhoto = v || '';
       input = `<div class="photo-field">
         <div class="photo-preview" id="${id}_prev">${v
@@ -108,6 +136,8 @@ export async function formBody(schema, record = {}) {
       </div>`;
     } else if (f.type === 'textarea') {
       input = `<textarea id="${id}" rows="4">${esc(v)}</textarea>`;
+    } else if (f.type === 'date') {
+      input = `<input id="${id}" type="date" value="${esc(toDateInput(v))}">`;
     } else if (f.type === 'number') {
       input = `<input id="${id}" type="number" value="${esc(v)}">`;
     } else if (f.type === 'yesno') {
@@ -135,14 +165,22 @@ export function collect(schema) {
     const el = $('#f_' + f.key);
     if (!el) continue;
     if (f.type === 'photo') { out[f.key] = draftPhoto; continue; }
+    if (f.type === 'files') { out[f.key] = JSON.stringify(draftFiles); continue; }
     if (f.type === 'multilookup') {
       out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value);
       continue;
     }
     out[f.key] = f.type === 'yesno' ? el.checked
                : f.type === 'number' ? (+el.value || 0)
+               : f.type === 'date' ? (el.value ? new Date(el.value + 'T00:00:00').toISOString() : null)
                : el.value.trim();
   }
+  // เติมชนิดและขนาดไฟล์จากไฟล์แนบไฟล์แรก เฉพาะช่องที่ผู้ใช้ยังไม่ได้กรอกเอง
+  if (schema.fields.some((f) => f.type === 'files') && draftFiles.length) {
+    if ('FileFormat' in out && !out.FileFormat) out.FileFormat = draftFiles[0].kind;
+    if ('FileSize' in out && !out.FileSize)     out.FileSize   = draftFiles[0].sizeText;
+  }
+
   const err = $('#form-error');
   const missing = schema.fields.find((f) => f.required && !String(out[f.key] || '').trim());
   if (missing) {
@@ -186,7 +224,7 @@ export function bindPhoto(schema) {
       // ไม่จำกัดขนาดไฟล์ต้นทาง เพราะระบบย่อให้เองอยู่แล้ว
       setStatus('กำลังย่อรูปและอัปโหลด…');
       try {
-        const url = await uploadPhoto(img, hintName());
+        const url = await uploadPhoto(img, hintName(), schema.spName || schema.list);
         draftPhoto = url;
         prev.innerHTML = `<img src="${url}" alt="">`;
         setStatus(`เรียบร้อย · จากไฟล์ ${kb(img.size)} ย่อเหลือประมาณ 60–80 KB`, 'ok');
@@ -201,6 +239,51 @@ export function bindPhoto(schema) {
       draftPhoto = '';
       prev.innerHTML = '<span>ยังไม่มีรูป</span>';
       file.value = '';
+    };
+  }
+}
+
+/** ผูกช่องไฟล์แนบ เรียกหลังฟอร์มขึ้นจอ */
+export function bindFiles(schema) {
+  for (const f of schema.fields) {
+    if (f.type !== 'files') continue;
+    const id = 'f_' + f.key;
+    const box = $('#' + id + '_list');
+    const input = $('#' + id + '_input');
+    const status = $('#' + id + '_status');
+    if (!box || !input) continue;
+
+    const draw = () => {
+      box.innerHTML = draftFiles.length
+        ? draftFiles.map((a, k) => `<div class="file-row">
+            <span class="file-icon">${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
+            <span class="file-name">${esc(a.name)}</span>
+            <span class="file-meta">${esc(a.kind)} · ${esc(a.sizeText || fileSize(a.size))}</span>
+            <button type="button" class="btn-mini danger" data-rm="${k}">ลบ</button>
+          </div>`).join('')
+        : '<div class="file-empty">ยังไม่มีไฟล์แนบ</div>';
+      box.querySelectorAll('[data-rm]').forEach((b) => {
+        b.onclick = () => { draftFiles.splice(+b.dataset.rm, 1); draw(); };
+      });
+    };
+    draw();
+
+    input.onchange = async (ev) => {
+      const picked = [...ev.target.files];
+      if (!picked.length) return;
+      status.className = 'photo-status';
+      status.textContent = `กำลังอัปโหลด ${picked.length} ไฟล์…`;
+
+      let ok = 0;
+      for (const file of picked) {
+        try { draftFiles.push(await uploadFile(file, schema.spName || schema.list)); ok++; draw(); }
+        catch (err) { status.className = 'photo-status bad'; status.textContent = err.message; }
+      }
+      if (ok === picked.length) {
+        status.className = 'photo-status ok';
+        status.textContent = `แนบแล้ว ${ok} ไฟล์`;
+      }
+      ev.target.value = '';
     };
   }
 }

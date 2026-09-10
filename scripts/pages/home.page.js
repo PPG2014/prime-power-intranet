@@ -1,7 +1,12 @@
-import { esc } from '../core/dom.js';
+import { esc, onClick } from '../core/dom.js';
+import { openModal } from '../components/modal.js';
+import { toFiles } from '../admin/entity-form.js';
 import { list } from '../services/data.js';
+import { thaiDateShort } from '../utils/format.js';
 
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
+
+let newsRows = [];
 
 export async function render(ctx) {
   const [forms, news, docs] = await Promise.all([
@@ -44,8 +49,9 @@ export async function render(ctx) {
           <div class="panel-head">📢 ข่าวประกาศ</div>
           <ul class="news-list">
             ${pinned.map((n) => `<li>
-              <span>${n.IsPinned ? '<b class="pin">ปักหมุด</b> ' : ''}${esc(n.Title)}</span>
-              <time>${esc(n.PublishDate)}</time></li>`).join('')}
+              <button class="linky" data-news="${n.id}">${
+                n.IsPinned ? '<b class="pin">ปักหมุด</b> ' : ''}${esc(n.Title)}</button>
+              <time>${esc(thaiDateShort(n.PublishDate))}</time></li>`).join('')}
           </ul>
         </div>
         <div class="panel">
@@ -54,10 +60,31 @@ export async function render(ctx) {
           <ul class="news-list">
             ${manuals.map((d) => `<li>
               <span>${d.Icon} ${esc(d.Title)}</span>
-              <time>${esc(d.LastUpdated)}</time></li>`).join('')}
+              <time>${esc(thaiDateShort(d.LastUpdated))}</time></li>`).join('')}
           </ul>
         </div>
       </div>
     </div>
   </section>`;
+}
+
+export function mount(ctx) {
+  onClick('news', (id) => {
+    const n = newsRows.find((r) => String(r.id) === String(id));
+    if (!n) return;
+    const files = toFiles(n.Files);
+    openModal({
+      title: n.Title, wide: true,
+      body: `
+        <div class="doc-meta"><span>${esc(thaiDateShort(n.PublishDate))}</span></div>
+        ${n.Content ? `<div class="doc-body">${esc(n.Content)}</div>`
+                    : '<div class="doc-empty">ยังไม่ได้ใส่เนื้อหาสำหรับข่าวนี้</div>'}
+        ${files.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
+          ${files.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
+            <span>${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
+            <b>${esc(a.name)}</b>
+            <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
+          </a>`).join('')}</div>` : ''}`,
+    });
+  });
 }

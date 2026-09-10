@@ -14,7 +14,8 @@ import { getToken } from './auth.js';
 const MAX_W = 600;
 const MAX_H = 800;      // สัดส่วน 3:4 แบบรูปติดบัตร
 const QUALITY = 0.82;
-const FOLDER = 'Photos';
+const PHOTO_ROOT = 'Photos';
+const ATTACH_ROOT = 'Attachments';
 
 /** ย่อและครอปรูปให้ได้สัดส่วน 3:4 คืนค่าเป็น Blob */
 export function resizeImage(file) {
@@ -60,7 +61,7 @@ function safeName(hint) {
  * อัปโหลดรูปเข้าคลังเอกสารของไซต์ คืนลิงก์ที่เอาไปใส่ใน <img> ได้
  * โหมดข้อมูลตัวอย่างจะคืนเป็น data URL แทน เพื่อให้ทดสอบได้โดยไม่ต้องต่อ SharePoint
  */
-export async function uploadPhoto(file, hint) {
+export async function uploadPhoto(file, hint, folder = '') {
   const blob = await resizeImage(file);
 
   if (CONFIG.dataSource === 'mock') {
@@ -72,7 +73,7 @@ export async function uploadPhoto(file, hint) {
   }
 
   const token = await getToken();
-  const path = `${FOLDER}/${safeName(hint)}`;
+  const path = [PHOTO_ROOT, folder, safeName(hint)].filter(Boolean).join('/');
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
     `/drive/root:/${encodeURIComponent(path)}:/content`,
@@ -91,3 +92,56 @@ export async function uploadPhoto(file, hint) {
 
 /** ขนาดไฟล์หลังย่อ ใช้แสดงให้ผู้ใช้เห็นว่าย่อได้เท่าไร */
 export const kb = (bytes) => Math.round(bytes / 1024) + ' KB';
+
+/** ขนาดไฟล์แบบอ่านง่าย เลือกหน่วยให้เอง */
+export const fileSize = (bytes) => {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0) + ' MB';
+};
+
+/** ชนิดไฟล์จากนามสกุล ใช้เติมคอลัมน์ชนิดไฟล์ให้อัตโนมัติ */
+export const fileKind = (name) => {
+  const ext = String(name).split('.').pop().toUpperCase();
+  return ext.length <= 5 ? ext : 'FILE';
+};
+
+const MAX_ATTACH = 15 * 1024 * 1024;
+
+/**
+ * อัปโหลดไฟล์แนบเข้าคลังเอกสารของไซต์ โดยไม่ย่อและไม่แปลงไฟล์
+ * คืนข้อมูลไฟล์ที่เก็บลงคอลัมน์ได้เลย
+ */
+export async function uploadFile(file, folder = '') {
+  if (file.size > MAX_ATTACH) {
+    throw new Error(`ไฟล์ ${file.name} ใหญ่ ${fileSize(file.size)} เกิน 15 MB`);
+  }
+
+  const meta = { name: file.name, size: file.size,
+                 sizeText: fileSize(file.size), kind: fileKind(file.name) };
+
+  if (CONFIG.dataSource === 'mock') {
+    return { ...meta, url: '#' };
+  }
+
+  const token = await getToken();
+  const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
+  const stem = safeName(file.name.replace(/\.[^.]+$/, '')).replace(/\.jpg$/, '');
+  const path = [ATTACH_ROOT, folder, `${stem}.${ext}`].filter(Boolean).join('/');
+
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
+    `/drive/root:/${encodeURIComponent(path)}:/content`,
+    { method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`,
+                 'Content-Type': file.type || 'application/octet-stream' },
+      body: file });
+
+  if (!res.ok) {
+    if (res.status === 403) throw new Error('ไม่มีสิทธิ์อัปโหลดไฟล์เข้าคลังเอกสารของไซต์');
+    throw new Error(`อัปโหลด ${file.name} ไม่สำเร็จ (${res.status})`);
+  }
+  const item = await res.json();
+  return { ...meta, url: item.webUrl };
+}

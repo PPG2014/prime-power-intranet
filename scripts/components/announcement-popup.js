@@ -8,6 +8,7 @@
 import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { esc, $, $$ } from '../core/dom.js';
+import { thaiDateShort } from '../utils/format.js';
 
 const SEEN_KEY = 'ppg-announce-seen';
 
@@ -48,7 +49,7 @@ function slideHtml(a, interval) {
              ${a.Department ? `<span class="pop-dept">${esc(a.Department)}</span>` : ''}
              <h3>${esc(a.Title)}</h3>
              ${a.Content ? `<p>${esc(a.Content)}</p>` : ''}
-             ${a.PublishDate ? `<div class="pop-date">ประกาศเมื่อ ${esc(a.PublishDate)}</div>` : ''}
+             ${a.PublishDate ? `<div class="pop-date">ประกาศเมื่อ ${esc(thaiDateShort(a.PublishDate))}</div>` : ''}
            </div>`}
 
       ${many && interval > 0

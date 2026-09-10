@@ -3,6 +3,8 @@ import { list } from '../services/data.js';
 import { groupByDepartment } from '../utils/dept.js';
 import { state, setState } from '../core/state.js';
 import { openModal } from '../components/modal.js';
+import { thaiDateShort } from '../utils/format.js';
+import { toFiles } from '../admin/entity-form.js';
 
 export const meta = { route: 'documents', title: 'เอกสาร/คู่มือ', nav: true, order: 6, adminOnly: false };
 
@@ -39,9 +41,9 @@ export async function render(ctx) {
             </tr></thead>
             <tbody>${g.rows.map((d) => `<tr>
               <td><button class="linky" data-doc="${d.id}">${d.Icon} ${esc(d.Title)}</button></td>
-              ${tab === 'คู่มือ' ? `<td>${esc(d.LastUpdated || '')}</td>`
+              ${tab === 'คู่มือ' ? `<td>${esc(thaiDateShort(d.LastUpdated))}</td>`
                 : `<td class="code">${esc(d.FileFormat || '')}</td><td>${esc(d.FileSize || '')}</td>`}
-              <td>${(d.Attachments || []).length ? '📎 ' + d.Attachments.length : '—'}</td>
+              <td>${toFiles(d.Files).length ? '📎 ' + toFiles(d.Files).length : '—'}</td>
               <td class="col-actions"><button class="btn-mini" data-doc="${d.id}">${
                 tab === 'คู่มือ' ? 'เปิดอ่าน' : 'เปิดดู'}</button></td>
             </tr>`).join('')}</tbody>
@@ -57,17 +59,21 @@ export function mount(ctx) {
   onClick('doc', (id) => {
     const d = rows.find((r) => String(r.id) === String(id));
     if (!d) return;
-    const files = d.Attachments || [];
+    const files = toFiles(d.Files);
     openModal({
       title: d.Title, wide: true,
       body: `
-        <div class="doc-meta">${[d.Department, d.FileFormat, d.FileSize, d.LastUpdated]
+        <div class="doc-meta">${[d.Department, d.FileFormat, d.FileSize, thaiDateShort(d.LastUpdated)]
           .filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
         ${d.Description ? `<div class="doc-body">${esc(d.Description)}</div>`
                         : `<div class="doc-empty">ยังไม่ได้ใส่คำอธิบายสำหรับเอกสารนี้</div>`}
         ${files.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
-          ${files.map((f) => `<a class="doc-file" href="${esc(f.url)}" target="_blank" rel="noopener">
-            📄 ${esc(f.name)}<span>เปิดไฟล์</span></a>`).join('')}</div>` : ''}`,
+          ${files.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
+            <span>${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
+            <b>${esc(a.name)}</b>
+            <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
+          </a>`).join('')}</div>` : ''}
+`,
     });
   });
 }

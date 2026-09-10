@@ -6,3 +6,11 @@ export const baht = (n) =>
 
 export const fileSize = (bytes) =>
   bytes < 1024 * 1024 ? (bytes / 1024).toFixed(0) + ' KB' : (bytes / 1024 / 1024).toFixed(2) + ' MB';
+
+/** วันที่จาก SharePoint เป็น ISO — แปลงเป็นรูปแบบไทยสำหรับแสดงผล */
+export const thaiDateShort = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return String(v);          // ข้อมูลเก่าที่กรอกเป็นข้อความ ปล่อยตามเดิม
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+};

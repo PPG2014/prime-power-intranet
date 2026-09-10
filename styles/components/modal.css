@@ -22,3 +22,6 @@
   border: 1px solid var(--line); border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 14px; }
 .doc-file:hover { border-color: var(--blue-light); background: #f4f9fd; }
 .doc-file span { margin-left: auto; font-size: 12px; color: var(--dim); }
+.doc-file b { flex: 1; min-width: 0; font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.doc-file-meta { margin-left: auto; font-size: 12px; color: var(--dim); white-space: nowrap; }
