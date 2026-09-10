@@ -64,6 +64,46 @@ async function titleMap(target) {
   return maps[target];
 }
 
+/* ---------- รายชื่อคอลัมน์ที่มีอยู่จริงใน List ---------- */
+
+const columnCache = {};
+
+/**
+ * ดึงรายชื่อคอลัมน์ของ List เพื่อคัดเฉพาะช่องที่มีอยู่จริงก่อนบันทึก
+ * ถ้าส่งช่องที่ไม่มี Graph จะปฏิเสธทั้งรายการด้วย invalidRequest
+ * ซึ่งทำให้บันทึกอะไรไม่ได้เลยแม้ช่องอื่นถูกต้องหมด
+ */
+async function columnsOf(name) {
+  if (!columnCache[name]) {
+    const data = await call(`/lists/${listId(name)}/columns?$select=name`);
+    columnCache[name] = new Set(data.value.map((c) => c.name));
+  }
+  return columnCache[name];
+}
+
+/** คัดช่องที่ List ไม่มี คืนทั้งข้อมูลที่ส่งได้และรายชื่อที่ถูกข้าม */
+async function keepKnown(name, fields) {
+  const cols = await columnsOf(name);
+  const out = {}, skipped = [];
+
+  // รอบแรกคัดเฉพาะช่องข้อมูลจริง ยังไม่แตะคำกำกับชนิดข้อมูล
+  for (const [k, v] of Object.entries(fields)) {
+    if (k.endsWith('@odata.type')) continue;
+    const base = k.replace(/LookupId$/, '');
+    if (cols.has(k) || cols.has(base)) out[k] = v;
+    else skipped.push(base);
+  }
+
+  // คำกำกับชนิดข้อมูลติดไปด้วยเฉพาะเมื่อช่องของมันถูกส่งจริง
+  for (const [k, v] of Object.entries(fields)) {
+    if (k.endsWith('@odata.type') && k.replace(/@odata\.type$/, '') in out) out[k] = v;
+  }
+
+  return { fields: out, skipped: [...new Set(skipped)] };
+}
+
+export function clearColumnCache() { for (const k of Object.keys(columnCache)) delete columnCache[k]; }
+
 export function clearLookupCache() { for (const k of Object.keys(maps)) delete maps[k]; }
 
 /** เติมชื่อให้คอลัมน์ Lookup หลังอ่านข้อมูลมา */
@@ -135,14 +175,17 @@ export async function get(name, id) {
 
 export async function create(name, item) {
   clearLookupCache();   // ข้อมูลอ้างอิงอาจเพิ่งถูกเพิ่มไปในรอบเดียวกัน
-  const fields = await resolveOut(name, item);
-  return call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields }) });
+  const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
+  const res = await call(`/lists/${listId(name)}/items`,
+    { method: 'POST', body: JSON.stringify({ fields }) });
+  return { ...res, skipped };
 }
 
 export async function update(name, id, item) {
-  const fields = await resolveOut(name, item);
-  return call(`/lists/${listId(name)}/items/${id}/fields`,
+  const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
+  const res = await call(`/lists/${listId(name)}/items/${id}/fields`,
     { method: 'PATCH', body: JSON.stringify(fields) });
+  return { ...res, skipped };
 }
 
 export const remove = (name, id) =>

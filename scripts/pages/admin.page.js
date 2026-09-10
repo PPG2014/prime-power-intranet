@@ -58,13 +58,13 @@ export async function render(ctx) {
           <div class="panel-head">${s.icon} ${esc(s.title)} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
             <button class="head-btn" data-new="1">+ เพิ่มรายการ</button></div>
-          <table>
+          <div class="table-scroll"><table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
               <th class="col-actions"></th></tr></thead>
             <tbody>${rows.length ? rows.map((r, i) => `<tr>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
-              ${s.columns.map((c) => c === 'PhotoUrl'
+              ${s.columns.map((c) => c === 'Photo'
                 ? `<td class="col-thumb">${r[c] ? `<img src="${r[c]}" alt="">` : '—'}</td>`
                 : `<td data-col="${c}">${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
@@ -84,7 +84,7 @@ export async function render(ctx) {
               </td></tr>`).join('')
               : `<tr><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ยังไม่มีข้อมูล กด “เพิ่มรายการ” เพื่อเริ่มต้น</div></td></tr>`}
             </tbody>
-          </table>
+          </table></div>
           <div class="panel-note">
             ${s.hint ? esc(s.hint) + '<br>' : ''}
             ${s.sortField ? 'กดปุ่ม ↑ ↓ เพื่อจัดลำดับใหม่ ผลจะเปลี่ยนทันทีทุกหน้าที่แสดงข้อมูลชุดนี้<br>' : ''}
@@ -122,11 +122,17 @@ async function openEditor(key, record) {
     btn.textContent = 'กำลังบันทึก…';
 
     try {
-      if (isNew) await create(s.list, data);
-      else await update(s.list, record.id, data);
+      const res = isNew ? await create(s.list, data)
+                        : await update(s.list, record.id, data);
       clearCaches();
       closeModal();
       rerender();
+      if (res && res.skipped && res.skipped.length) {
+        alert('บันทึกแล้ว แต่ข้ามข้อมูลบางช่องเพราะ SharePoint List "'
+          + (s.spName || s.list) + '" ยังไม่มีคอลัมน์เหล่านี้\n\n'
+          + res.skipped.join('\n')
+          + '\n\nแจ้งผู้ดูแล SharePoint ให้เพิ่มคอลัมน์ก่อน จึงจะเก็บข้อมูลส่วนนี้ได้');
+      }
     } catch (e) {
       console.error(e);
       err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(e.message)}`;

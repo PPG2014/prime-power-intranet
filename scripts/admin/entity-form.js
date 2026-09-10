@@ -203,6 +203,17 @@ export function collect(schema) {
  * เรียกหลังฟอร์มขึ้นจอแล้ว
  */
 /** ผูกปุ่มเลือกรูปและปุ่มลบรูป เรียกหลังฟอร์มขึ้นจอ */
+/**
+ * โฟลเดอร์ปลายทางของไฟล์ = ชื่อ List / ชื่อฝ่ายที่เลือกไว้ในฟอร์ม
+ * แยกตามฝ่ายเพื่อให้หาไฟล์ใน SharePoint ได้ง่ายเมื่อมีไฟล์จำนวนมาก
+ */
+function folderFor(schema) {
+  const root = schema.spName || schema.list;
+  const dept = $('#f_Department');
+  const name = dept && dept.value ? dept.value : 'ไม่ระบุฝ่าย';
+  return schema.fields.some((f) => f.key === 'Department') ? `${root}/${name}` : root;
+}
+
 export function bindPhoto(schema) {
   const hintName = () => ($('#f_Title') && $('#f_Title').value) || 'photo';
 
@@ -224,7 +235,7 @@ export function bindPhoto(schema) {
       // ไม่จำกัดขนาดไฟล์ต้นทาง เพราะระบบย่อให้เองอยู่แล้ว
       setStatus('กำลังย่อรูปและอัปโหลด…');
       try {
-        const url = await uploadPhoto(img, hintName(), schema.spName || schema.list);
+        const url = await uploadPhoto(img, hintName(), folderFor(schema));
         draftPhoto = url;
         prev.innerHTML = `<img src="${url}" alt="">`;
         setStatus(`เรียบร้อย · จากไฟล์ ${kb(img.size)} ย่อเหลือประมาณ 60–80 KB`, 'ok');
@@ -276,7 +287,7 @@ export function bindFiles(schema) {
 
       let ok = 0;
       for (const file of picked) {
-        try { draftFiles.push(await uploadFile(file, schema.spName || schema.list)); ok++; draw(); }
+        try { draftFiles.push(await uploadFile(file, folderFor(schema))); ok++; draw(); }
         catch (err) { status.className = 'photo-status bad'; status.textContent = err.message; }
       }
       if (ok === picked.length) {

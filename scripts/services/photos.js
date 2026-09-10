@@ -49,6 +49,10 @@ export function resizeImage(file) {
   });
 }
 
+/** ชื่อโฟลเดอร์ที่ SharePoint รับได้ ตัดอักขระต้องห้ามออก */
+export const safeFolder = (name) =>
+  String(name || '').replace(/[\\/:*?"<>|#%]/g, ' ').replace(/\s+/g, ' ').trim();
+
 /** ชื่อไฟล์ที่ปลอดภัย ไม่ซ้ำ และเดาไม่ได้จากชื่อคน */
 function safeName(hint) {
   const stamp = Date.now().toString(36);
@@ -73,7 +77,7 @@ export async function uploadPhoto(file, hint, folder = '') {
   }
 
   const token = await getToken();
-  const path = [PHOTO_ROOT, folder, safeName(hint)].filter(Boolean).join('/');
+  const path = [PHOTO_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), safeName(hint)].join('/');
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
     `/drive/root:/${encodeURIComponent(path)}:/content`,
@@ -128,7 +132,7 @@ export async function uploadFile(file, folder = '') {
   const token = await getToken();
   const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
   const stem = safeName(file.name.replace(/\.[^.]+$/, '')).replace(/\.jpg$/, '');
-  const path = [ATTACH_ROOT, folder, `${stem}.${ext}`].filter(Boolean).join('/');
+  const path = [ATTACH_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), `${stem}.${ext}`].join('/');
 
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +

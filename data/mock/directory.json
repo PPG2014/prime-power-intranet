@@ -8,13 +8,13 @@
   "Department": "ผู้บริหาร",
   "Email": "somchai.w@primepower.co.th",
   "Extension": "305",
-  "PhotoUrl": "",
   "SortOrder": 1,
   "IsActive": true,
-  "Level": "1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
+  "Level": "ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 2,
@@ -25,13 +25,13 @@
   "Department": "ผู้บริหาร",
   "Email": "preeya.i@primepower.co.th",
   "Extension": "308",
-  "PhotoUrl": "",
   "SortOrder": 2,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 3,
@@ -42,13 +42,13 @@
   "Department": "ผู้บริหาร",
   "Email": "thanet.b@primepower.co.th",
   "Extension": "304",
-  "PhotoUrl": "",
   "SortOrder": 3,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 4,
@@ -59,13 +59,13 @@
   "Department": "ผู้บริหาร",
   "Email": "siriporn.d@primepower.co.th",
   "Extension": "308",
-  "PhotoUrl": "",
   "SortOrder": 4,
   "IsActive": true,
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 5,
@@ -76,13 +76,13 @@
   "Department": "ฝ่ายประสานงานและอำนวยการ",
   "Email": "anucha.r@primepower.co.th",
   "Extension": "216",
-  "PhotoUrl": "",
   "SortOrder": 5,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 6,
@@ -93,13 +93,13 @@
   "Department": "ฝ่ายระบบบริหารคุณภาพ",
   "Email": "wannisa.t@primepower.co.th",
   "Extension": "202",
-  "PhotoUrl": "",
   "SortOrder": 6,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 7,
@@ -110,13 +110,13 @@
   "Department": "ฝ่ายขายและการตลาด",
   "Email": "maneerat.j@primepower.co.th",
   "Extension": "303",
-  "PhotoUrl": "",
   "SortOrder": 7,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 8,
@@ -127,13 +127,13 @@
   "Department": "ฝ่ายวิศวกรรมและพัฒนาโครงการ",
   "Email": "wichai.t@primepower.co.th",
   "Extension": "207",
-  "PhotoUrl": "",
   "SortOrder": 8,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 9,
@@ -144,13 +144,13 @@
   "Department": "ฝ่ายเขียนแบบ",
   "Email": "nattapon.j@primepower.co.th",
   "Extension": "203",
-  "PhotoUrl": "",
   "SortOrder": 9,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 10,
@@ -161,13 +161,13 @@
   "Department": "ฝ่ายจัดซื้อและคลังสินค้า",
   "Email": "kamonchanok.s@primepower.co.th",
   "Extension": "101",
-  "PhotoUrl": "",
   "SortOrder": 10,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 11,
@@ -178,13 +178,13 @@
   "Department": "ฝ่ายขออนุญาตและใบอนุญาต",
   "Email": "sutthipong.k@primepower.co.th",
   "Extension": "309",
-  "PhotoUrl": "",
   "SortOrder": 11,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 12,
@@ -195,13 +195,13 @@
   "Department": "ฝ่ายบริหารโครงการ",
   "Email": "thanakrit.s@primepower.co.th",
   "Extension": "217",
-  "PhotoUrl": "",
   "SortOrder": 12,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 13,
@@ -212,13 +212,13 @@
   "Department": "ฝ่ายควบคุมการเดินระบบและบำรุงรักษา",
   "Email": "kriangkrai.m@primepower.co.th",
   "Extension": "",
-  "PhotoUrl": "",
   "SortOrder": 13,
   "IsActive": true,
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 14,
@@ -229,13 +229,13 @@
   "Department": "ฝ่ายความปลอดภัย อาชีวอนามัยและสิ่งแวดล้อม",
   "Email": "prasert.y@primepower.co.th",
   "Extension": "202",
-  "PhotoUrl": "",
   "SortOrder": 14,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 15,
@@ -246,13 +246,13 @@
   "Department": "ฝ่ายบัญชีและการเงิน",
   "Email": "orawan.p@primepower.co.th",
   "Extension": "218",
-  "PhotoUrl": "",
   "SortOrder": 15,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 16,
@@ -263,13 +263,13 @@
   "Department": "ฝ่ายทรัพยากรบุคคล",
   "Email": "chanida.p@primepower.co.th",
   "Extension": "302",
-  "PhotoUrl": "",
   "SortOrder": 16,
   "IsActive": true,
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 17,
@@ -280,13 +280,13 @@
   "Department": "ฝ่ายประสานงานและอำนวยการ",
   "Email": "pimjai.s@primepower.co.th",
   "Extension": "216",
-  "PhotoUrl": "",
   "SortOrder": 17,
   "IsActive": true,
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "Section": "",
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 18,
@@ -298,12 +298,12 @@
   "Section": "",
   "Email": "user18@primepower.co.th",
   "Extension": 207,
-  "PhotoUrl": "",
-  "Level": "2 — ผู้จัดการฝ่าย / รองผู้บริหาร",
+  "Level": "ผู้จัดการฝ่าย / รองผู้บริหาร",
   "SortOrder": 18,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 19,
@@ -315,12 +315,12 @@
   "Section": "",
   "Email": "user19@primepower.co.th",
   "Extension": 208,
-  "PhotoUrl": "",
-  "Level": "3 — รองผู้จัดการฝ่าย",
+  "Level": "รองผู้จัดการฝ่าย",
   "SortOrder": 19,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 20,
@@ -332,12 +332,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user20@primepower.co.th",
   "Extension": 211,
-  "PhotoUrl": "",
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 20,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 21,
@@ -349,12 +349,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user21@primepower.co.th",
   "Extension": 212,
-  "PhotoUrl": "",
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 21,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 22,
@@ -366,12 +366,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user22@primepower.co.th",
   "Extension": 213,
-  "PhotoUrl": "",
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 22,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 23,
@@ -383,12 +383,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user23@primepower.co.th",
   "Extension": 214,
-  "PhotoUrl": "",
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 23,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 24,
@@ -400,12 +400,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user24@primepower.co.th",
   "Extension": 215,
-  "PhotoUrl": "",
-  "Level": "4 — ผู้จัดการแผนก / เลขานุการ",
+  "Level": "ผู้จัดการแผนก / เลขานุการ",
   "SortOrder": 24,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 25,
@@ -417,12 +417,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user25@primepower.co.th",
   "Extension": 300,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 25,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 26,
@@ -434,12 +434,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user26@primepower.co.th",
   "Extension": 301,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 26,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 27,
@@ -451,12 +451,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user27@primepower.co.th",
   "Extension": 302,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 27,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 28,
@@ -468,12 +468,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user28@primepower.co.th",
   "Extension": 303,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 28,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 29,
@@ -485,12 +485,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user29@primepower.co.th",
   "Extension": 304,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 29,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 30,
@@ -502,12 +502,12 @@
   "Section": "แผนกออกแบบระบบไฟฟ้า",
   "Email": "user30@primepower.co.th",
   "Extension": 305,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 30,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 31,
@@ -519,12 +519,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user31@primepower.co.th",
   "Extension": 310,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 31,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 32,
@@ -536,12 +536,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user32@primepower.co.th",
   "Extension": 311,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 32,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 33,
@@ -553,12 +553,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user33@primepower.co.th",
   "Extension": 312,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 33,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 34,
@@ -570,12 +570,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user34@primepower.co.th",
   "Extension": 313,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 34,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 35,
@@ -587,12 +587,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user35@primepower.co.th",
   "Extension": 314,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 35,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 36,
@@ -604,12 +604,12 @@
   "Section": "แผนกประมาณราคา",
   "Email": "user36@primepower.co.th",
   "Extension": 315,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 36,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 37,
@@ -621,12 +621,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user37@primepower.co.th",
   "Extension": 320,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 37,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 38,
@@ -638,12 +638,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user38@primepower.co.th",
   "Extension": 321,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 38,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 39,
@@ -655,12 +655,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user39@primepower.co.th",
   "Extension": 322,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 39,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 40,
@@ -672,12 +672,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user40@primepower.co.th",
   "Extension": 323,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 40,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 41,
@@ -689,12 +689,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user41@primepower.co.th",
   "Extension": 324,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 41,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 42,
@@ -706,12 +706,12 @@
   "Section": "แผนกควบคุมงานก่อสร้าง",
   "Email": "user42@primepower.co.th",
   "Extension": 325,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 42,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 43,
@@ -723,12 +723,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user43@primepower.co.th",
   "Extension": 330,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 43,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 44,
@@ -740,12 +740,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user44@primepower.co.th",
   "Extension": 331,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 44,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 45,
@@ -757,12 +757,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user45@primepower.co.th",
   "Extension": 332,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 45,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 46,
@@ -774,12 +774,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user46@primepower.co.th",
   "Extension": 333,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 46,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 47,
@@ -791,12 +791,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user47@primepower.co.th",
   "Extension": 334,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 47,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 48,
@@ -808,12 +808,12 @@
   "Section": "แผนกทดสอบและตรวจรับ",
   "Email": "user48@primepower.co.th",
   "Extension": 335,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 48,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 49,
@@ -825,12 +825,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user49@primepower.co.th",
   "Extension": 340,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 49,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 50,
@@ -842,12 +842,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user50@primepower.co.th",
   "Extension": 341,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 50,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 51,
@@ -859,12 +859,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user51@primepower.co.th",
   "Extension": 342,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 51,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 52,
@@ -876,12 +876,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user52@primepower.co.th",
   "Extension": 343,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 52,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 53,
@@ -893,12 +893,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user53@primepower.co.th",
   "Extension": 344,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 53,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 54,
@@ -910,12 +910,12 @@
   "Section": "แผนกพัฒนาโครงการ",
   "Email": "user54@primepower.co.th",
   "Extension": 345,
-  "PhotoUrl": "",
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 54,
   "IsActive": true,
   "Oversees": [],
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 55,
@@ -927,16 +927,16 @@
   "Section": "",
   "Email": "werachai.a@primepower.co.th",
   "Extension": "310",
-  "PhotoUrl": "",
   "Oversees": [
    "ฝ่ายวิศวกรรมและพัฒนาโครงการ",
    "ฝ่ายเขียนแบบ",
    "ฝ่ายควบคุมการเดินระบบและบำรุงรักษา"
   ],
-  "Level": "1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
+  "Level": "ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด",
   "SortOrder": 55,
   "IsActive": true,
-  "Project": ""
+  "Project": "",
+  "Photo": ""
  },
  {
   "id": 56,
@@ -952,11 +952,11 @@
   ],
   "Email": "pj56@primepower.co.th",
   "Extension": "400",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 56,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 57,
@@ -972,11 +972,11 @@
   ],
   "Email": "pj57@primepower.co.th",
   "Extension": "401",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 57,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 58,
@@ -991,11 +991,11 @@
   ],
   "Email": "pj58@primepower.co.th",
   "Extension": "402",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 58,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 59,
@@ -1010,11 +1010,11 @@
   ],
   "Email": "pj59@primepower.co.th",
   "Extension": "403",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 59,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 60,
@@ -1029,11 +1029,11 @@
   ],
   "Email": "pj60@primepower.co.th",
   "Extension": "410",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 60,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 61,
@@ -1048,11 +1048,11 @@
   ],
   "Email": "pj61@primepower.co.th",
   "Extension": "411",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 61,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 62,
@@ -1067,11 +1067,11 @@
   ],
   "Email": "pj62@primepower.co.th",
   "Extension": "412",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 62,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 63,
@@ -1086,11 +1086,11 @@
   ],
   "Email": "pj63@primepower.co.th",
   "Extension": "413",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 63,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 64,
@@ -1105,11 +1105,11 @@
   ],
   "Email": "pj64@primepower.co.th",
   "Extension": "420",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 64,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 65,
@@ -1124,11 +1124,11 @@
   ],
   "Email": "pj65@primepower.co.th",
   "Extension": "421",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 65,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 66,
@@ -1143,11 +1143,11 @@
   ],
   "Email": "pj66@primepower.co.th",
   "Extension": "422",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 66,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 67,
@@ -1162,11 +1162,11 @@
   ],
   "Email": "pj67@primepower.co.th",
   "Extension": "423",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 67,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 68,
@@ -1181,11 +1181,11 @@
   ],
   "Email": "pj68@primepower.co.th",
   "Extension": "430",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 68,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 69,
@@ -1200,11 +1200,11 @@
   ],
   "Email": "pj69@primepower.co.th",
   "Extension": "431",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 69,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 70,
@@ -1219,11 +1219,11 @@
   ],
   "Email": "pj70@primepower.co.th",
   "Extension": "432",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 70,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  },
  {
   "id": 71,
@@ -1238,10 +1238,10 @@
   ],
   "Email": "pj71@primepower.co.th",
   "Extension": "433",
-  "PhotoUrl": "",
   "Oversees": [],
-  "Level": "5 — บุคลากรในแผนก",
+  "Level": "บุคลากรในแผนก",
   "SortOrder": 71,
-  "IsActive": true
+  "IsActive": true,
+  "Photo": ""
  }
 ]

@@ -6,34 +6,49 @@ import { state, setState } from '../core/state.js';
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 8, adminOnly: false };
 
-/** ระดับในผังฝ่าย — เลข 1 อยู่บนสุด */
+/**
+ * ระดับในผังฝ่าย เรียงจากบนลงล่าง
+ * ต้องตรงกับตัวเลือกของคอลัมน์ Level ใน SharePoint
+ */
 export const LEVELS = [
-  '1 — ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด',
-  '2 — ผู้จัดการฝ่าย / รองผู้บริหาร',
-  '3 — รองผู้จัดการฝ่าย',
-  '4 — ผู้จัดการแผนก / เลขานุการ',
-  '5 — บุคลากรในแผนก',
+  'ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด',
+  'ผู้จัดการฝ่าย / รองผู้บริหาร',
+  'รองผู้จัดการฝ่าย',
+  'ผู้จัดการแผนก / เลขานุการ',
+  'บุคลากรในแผนก',
 ];
 const TOP_TIERS = [1, 2, 3, 4];   // ชั้นที่จัดกึ่งกลาง
 const STAFF_TIER = 5;             // ชั้นที่เรียงเป็นตาราง
 
-/** ถ้ายังไม่ได้ระบุระดับ ให้เดาจากชื่อตำแหน่งไปก่อน */
+/**
+ * หาชั้นของคนหนึ่งคน
+ * รับได้ทั้งค่าที่ขึ้นต้นด้วยเลข (ข้อมูลเก่า) และค่าที่เป็นข้อความล้วน
+ * ถ้ายังไม่ได้ระบุ จะเดาจากชื่อตำแหน่งให้ก่อน
+ */
 function levelOf(p) {
-  const n = parseInt(p.Level, 10);
+  const raw = String(p.Level || '').trim();
+
+  const n = parseInt(raw, 10);
   if (n >= 1 && n <= LEVELS.length) return n;
 
+  if (raw) {
+    const text = raw.replace(/^\d+\s*[—–-]\s*/, '');
+    const i = LEVELS.findIndex((l) => l === text);
+    if (i >= 0) return i + 1;
+  }
+
   const pos = p.Position || '';
-  if (/^กรรมการผู้จัดการ|ผู้อำนวยการฝ่าย|^ผู้อำนวยการ/.test(pos)) return 1;
-  if (/^รองกรรมการผู้จัดการ|ผู้จัดการฝ่าย|หัวหน้าฝ่าย|ผู้จัดการโครงการ/.test(pos)) return 2;
+  if (/^กรรมการผู้จัดการ|^ประธาน|ผู้อำนวยการฝ่าย|^ผู้อำนวยการ/.test(pos)) return 1;
+  if (/^รองกรรมการผู้จัดการ|^รองประธาน|^รองผู้อำนวยการ|ผู้จัดการฝ่าย|หัวหน้าฝ่าย/.test(pos)) return 2;
   if (/รองผู้จัดการฝ่าย|รองหัวหน้าฝ่าย/.test(pos)) return 3;
-  if (/ผู้จัดการแผนก|หัวหน้าแผนก|หัวหน้างาน|เลขานุการ/.test(pos)) return 4;
+  if (/ผู้จัดการแผนก|หัวหน้าแผนก|หัวหน้างาน|เลขานุการ|ผู้จัดการโครงการ/.test(pos)) return 4;
   return STAFF_TIER;
 }
 
 const card = (p, cls = '') => `
   <article class="staff-card ${cls}">
-    <div class="staff-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+    <div class="staff-photo">${p.Photo
+      ? `<img src="${esc(p.Photo)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="staff-info">
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
@@ -55,8 +70,8 @@ const card = (p, cls = '') => `
 /** การ์ดย่อ ใช้กับชั้นที่มีหลายคนในแถวเดียว เช่นผู้จัดการแผนก 5 คน */
 const miniCard = (p) => `
   <article class="mini-card">
-    <div class="mini-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+    <div class="mini-photo">${p.Photo
+      ? `<img src="${esc(p.Photo)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="mini-name">${esc(p.Title)}</div>
     ${p.Nickname ? `<div class="mini-nick">(${esc(p.Nickname)})</div>` : ''}

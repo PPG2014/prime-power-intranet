@@ -16,13 +16,13 @@ export const create = async (name, item) => {
   const rows = await load(name);
   item.id = Math.max(0, ...rows.map((r) => +r.id || 0)) + 1;
   rows.push(item);
-  return item;
+  return { ...item, skipped: [] };
 };
 export const update = async (name, id, item) => {
   const rows = await load(name);
   const i = rows.findIndex((r) => String(r.id) === String(id));
   if (i > -1) rows[i] = { ...rows[i], ...item };
-  return rows[i];
+  return { ...rows[i], skipped: [] };
 };
 export const remove = async (name, id) => {
   const rows = await load(name);
