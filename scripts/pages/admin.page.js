@@ -16,7 +16,11 @@ let rows = [];
 export async function render(ctx) {
   if (!state.isAdmin) return `<section class="page"><div class="wrap">
     <h1 class="page-title">${esc(meta.title)}</h1>
-    <div class="panel"><div class="empty">หน้านี้เปิดให้เฉพาะผู้ดูแลระบบ</div></div></div></section>`;
+    <div class="panel"><div class="empty">
+      หน้านี้เปิดให้เฉพาะผู้ดูแลระบบ<br>
+      บัญชี <b>${esc(state.user?.email || '')}</b> ไม่อยู่ในรายชื่อผู้ดูแล<br>
+      <span class="dim">เพิ่มอีเมลได้ที่ SharePoint List ชื่อ Settings รายการ Admins</span>
+    </div></div></div></section>`;
 
   const key = state.adminSet || 'departments';
   const s = SCHEMA[key];
@@ -30,6 +34,12 @@ export async function render(ctx) {
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
       <p class="page-lead">เพิ่ม แก้ไข หรือลบข้อมูลทุกชุดที่แสดงบนเว็บ โดยไม่ต้องแก้ไขโค้ด</p>
+      ${state.adminUnconfigured ? `<div class="mock-warning">
+        <b>⚠ ยังไม่ได้กำหนดว่าใครเป็นผู้ดูแลระบบ</b>
+        ตอนนี้ทุกคนที่ล็อกอินเข้ามาแก้ข้อมูลได้ทั้งหมด
+        ไปที่ 🛟 ตั้งค่าระบบ แล้วเพิ่มรายการชื่อ <b>Admins</b>
+        ใส่อีเมลผู้ดูแลคั่นด้วยจุลภาค เช่น a@primepower.co.th, b@primepower.co.th
+      </div>` : ''}
       ${CONFIG.dataSource !== 'sharepoint' ? `<div class="mock-warning">
         <b>⚠ กำลังใช้ข้อมูลตัวอย่าง ไม่ใช่ข้อมูลจริงจาก SharePoint</b>
         สิ่งที่แก้ในหน้านี้จะหายเมื่อรีเฟรช และไม่ถูกบันทึกลง SharePoint

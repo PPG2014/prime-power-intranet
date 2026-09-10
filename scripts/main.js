@@ -6,6 +6,7 @@ import { currentUser, startLogin, signOut, ALLOWED_DOMAIN } from './services/aut
 import { renderLogin, clearLogin } from './components/login-screen.js';
 import { showAnnouncements } from './components/announcement-popup.js';
 import { CONFIG } from './core/config.js';
+import { resolveAdmin } from './utils/admin.js';
 import { esc, $ } from './core/dom.js';
 
 /** แสดงหน้าเข้าสู่ระบบ พร้อมข้อความผิดพลาดถ้ามี */
@@ -15,7 +16,7 @@ function showLogin(error) {
     onSignIn: async () => {
       try {
         const user = await startLogin();
-        if (user) enter(user);            // โหมดข้อมูลตัวอย่าง ไม่ต้องเด้งออกไป
+        if (user) await enter(user);      // โหมดข้อมูลตัวอย่าง ไม่ต้องเด้งออกไป
       } catch (err) {
         console.error(err);
         showLogin(explain(err));
@@ -25,12 +26,19 @@ function showLogin(error) {
 }
 
 /** เข้าสู่หน้าเว็บหลักหลังยืนยันตัวตนแล้ว */
-function enter(user) {
+async function enter(user) {
   clearLogin();
-  setState({ user, isAdmin: user.isAdmin }, { silent: true });
+
+  // โหมดข้อมูลตัวอย่างให้เป็นผู้ดูแลเสมอ จะได้ทดสอบหน้าจัดการข้อมูลได้
+  const role = CONFIG.dataSource === 'mock'
+    ? { isAdmin: true, unconfigured: false }
+    : await resolveAdmin(user.email);
+
+  setState({ user, isAdmin: role.isAdmin, adminUnconfigured: role.unconfigured }, { silent: true });
 
   $('#topbar-actions').innerHTML = `
     ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}
+    ${role.unconfigured ? '<span class="mode-tag">ยังไม่ได้กำหนดผู้ดูแลระบบ</span>' : ''}
     <span class="who">👤 ${esc(user.name)}</span>
     <button id="signout" class="signout-btn">ออกจากระบบ</button>`;
   $('#signout').onclick = () => signOut();
@@ -78,7 +86,7 @@ function explain(err) {
 async function boot() {
   try {
     const user = await currentUser();
-    if (user) enter(user);
+    if (user) await enter(user);
     else showLogin();
   } catch (err) {
     console.error(err);

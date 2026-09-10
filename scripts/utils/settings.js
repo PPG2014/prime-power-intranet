@@ -9,3 +9,6 @@ export async function settings() {
   }
   return cached;
 }
+
+/** เรียกหลังผู้ดูแลแก้ตั้งค่าระบบ เพื่อให้ค่าใหม่มีผลทันทีโดยไม่ต้องรีเฟรช */
+export function clearSettings() { cached = null; }
