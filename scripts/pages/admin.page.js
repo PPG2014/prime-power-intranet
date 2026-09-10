@@ -5,6 +5,7 @@ import { formBody, collect, bindDependents, bindPhoto } from '../admin/entity-fo
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
+import { showAnnouncements } from '../components/announcement-popup.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 
@@ -44,6 +45,7 @@ export async function render(ctx) {
 
         <div class="panel">
           <div class="panel-head">${s.icon} ${esc(s.title)} — ${rows.length} รายการ
+            ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
             <button class="head-btn" data-new="1">+ เพิ่มรายการ</button></div>
           <table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
@@ -112,6 +114,7 @@ export function mount(ctx) {
   const s = SCHEMA[key];
 
   onClick('new', () => openEditor(key, null));
+  onClick('preview', () => showAnnouncements({ force: true }));
   onClick('edit', (id) => openEditor(key, rows.find((r) => String(r.id) === String(id))));
   /** สลับลำดับกับแถวข้างเคียง แล้วเขียนเลขลำดับใหม่ทั้งคู่ */
   const move = async (id, step) => {

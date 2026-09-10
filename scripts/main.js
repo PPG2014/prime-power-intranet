@@ -4,6 +4,7 @@ import { render, startRendering } from './core/render.js';
 import { setState } from './core/state.js';
 import { currentUser, startLogin, signOut, ALLOWED_DOMAIN } from './services/auth.js';
 import { renderLogin, clearLogin } from './components/login-screen.js';
+import { showAnnouncements } from './components/announcement-popup.js';
 import { CONFIG } from './core/config.js';
 import { esc, $ } from './core/dom.js';
 
@@ -41,6 +42,9 @@ function enter(user) {
 
   startRendering();
   startRouter(render);
+
+  // ประกาศเด้งขึ้นหลังหน้าแรกวาดเสร็จ เพื่อไม่ให้บังตอนหน้ายังโหลดไม่เสร็จ
+  showAnnouncements();
 }
 
 /** แปลรหัสผิดพลาดของไมโครซอฟท์เป็นข้อความที่บอกได้ว่าต้องทำอะไรต่อ */

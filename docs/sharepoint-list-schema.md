@@ -349,6 +349,7 @@ List หลักที่ List อื่นอ้างอิงถึง **ต
 | PublishDate | Date | วันที่ประกาศ |
 | StartDate | Date | เริ่มแสดง |
 | EndDate | Date | หยุดแสดงอัตโนมัติ |
+| ImageUrl | Single line of text | ลิงก์รูปประกาศ ระบบใส่ให้อัตโนมัติเมื่ออัปโหลดผ่านหน้าจัดการข้อมูล |
 | IsActive | Yes/No | |
 | SortOrder | Number | ลำดับการเลื่อน |
 

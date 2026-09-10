@@ -18,6 +18,7 @@
 @import url('components/modal.css');
 @import url('components/form.css');
 @import url('components/badge.css');
+@import url('components/popup.css');
 
 /* 4. สไตล์เฉพาะหน้า — เพิ่มหนึ่งบรรทัดต่อหนึ่งหน้าใหม่ */
 @import url('pages/home.css');

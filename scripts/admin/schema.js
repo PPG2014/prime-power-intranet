@@ -164,6 +164,8 @@ export const SCHEMA = {
         help: 'รูปภาพแนะนำ 1080 × 1350 px แนวตั้ง หรือ 1080 × 1080 px จัตุรัส ไม่เกิน 2 MB' },
       { key: 'Department', label: 'ฝ่ายที่ประกาศ', type: 'lookup', from: 'departments' },
       { key: 'Content', label: 'เนื้อหา', type: 'textarea' },
+      { key: 'ImageUrl', label: 'รูปประกาศ', type: 'photo',
+        help: 'แนะนำแนวตั้ง 1080 × 1350 px หรือจัตุรัส 1080 × 1080 px · ตัวหนังสือในรูปควรใหญ่พอที่จะอ่านบนมือถือ' },
       { key: 'PublishDate', label: 'วันที่ประกาศ', type: 'text' },
       { key: 'StartDate', label: 'เริ่มแสดง', type: 'text' },
       { key: 'EndDate', label: 'หยุดแสดง', type: 'text', help: 'ถึงวันนี้แล้วระบบจะซ่อนให้เอง' },

@@ -9,7 +9,8 @@
   "StartDate": "",
   "EndDate": "",
   "IsActive": true,
-  "SortOrder": 1
+  "SortOrder": 1,
+  "ImageUrl": ""
  },
  {
   "id": 2,
@@ -21,7 +22,8 @@
   "StartDate": "",
   "EndDate": "",
   "IsActive": true,
-  "SortOrder": 2
+  "SortOrder": 2,
+  "ImageUrl": ""
  },
  {
   "id": 3,
@@ -31,8 +33,9 @@
   "Content": "วงเงินอนุมัติระดับผู้จัดการปรับเป็น 50,000 บาท มีผลตั้งแต่ 1 ตุลาคม 2569 เป็นต้นไป อ่านฉบับเต็มได้ที่เมนูนโยบายบริษัท",
   "PublishDate": "2 กันยายน 2569",
   "StartDate": "",
-  "EndDate": "",
+  "EndDate": "2026-01-31",
   "IsActive": true,
-  "SortOrder": 3
+  "SortOrder": 3,
+  "ImageUrl": ""
  }
 ]
