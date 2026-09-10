@@ -25,7 +25,23 @@ export async function optionsFor(field, parentValue) {
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
   if (field.dependsOn) {
-    rows = parentValue ? rows.filter((r) => r[field.matchField] === parentValue) : [];
+    if (!parentValue) {
+      rows = [];
+    } else {
+      /**
+       * คอลัมน์ Lookup ใน SharePoint บางครั้ง Graph ส่งกลับมาเป็นเลข id
+       * ในคีย์ที่ลงท้ายด้วย LookupId แทนที่จะเป็นชื่อ จึงต้องเทียบทั้งสองแบบ
+       */
+      let ids = [];
+      if (field.matchList) {
+        const parents = await list(field.matchList);
+        ids = parents.filter((x) => x.Title === parentValue).map((x) => String(x.id));
+      }
+      const idKey = field.matchField + 'LookupId';
+      rows = rows.filter((r) =>
+        r[field.matchField] === parentValue ||
+        (r[idKey] !== undefined && ids.includes(String(r[idKey]))));
+    }
   }
 
   const opts = rows.map((r) => ({
