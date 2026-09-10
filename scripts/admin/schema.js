@@ -197,6 +197,24 @@ export const SCHEMA = {
     ],
   },
 
+  feedback: {
+    title: 'ความคิดเห็นที่ได้รับ', icon: '💬', list: 'feedback', spName: 'Feedback',
+    hint: 'ข้อเสนอแนะที่ส่งมาจากหน้าติดต่อ · เปลี่ยนสถานะเพื่อติดตามว่าเรื่องไหนดำเนินการแล้ว',
+    columns: ['Title', 'Content', 'SubmittedBy', 'Status'],
+    labels: { Title: 'เรื่อง', Content: 'รายละเอียด', SubmittedBy: 'ผู้เสนอ', Status: 'สถานะ' },
+    fields: [
+      { key: 'Title', label: 'เรื่อง', type: 'text', required: true },
+      { key: 'Content', label: 'รายละเอียด', type: 'textarea' },
+      { key: 'SubmittedBy', label: 'ผู้เสนอ', type: 'text',
+        help: 'เว้นว่างแปลว่าผู้ส่งเลือกไม่ระบุชื่อ' },
+      { key: 'SubmittedEmail', label: 'อีเมลผู้เสนอ', type: 'text' },
+      { key: 'Status', label: 'สถานะ', type: 'choice',
+        options: ['ยังไม่ได้อ่าน', 'รับทราบแล้ว', 'กำลังดำเนินการ', 'ดำเนินการแล้ว', 'ไม่ดำเนินการ'] },
+      { key: 'Reply', label: 'บันทึกการดำเนินการ', type: 'textarea',
+        help: 'บันทึกไว้ภายใน ผู้ส่งไม่เห็นข้อความนี้' },
+    ],
+  },
+
   settings: {
     title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings', spName: 'Settings',
     columns: ['Title', 'Value', 'Description'],

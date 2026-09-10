@@ -62,6 +62,8 @@ export const CONFIG = {
       news:           'affaf4c2-1334-4c6c-8b1d-715c52cea788',
       rooms:          '2ea30ef2-89dd-4064-b021-4f9c8c664d8d',
       settings:       '84daeac7-b49e-4ea4-99d2-1c7a1523aace',
+      /** ยังไม่ได้สร้างใน SharePoint — สร้าง List ชื่อ Feedback แล้วเอา GUID มาใส่แทน */
+      feedback:       'Feedback',
     },
   },
 

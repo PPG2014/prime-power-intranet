@@ -4,6 +4,7 @@
  */
 import { CONFIG } from '../core/config.js';
 import { getToken } from './auth.js';
+import { LOOKUPS } from './lookups.js';
 
 const base = () => `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}`;
 const listId = (name) => CONFIG.sharepoint.lists[name] || name;
@@ -48,10 +49,72 @@ function flatten(fields) {
   return out;
 }
 
-export async function list(name) {
+/* ---------- แปลงค่า Lookup ระหว่างเลข id กับชื่อ ---------- */
+
+const maps = {};
+
+/** ตารางแปลง id ↔ ชื่อ ของ List ปลายทาง ดึงครั้งเดียวแล้วจำไว้ */
+async function titleMap(target) {
+  if (!maps[target]) {
+    const rows = await fetchRows(target);
+    const byId = {}, byTitle = {};
+    rows.forEach((r) => { byId[String(r.id)] = r.Title; byTitle[r.Title] = r.id; });
+    maps[target] = { byId, byTitle };
+  }
+  return maps[target];
+}
+
+export function clearLookupCache() { for (const k of Object.keys(maps)) delete maps[k]; }
+
+/** เติมชื่อให้คอลัมน์ Lookup หลังอ่านข้อมูลมา */
+async function resolveIn(name, rows) {
+  const spec = LOOKUPS[name];
+  if (!spec) return rows;
+
+  for (const [key, [target, many]] of Object.entries(spec)) {
+    const idKey = key + 'LookupId';
+    if (!rows.some((r) => r[idKey] !== undefined)) continue;   // ไม่ใช่ Lookup ก็ข้าม
+    const { byId } = await titleMap(target);
+    rows.forEach((r) => {
+      const v = r[idKey];
+      if (v === undefined || v === null) return;
+      r[key] = many
+        ? (Array.isArray(v) ? v : [v]).map((x) => byId[String(x)]).filter(Boolean)
+        : (byId[String(v)] ?? r[key] ?? '');
+    });
+  }
+  return rows;
+}
+
+/** แปลงชื่อกลับเป็นเลข id ก่อนส่งไปบันทึก */
+async function resolveOut(name, item) {
+  const spec = LOOKUPS[name];
+  if (!spec) return item;
+  const out = { ...item };
+
+  for (const [key, [target, many]] of Object.entries(spec)) {
+    if (!(key in out)) continue;
+    const { byTitle } = await titleMap(target);
+    const idKey = key + 'LookupId';
+
+    if (many) {
+      const names = Array.isArray(out[key]) ? out[key]
+        : String(out[key] || '').split(',').map((x) => x.trim()).filter(Boolean);
+      out[idKey + '@odata.type'] = 'Collection(Edm.Int32)';
+      out[idKey] = names.map((n) => Number(byTitle[n])).filter((n) => !isNaN(n));
+    } else {
+      const id = byTitle[out[key]];
+      out[idKey] = id === undefined ? null : Number(id);
+    }
+    delete out[key];
+  }
+  return out;
+}
+
+/** อ่านข้อมูลดิบโดยยังไม่แปลงค่า Lookup ใช้ตอนสร้างตารางแปลง */
+async function fetchRows(name) {
   const rows = [];
   let path = `/lists/${listId(name)}/items?expand=fields&$top=999`;
-  // Graph ส่งข้อมูลมาเป็นหน้า ๆ ต้องไล่ตามลิงก์จนหมด
   while (path) {
     const data = await call(path);
     rows.push(...data.value.map((it) => ({ id: it.id, ...flatten(it.fields) })));
@@ -61,16 +124,26 @@ export async function list(name) {
   return rows;
 }
 
+export async function list(name) {
+  return resolveIn(name, await fetchRows(name));
+}
+
 export async function get(name, id) {
   const it = await call(`/lists/${listId(name)}/items/${id}?expand=fields`);
   return { id: it.id, ...flatten(it.fields) };
 }
 
-export const create = (name, item) =>
-  call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields: item }) });
+export async function create(name, item) {
+  clearLookupCache();   // ข้อมูลอ้างอิงอาจเพิ่งถูกเพิ่มไปในรอบเดียวกัน
+  const fields = await resolveOut(name, item);
+  return call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields }) });
+}
 
-export const update = (name, id, item) =>
-  call(`/lists/${listId(name)}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(item) });
+export async function update(name, id, item) {
+  const fields = await resolveOut(name, item);
+  return call(`/lists/${listId(name)}/items/${id}/fields`,
+    { method: 'PATCH', body: JSON.stringify(fields) });
+}
 
 export const remove = (name, id) =>
   call(`/lists/${listId(name)}/items/${id}`, { method: 'DELETE' });

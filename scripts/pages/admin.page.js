@@ -60,13 +60,13 @@ export async function render(ctx) {
             <button class="head-btn" data-new="1">+ เพิ่มรายการ</button></div>
           <table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
-              ${s.columns.map((c) => `<th>${esc(s.labels[c] || c)}</th>`).join('')}
+              ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
               <th class="col-actions"></th></tr></thead>
             <tbody>${rows.length ? rows.map((r, i) => `<tr>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img src="${r[c]}" alt="">` : '—'}</td>`
-                : `<td>${esc(
+                : `<td data-col="${c}">${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
                 : c === 'Files' ? (toFiles(r[c]).length ? '📎 ' + toFiles(r[c]).length : '—')
