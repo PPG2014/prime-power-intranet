@@ -1,0 +1,4 @@
+footer { background: var(--navy); color: #cfe0f2; font-size: 13px; margin-top: var(--gap-xl); }
+footer .wrap { display: flex; justify-content: space-between; gap: var(--gap); padding-top: var(--gap-lg); padding-bottom: var(--gap-lg); flex-wrap: wrap; }
+footer nav { display: flex; gap: var(--gap); }
+footer a:hover { color: #fff; text-decoration: underline; }

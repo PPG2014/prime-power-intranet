@@ -1,0 +1,30 @@
+/* ไฟล์เดียวที่ index.html โหลด — ที่เหลือ import ต่อจากที่นี่
+   เรียงจากทั่วไปไปเฉพาะเจาะจง ห้ามสลับลำดับ */
+
+/* 1. พื้นฐาน */
+@import url('base/reset.css');
+@import url('base/tokens.css');
+@import url('base/typography.css');
+
+/* 2. โครงหน้า */
+@import url('layout/header.css');
+@import url('layout/footer.css');
+@import url('layout/page.css');
+
+/* 3. ชิ้นส่วนที่ใช้ซ้ำ */
+@import url('components/button.css');
+@import url('components/panel.css');
+@import url('components/table.css');
+@import url('components/modal.css');
+@import url('components/form.css');
+@import url('components/badge.css');
+
+/* 4. สไตล์เฉพาะหน้า — เพิ่มหนึ่งบรรทัดต่อหนึ่งหน้าใหม่ */
+@import url('pages/home.css');
+@import url('pages/forms.css');
+@import url('pages/contact.css');
+@import url('pages/policies.css');
+@import url('pages/directory.css');
+@import url('pages/rooms.css');
+@import url('pages/admin.css');
+@import url('pages/documents.css');

@@ -1,0 +1,63 @@
+import { esc } from '../core/dom.js';
+import { list } from '../services/data.js';
+
+export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
+
+export async function render(ctx) {
+  const [forms, news, docs] = await Promise.all([
+    list('formCatalog'), list('news'), list('documents'),
+  ]);
+
+  const popular = forms.filter((f) => f.Badge === 'ใช้บ่อย' || f.Badge === 'ใหม่').slice(0, 6);
+  const pinned  = news.filter((n) => n.IsActive !== false)
+                      .sort((a, b) => (b.IsPinned ? 1 : 0) - (a.IsPinned ? 1 : 0));
+  const manuals = docs.filter((d) => d.DocType === 'คู่มือ').slice(0, 3);
+
+  return `
+  <section class="hero">
+    <div class="wrap">
+      <h1>ระบบแบบฟอร์มออนไลน์</h1>
+      <p>ยื่นคำขอ ติดตามสถานะ และรับการอนุมัติได้ในที่เดียว — เชื่อมต่อกับ Microsoft 365 ขององค์กร ปลอดภัยด้วยบัญชีบุคลากร</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#/forms">ดูแบบฟอร์มทั้งหมด</a>
+        <a class="btn btn-ghost" href="#/requests">ติดตามสถานะคำขอ</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="page page-home">
+    <div class="wrap">
+      <h2 class="section-title">แบบฟอร์มที่ใช้บ่อย</h2>
+      <div class="form-grid">
+        ${popular.map((f) => `
+          ${f.ExternalUrl ? `<a class="form-card" href="${esc(f.ExternalUrl)}" target="_blank" rel="noopener">`
+                          : `<a class="form-card" href="#/forms">`}
+            <div class="form-icon">${f.Icon}</div>
+            <div class="form-name">${esc(f.Title)}</div>
+            <div class="form-desc">${esc(f.Description)}</div>
+            <div class="form-go">${f.ExternalUrl ? 'เปิดระบบ ↗' : 'กรอกแบบฟอร์ม →'}</div>
+          </a>`).join('')}
+      </div>
+
+      <div class="home-cols">
+        <div class="panel">
+          <div class="panel-head">📢 ข่าวประกาศ</div>
+          <ul class="news-list">
+            ${pinned.map((n) => `<li>
+              <span>${n.IsPinned ? '<b class="pin">ปักหมุด</b> ' : ''}${esc(n.Title)}</span>
+              <time>${esc(n.PublishDate)}</time></li>`).join('')}
+          </ul>
+        </div>
+        <div class="panel">
+          <div class="panel-head">📚 คู่มือการใช้งาน
+            <a class="panel-link" href="#/documents">ดูทั้งหมด →</a></div>
+          <ul class="news-list">
+            ${manuals.map((d) => `<li>
+              <span>${d.Icon} ${esc(d.Title)}</span>
+              <time>${esc(d.LastUpdated)}</time></li>`).join('')}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}

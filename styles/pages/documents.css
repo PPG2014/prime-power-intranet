@@ -1,0 +1,8 @@
+.doc-tabs { display: flex; gap: 8px; margin-bottom: var(--gap-lg); flex-wrap: wrap; }
+.doc-tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius);
+  padding: 9px 18px; font-size: 14px; color: var(--muted); }
+.doc-tabs button:hover { border-color: var(--blue-light); }
+.doc-tabs button[aria-current="page"] { background: var(--navy); border-color: var(--navy);
+  color: #fff; font-weight: 600; }
+.doc-tabs button b { font-size: 12px; opacity: .7; margin-left: 4px; }
+td.code { font-size: 12.5px; color: var(--muted); }

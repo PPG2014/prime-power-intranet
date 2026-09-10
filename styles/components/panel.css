@@ -1,0 +1,11 @@
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.panel + .panel { margin-top: var(--gap); }
+.panel-head { background: var(--navy); color: #fff; padding: 13px 20px; font-weight: 600; font-size: 15px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--gap-sm); }
+.panel-meta { font-weight: 400; font-size: 12.5px; color: #a9c8e6; }
+.panel-link { font-size: 12.5px; color: #9ecbf0; }
+.panel-link:hover { color: #fff; }
+.panel-note { padding: 14px 20px; border-top: 1px solid var(--line-soft); background: #fafbfc;
+  font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+.section-title { font-size: 18px; margin-bottom: var(--gap); }
+.fineprint { font-size: 12.5px; color: var(--muted); margin-top: var(--gap-sm); }

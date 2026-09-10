@@ -1,0 +1,114 @@
+[
+ {
+  "id": 1,
+  "Title": "กรรมการผู้จัดการ",
+  "Extension": "305",
+  "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 2,
+  "Title": "รองกรรมการผู้จัดการด้านการเงิน",
+  "Extension": "308",
+  "SortOrder": 2,
+  "IsActive": true
+ },
+ {
+  "id": 3,
+  "Title": "รองกรรมการผู้จัดการด้านปฏิบัติการ",
+  "Extension": "304",
+  "SortOrder": 3,
+  "IsActive": true
+ },
+ {
+  "id": 4,
+  "Title": "เลขานุการกรรมการผู้จัดการ",
+  "Extension": "308",
+  "SortOrder": 4,
+  "IsActive": true
+ },
+ {
+  "id": 5,
+  "Title": "ฝ่ายระบบบริหารคุณภาพ",
+  "Extension": "202",
+  "SortOrder": 5,
+  "IsActive": true
+ },
+ {
+  "id": 6,
+  "Title": "ฝ่ายขายและการตลาด",
+  "Extension": "303",
+  "SortOrder": 6,
+  "IsActive": true
+ },
+ {
+  "id": 7,
+  "Title": "ฝ่ายวิศวกรรมและพัฒนาโครงการ",
+  "Extension": "207",
+  "SortOrder": 7,
+  "IsActive": true
+ },
+ {
+  "id": 8,
+  "Title": "ฝ่ายเขียนแบบ",
+  "Extension": "203",
+  "SortOrder": 8,
+  "IsActive": true
+ },
+ {
+  "id": 9,
+  "Title": "ฝ่ายจัดซื้อและคลังสินค้า",
+  "Extension": "101",
+  "SortOrder": 9,
+  "IsActive": true
+ },
+ {
+  "id": 10,
+  "Title": "ฝ่ายขออนุญาตและใบอนุญาต",
+  "Extension": "309",
+  "SortOrder": 10,
+  "IsActive": true
+ },
+ {
+  "id": 11,
+  "Title": "ฝ่ายบริหารโครงการ",
+  "Extension": "217",
+  "SortOrder": 11,
+  "IsActive": true
+ },
+ {
+  "id": 12,
+  "Title": "ฝ่ายควบคุมการเดินระบบและบำรุงรักษา",
+  "Extension": "",
+  "SortOrder": 12,
+  "IsActive": true
+ },
+ {
+  "id": 13,
+  "Title": "ฝ่ายความปลอดภัย อาชีวอนามัยและสิ่งแวดล้อม",
+  "Extension": "202",
+  "SortOrder": 13,
+  "IsActive": true
+ },
+ {
+  "id": 14,
+  "Title": "ฝ่ายบัญชีและการเงิน",
+  "Extension": "218",
+  "SortOrder": 14,
+  "IsActive": true
+ },
+ {
+  "id": 15,
+  "Title": "ฝ่ายทรัพยากรบุคคล",
+  "Extension": "302",
+  "SortOrder": 15,
+  "IsActive": true
+ },
+ {
+  "id": 16,
+  "Title": "ฝ่ายประสานงานและอำนวยการ",
+  "Extension": "216",
+  "SortOrder": 16,
+  "IsActive": true
+ }
+]

@@ -1,0 +1,4 @@
+.wrap { max-width: var(--wrap-max); margin: 0 auto; padding: 0 var(--gap); }
+.page { padding: var(--gap-lg) 0 var(--gap-xl); }
+.placeholder { padding: 48px; text-align: center; color: var(--dim); }
+.empty { padding: 40px; text-align: center; color: var(--muted); }

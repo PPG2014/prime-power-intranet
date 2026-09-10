@@ -1,0 +1,35 @@
+[
+ {
+  "id": 1,
+  "Title": "ห้องประชุมใหญ่",
+  "Location": "ชั้น 3",
+  "Capacity": 20,
+  "Equipment": "จอ 75 นิ้ว · ประชุมทางไกล Teams",
+  "RoomMailbox": "",
+  "PublishedCalendarUrl": "https://outlook.office365.com/calendar/published/f1c33505788c484c829e2b8dc9e26909@primepower.co.th/d8fbc26ab17c448e85b66f6bb46a8f402031355383324034484/calendar.html",
+  "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 2,
+  "Title": "ห้องประชุม 1",
+  "Location": "ชั้น 1",
+  "Capacity": 9,
+  "Equipment": "จอ 55 นิ้ว",
+  "RoomMailbox": "",
+  "PublishedCalendarUrl": "https://outlook.office365.com/calendar/published/4bb3c35ef85047e1ba2a265a5d2066d7@primepower.co.th/448ef2e601804c5889f17226eac68bbe8968073000789842133/calendar.html",
+  "SortOrder": 2,
+  "IsActive": true
+ },
+ {
+  "id": 3,
+  "Title": "ห้องประชุม 2",
+  "Location": "อาคาร 2 ชั้น 1",
+  "Capacity": 10,
+  "Equipment": "จอ 65 นิ้ว",
+  "RoomMailbox": "",
+  "PublishedCalendarUrl": "https://outlook.office365.com/calendar/published/0675144a52e141378c1dba4378e806c2@primepower.co.th/a8a5d572d508466da4ab9e87910c74c52588550325458583541/calendar.html",
+  "SortOrder": 3,
+  "IsActive": true
+ }
+]

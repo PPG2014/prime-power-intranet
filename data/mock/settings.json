@@ -1,0 +1,44 @@
+[
+ {
+  "id": 1,
+  "Title": "SupportDept",
+  "Value": "ฝ่ายทรัพยากรบุคคล — งานไอที",
+  "Description": "หน่วยงานผู้ดูแลระบบ"
+ },
+ {
+  "id": 2,
+  "Title": "SupportName",
+  "Value": "อนุชา รักษ์ไทย",
+  "Description": "ชื่อผู้ดูแล"
+ },
+ {
+  "id": 3,
+  "Title": "SupportExt",
+  "Value": "302",
+  "Description": "เบอร์ต่อ"
+ },
+ {
+  "id": 4,
+  "Title": "SupportEmail",
+  "Value": "it@primepower.co.th",
+  "Description": "อีเมล"
+ },
+ {
+  "id": 5,
+  "Title": "SupportHours",
+  "Value": "จันทร์–ศุกร์ 08:30–17:30 น.",
+  "Description": "เวลาให้บริการ"
+ },
+ {
+  "id": 6,
+  "Title": "SupportNote",
+  "Value": "เรื่องเร่งด่วนนอกเวลา ให้ใช้แบบฟอร์มแจ้งซ่อมและติ๊กความเร่งด่วนสูง",
+  "Description": "หมายเหตุ"
+ },
+ {
+  "id": 7,
+  "Title": "PopupInterval",
+  "Value": "5",
+  "Description": "วินาทีต่อการเลื่อนประกาศหนึ่งใบ"
+ }
+]

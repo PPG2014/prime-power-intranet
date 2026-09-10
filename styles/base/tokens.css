@@ -1,0 +1,38 @@
+/* ค่าสีและระยะทั้งหมดอยู่ที่นี่ที่เดียว
+   ห้ามเขียนรหัสสีตรง ๆ ในไฟล์อื่น ให้อ้างตัวแปรจากที่นี่เสมอ */
+:root {
+  /* สีองค์กร ดึงจากโลโก้ */
+  --navy:      #00397a;
+  --blue:      #0067b8;
+  --blue-light:#4a9de0;
+  --green:     #00a94f;
+  --green-dark:#00843d;
+
+  /* สีกลาง */
+  --ink:       #1b2733;
+  --muted:     #5c6a7a;
+  --dim:       #8b96a3;
+  --line:      #dfe5ec;
+  --line-soft: #eef1f5;
+  --surface:   #ffffff;
+  --canvas:    #f2f5f8;
+
+  /* สีสถานะ */
+  --ok:      #00843d;
+  --warn:    #c77700;
+  --danger:  #b3261e;
+
+  /* ระยะและมุม */
+  --gap-xs: 6px;  --gap-sm: 12px;  --gap:    20px;
+  --gap-lg: 32px; --gap-xl: 48px;
+  --radius-sm: 6px; --radius: 10px; --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 4px rgba(16, 40, 70, .08);
+  --shadow:    0 4px 16px rgba(16, 40, 70, .10);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, .3);
+
+  --header-h: 66px;
+  --wrap-max: 1200px;
+
+  --font: 'Sarabun', system-ui, -apple-system, sans-serif;
+}

@@ -1,0 +1,433 @@
+# Prime Power Group — โครงสร้างข้อมูลระบบภายในองค์กร
+
+เอกสารสำหรับส่งให้ผู้ดูแล SharePoint สร้างรายการ (List) ก่อนเริ่มพัฒนาเว็บ
+
+- **Site:** https://primepowertl.sharepoint.com/sites/Intranet_PrimePower — ดูแลโดย intranet.pr@primepower.co.th
+- **Graph hostname:** `primepowertl.sharepoint.com` · **sitePath:** `/sites/Intranet_PrimePower`
+- **เว็บหน้าบ้าน:** โฮสต์แยกบน GitHub Pages ดึงข้อมูลผ่าน Microsoft Graph
+- **ระบบอนุมัติ:** Power Automate + Approvals ใน Microsoft Teams
+
+---
+
+## ส่วนที่ 1 — สิ่งที่ต้องทำก่อนสร้าง List
+
+### 1.1 จดทะเบียนแอปใน Entra ID
+
+ที่ Entra admin center → App registrations → New registration
+
+| หัวข้อ | ค่าที่ตั้ง |
+|---|---|
+| ชื่อแอป | Prime Power Intranet |
+| ประเภทบัญชี | Single tenant (เฉพาะองค์กรนี้) |
+| Redirect URI | Single-page application (SPA) → URL ของเว็บ |
+| Client secret | **ไม่ต้องสร้าง** — เว็บฝั่งหน้าบ้านเก็บความลับไม่ได้ ใช้ PKCE แทน |
+
+สิทธิ์ที่ต้องขอ (Microsoft Graph → Delegated)
+
+| สิทธิ์ | ใช้ทำอะไร | ต้องให้แอดมินอนุมัติ |
+|---|---|---|
+| `User.Read` | อ่านชื่อและอีเมลผู้ล็อกอิน | ไม่ต้อง |
+| `Sites.ReadWrite.All` | อ่านและเขียนข้อมูลใน List | **ต้อง** |
+| `Files.ReadWrite.All` | อัปโหลดและเปิดไฟล์แนบ | **ต้อง** |
+| `Calendars.Read.Shared` | อ่านตารางห้องประชุม | **ต้อง** |
+
+หลังเพิ่มสิทธิ์แล้วต้องกด **Grant admin consent** โดย Global Admin จึงจะใช้งานได้
+
+สิ่งที่ต้องส่งกลับมาให้ผู้พัฒนา: **Application (client) ID** และ **Directory (tenant) ID** — สองค่านี้ไม่ใช่ความลับ ใส่ในโค้ดได้
+
+### 1.2 ตรวจสอบห้องประชุม
+
+ให้ไอทีรันคำสั่งนี้ใน Exchange Online PowerShell
+
+```
+Get-Mailbox -RecipientTypeDetails RoomMailbox | Select DisplayName, PrimarySmtpAddress
+```
+
+ถ้าห้องทั้ง 3 ไม่ขึ้นในผลลัพธ์ แปลว่ายังไม่ใช่ Room Mailbox ควรแปลงก่อน เพราะ Room Mailbox จะปฏิเสธการจองซ้ำให้อัตโนมัติ ส่วนปฏิทินที่แชร์กันเฉย ๆ จองทับกันได้โดยไม่มีอะไรเตือน
+
+### 1.3 สิทธิ์การเข้าถึง Site
+
+| กลุ่ม | สิทธิ์ | ใครอยู่ในกลุ่ม |
+|---|---|---|
+| Intranet Owners | Full Control | intranet.pr@primepower.co.th และผู้ดูแลระบบ |
+| Intranet Editors | Contribute | ผู้ประสานงานของแต่ละฝ่ายที่ต้องอัปเดตเนื้อหา |
+| Intranet Visitors | Read | บุคลากรทุกคน |
+
+เว็บใช้กลุ่ม Intranet Owners เป็นตัวตัดสินว่าใครเห็นโหมดผู้ดูแลระบบ ไม่ต้องเก็บรายชื่อในโค้ด
+
+---
+
+## ส่วนที่ 2 — รายการ List ทั้งหมด
+
+ทุก List มีคอลัมน์ระบบติดมาให้อยู่แล้ว (`Created`, `Modified`, `Author`, `Editor`) ไม่ต้องสร้างเพิ่ม และเปิด **Attachments** ไว้ทุกรายการที่ต้องแนบไฟล์
+
+> ชื่อคอลัมน์ให้พิมพ์เป็นภาษาอังกฤษตามตาราง แล้วค่อยเปลี่ยนชื่อที่แสดงเป็นภาษาไทยทีหลัง วิธีนี้ทำให้ชื่อภายในของคอลัมน์สะอาด ไม่กลายเป็นรหัสอ่านไม่ออก
+
+### L01 — Departments (หน่วยงานและเบอร์ต่อ)
+
+List หลักที่ List อื่นอ้างอิงถึง **ต้องสร้างเป็นอันดับแรก**
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อหน่วยงาน |
+| Extension | Single line of text | เบอร์ต่อ เว้นว่างได้ |
+| SortOrder | Number | ลำดับการแสดงผล 1–16 |
+| IsActive | Yes/No | ค่าเริ่มต้น Yes |
+
+ข้อมูลตั้งต้น 16 รายการ เรียงตามลำดับที่ฝ่ายบุคคลกำหนด — กรรมการผู้จัดการ 305, รองกรรมการผู้จัดการด้านการเงิน 308, รองกรรมการผู้จัดการด้านปฏิบัติการ 304, เลขานุการกรรมการผู้จัดการ 308, ฝ่ายระบบบริหารคุณภาพ 202, ฝ่ายขายและการตลาด 303, ฝ่ายวิศวกรรมและพัฒนาโครงการ 207, ฝ่ายเขียนแบบ 203, ฝ่ายจัดซื้อและคลังสินค้า 101, ฝ่ายขออนุญาตและใบอนุญาต 309, ฝ่ายบริหารโครงการ 217, ฝ่ายควบคุมการเดินระบบและบำรุงรักษา (ยังไม่มีเบอร์), ฝ่ายความปลอดภัย อาชีวอนามัยและสิ่งแวดล้อม 202, ฝ่ายบัญชีและการเงิน 218, ฝ่ายทรัพยากรบุคคล 302, ฝ่ายประสานงานและอำนวยการ 216
+
+### L02 — Directory (บุคลากร)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อ-สกุลภาษาไทย |
+| NameEN | Single line of text | ชื่อ-สกุลภาษาอังกฤษ |
+| Nickname | Single line of text | ชื่อเล่น |
+| Position | Single line of text | ตำแหน่ง |
+| Department | Lookup → L01.Title | ฝ่าย |
+| Email | Single line of text | อีเมลบริษัท |
+| Extension | Single line of text | เบอร์ต่อ |
+| Photo | Attachment | รูปติดบัตร แนวตั้ง 3:4 |
+| UserAccount | Person or Group | ผูกกับบัญชี M365 ใช้ตอนหาผู้อนุมัติ |
+| SortOrder | Number | ลำดับภายในฝ่าย |
+| IsActive | Yes/No | บุคลากรลาออกให้ตั้ง No ไม่ต้องลบ |
+
+### L03 — ApprovalMatrix (เส้นทางอนุมัติ) ⭐
+
+หัวใจของระบบ เพิ่มฟอร์มใหม่ = เพิ่มแถวที่นี่ ไม่ต้องแก้โฟลว์
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | รหัสฟอร์ม เช่น FM-HR-001 |
+| StepNumber | Number | ลำดับขั้น 1, 2, 3 |
+| StepName | Single line of text | ชื่อขั้น เช่น หัวหน้างานอนุมัติ |
+| ApproverType | Choice | Manager / Role / Person |
+| ApproverRole | Lookup → L01.Title | ใช้เมื่อ ApproverType = Role |
+| ApproverPerson | Person or Group | ใช้เมื่อ ApproverType = Person |
+| ConditionField | Single line of text | ชื่อช่องที่ใช้ตัดสิน เช่น Amount |
+| ConditionOperator | Choice | none / gt / gte / lt / lte / eq |
+| ConditionValue | Single line of text | ค่าที่ใช้เทียบ เช่น 50000 |
+| DelegateTo | Person or Group | ผู้ทำการแทนเมื่อผู้อนุมัติไม่อยู่ |
+| SLADays | Number | ค้างเกินกี่วันให้เตือน |
+| IsActive | Yes/No | |
+
+**ตัวอย่างการกรอก** — ใบขออนุมัติจัดซื้อที่แยกตามวงเงิน
+
+| Title | Step | StepName | ApproverType | ApproverRole | ConditionField | Operator | Value |
+|---|---|---|---|---|---|---|---|
+| FM-PC-001 | 1 | หัวหน้างานอนุมัติ | Manager | — | — | none | — |
+| FM-PC-001 | 2 | ฝ่ายจัดซื้อตรวจสอบ | Role | ฝ่ายจัดซื้อและคลังสินค้า | — | none | — |
+| FM-PC-001 | 3 | รองกรรมการฯ อนุมัติ | Role | รองกรรมการผู้จัดการด้านการเงิน | Amount | gte | 50000 |
+
+ขั้นที่ 3 จะทำงานเฉพาะเมื่อวงเงินตั้งแต่ 50,000 บาทขึ้นไป ต่ำกว่านั้นจบที่ขั้น 2
+
+`ApproverType = Manager` ให้โฟลว์ไปอ่านหัวหน้าจาก Entra ID เอง แต่เนื่องจากต้องการระบุเองใน SharePoint ให้ใช้ **L04** แทน
+
+### L04 — ReportingLine (สายบังคับบัญชา)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Person or Group | บุคลากร |
+| Manager | Person or Group | หัวหน้าโดยตรง |
+| BackupManager | Person or Group | ผู้อนุมัติแทนเมื่อหัวหน้าไม่อยู่ |
+| EffectiveFrom | Date | วันที่เริ่มมีผล |
+| IsActive | Yes/No | |
+
+ตารางนี้แทนช่อง Manager ใน Microsoft 365 ทั้งหมด แก้ไขได้จาก SharePoint โดยตรงตามที่ต้องการ เวลาโฟลว์หาผู้อนุมัติจะอ่านจากที่นี่ที่เดียว
+
+### L05 — FormCatalog (ทะเบียนแบบฟอร์ม)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อแบบฟอร์ม |
+| FormCode | Single line of text | รหัส เช่น FM-HR-001 ต้องไม่ซ้ำ |
+| Description | Multiple lines (plain) | คำอธิบายบนการ์ด |
+| Department | Lookup → L01.Title | ฝ่ายเจ้าของ |
+| Icon | Single line of text | อิโมจิ |
+| Badge | Choice | ว่าง / ใช้บ่อย / ใหม่ / ต้องอนุมัติ |
+| MetaTags | Multiple lines (plain) | ข้อมูลย่อ คั่นด้วยจุลภาค |
+| ExternalUrl | Hyperlink | ใส่เมื่อฟอร์มอยู่คนละระบบ |
+| SortOrder | Number | |
+| IsActive | Yes/No | |
+
+18 ฟอร์มตั้งต้นตามที่กำหนดไว้ในต้นแบบ รวมถึง PPG e-Service ที่ใช้ช่อง ExternalUrl
+
+### L14 — FormFields (นิยามช่องกรอกของแต่ละฟอร์ม) ⭐
+
+คู่กับ L03 — L03 บอกว่า "ใครอนุมัติ" ส่วน L14 บอกว่า "กรอกอะไรบ้าง"
+เพิ่มฟอร์มใหม่หรือเพิ่มช่อง = เพิ่มแถวที่นี่ ไม่ต้องแก้โค้ดและไม่ต้อง deploy ใหม่
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อช่องที่แสดงให้ผู้กรอกเห็น |
+| FormCode | Lookup → L05.FormCode | ฟอร์มที่ช่องนี้อยู่ |
+| FieldKey | Single line of text | ชื่อภายใน เช่น `leave_type` ห้ามซ้ำในฟอร์มเดียวกัน |
+| FieldType | Choice | ดูตารางชนิดช่องด้านล่าง |
+| Options | Multiple lines (plain) | ตัวเลือก บรรทัดละหนึ่งรายการ ใช้กับ choice |
+| LookupList | Single line of text | ชื่อ List ที่ดึงตัวเลือกมา เช่น L01 หรือ L02 |
+| Placeholder | Single line of text | ข้อความจาง ๆ ในช่อง |
+| HelpText | Single line of text | คำอธิบายใต้ช่อง |
+| IsRequired | Yes/No | บังคับกรอกหรือไม่ |
+| DefaultValue | Single line of text | ค่าตั้งต้น |
+| ValidationRule | Single line of text | เช่น `min:0` `max:100000` `maxlen:200` |
+| Section | Single line of text | หัวข้อกลุ่มช่อง เช่น ข้อมูลผู้ยื่น |
+| ColumnWidth | Choice | เต็มบรรทัด / ครึ่งบรรทัด |
+| ShowIf | Single line of text | เงื่อนไขแสดงช่อง เช่น `leave_type=ลาป่วย` |
+| PromoteTo | Single line of text | ชื่อคอลัมน์ใน L06 ที่ต้องคัดลอกค่าไปเก็บ |
+| SortOrder | Number | ลำดับช่อง |
+| IsActive | Yes/No | เลิกใช้ให้ตั้ง No ไม่ต้องลบ คำขอเก่าจะได้ยังอ่านออก |
+
+**ชนิดช่องที่ตัววาดฟอร์มต้องรองรับ**
+
+| FieldType | ใช้กับ |
+|---|---|
+| text | ข้อความบรรทัดเดียว |
+| textarea | ข้อความหลายบรรทัด |
+| number | ตัวเลข |
+| currency | จำนวนเงิน |
+| date | วันที่ |
+| daterange | ช่วงวันที่ คำนวณจำนวนวันให้อัตโนมัติ |
+| time | เวลา |
+| choice | ตัวเลือกเดียว จาก Options |
+| multichoice | เลือกได้หลายรายการ |
+| lookup | ดึงตัวเลือกจาก List อื่น เช่น รายชื่อฝ่ายหรือบุคลากร |
+| person | เลือกบุคลากรจาก M365 |
+| yesno | ใช่ / ไม่ใช่ |
+| file | แนบไฟล์ |
+| table | ตารางรายการย่อย เช่น รายการสินค้าในใบขอซื้อ |
+| readonly | ข้อความคงที่ เช่น คำเตือนหรือเงื่อนไข |
+
+**ตัวอย่างการกรอก** — ใบขอเบิกเงินทดรองจ่าย
+
+| Title | FieldKey | FieldType | Required | Section | ShowIf | PromoteTo |
+|---|---|---|---|---|---|---|
+| โครงการ | project | lookup | ใช่ | ข้อมูลคำขอ | — | — |
+| วัตถุประสงค์ | purpose | textarea | ใช่ | ข้อมูลคำขอ | — | Subject |
+| จำนวนเงินที่ขอเบิก | amount | currency | ใช่ | จำนวนเงิน | — | **Amount** |
+| กำหนดคืนเงิน | due | date | ใช่ | จำนวนเงิน | — | — |
+| เกิน 50,000 ต้องแนบใบเสนอราคา | note | readonly | — | จำนวนเงิน | `amount>=50000` | — |
+| ใบเสนอราคา | quote | file | ใช่ | เอกสารแนบ | `amount>=50000` | — |
+
+ช่อง `amount` มี `PromoteTo = Amount` ซึ่งสำคัญมาก เพราะเป็นค่าที่ L03 ใช้ตัดสินว่าต้องผ่านรองกรรมการฯ หรือไม่
+
+**เรื่อง PromoteTo ที่ต้องเข้าใจให้ตรงกัน**
+
+ข้อมูลที่กรอกทั้งหมดเก็บเป็น JSON ก้อนเดียวในช่อง `FormData` ของ L06 ซึ่งยืดหยุ่นดี แต่ SharePoint กรองและทำรายงานจากข้างในก้อน JSON ไม่ได้
+
+ดังนั้นช่องไหนที่ต้องใช้ตัดสินเส้นทางอนุมัติ ต้องกรองหน้ารายการ หรือต้องเอาไปทำรายงาน ให้ระบุ `PromoteTo` ชี้ไปยังคอลัมน์จริงใน L06 แล้วให้โฟลว์คัดลอกค่าไปเก็บซ้ำตอนบันทึก
+
+ตัดสินใจเรื่องนี้ตั้งแต่ตอนออกแบบฟอร์ม ถ้ามาคิดทีหลังจะไม่มีข้อมูลย้อนหลังให้ดู
+
+### L06 — Requests (คำขอทั้งหมด)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | เลขที่คำขอ เช่น REQ-0231 |
+| FormCode | Lookup → L05.FormCode | |
+| Requester | Person or Group | ผู้ยื่น |
+| RequesterDept | Lookup → L01.Title | |
+| Subject | Single line of text | หัวเรื่อง |
+| FormData | Multiple lines (plain) | ข้อมูลที่กรอก เก็บเป็น JSON |
+| Amount | Currency | ใช้ตัดสินเส้นทางตามวงเงิน |
+| Urgency | Choice | ปกติ / สูง / เร่งด่วน |
+| Status | Choice | ร่าง / รออนุมัติ / ส่งกลับแก้ไข / อนุมัติแล้ว / ไม่อนุมัติ / ยกเลิก |
+| CurrentStep | Number | |
+| TotalSteps | Number | |
+| CurrentApprover | Person or Group | ใช้กรองหน้า "รออนุมัติจากฉัน" |
+| SubmittedDate | Date and Time | |
+| CompletedDate | Date and Time | |
+| DueDate | Date | จาก SLA |
+
+เปิด Attachments เพื่อให้แนบใบเสร็จและเอกสารประกอบได้
+
+### L07 — RequestHistory (ประวัติการอนุมัติ)
+
+หนึ่งแถวต่อหนึ่งการกระทำ ใช้วาดไทม์ไลน์บนหน้าติดตามสถานะ
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อขั้นตอน |
+| RequestID | Lookup → L06.Title | |
+| StepNumber | Number | |
+| Actor | Person or Group | ผู้ดำเนินการ |
+| Action | Choice | ยื่นคำขอ / อนุมัติ / ไม่อนุมัติ / ส่งกลับแก้ไข / มอบหมายต่อ |
+| Comment | Multiple lines (plain) | เหตุผล — บังคับกรอกเมื่อไม่อนุมัติหรือส่งกลับ |
+| ActionDate | Date and Time | |
+
+### L08 — Policies (นโยบายบริษัท)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อเอกสาร |
+| DocCode | Single line of text | เลขที่ เช่น PO-001 |
+| Revision | Single line of text | เช่น ฉบับที่ 3 |
+| EffectiveDate | Date | วันประกาศใช้ |
+| Content | Multiple lines (rich text) | เนื้อหาเต็ม |
+| Department | Lookup → L01.Title | ฝ่ายเจ้าของ |
+| SortOrder | Number | |
+| IsActive | Yes/No | ยกเลิกใช้ให้ตั้ง No ไม่ต้องลบ เก็บไว้อ้างอิง |
+
+เปิด Attachments สำหรับไฟล์ PDF และรูปภาพ
+
+### L09 — Documents (คู่มือและไฟล์ดาวน์โหลด)
+
+รวมสองแท็บไว้ใน List เดียว แยกด้วยช่อง DocType
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อเอกสาร |
+| DocType | Choice | คู่มือ / ไฟล์ดาวน์โหลด |
+| Department | Lookup → L01.Title | ฝ่ายเจ้าของ |
+| Icon | Single line of text | อิโมจิ ใช้กับคู่มือ |
+| Description | Multiple lines (plain) | |
+| FileFormat | Single line of text | เช่น PDF, XLSX |
+| LastUpdated | Date | |
+| SortOrder | Number | |
+| IsActive | Yes/No | |
+
+เปิด Attachments
+
+### L10 — Announcements (ประกาศเด้งหน้าแรก)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | หัวข้อประกาศ |
+| AnnounceType | Choice | ข้อความ / รูปภาพเต็มใบ |
+| Department | Lookup → L01.Title | ฝ่ายที่ประกาศ |
+| Content | Multiple lines (plain) | เนื้อหา |
+| PublishDate | Date | วันที่ประกาศ |
+| StartDate | Date | เริ่มแสดง |
+| EndDate | Date | หยุดแสดงอัตโนมัติ |
+| IsActive | Yes/No | |
+| SortOrder | Number | ลำดับการเลื่อน |
+
+เปิด Attachments สำหรับรูปโปสเตอร์ ขนาดแนะนำ 1080 × 1350 px
+
+ช่อง StartDate และ EndDate เป็นของใหม่ที่ต้นแบบยังไม่มี ใส่ไว้เพราะประกาศส่วนใหญ่มีวันหมดอายุ ปล่อยให้ระบบซ่อนเองดีกว่าให้คนมาคอยกดปิด
+
+### L11 — News (ข่าวประกาศบนหน้าแรก)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | หัวข้อข่าว |
+| Content | Multiple lines (rich text) | เนื้อหา |
+| PublishDate | Date | |
+| IsPinned | Yes/No | ปักหมุดไว้บนสุด |
+| IsActive | Yes/No | |
+
+เปิด Attachments
+
+### L12 — Rooms (ห้องประชุม)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อห้อง |
+| Location | Single line of text | เช่น อาคาร 2 ชั้น 1 |
+| Capacity | Number | จำนวนที่นั่ง |
+| Equipment | Single line of text | อุปกรณ์ คั่นด้วย · |
+| RoomMailbox | Single line of text | อีเมลของ Room Mailbox |
+| PublishedCalendarUrl | Hyperlink | ลิงก์ปฏิทินที่เผยแพร่ |
+| SortOrder | Number | |
+| IsActive | Yes/No | |
+
+ถ้าห้องเป็น Room Mailbox ให้เว็บอ่านตารางผ่าน Graph โดยใช้ช่อง RoomMailbox ซึ่งได้ข้อมูลสดและควบคุมหน้าตาได้เต็มที่ ส่วนช่องลิงก์ปฏิทินเก็บไว้เป็นทางสำรอง
+
+### L13 — Settings (ตั้งค่าระบบ)
+
+เก็บค่าที่ผู้ดูแลปรับเองได้ แบบหนึ่งแถวหนึ่งค่า
+
+| คอลัมน์ | ชนิด |
+|---|---|
+| Title | Single line of text (ชื่อค่า) |
+| Value | Multiple lines (plain) |
+| Description | Single line of text |
+
+ค่าตั้งต้นที่ต้องมี
+
+| Title | Value | ความหมาย |
+|---|---|---|
+| SupportDept | ฝ่ายทรัพยากรบุคคล — งานไอที | หน่วยงานผู้ดูแลระบบ |
+| SupportName | ชื่อผู้ดูแล | |
+| SupportExt | 302 | |
+| SupportEmail | it@primepower.co.th | |
+| SupportHours | จันทร์–ศุกร์ 08:30–17:30 น. | |
+| PopupInterval | 5 | วินาทีต่อการเลื่อนประกาศหนึ่งใบ |
+
+---
+
+## ส่วนที่ 3 — โฟลว์อนุมัติ
+
+โฟลว์มี **ตัวเดียว** ใช้ร่วมทุกฟอร์ม อ่านเส้นทางจาก L03 ห้ามสร้างโฟลว์แยกรายฟอร์ม
+
+```
+เมื่อมีคำขอใหม่ใน L06 (Status = รออนุมัติ)
+  │
+  ├─ อ่านทุกขั้นของ FormCode นั้นจาก L03 เรียงตาม StepNumber
+  │
+  └─ วนทีละขั้น
+       ├─ ตรวจเงื่อนไข ConditionField/Operator/Value
+       │    ไม่ผ่าน → ข้ามขั้นนี้
+       │
+       ├─ หาผู้อนุมัติ
+       │    Manager → อ่านจาก L04 (ถ้าไม่อยู่ ใช้ BackupManager)
+       │    Role    → หาคนใน L02 ที่ Department ตรงกับ ApproverRole
+       │    Person  → ใช้ ApproverPerson
+       │
+       ├─ ส่ง Approval เข้า Teams พร้อมสรุปคำขอ
+       │
+       ├─ บันทึกผลลง L07 ทุกครั้ง ไม่ว่าผลจะเป็นอะไร
+       │
+       └─ ตัดสินใจ
+            อนุมัติ      → ขั้นถัดไป หรือจบเป็น "อนุมัติแล้ว"
+            ไม่อนุมัติ   → จบเป็น "ไม่อนุมัติ" แจ้งผู้ยื่น
+            ส่งกลับแก้ไข → Status = "ส่งกลับแก้ไข" ผู้ยื่นแก้แล้วส่งใหม่
+                           โดยไม่ต้องกรอกใหม่ทั้งใบ
+```
+
+โฟลว์ตัวที่สอง ตั้งเวลารันวันละครั้ง หาคำขอที่ `DueDate` เลยกำหนดแล้วยังไม่จบ ส่งเตือนผู้อนุมัติและหัวหน้าของผู้อนุมัติ
+
+**ข้อควรระวัง** ทุกคำสั่งในโฟลว์ต้องเป็นตัวเชื่อมมาตรฐาน — SharePoint, Approvals, Teams, Office 365 Outlook, Office 365 Users เท่านั้น ถ้าเผลอใช้คำสั่ง HTTP หรือ Dataverse จะกลายเป็นพรีเมียมทันทีและต้องซื้อไลเซนส์รายคน
+
+---
+
+## ส่วนที่ 4 — ลำดับการลงมือ
+
+**ระยะที่ 1 — เนื้อหา (2–3 สัปดาห์)** ยังไม่แตะเรื่องอนุมัติเลย
+
+สร้าง L01, L02, L05, L08, L09, L10, L11, L12, L13 แล้วต่อเว็บให้อ่านข้อมูลจาก List ได้ พร้อมหน้าจัดการสำหรับผู้ดูแล ระยะนี้จบแล้วเลิกใช้ Google Sites เดิมได้ทันที และมีของใช้จริงให้คนเห็นว่าโครงการเดินอยู่
+
+**ระยะที่ 2 — ยื่นคำขอ (4–5 สัปดาห์)** เพิ่ม L03, L04, L06, L07, L14 แล้วทำ 3 ฟอร์มนำร่องที่เป็นตัวแทนคนละแบบ
+
+| ฟอร์ม | ทดสอบเรื่อง |
+|---|---|
+| Memo บันทึกข้อความภายใน | เส้นทางตามสายบังคับบัญชา ช่องกรอกพื้นฐาน |
+| ขออนุมัติจัดซื้อ (PR) | เส้นทางแยกตามวงเงิน ช่องแบบตารางรายการย่อย |
+| เบิกอุปกรณ์ PPE | เส้นทางตามบทบาทเฉพาะ ช่องที่ดึงตัวเลือกจาก List อื่น |
+
+ลำดับงานภายในระยะนี้
+
+1. **รวบรวมแบบฟอร์มกระดาษที่ใช้อยู่จริงทั้ง 18 ใบ** — ทำคู่ขนานไปกับระยะที่ 1 ได้เลย ไม่ต้องรอ
+2. **แปลงเป็นแถวใน L14** ให้เจ้าของฟอร์มแต่ละฝ่ายเป็นคนบอกว่าช่องไหนบังคับกรอก ช่องไหนตัดออกได้ ขั้นนี้มักพบว่าฟอร์มกระดาษมีช่องที่ไม่มีใครกรอกมาหลายปีแล้ว
+3. **เขียนตัววาดฟอร์มหนึ่งตัว** ที่อ่าน L14 มาสร้างหน้าจอ รองรับชนิดช่องทั้ง 15 แบบ ตรวจความถูกต้องก่อนส่ง และบันทึกร่างไว้กรอกต่อได้
+4. **ทดสอบครบวงจรกับผู้ใช้จริง** ยื่น → อนุมัติใน Teams → ส่งกลับแก้ไข → ยื่นซ้ำ → อนุมัติจบ
+
+ถ้าสามตัวนี้ผ่าน ที่เหลือคือการกรอกแถวใน L03 กับ L14 ไม่ใช่การพัฒนา
+
+**ระยะที่ 3 — ที่เหลือ** ทยอยเปิดฟอร์มที่เหลือทีละฝ่าย ให้เจ้าของฟอร์มเป็นคนกรอกช่องและเส้นทางอนุมัติเอง
+
+คาดว่าราว 80% ของฟอร์มจะทำได้ด้วยตัววาดฟอร์มล้วน ๆ ส่วนที่เหลืออีก 20% มีตรรกะเฉพาะตัวที่ต้องเขียนเพิ่ม เช่น
+
+- ใบลา — ต้องดึงวันลาคงเหลือมาแสดงและตัดยอดหลังอนุมัติ
+- ใบขอซื้อ — ตารางรายการย่อยที่ต้องรวมยอดอัตโนมัติ
+- ใบอนุญาตทำงานกับไฟฟ้าแรงสูง — ต้องตรวจว่าผู้ขอมีใบรับรองที่ยังไม่หมดอายุ
+
+เผื่อเวลาไว้สำหรับกลุ่มนี้ อย่านับรวมกับ 80% แรก
+
+---
+
+## สิ่งที่ยังต้องตัดสินใจ
+
+1. เลขที่คำขอจะสร้างอย่างไร — รันเลขต่อเนื่องทั้งระบบ หรือแยกตามฝ่าย
+2. คำขอที่อนุมัติแล้วเก็บไว้กี่ปีจึงย้ายไปที่เก็บถาวร
+3. ผู้ยื่นถอนคำขอที่ส่งไปแล้วได้หรือไม่ ถ้าได้ ถอนได้ถึงขั้นไหน
+4. ผู้บริหารต้องการดูรายงานอะไรบ้าง — เรื่องนี้มีผลว่าต้องเก็บช่องไหนเพิ่มตั้งแต่ตอนนี้ ถ้าคิดทีหลังจะไม่มีข้อมูลย้อนหลังให้ดู
