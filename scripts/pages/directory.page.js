@@ -1,4 +1,5 @@
-import { esc, $, $$ } from '../core/dom.js';
+import { esc, $, $$, onClick } from '../core/dom.js';
+import { openModal } from '../components/modal.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
 import { toArray } from '../admin/entity-form.js';
@@ -46,7 +47,8 @@ function levelOf(p) {
 }
 
 const card = (p, cls = '') => `
-  <article class="staff-card ${cls}">
+  <article class="staff-card is-clickable ${cls}" data-person="${p.id}"
+           role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
     <div class="staff-photo">${p.PhotoUrl
       ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
@@ -69,7 +71,8 @@ const card = (p, cls = '') => `
 
 /** การ์ดย่อ ใช้กับชั้นที่มีหลายคนในแถวเดียว เช่นผู้จัดการแผนก 5 คน */
 const miniCard = (p) => `
-  <article class="mini-card">
+  <article class="mini-card is-clickable" data-person="${p.id}"
+           role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
     <div class="mini-photo">${p.PhotoUrl
       ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
@@ -139,9 +142,12 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
   return `${rows ? `<div class="org-chart">${rows}</div>` : ''}${staffHtml}`;
 }
 
+let people = [];
+
 export async function render(ctx) {
   const q = (state.directoryQuery || '').trim().toLowerCase();
   const all = (await list('directory')).filter((p) => p.IsActive !== false);
+  people = all;
   const rows = q
     ? all.filter((p) => Object.values(p).join(' ').toLowerCase().includes(q))
     : all;
@@ -207,7 +213,64 @@ export async function render(ctx) {
   </section>`;
 }
 
+/** หน้าต่างแสดงข้อมูลบุคลากรแบบเต็ม พร้อมรูปใหญ่ */
+function openPerson(p) {
+  const projects = toArray(p.Project);
+  const oversees = toArray(p.Oversees);
+
+  const row = (label, value) => value
+    ? `<div class="pv-row"><span>${esc(label)}</span><b>${esc(value)}</b></div>` : '';
+
+  openModal({
+    title: p.Title,
+    wide: true,
+    body: `
+      <div class="person-view">
+        <div class="pv-photo">${p.PhotoUrl
+          ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
+          : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
+
+        <div class="pv-info">
+          <div class="pv-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
+          <div class="pv-en">${esc(p.NameEN || '')}</div>
+          <div class="pv-pos">${esc(p.Position || '')}</div>
+
+          <div class="pv-table">
+            ${row('ฝ่าย', p.Department)}
+            ${row('แผนก', p.Section)}
+            ${row('ระดับ', p.Level)}
+            ${row('โทรภายใน', p.Extension)}
+          </div>
+
+          ${p.Email ? `<a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>` : ''}
+
+          ${oversees.length ? `<div class="pv-block"><h4>ดูแลฝ่าย</h4>
+            <ul>${oversees.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+
+          ${projects.length ? `<div class="pv-block"><h4>โครงการที่รับผิดชอบ</h4>
+            <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+        </div>
+      </div>`,
+  });
+}
+
 export function mount(ctx) {
+  const show = (id) => {
+    const p = people.find((x) => String(x.id) === String(id));
+    if (p) openPerson(p);
+  };
+
+  $$('[data-person]').forEach((el) => {
+    el.onclick = (ev) => {
+      // กดที่ลิงก์อีเมลให้เปิดโปรแกรมส่งเมลตามปกติ ไม่ต้องเปิดหน้าต่างข้อมูล
+      if (ev.target.closest('a')) return;
+      show(el.dataset.person);
+    };
+    el.onkeydown = (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); show(el.dataset.person); }
+    };
+  });
+
   const box = $('#dir-q');
   if (!box) return;
   box.oninput = (ev) => {

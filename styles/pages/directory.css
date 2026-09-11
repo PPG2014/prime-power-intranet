@@ -86,3 +86,42 @@
 @media (max-width: 600px) { .check-list { grid-template-columns: 1fr; } }
 .project-tag { margin-top: 5px; font-size: 11.5px; color: var(--muted); line-height: 1.45;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- การ์ดที่กดได้ทั้งใบ ---------- */
+.is-clickable { cursor: pointer; }
+.is-clickable:hover { border-color: var(--blue); box-shadow: var(--shadow); }
+.is-clickable:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.is-clickable .staff-mail,
+.is-clickable .mini-foot a { position: relative; z-index: 1; }
+
+/* ---------- หน้าต่างข้อมูลบุคลากร ---------- */
+.person-view { display: grid; grid-template-columns: 220px 1fr; gap: var(--gap-lg); align-items: start; }
+.pv-photo { width: 220px; height: 293px; border-radius: var(--radius); overflow: hidden;
+  background: var(--canvas); border: 1px solid var(--line); display: grid; place-items: center; }
+.pv-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pv-photo span { font-size: 56px; font-weight: 700; color: #a9b2ba; }
+
+.pv-name { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1.35; }
+.pv-name em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 17px; }
+.pv-en { font-size: 14px; color: var(--muted); }
+.pv-pos { font-size: 15px; font-weight: 600; margin-top: 10px; color: #333; }
+
+.pv-table { margin-top: var(--gap); border-top: 1px solid var(--line-soft); }
+.pv-row { display: flex; gap: var(--gap); padding: 9px 0; border-bottom: 1px solid var(--line-soft);
+  font-size: 14px; }
+.pv-row span { width: 96px; flex: none; color: var(--muted); }
+.pv-row b { font-weight: 600; }
+
+.pv-mail { display: inline-block; margin-top: var(--gap); font-size: 14px; color: var(--blue);
+  word-break: break-all; }
+.pv-mail:hover { text-decoration: underline; }
+
+.pv-block { margin-top: var(--gap); }
+.pv-block h4 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.pv-block ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.8; }
+
+@media (max-width: 620px) {
+  .person-view { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .pv-row { justify-content: center; }
+  .pv-block ul { text-align: left; }
+}
