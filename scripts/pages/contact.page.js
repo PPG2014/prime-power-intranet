@@ -3,7 +3,7 @@ import { list, create } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { state, setState } from '../core/state.js';
 
-export const meta = { route: 'contact', title: 'ติดต่อ', nav: true, order: 9, adminOnly: false };
+export const meta = { route: 'contact', title: 'ติดต่อ', nav: true, order: 10, adminOnly: false };
 
 export async function render(ctx) {
   const [depts, cfg] = await Promise.all([list('departments'), settings()]);

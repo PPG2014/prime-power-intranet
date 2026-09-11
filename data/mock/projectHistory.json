@@ -1,0 +1,101 @@
+[
+ {
+  "id": 1,
+  "Title": "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง",
+  "ProjectCode": "PJ-2569-01",
+  "PlanProgress": 40,
+  "ActualProgress": 35,
+  "ActualPayment": 30,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-06-30T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 2,
+  "Title": "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง",
+  "ProjectCode": "PJ-2569-01",
+  "PlanProgress": 50,
+  "ActualProgress": 44,
+  "ActualPayment": 38,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-07-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 3,
+  "Title": "ก่อสร้างสถานีไฟฟ้าย่อย 115/22 kV บางปะกง",
+  "ProjectCode": "PJ-2569-01",
+  "PlanProgress": 56,
+  "ActualProgress": 52,
+  "ActualPayment": 42,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-08-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 4,
+  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+  "ProjectCode": "PJ-2569-02",
+  "PlanProgress": 40,
+  "ActualProgress": 35,
+  "ActualPayment": 30,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-06-30T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 5,
+  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+  "ProjectCode": "PJ-2569-02",
+  "PlanProgress": 50,
+  "ActualProgress": 44,
+  "ActualPayment": 38,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-07-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 6,
+  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+  "ProjectCode": "PJ-2569-02",
+  "PlanProgress": 56,
+  "ActualProgress": 52,
+  "ActualPayment": 42,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-08-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 7,
+  "Title": "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้",
+  "ProjectCode": "PJ-2569-03",
+  "PlanProgress": 40,
+  "ActualProgress": 35,
+  "ActualPayment": 30,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-06-30T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 8,
+  "Title": "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้",
+  "ProjectCode": "PJ-2569-03",
+  "PlanProgress": 50,
+  "ActualProgress": 44,
+  "ActualPayment": 38,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-07-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ },
+ {
+  "id": 9,
+  "Title": "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้",
+  "ProjectCode": "PJ-2569-03",
+  "PlanProgress": 56,
+  "ActualProgress": 52,
+  "ActualPayment": 42,
+  "Detail": "บันทึกความคืบหน้าประจำเดือน",
+  "RecordedDate": "2026-08-31T00:00:00Z",
+  "RecordedBy": "ระบบนำเข้าข้อมูลตัวอย่าง"
+ }
+]

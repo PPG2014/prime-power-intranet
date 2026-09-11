@@ -1,7 +1,7 @@
 import { esc } from '../core/dom.js';
 // import { list } from '../services/data.js';
 
-export const meta = { route: 'reports', title: 'รายงาน', nav: true, order: 7, adminOnly: false };
+export const meta = { route: 'reports', title: 'รายงาน', nav: true, order: 8, adminOnly: false };
 
 export async function render(ctx) {
   return `

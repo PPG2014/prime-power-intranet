@@ -47,8 +47,9 @@ export const CONFIG = {
     lists: {
       departments:    '0963b2d2-7519-467e-8dc1-59b7f102b94b',
       sections:       '31d3973a-44ee-41cf-92c3-079a073be892',
-      /** ยังไม่ได้สร้างใน SharePoint — สร้าง List ชื่อ Projects แล้วเอา GUID มาใส่แทน */
+      /** ยังไม่ได้สร้างใน SharePoint — สร้าง List แล้วเอา GUID มาใส่แทนชื่อ */
       projects:       'Projects',
+      projectHistory: 'ProjectHistory',
       directory:      '6cf0471b-85a4-403f-84aa-07f6fc200bb8',
       approvalMatrix: 'fc1465b8-a4fc-4055-b20a-7e3712a592fe',
       reportingLine:  'aad62b58-f63c-46b4-88be-b436aa615bc0',

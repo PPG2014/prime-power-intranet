@@ -3,7 +3,7 @@ import { list } from '../services/data.js';
 import { composeBookingUrl } from '../services/calendar.js';
 import { state, setState } from '../core/state.js';
 
-export const meta = { route: 'rooms', title: 'จองห้องประชุม', nav: true, order: 5, adminOnly: false };
+export const meta = { route: 'rooms', title: 'จองห้องประชุม', nav: true, order: 6, adminOnly: false };
 
 export async function render(ctx) {
   const rooms = (await list('rooms')).filter((r) => r.IsActive !== false)

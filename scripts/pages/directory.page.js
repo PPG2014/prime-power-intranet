@@ -12,7 +12,7 @@ const toArray = (v) => rawArray(v)
   .filter(Boolean);
 import { state, setState } from '../core/state.js';
 
-export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 8, adminOnly: false };
+export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
 
 /**
  * ระดับในผังฝ่าย เรียงจากบนลงล่าง

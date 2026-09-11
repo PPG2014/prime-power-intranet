@@ -10,7 +10,7 @@ import { showAnnouncements } from '../components/announcement-popup.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 
-export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 10, adminOnly: true };
+export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true };
 
 let rows = [];
 
@@ -61,7 +61,7 @@ export async function render(ctx) {
               >${state.adminNavHidden ? '☰' : '⟨'}</button>
             ${s.icon} ${esc(s.title)} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
-            <button class="head-btn" data-new="1">+ เพิ่มรายการ</button></div>
+            ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           <div class="table-scroll"><table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
@@ -77,14 +77,15 @@ export async function render(ctx) {
                 : /Date|Updated/.test(c) ? (thaiDateShort(r[c]) || '—')
                 : (r[c] ?? '—'))}</td>`).join('')}
               <td class="col-actions">
+                ${s.readOnly ? '<span class="dim">อ่านอย่างเดียว</span>' : ''}
                 ${s.sortField ? `<span class="move-group">
                   <button class="btn-move" data-up="${r.id}" title="เลื่อนขึ้น"
                     ${i === 0 ? 'disabled' : ''}>↑</button>
                   <button class="btn-move" data-down="${r.id}" title="เลื่อนลง"
                     ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
                 </span>` : ''}
-                <button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>
-                <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>
+                ${s.readOnly ? '' : `<button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>
+                <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
               </td></tr>`).join('')
               : `<tr><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ยังไม่มีข้อมูล กด “เพิ่มรายการ” เพื่อเริ่มต้น</div></td></tr>`}
             </tbody>
@@ -126,6 +127,25 @@ async function openEditor(key, record) {
     btn.textContent = 'กำลังบันทึก…';
 
     try {
+      // เก็บค่าเดิมไว้ในทะเบียนประวัติก่อน เพื่อให้ย้อนดูความคืบหน้าได้
+      if (!isNew && s.history && record) {
+        try {
+          await create(s.history, {
+            Title: record.Title,
+            ProjectCode: record.ProjectCode || '',
+            PlanProgress: record.PlanProgress ?? 0,
+            ActualProgress: record.ActualProgress ?? 0,
+            ActualPayment: record.ActualPayment ?? 0,
+            Detail: record.Detail || '',
+            RecordedDate: record.UpdatedDate || new Date().toISOString(),
+            RecordedBy: state.user?.name || '',
+          });
+        } catch (e) {
+          console.warn('บันทึกประวัติไม่สำเร็จ:', e.message);
+        }
+      }
+      if (s.history) data.UpdatedDate = new Date().toISOString();
+
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);
       clearCaches();

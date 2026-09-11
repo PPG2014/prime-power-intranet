@@ -6,7 +6,7 @@ import { openModal } from '../components/modal.js';
 import { thaiDateShort } from '../utils/format.js';
 import { toFiles } from '../admin/entity-form.js';
 
-export const meta = { route: 'documents', title: 'เอกสาร/คู่มือ', nav: true, order: 6, adminOnly: false };
+export const meta = { route: 'documents', title: 'เอกสาร/คู่มือ', nav: true, order: 7, adminOnly: false };
 
 let rows = [];
 
