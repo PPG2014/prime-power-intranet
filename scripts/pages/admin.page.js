@@ -127,12 +127,17 @@ async function openEditor(key, record) {
       clearCaches();
       closeModal();
       rerender();
+      const notes = [];
       if (res && res.skipped && res.skipped.length) {
-        alert('บันทึกแล้ว แต่ข้ามข้อมูลบางช่องเพราะ SharePoint List "'
-          + (s.spName || s.list) + '" ยังไม่มีคอลัมน์เหล่านี้\n\n'
-          + res.skipped.join('\n')
-          + '\n\nแจ้งผู้ดูแล SharePoint ให้เพิ่มคอลัมน์ก่อน จึงจะเก็บข้อมูลส่วนนี้ได้');
+        notes.push('ยังไม่มีคอลัมน์เหล่านี้ใน List "' + (s.spName || s.list) + '"\n  '
+          + res.skipped.join('\n  '));
       }
+      if (res && res.dropped && res.dropped.length) {
+        notes.push('SharePoint ปฏิเสธการบันทึกช่องที่เลือกได้หลายค่า\n  '
+          + res.dropped.join('\n  ')
+          + '\n  ข้อมูลอื่นบันทึกแล้ว ส่วนช่องเหล่านี้ต้องแก้ใน SharePoint โดยตรง');
+      }
+      if (notes.length) alert('บันทึกแล้ว แต่มีข้อสังเกต\n\n' + notes.join('\n\n'));
     } catch (e) {
       console.error(e);
       err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(e.message)}`;

@@ -140,8 +140,12 @@ async function resolveOut(name, item) {
     if (many) {
       const names = Array.isArray(out[key]) ? out[key]
         : String(out[key] || '').split(',').map((x) => x.trim()).filter(Boolean);
-      out[idKey + '@odata.type'] = 'Collection(Edm.Int32)';
-      out[idKey] = names.map((n) => Number(byTitle[n])).filter((n) => !isNaN(n));
+      const ids = names.map((n) => Number(byTitle[n])).filter((n) => !isNaN(n));
+      // อาร์เรย์ว่างทำให้ SharePoint ตอบ generalException จึงไม่ส่งไปเลย
+      if (ids.length) {
+        out[idKey + '@odata.type'] = 'Collection(Edm.Int32)';
+        out[idKey] = ids;
+      }
     } else {
       const id = byTitle[out[key]];
       out[idKey] = id === undefined ? null : Number(id);
@@ -173,19 +177,48 @@ export async function get(name, id) {
   return { id: it.id, ...flatten(it.fields) };
 }
 
+/** คีย์ของช่องที่เลือกได้หลายค่า ใช้ตอนต้องตัดออกเพื่อลองบันทึกใหม่ */
+function multiKeys(name, fields) {
+  const spec = LOOKUPS[name] || {};
+  return Object.entries(spec)
+    .filter(([, [, many]]) => many)
+    .map(([key]) => key + 'LookupId')
+    .filter((k) => k in fields);
+}
+
+/**
+ * ส่งข้อมูลไปบันทึก ถ้าไม่ผ่านให้ลองใหม่โดยตัดช่องที่เลือกได้หลายค่าออก
+ * เพราะ Graph จัดการคอลัมน์ Lookup แบบหลายค่าได้ไม่สม่ำเสมอ
+ * ดีกว่าปล่อยให้บันทึกไม่ได้ทั้งรายการทั้งที่ช่องอื่นถูกต้องหมด
+ */
+async function send(name, fields, request) {
+  try {
+    return { res: await request(fields), dropped: [] };
+  } catch (err) {
+    const multi = multiKeys(name, fields);
+    if (!multi.length) throw err;
+
+    const trimmed = { ...fields };
+    multi.forEach((k) => { delete trimmed[k]; delete trimmed[k + '@odata.type']; });
+
+    const res = await request(trimmed);          // ถ้ารอบนี้ยังพัง ให้โยนต่อไปเลย
+    return { res, dropped: multi.map((k) => k.replace(/LookupId$/, '')) };
+  }
+}
+
 export async function create(name, item) {
   clearLookupCache();   // ข้อมูลอ้างอิงอาจเพิ่งถูกเพิ่มไปในรอบเดียวกัน
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
-  const res = await call(`/lists/${listId(name)}/items`,
-    { method: 'POST', body: JSON.stringify({ fields }) });
-  return { ...res, skipped };
+  const { res, dropped } = await send(name, fields, (f) =>
+    call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields: f }) }));
+  return { ...res, skipped, dropped };
 }
 
 export async function update(name, id, item) {
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
-  const res = await call(`/lists/${listId(name)}/items/${id}/fields`,
-    { method: 'PATCH', body: JSON.stringify(fields) });
-  return { ...res, skipped };
+  const { res, dropped } = await send(name, fields, (f) =>
+    call(`/lists/${listId(name)}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(f) }));
+  return { ...res, skipped, dropped };
 }
 
 export const remove = (name, id) =>
