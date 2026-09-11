@@ -47,8 +47,8 @@ function levelOf(p) {
 
 const card = (p, cls = '') => `
   <article class="staff-card ${cls}">
-    <div class="staff-photo">${p.Photo
-      ? `<img src="${esc(p.Photo)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+    <div class="staff-photo">${p.PhotoUrl
+      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="staff-info">
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
@@ -70,8 +70,8 @@ const card = (p, cls = '') => `
 /** การ์ดย่อ ใช้กับชั้นที่มีหลายคนในแถวเดียว เช่นผู้จัดการแผนก 5 คน */
 const miniCard = (p) => `
   <article class="mini-card">
-    <div class="mini-photo">${p.Photo
-      ? `<img src="${esc(p.Photo)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+    <div class="mini-photo">${p.PhotoUrl
+      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="mini-name">${esc(p.Title)}</div>
     ${p.Nickname ? `<div class="mini-nick">(${esc(p.Nickname)})</div>` : ''}

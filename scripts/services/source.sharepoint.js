@@ -41,7 +41,14 @@ function flatten(fields) {
   for (const [k, v] of Object.entries(fields)) {
     if (k.startsWith('@') || k.endsWith('@odata.type')) continue;
     if (v && typeof v === 'object' && !Array.isArray(v)) {
-      out[k] = v.Label ?? v.LookupValue ?? v.DisplayName ?? v.Email ?? JSON.stringify(v);
+      out[k] = v.Url ?? v.Label ?? v.LookupValue ?? v.DisplayName ?? v.Email
+            ?? (v.serverUrl && v.serverRelativeUrl ? v.serverUrl + v.serverRelativeUrl : null)
+            ?? JSON.stringify(v);
+    } else if (typeof v === 'string' && v.startsWith('{"') && v.includes('serverRelativeUrl')) {
+      try {
+        const img = JSON.parse(v);
+        out[k] = (img.serverUrl || '') + (img.serverRelativeUrl || '');
+      } catch (e) { out[k] = v; }
     } else {
       out[k] = v;
     }
@@ -75,10 +82,38 @@ const columnCache = {};
  */
 async function columnsOf(name) {
   if (!columnCache[name]) {
-    const data = await call(`/lists/${listId(name)}/columns?$select=name`);
-    columnCache[name] = new Set(data.value.map((c) => c.name));
+    const data = await call(
+      `/lists/${listId(name)}/columns` +
+      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup`);
+    const map = new Map();
+    data.value.forEach((c) => map.set(c.name, c));
+    columnCache[name] = map;
   }
   return columnCache[name];
+}
+
+/**
+ * แปลงค่าให้ตรงกับชนิดคอลัมน์จริงใน SharePoint
+ * คอลัมน์ชนิด Hyperlink or Picture รับข้อความธรรมดาไม่ได้
+ * ต้องส่งเป็นออบเจ็กต์ { Url, Description } ไม่งั้น Graph ตอบ generalException
+ */
+function coerce(col, value) {
+  if (!col) return value;
+
+  /**
+   * คอลัมน์ชนิด Image ของ SharePoint เก็บไฟล์ไว้ในตัวเองและเขียนผ่าน Graph ไม่ได้
+   * ถ้าเจอให้ข้ามไปเลย ดีกว่าส่งไปแล้วถูกปฏิเสธทั้งรายการ
+   */
+  if (col.thumbnail) return undefined;
+
+  if (col.hyperlinkOrPicture) {
+    const url = String(value || '').trim();
+    return url ? { Url: url, Description: url.split('/').pop() } : null;
+  }
+  if (col.boolean) return Boolean(value);
+  if (col.number)  return value === '' || value === null ? null : Number(value);
+
+  return value;
 }
 
 /** คัดช่องที่ List ไม่มี คืนทั้งข้อมูลที่ส่งได้และรายชื่อที่ถูกข้าม */
@@ -90,7 +125,12 @@ async function keepKnown(name, fields) {
   for (const [k, v] of Object.entries(fields)) {
     if (k.endsWith('@odata.type')) continue;
     const base = k.replace(/LookupId$/, '');
-    if (cols.has(k) || cols.has(base)) out[k] = v;
+    if (cols.has(k)) {
+      const cv = coerce(cols.get(k), v);
+      if (cv === undefined) skipped.push(k + ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)');
+      else out[k] = cv;
+    }
+    else if (cols.has(base)) out[k] = v;      // คอลัมน์ Lookup ส่งเป็นเลข id ตามเดิม
     else skipped.push(base);
   }
 

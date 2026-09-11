@@ -176,6 +176,10 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 
 ### L02 — Directory (บุคลากร)
 
+> **ห้ามใช้คอลัมน์ชนิด Image สำหรับรูปบุคลากร** ชนิด Image เก็บไฟล์ไว้ในตัวเอง
+> และ Microsoft Graph เขียนลงไปไม่ได้ ทำให้บันทึกทั้งรายการไม่ผ่าน
+> ต้องใช้ **Single line of text** เก็บลิงก์ เพราะไฟล์รูปจริงอยู่ในคลังเอกสารอยู่แล้ว
+
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
 | Title | Single line of text | ชื่อ-สกุลภาษาไทย |
@@ -189,7 +193,7 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 | Level | Choice | 5 ตัวเลือก ดูด้านล่าง (ไม่ต้องมีเลขนำหน้า) |
 | Email | Single line of text | อีเมลบริษัท |
 | Extension | Single line of text | เบอร์ต่อ |
-| Photo | Single line of text | ลิงก์รูปติดบัตร ระบบใส่ให้อัตโนมัติเมื่ออัปโหลด |
+| PhotoUrl | **Single line of text** | ลิงก์รูปติดบัตร ระบบใส่ให้อัตโนมัติเมื่ออัปโหลด |
 | UserAccount | Person or Group | ผูกกับบัญชี M365 ใช้ตอนหาผู้อนุมัติ |
 | SortOrder | Number | ลำดับภายในฝ่าย |
 | IsActive | Yes/No | บุคลากรลาออกให้ตั้ง No ไม่ต้องลบ |

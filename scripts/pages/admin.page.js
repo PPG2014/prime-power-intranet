@@ -64,7 +64,7 @@ export async function render(ctx) {
               <th class="col-actions"></th></tr></thead>
             <tbody>${rows.length ? rows.map((r, i) => `<tr>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
-              ${s.columns.map((c) => c === 'Photo'
+              ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img src="${r[c]}" alt="">` : '—'}</td>`
                 : `<td data-col="${c}">${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')

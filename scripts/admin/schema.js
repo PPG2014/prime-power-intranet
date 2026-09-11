@@ -51,11 +51,11 @@ export const SCHEMA = {
   directory: {
     title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
-    columns: ['Photo', 'Title', 'Position', 'Department', 'Section', 'Project'],
-    labels: { Photo: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
+    columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section', 'Project'],
+    labels: { PhotoUrl: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
               Department: 'ฝ่าย', Section: 'แผนก', Project: 'โครงการ' },
     fields: [
-      { key: 'Photo', label: 'รูปภาพ', type: 'photo' },
+      { key: 'PhotoUrl', label: 'รูปภาพ', type: 'photo' },
       { key: 'Title', label: 'ชื่อ-สกุล (ไทย)', type: 'text', required: true },
       { key: 'Nickname', label: 'ชื่อเล่น', type: 'text' },
       { key: 'NameEN', label: 'ชื่อ-สกุล (อังกฤษ)', type: 'text' },
