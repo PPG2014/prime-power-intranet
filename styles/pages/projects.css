@@ -90,3 +90,72 @@
   body.printing-report .modal-body { padding: 0; }
   .pg-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ---------- การ์ดโครงการกดได้ทั้งใบ ---------- */
+.pj-card.is-clickable { cursor: pointer; transition: .15s; }
+.pj-card.is-clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.pj-card.is-clickable:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pj-actions button { position: relative; z-index: 1; }
+
+/* ---------- หน้าต่างรายละเอียดโครงการ ---------- */
+.pv-top { display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--gap); padding-bottom: var(--gap-sm); border-bottom: 2px solid var(--navy);
+  margin-bottom: var(--gap); }
+.pv-top h3 { font-size: 20px; line-height: 1.4; margin-top: 3px; }
+.pv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-lg); }
+.pj-view .pv-row { display: flex; justify-content: space-between; gap: var(--gap-sm);
+  padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.pj-view .pv-row span { color: var(--muted); }
+.pj-view .pv-row b.over { color: var(--danger); }
+.pj-view .pg-track { height: 12px; }
+.pj-detail.big { margin-top: var(--gap); font-size: 14px; }
+.pj-note { margin-top: 10px; font-size: 12.5px; padding: 8px 12px; border-radius: var(--radius-sm); }
+.pj-note.warn { background: #fff4e0; color: #8a5a00; border-left: 3px solid var(--warn); }
+@media (max-width: 620px) { .pv-cols { grid-template-columns: 1fr; gap: var(--gap); } }
+
+/* ---------- ผู้รับผิดชอบโครงการ ---------- */
+.pp-block { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px solid var(--line-soft); }
+.pp-block h4 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+.pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.pp-chip { display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.pp-chip:first-child { border-color: var(--blue-light); background: #f7fbff; }
+.pp-photo { width: 42px; height: 54px; flex: none; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--canvas); border: 1px solid var(--line); display: grid; place-items: center; }
+.pp-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pp-photo span { font-size: 14px; font-weight: 700; color: #a9b2ba; }
+.pp-info { min-width: 0; flex: 1; }
+.pp-name { font-size: 13.5px; font-weight: 600; color: var(--navy); }
+.pp-pos { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+.pp-ext { font-size: 11.5px; color: var(--green-dark); font-weight: 600; }
+.pp-mail { color: var(--blue); font-size: 15px; }
+
+/* ---------- ชื่อผู้รับผิดชอบกดได้ ---------- */
+.pp-info { position: relative; }
+.pp-name { font-size: 13.5px; font-weight: 600; color: var(--navy); text-align: left;
+  padding: 0; border-bottom: 1px dashed var(--line); }
+.pp-name:hover { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* การ์ดลอยตอนเอาเมาส์ชี้ ใช้ CSS ล้วนเพื่อให้ไม่ต้องรอสคริปต์ */
+.pp-hover { position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 5;
+  width: 290px; display: none; gap: 12px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); }
+.pp-chip:hover .pp-hover,
+.pp-chip:focus-within .pp-hover { display: flex; }
+.pp-hover::after { content: ''; position: absolute; top: 100%; left: 24px;
+  border: 7px solid transparent; border-top-color: var(--line); }
+.pp-hover-photo { width: 62px; height: 80px; flex: none; border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--canvas); border: 1px solid var(--line);
+  display: grid; place-items: center; }
+.pp-hover-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pp-hover-photo span { font-size: 18px; font-weight: 700; color: #a9b2ba; }
+.pph-name { font-size: 14.5px; font-weight: 700; color: var(--navy); line-height: 1.35; }
+.pph-name em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 13px; }
+.pph-en { font-size: 12px; color: var(--muted); }
+.pph-pos { font-size: 12.5px; font-weight: 600; margin-top: 5px; }
+.pph-row { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.pph-row.dim { color: var(--dim); word-break: break-all; }
+.pph-hint { font-size: 11px; color: var(--blue); margin-top: 6px; }
+
+@media (max-width: 620px) { .pp-hover { display: none !important; } }

@@ -15,7 +15,11 @@ export const LOOKUPS = {
     Oversees:   ['departments', true],
   },
   sections:      { Department: ['departments', false] },
-  projects:      { Department: ['departments', false] },
+  projects: {
+    Department: ['departments', false],
+    Owner:      ['directory', false],
+    Team:       ['directory', true],
+  },
   formCatalog:   { Department: ['departments', false] },
   policies:      { Department: ['departments', false] },
   documents:     { Department: ['departments', false] },

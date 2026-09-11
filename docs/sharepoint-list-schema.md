@@ -195,6 +195,8 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 | PlanProgress | Number | ความคืบหน้าตามแผน 0–100 |
 | ActualProgress | Number | ความคืบหน้าจริง 0–100 |
 | ActualPayment | Number | เบิกจ่ายแล้ว 0–100 |
+| Owner | Lookup → L02.Title | ผู้รับผิดชอบหลัก ชี้ไปทะเบียนบุคลากร |
+| Team | Lookup → L02.Title (**Allow multiple values**) | ทีมงานที่ร่วมรับผิดชอบ |
 | Detail | Multiple lines of text (plain) | ขณะนี้ดำเนินการอะไรอยู่ |
 | UpdatedDate | Date and Time | ระบบใส่ให้อัตโนมัติทุกครั้งที่บันทึก |
 | SortOrder | Number | |

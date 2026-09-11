@@ -220,8 +220,12 @@ export async function render(ctx) {
   </section>`;
 }
 
-/** หน้าต่างแสดงข้อมูลบุคลากรแบบเต็ม พร้อมรูปใหญ่ */
-function openPerson(p) {
+/**
+ * หน้าต่างแสดงข้อมูลบุคลากรแบบเต็ม พร้อมรูปใหญ่
+ * หน้าอื่นเรียกใช้ได้ เช่นกดชื่อผู้รับผิดชอบในหน้าต่างโครงการ
+ * ส่ง back มาด้วยเพื่อให้มีปุ่มย้อนกลับไปยังหน้าต่างเดิม
+ */
+export function openPerson(p, back) {
   const projects = toArray(p.Project);
   const oversees = toArray(p.Oversees);
 
@@ -258,7 +262,10 @@ function openPerson(p) {
             <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
         </div>
       </div>`,
+    footer: back ? '<button class="btn-mini" id="pv-back">← กลับไปที่โครงการ</button>' : '',
   });
+
+  if (back) $('#pv-back').onclick = back;
 }
 
 export function mount(ctx) {
