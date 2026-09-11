@@ -53,12 +53,19 @@ export function resizeImage(file) {
 export const safeFolder = (name) =>
   String(name || '').replace(/[\\/:*?"<>|#%]/g, ' ').replace(/\s+/g, ' ').trim();
 
-/** ชื่อไฟล์ที่ปลอดภัย ไม่ซ้ำ และเดาไม่ได้จากชื่อคน */
-function safeName(hint) {
+/**
+ * ชื่อไฟล์แบบสั้นและเป็นอักษรอังกฤษล้วน
+ *
+ * ไม่ใส่ชื่อคนหรือชื่อเอกสารไว้ในชื่อไฟล์ ด้วยสองเหตุผล
+ * ภาษาไทยในลิงก์จะถูกแปลงเป็นรหัสยาวตัวละ 9 อักขระ ทำให้ลิงก์ยาวจนคอลัมน์เก็บไม่พอ
+ * และชื่อไฟล์ที่เดาได้ทำให้คนนอกลองเปิดไฟล์ของคนอื่นได้
+ *
+ * ชื่อจริงของไฟล์แนบเก็บไว้ในคอลัมน์ข้อมูลอยู่แล้ว หน้าเว็บจึงยังแสดงชื่อเดิมได้
+ */
+function safeName(hint, ext = 'jpg') {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 8);
-  const base = String(hint || 'photo').replace(/[^\w\u0E00-\u0E7F]+/g, '-').slice(0, 40);
-  return `${base}-${stamp}${rand}.jpg`;
+  return `${stamp}${rand}.${ext}`;
 }
 
 /**
@@ -77,7 +84,7 @@ export async function uploadPhoto(file, hint, folder = '') {
   }
 
   const token = await getToken();
-  const path = [PHOTO_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), safeName(hint)].join('/');
+  const path = [PHOTO_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), safeName(hint, 'jpg')].join('/');
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
     `/drive/root:/${encodeURIComponent(path)}:/content`,
@@ -131,8 +138,8 @@ export async function uploadFile(file, folder = '') {
 
   const token = await getToken();
   const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
-  const stem = safeName(file.name.replace(/\.[^.]+$/, '')).replace(/\.jpg$/, '');
-  const path = [ATTACH_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), `${stem}.${ext}`].join('/');
+  const path = [ATTACH_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean),
+                safeName(file.name, ext)].join('/');
 
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +

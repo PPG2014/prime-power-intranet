@@ -110,6 +110,17 @@ function coerce(col, value) {
     const url = String(value || '').trim();
     return url ? { Url: url, Description: url.split('/').pop() } : null;
   }
+  /**
+   * คอลัมน์ข้อความบรรทัดเดียวรับได้ 255 อักขระ
+   * ลิงก์ที่มีภาษาไทยในเส้นทางจะยาวกว่านั้นได้ง่าย เพราะถูกแปลงเป็นรหัสตัวละ 9 อักขระ
+   */
+  if (col.text && col.text.allowMultipleLines === false && typeof value === 'string'
+      && value.length > 255) {
+    throw new Error(
+      `ค่าในช่องนี้ยาว ${value.length} อักขระ เกินที่คอลัมน์รับได้ 255 อักขระ\n` +
+      'ให้เปลี่ยนชนิดคอลัมน์เป็น Multiple lines of text แบบ Plain text');
+  }
+
   if (col.boolean) return Boolean(value);
   if (col.number)  return value === '' || value === null ? null : Number(value);
 
