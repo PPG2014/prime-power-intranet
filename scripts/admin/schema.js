@@ -51,9 +51,9 @@ export const SCHEMA = {
   directory: {
     title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
-    columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section', 'Project'],
+    columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section'],
     labels: { PhotoUrl: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
-              Department: 'ฝ่าย', Section: 'แผนก', Project: 'โครงการ' },
+              Department: 'ฝ่าย', Section: 'แผนก' },
     fields: [
       { key: 'PhotoUrl', label: 'รูปภาพ', type: 'photo' },
       { key: 'Title', label: 'ชื่อ-สกุล (ไทย)', type: 'text', required: true },

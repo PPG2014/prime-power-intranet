@@ -1,5 +1,17 @@
-.admin-layout { display: grid; grid-template-columns: minmax(210px, 250px) 1fr;
-  gap: var(--gap); align-items: start; }
+/* หน้าจัดการข้อมูลมีคอลัมน์เยอะ ใช้ความกว้างจอเต็มที่ ไม่จำกัดที่ 1200px เหมือนหน้าอื่น */
+.page-admin .wrap { max-width: none; padding-left: 24px; padding-right: 24px; }
+
+.admin-layout { display: grid; grid-template-columns: 200px 1fr;
+  gap: var(--gap); align-items: start; transition: grid-template-columns .18s; }
+
+/* พับเมนูข้างเก็บ ได้พื้นที่ตารางเพิ่มอีก 220px */
+.admin-layout.nav-hidden { grid-template-columns: 0 1fr; }
+.admin-layout.nav-hidden .set-nav { display: none; }
+
+.nav-toggle { color: #9ecbf0; border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
+  width: 26px; height: 26px; font-size: 13px; line-height: 1; margin-right: 8px; flex: none; }
+.nav-toggle:hover { color: #fff; border-color: #fff; }
+.page-admin .panel-head { gap: 0; }
 .set-nav { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   overflow: hidden; position: sticky; top: 82px;
   /* จอกว้างเป็นรายการแนวตั้งเสมอ กันสไตล์จอแคบรั่วมาทับ */

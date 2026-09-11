@@ -47,7 +47,7 @@ export async function render(ctx) {
         แก้ได้ที่ไฟล์ scripts/core/config.js บรรทัด dataSource ให้เป็น 'sharepoint'
       </div>` : ''}
 
-      <div class="admin-layout">
+      <div class="admin-layout${state.adminNavHidden ? ' nav-hidden' : ''}">
         <nav class="set-nav">
           ${Object.entries(SCHEMA).map(([k, v]) => `
             <button data-set="${k}" aria-current="${key === k ? 'page' : 'false'}">
@@ -55,7 +55,11 @@ export async function render(ctx) {
         </nav>
 
         <div class="panel">
-          <div class="panel-head">${s.icon} ${esc(s.title)} — ${rows.length} รายการ
+          <div class="panel-head">
+            <button class="nav-toggle" data-navtoggle="1"
+              title="${state.adminNavHidden ? 'แสดงเมนูชุดข้อมูล' : 'ซ่อนเมนูเพื่อให้ตารางกว้างขึ้น'}"
+              >${state.adminNavHidden ? '☰' : '⟨'}</button>
+            ${s.icon} ${esc(s.title)} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
             <button class="head-btn" data-new="1">+ เพิ่มรายการ</button></div>
           <div class="table-scroll"><table>
@@ -150,6 +154,7 @@ async function openEditor(key, record) {
 
 export function mount(ctx) {
   onClick('set', (k) => setState({ adminSet: k }));
+  onClick('navtoggle', () => setState({ adminNavHidden: !state.adminNavHidden }));
   const key = state.adminSet || 'departments';
   const s = SCHEMA[key];
 

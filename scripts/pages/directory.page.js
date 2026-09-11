@@ -2,7 +2,14 @@ import { esc, $, $$, onClick } from '../core/dom.js';
 import { openModal } from '../components/modal.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
-import { toArray } from '../admin/entity-form.js';
+import { toArray as rawArray } from '../admin/entity-form.js';
+
+/** แปลงค่าหลายรายการให้เป็นข้อความเสมอ กันกรณีที่ยังหลุดมาเป็นออบเจ็กต์ */
+const toArray = (v) => rawArray(v)
+  .map((x) => (x && typeof x === 'object'
+    ? (x.LookupValue ?? x.Label ?? x.Title ?? x.DisplayName ?? '')
+    : x))
+  .filter(Boolean);
 import { state, setState } from '../core/state.js';
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 8, adminOnly: false };
@@ -159,18 +166,18 @@ export async function render(ctx) {
    */
   const directors = rows.filter((p) => toArray(p.Oversees).length);
   if (directors.length) {
+    const names = await groupOrder();
     const extra = [];
     directors.forEach((d) => {
       toArray(d.Oversees).forEach((dep) => {
         if (dep === d.Department) return;              // ฝ่ายตัวเองมีอยู่แล้ว
         const g = groups.find((x) => x.name === dep);
         if (g) { if (!g.rows.includes(d)) g.rows = [d, ...g.rows]; }
-        else extra.push({ name: dep, rows: [d] });     // ฝ่ายที่ยังไม่มีใครอยู่เลย
+        else if (names.includes(dep)) extra.push({ name: dep, rows: [d] });  // ฝ่ายที่ยังไม่มีใครอยู่เลย
       });
     });
     if (extra.length) {
       groups = [...groups, ...extra];
-      const names = await groupOrder();
       groups.sort((a, b) => {
         const i = names.indexOf(a.name), j = names.indexOf(b.name);
         return (i < 0 ? 999 : i) - (j < 0 ? 999 : j);

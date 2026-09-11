@@ -35,23 +35,37 @@ async function call(path, options = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-/** Lookup และ Person ใน Graph คืนค่าเป็นออบเจ็กต์ ต้องคลี่ออกเป็นข้อความก่อนใช้ */
+/**
+ * Lookup, Person และช่องที่เลือกได้หลายค่า Graph ส่งกลับมาเป็นออบเจ็กต์
+ * ต้องคลี่เป็นข้อความก่อน ไม่งั้นหน้าเว็บจะแสดงเป็น [object Object]
+ * และการเทียบชื่อฝ่ายเพื่อจัดกลุ่มจะไม่ตรง
+ */
+function plain(v) {
+  if (v === null || v === undefined) return v;
+
+  if (typeof v === 'object') {
+    // คอลัมน์ชนิด Image เก็บที่อยู่ไฟล์ไว้เป็นสองส่วน
+    if (v.serverUrl && v.serverRelativeUrl) return v.serverUrl + v.serverRelativeUrl;
+    return v.LookupValue ?? v.Label ?? v.Url ?? v.DisplayName ?? v.Email
+        ?? v.Title ?? JSON.stringify(v);
+  }
+
+  // ข้อความที่เป็นข้อมูลรูปแบบ JSON ของคอลัมน์ Image
+  if (typeof v === 'string' && v.startsWith('{"') && v.includes('serverRelativeUrl')) {
+    try {
+      const img = JSON.parse(v);
+      return (img.serverUrl || '') + (img.serverRelativeUrl || '');
+    } catch (e) { return v; }
+  }
+
+  return v;
+}
+
 function flatten(fields) {
   const out = {};
   for (const [k, v] of Object.entries(fields)) {
     if (k.startsWith('@') || k.endsWith('@odata.type')) continue;
-    if (v && typeof v === 'object' && !Array.isArray(v)) {
-      out[k] = v.Url ?? v.Label ?? v.LookupValue ?? v.DisplayName ?? v.Email
-            ?? (v.serverUrl && v.serverRelativeUrl ? v.serverUrl + v.serverRelativeUrl : null)
-            ?? JSON.stringify(v);
-    } else if (typeof v === 'string' && v.startsWith('{"') && v.includes('serverRelativeUrl')) {
-      try {
-        const img = JSON.parse(v);
-        out[k] = (img.serverUrl || '') + (img.serverRelativeUrl || '');
-      } catch (e) { out[k] = v; }
-    } else {
-      out[k] = v;
-    }
+    out[k] = Array.isArray(v) ? v.map(plain) : plain(v);
   }
   return out;
 }
@@ -71,90 +85,6 @@ async function titleMap(target) {
   return maps[target];
 }
 
-/* ---------- รายชื่อคอลัมน์ที่มีอยู่จริงใน List ---------- */
-
-const columnCache = {};
-
-/**
- * ดึงรายชื่อคอลัมน์ของ List เพื่อคัดเฉพาะช่องที่มีอยู่จริงก่อนบันทึก
- * ถ้าส่งช่องที่ไม่มี Graph จะปฏิเสธทั้งรายการด้วย invalidRequest
- * ซึ่งทำให้บันทึกอะไรไม่ได้เลยแม้ช่องอื่นถูกต้องหมด
- */
-async function columnsOf(name) {
-  if (!columnCache[name]) {
-    const data = await call(
-      `/lists/${listId(name)}/columns` +
-      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup`);
-    const map = new Map();
-    data.value.forEach((c) => map.set(c.name, c));
-    columnCache[name] = map;
-  }
-  return columnCache[name];
-}
-
-/**
- * แปลงค่าให้ตรงกับชนิดคอลัมน์จริงใน SharePoint
- * คอลัมน์ชนิด Hyperlink or Picture รับข้อความธรรมดาไม่ได้
- * ต้องส่งเป็นออบเจ็กต์ { Url, Description } ไม่งั้น Graph ตอบ generalException
- */
-function coerce(col, value) {
-  if (!col) return value;
-
-  /**
-   * คอลัมน์ชนิด Image ของ SharePoint เก็บไฟล์ไว้ในตัวเองและเขียนผ่าน Graph ไม่ได้
-   * ถ้าเจอให้ข้ามไปเลย ดีกว่าส่งไปแล้วถูกปฏิเสธทั้งรายการ
-   */
-  if (col.thumbnail) return undefined;
-
-  if (col.hyperlinkOrPicture) {
-    const url = String(value || '').trim();
-    return url ? { Url: url, Description: url.split('/').pop() } : null;
-  }
-  /**
-   * คอลัมน์ข้อความบรรทัดเดียวรับได้ 255 อักขระ
-   * ลิงก์ที่มีภาษาไทยในเส้นทางจะยาวกว่านั้นได้ง่าย เพราะถูกแปลงเป็นรหัสตัวละ 9 อักขระ
-   */
-  if (col.text && col.text.allowMultipleLines === false && typeof value === 'string'
-      && value.length > 255) {
-    throw new Error(
-      `ค่าในช่องนี้ยาว ${value.length} อักขระ เกินที่คอลัมน์รับได้ 255 อักขระ\n` +
-      'ให้เปลี่ยนชนิดคอลัมน์เป็น Multiple lines of text แบบ Plain text');
-  }
-
-  if (col.boolean) return Boolean(value);
-  if (col.number)  return value === '' || value === null ? null : Number(value);
-
-  return value;
-}
-
-/** คัดช่องที่ List ไม่มี คืนทั้งข้อมูลที่ส่งได้และรายชื่อที่ถูกข้าม */
-async function keepKnown(name, fields) {
-  const cols = await columnsOf(name);
-  const out = {}, skipped = [];
-
-  // รอบแรกคัดเฉพาะช่องข้อมูลจริง ยังไม่แตะคำกำกับชนิดข้อมูล
-  for (const [k, v] of Object.entries(fields)) {
-    if (k.endsWith('@odata.type')) continue;
-    const base = k.replace(/LookupId$/, '');
-    if (cols.has(k)) {
-      const cv = coerce(cols.get(k), v);
-      if (cv === undefined) skipped.push(k + ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)');
-      else out[k] = cv;
-    }
-    else if (cols.has(base)) out[k] = v;      // คอลัมน์ Lookup ส่งเป็นเลข id ตามเดิม
-    else skipped.push(base);
-  }
-
-  // คำกำกับชนิดข้อมูลติดไปด้วยเฉพาะเมื่อช่องของมันถูกส่งจริง
-  for (const [k, v] of Object.entries(fields)) {
-    if (k.endsWith('@odata.type') && k.replace(/@odata\.type$/, '') in out) out[k] = v;
-  }
-
-  return { fields: out, skipped: [...new Set(skipped)] };
-}
-
-export function clearColumnCache() { for (const k of Object.keys(columnCache)) delete columnCache[k]; }
-
 export function clearLookupCache() { for (const k of Object.keys(maps)) delete maps[k]; }
 
 /** เติมชื่อให้คอลัมน์ Lookup หลังอ่านข้อมูลมา */
@@ -164,7 +94,7 @@ async function resolveIn(name, rows) {
 
   for (const [key, [target, many]] of Object.entries(spec)) {
     const idKey = key + 'LookupId';
-    if (!rows.some((r) => r[idKey] !== undefined)) continue;   // ไม่ใช่ Lookup ก็ข้าม
+    if (!rows.some((r) => r[idKey] !== undefined)) continue;   // ค่ามาเป็นชื่ออยู่แล้วก็ข้าม
     const { byId } = await titleMap(target);
     rows.forEach((r) => {
       const v = r[idKey];
@@ -217,6 +147,76 @@ async function fetchRows(name) {
     path = next ? next.replace(base(), '') : null;
   }
   return rows;
+}
+
+/* ---------- รายชื่อคอลัมน์ที่มีอยู่จริงใน List ---------- */
+
+const columnCache = {};
+
+async function columnsOf(name) {
+  if (!columnCache[name]) {
+    const data = await call(
+      `/lists/${listId(name)}/columns` +
+      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`);
+    const map = new Map();
+    data.value.forEach((c) => map.set(c.name, c));
+    columnCache[name] = map;
+  }
+  return columnCache[name];
+}
+
+/** แปลงค่าให้ตรงกับชนิดคอลัมน์จริงใน SharePoint */
+function coerce(col, value) {
+  if (!col) return value;
+
+  // คอลัมน์ชนิด Image เขียนผ่าน Graph ไม่ได้ ต้องข้ามไป
+  if (col.thumbnail) return undefined;
+
+  if (col.hyperlinkOrPicture) {
+    const url = String(value || '').trim();
+    return url ? { Url: url, Description: url.split('/').pop() } : null;
+  }
+
+  // คอลัมน์ข้อความบรรทัดเดียวรับได้ 255 อักขระ ลิงก์ที่มีภาษาไทยจะยาวเกินได้ง่าย
+  if (col.text && col.text.allowMultipleLines === false && typeof value === 'string'
+      && value.length > 255) {
+    throw new Error(
+      `ค่าในช่องนี้ยาว ${value.length} อักขระ เกินที่คอลัมน์รับได้ 255 อักขระ\n` +
+      'ให้เปลี่ยนชนิดคอลัมน์เป็น Multiple lines of text แบบ Plain text');
+  }
+
+  if (col.boolean) return Boolean(value);
+  if (col.number)  return value === '' || value === null ? null : Number(value);
+
+  return value;
+}
+
+export function clearColumnCache() { for (const k of Object.keys(columnCache)) delete columnCache[k]; }
+
+/** คัดช่องที่ List ไม่มี คืนทั้งข้อมูลที่ส่งได้และรายชื่อที่ถูกข้าม */
+async function keepKnown(name, fields) {
+  const cols = await columnsOf(name);
+  const out = {}, skipped = [];
+
+  for (const [k, v] of Object.entries(fields)) {
+    if (k.endsWith('@odata.type')) continue;
+    const baseKey = k.replace(/LookupId$/, '');
+    if (cols.has(k)) {
+      const cv = coerce(cols.get(k), v);
+      if (cv === undefined) skipped.push(k + ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)');
+      else out[k] = cv;
+    } else if (cols.has(baseKey)) {
+      out[k] = v;                 // คอลัมน์ Lookup ส่งเป็นเลข id ตามเดิม
+    } else {
+      skipped.push(baseKey);
+    }
+  }
+
+  for (const [k, v] of Object.entries(fields)) {
+    if (k.endsWith('@odata.type') && k.replace(/@odata\.type$/, '') in out) out[k] = v;
+  }
+
+  return { fields: out, skipped: [...new Set(skipped)] };
 }
 
 export async function list(name) {

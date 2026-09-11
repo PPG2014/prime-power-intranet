@@ -27,8 +27,23 @@ export const toFiles = (v) => {
   catch (e) { return []; }
 };
 
-export const toArray = (v) =>
-  Array.isArray(v) ? v : String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
+/**
+ * ค่าหลายรายการอาจมาได้สามแบบ
+ * อาร์เรย์ของข้อความ, อาร์เรย์ของออบเจ็กต์จาก SharePoint, หรือสตริงคั่นจุลภาค
+ * ต้องคลี่ให้เป็นอาร์เรย์ของข้อความเสมอ ไม่งั้นเทียบกับตัวเลือกในฟอร์มไม่ตรง
+ * แล้วเครื่องหมายถูกที่เคยติ๊กไว้จะหายไปตอนเปิดแก้ไข
+ */
+export const toArray = (v) => {
+  const raw = Array.isArray(v)
+    ? v
+    : String(v || '').split(',').map((x) => x.trim());
+
+  return raw
+    .map((x) => (x && typeof x === 'object'
+      ? (x.LookupValue ?? x.Label ?? x.Title ?? x.DisplayName ?? x.Email ?? '')
+      : x))
+    .filter(Boolean);
+};
 
 /**
  * คืนตัวเลือกเป็น [{ value, label }]
