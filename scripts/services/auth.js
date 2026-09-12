@@ -70,12 +70,33 @@ export async function currentUser() {
   app.setActiveAccount(account);
 
   const email = (account.username || '').toLowerCase();
-  if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+  const ok = await emailAllowed(email);
+  if (!ok) {
     await app.logoutRedirect({ postLogoutRedirectUri: CONFIG.auth.redirectUri });
     return null;
   }
 
   return { name: account.name || account.username, email, isAdmin: false, account };
+}
+
+/**
+ * อีเมลที่เข้าระบบได้ = โดเมนบริษัท หรือ อยู่ในรายชื่อที่แอดมินอนุญาต
+ * รายชื่อเก็บในตั้งค่าระบบคีย์ AllowedEmails คั่นด้วยจุลภาค
+ * ใช้กับคนนอกที่ต้องเข้าระบบ เช่นที่ปรึกษาหรือผู้รับเหมาที่ใช้ hotmail/outlook
+ */
+async function emailAllowed(email) {
+  const e = String(email || '').toLowerCase();
+  if (e.endsWith('@' + ALLOWED_DOMAIN)) return true;
+
+  try {
+    const { settings } = await import('../utils/settings.js');
+    const cfg = await settings();
+    const allow = String(cfg.AllowedEmails || '')
+      .split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+    return allow.includes(e);
+  } catch (err) {
+    return false;   // อ่านรายชื่อไม่ได้ ให้ปิดไว้ก่อนเพื่อความปลอดภัย
+  }
 }
 
 /** พาไปหน้าเข้าสู่ระบบของ Microsoft — เรียกเมื่อผู้ใช้กดปุ่มเท่านั้น */
@@ -84,12 +105,8 @@ export async function startLogin() {
     return { name: 'ผู้ใช้ทดสอบ', email: 'demo@primepower.co.th', isAdmin: true };
   }
   const app = await client();
-  await app.loginRedirect({
-    scopes: CONFIG.auth.scopes,
-    prompt: 'select_account',
-    /** ช่วยข้ามหน้าเลือกประเภทบัญชี ไปที่หน้าล็อกอินขององค์กรเลย */
-    domainHint: ALLOWED_DOMAIN,
-  });
+  // ไม่บังคับ domainHint เพราะบางบัญชีที่อนุญาตเป็นอีเมลภายนอก
+  await app.loginRedirect({ scopes: CONFIG.auth.scopes, prompt: 'select_account' });
   return null;
 }
 

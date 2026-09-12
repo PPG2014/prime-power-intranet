@@ -40,6 +40,22 @@ export async function render(ctx) {
   </section>`;
 }
 
+/** รูปแสดงเลย · ไฟล์อื่นเป็นลิงก์กดเปิด */
+function renderAttachments(files) {
+  if (!files.length) return '';
+  const isImg = (a) => /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind);
+  const imgs = files.filter(isImg);
+  const docs = files.filter((a) => !isImg(a));
+  return `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
+    ${imgs.map((a) => `<figure class="doc-img">
+        <img src="${esc(a.url)}" alt="${esc(a.name)}" loading="lazy">
+        <figcaption>${esc(a.name)}</figcaption></figure>`).join('')}
+    ${docs.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
+        <span>📄</span><b>${esc(a.name)}</b>
+        <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
+      </a>`).join('')}</div>`;
+}
+
 export function mount(ctx) {
   onClick('policy', (id) => {
     const p = rows.find((r) => String(r.id) === String(id));
@@ -56,12 +72,7 @@ export function mount(ctx) {
         ${p.Content
           ? `<div class="doc-body">${esc(p.Content)}</div>`
           : `<div class="doc-empty">ยังไม่ได้ใส่เนื้อหาสำหรับเอกสารนี้</div>`}
-        ${files.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
-          ${files.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
-            <span>${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
-            <b>${esc(a.name)}</b>
-            <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
-          </a>`).join('')}</div>` : ''}
+        ${renderAttachments(files)}
 `,
     });
   });

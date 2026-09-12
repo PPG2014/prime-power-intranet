@@ -144,3 +144,6 @@
 label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .page-admin .panel-head { flex-wrap: wrap; gap: 6px; }
 .page-admin .panel-head > :first-child { margin-right: auto; }
+.import-row { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px dashed var(--line);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.import-row label.btn-mini { display: inline-flex; align-items: center; cursor: pointer; }

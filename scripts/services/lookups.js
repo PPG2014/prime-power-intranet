@@ -15,6 +15,7 @@ export const LOOKUPS = {
     Oversees:   ['departments', true],
   },
   sections:      { Department: ['departments', false] },
+  approvalMatrix: { Approvers: ['directory', true] },  /* FormCode เก็บเป็นข้อความตรง ๆ */
   projects: {
     Department: ['departments', false],
     Owner:      ['directory', false],

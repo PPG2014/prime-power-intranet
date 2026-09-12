@@ -149,6 +149,31 @@ export const SCHEMA = {
     ],
   },
 
+  approvalMatrix: {
+    title: 'เส้นทางอนุมัติ', icon: '✔️', list: 'approvalMatrix', spName: 'ApprovalMatrix',
+    sortField: 'SortOrder',
+    hint: 'กำหนดว่าแต่ละแบบฟอร์มต้องผ่านใครบ้างตามลำดับ · แต่ละลำดับใส่ผู้อนุมัติได้หลายคน',
+    columns: ['FormCode', 'StepOrder', 'StepName', 'Approvers', 'ApproveMode'],
+    labels: { FormCode: 'รหัสฟอร์ม', StepOrder: 'ลำดับ', StepName: 'ชื่อขั้น',
+              Approvers: 'ผู้อนุมัติ', ApproveMode: 'เงื่อนไข' },
+    fields: [
+      { key: 'FormCode', label: 'แบบฟอร์ม', type: 'lookup', from: 'formCatalog',
+        valueField: 'FormCode', labelWith: 'Title', searchable: true, required: true,
+        help: 'เลือกฟอร์มที่จะกำหนดเส้นทาง' },
+      { key: 'StepOrder', label: 'ลำดับที่', type: 'number', required: true,
+        help: 'เริ่มจาก 1 · คำขอจะวิ่งจากลำดับน้อยไปมาก' },
+      { key: 'StepName', label: 'ชื่อขั้นอนุมัติ', type: 'text',
+        help: 'เช่น ผู้บังคับบัญชา · ผู้จัดการฝ่าย · กรรมการผู้จัดการ' },
+      { key: 'Approvers', label: 'ผู้อนุมัติในลำดับนี้ (เลือกได้หลายคน)', type: 'multilookup',
+        from: 'directory', labelWith: 'Position', searchable: true, full: true,
+        help: 'ใส่ได้ 2-3 คนต่อลำดับ' },
+      { key: 'ApproveMode', label: 'เงื่อนไขการผ่าน', type: 'choice',
+        options: ['คนใดคนหนึ่งอนุมัติก็ผ่าน', 'ต้องอนุมัติครบทุกคน'],
+        help: 'ใช้เมื่อลำดับนี้มีผู้อนุมัติมากกว่าหนึ่งคน' },
+      { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
+    ],
+  },
+
   formFields: {
     title: 'ช่องกรอกของแบบฟอร์ม', icon: '🧩', list: 'formFields', spName: 'FormFields',
     sortField: 'SortOrder',
@@ -207,7 +232,8 @@ export const SCHEMA = {
               Department: 'ฝ่าย', FileSize: 'ขนาด', Files: 'ไฟล์แนบ' },
     fields: [
       { key: 'Title', label: 'ชื่อเอกสาร', type: 'text', required: true },
-      { key: 'DocType', label: 'ประเภท', type: 'choice', options: ['คู่มือ', 'ไฟล์ดาวน์โหลด'] },
+      { key: 'DocType', label: 'ประเภท', type: 'choice',
+        options: ['คู่มือ', 'เอกสาร ISO', 'ไฟล์ดาวน์โหลด'] },
       { key: 'Department', label: 'ฝ่ายเจ้าของ', type: 'lookup', from: 'departments' },
       { key: 'Icon', label: 'ไอคอน', type: 'text' },
       { key: 'Description', label: 'คำอธิบาย', type: 'textarea' },

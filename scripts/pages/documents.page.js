@@ -15,7 +15,7 @@ export async function render(ctx) {
   const all = (await list('documents')).filter((d) => d.IsActive !== false);
   rows = all.filter((d) => d.DocType === tab);
   const groups = await groupByDepartment(rows);
-  const tabs = ['คู่มือ', 'ไฟล์ดาวน์โหลด'];
+  const tabs = ['คู่มือ', 'เอกสาร ISO', 'ไฟล์ดาวน์โหลด'];
 
   return `
   <section class="page page-documents">
@@ -35,13 +35,13 @@ export async function render(ctx) {
           <div class="panel"><table>
             <thead><tr>
               <th>ชื่อเอกสาร</th>
-              ${tab === 'คู่มือ' ? '<th style="width:170px">อัปเดตล่าสุด</th>'
+              ${tab !== 'ไฟล์ดาวน์โหลด' ? '<th style="width:170px">อัปเดตล่าสุด</th>'
                                  : '<th style="width:90px">ชนิด</th><th style="width:100px">ขนาด</th>'}
               <th style="width:90px">ไฟล์แนบ</th><th class="col-actions"></th>
             </tr></thead>
             <tbody>${g.rows.map((d) => `<tr>
               <td><button class="linky" data-doc="${d.id}">${d.Icon} ${esc(d.Title)}</button></td>
-              ${tab === 'คู่มือ' ? `<td>${esc(thaiDateShort(d.LastUpdated))}</td>`
+              ${tab !== 'ไฟล์ดาวน์โหลด' ? `<td>${esc(thaiDateShort(d.LastUpdated))}</td>`
                 : `<td class="code">${esc(d.FileFormat || '')}</td><td>${esc(d.FileSize || '')}</td>`}
               <td>${toFiles(d.Files).length ? '📎 ' + toFiles(d.Files).length : '—'}</td>
               <td class="col-actions"><button class="btn-mini" data-doc="${d.id}">${

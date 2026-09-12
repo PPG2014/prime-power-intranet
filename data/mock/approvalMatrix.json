@@ -1,1 +1,26 @@
-[]
+[
+ {
+  "id": 1,
+  "FormCode": "FM-HR-001",
+  "StepOrder": 1,
+  "StepName": "ผู้บังคับบัญชา",
+  "Approvers": [
+   "จิรายุส พูลขำ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 2,
+  "FormCode": "FM-HR-001",
+  "StepOrder": 2,
+  "StepName": "ฝ่ายทรัพยากรบุคคล",
+  "Approvers": [
+   "ชนิดา พูลสวัสดิ์"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 2,
+  "IsActive": true
+ }
+]

@@ -157,7 +157,8 @@ async function columnsOf(name) {
   if (!columnCache[name]) {
     const data = await call(
       `/lists/${listId(name)}/columns` +
-      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`);
+      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`
+      + `&$expand=choice`);
     const map = new Map();
     data.value.forEach((c) => map.set(c.name, c));
     columnCache[name] = map;
@@ -188,6 +189,17 @@ function coerce(col, value) {
   if (col.boolean) return Boolean(value);
   if (col.number)  return value === '' || value === null ? null : Number(value);
 
+  /**
+   * คอลัมน์ Choice ที่ไม่ได้เปิด "เพิ่มค่าเองได้" จะปฏิเสธค่านอกรายการด้วย 500
+   * ค่าว่างส่ง null ได้ ค่าที่ไม่ตรงรายการให้ข้ามไป ดีกว่าล้มทั้งรายการ
+   */
+  if (col.choice && Array.isArray(col.choice.choices)) {
+    const v = String(value ?? '').trim();
+    if (!v) return null;
+    if (!col.choice.allowTextEntry && !col.choice.choices.includes(v)) return undefined;
+    return v;
+  }
+
   return value;
 }
 
@@ -203,7 +215,12 @@ async function keepKnown(name, fields) {
     const baseKey = k.replace(/LookupId$/, '');
     if (cols.has(k)) {
       const cv = coerce(cols.get(k), v);
-      if (cv === undefined) skipped.push(k + ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)');
+      if (cv === undefined) {
+        const col = cols.get(k);
+        skipped.push(k + (col && col.thumbnail
+          ? ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)'
+          : ' (ค่าไม่ตรงกับตัวเลือกที่ตั้งไว้ใน SharePoint)'));
+      }
       else out[k] = cv;
     } else if (cols.has(baseKey)) {
       out[k] = v;                 // คอลัมน์ Lookup ส่งเป็นเลข id ตามเดิม

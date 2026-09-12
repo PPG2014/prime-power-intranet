@@ -36,3 +36,7 @@
 @media (max-width: 620px) {
   .home-side { flex-direction: column; }
 }
+.msg-list li { display: block; padding: 11px 16px; }
+.msg-row { display: flex; gap: 9px; align-items: baseline; }
+.msg-time { font-size: 12px; font-weight: 600; color: var(--blue); white-space: nowrap; flex: none; }
+.msg-by { font-size: 11.5px; color: var(--dim); margin-top: 3px; }

@@ -4,15 +4,25 @@ import { thaiDateShort } from '../utils/format.js';
 import { openModal } from '../components/modal.js';
 import { toFiles } from '../admin/entity-form.js';
 import { renderDashboard, mountDashboard } from './projects.page.js';
+import { attachedFiles } from '../components/form-renderer.js';
 
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
 let newsRows = [];
 
 export async function render(ctx) {
-  const [forms, news, docs, dashboard] = await Promise.all([
-    list('formCatalog'), list('news'), list('documents'), renderDashboard(),
+  const [forms, news, docs, requests, dashboard] = await Promise.all([
+    list('formCatalog'), list('news'), list('documents'),
+    list('requests').catch(() => []), renderDashboard(),
   ]);
+
+  // คำขอจองคิว Messenger ของวันนี้ ดึงวันที่ที่ขอใช้จากคำตอบในฟอร์ม
+  const today = new Date().toISOString().slice(0, 10);
+  const messengerToday = requests
+    .filter((r) => r.FormCode === 'FM-HR-003')
+    .map((r) => { try { return { r, d: JSON.parse(r.FormData || '{}') }; } catch (e) { return null; } })
+    .filter((x) => x && String(x.d.service_date || '').slice(0, 10) === today)
+    .sort((a, b) => String(a.d.time_slot).localeCompare(String(b.d.time_slot)));
 
   newsRows = news.filter((n) => n.IsActive !== false);
 
@@ -71,6 +81,20 @@ export async function render(ctx) {
                   <span class="st">${esc(d.Title)}</span></a></li>`).join('')}</ul>`
               : '<div class="side-empty">ยังไม่มีคู่มือ</div>'}
           </div>
+          <div class="panel side-panel">
+            <div class="panel-head">🏍 จองคิว Messenger วันนี้
+              <a class="panel-link" href="#/requests?form=FM-HR-003">ดูทั้งหมด →</a></div>
+            ${messengerToday.length ? `<ul class="side-list msg-list">
+              ${messengerToday.map(({ d }) => `<li>
+                <div class="msg-row">
+                  <span class="msg-time">${esc(d.time_slot || '')}</span>
+                  <span class="st">${esc(d.place || d.job_detail || 'ไม่ระบุสถานที่')}</span>
+                </div>
+                <div class="msg-by">${esc(d.requester || '')}</div>
+              </li>`).join('')}</ul>`
+              : '<div class="side-empty">วันนี้ยังไม่มีการจองคิว</div>'}
+          </div>
+
         </aside>
 
       </div>

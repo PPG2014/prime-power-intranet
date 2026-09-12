@@ -77,6 +77,19 @@
 | SortOrder | Number | |
 | IsActive | Yes/No | |
 
+### `ApprovalMatrix` — เส้นทางอนุมัติของแต่ละฟอร์ม
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อขั้น เช่น ผู้บังคับบัญชา |
+| FormCode | Single line of text | รหัสฟอร์มที่ใช้เส้นทางนี้ |
+| StepOrder | Number | ลำดับ เริ่มจาก 1 |
+| StepName | Single line of text | |
+| Approvers | Lookup → Directory.Title (**Allow multiple values**) | ผู้อนุมัติในลำดับนี้ 2-3 คน |
+| ApproveMode | Choice | `คนใดคนหนึ่งอนุมัติก็ผ่าน` / `ต้องอนุมัติครบทุกคน` |
+| SortOrder | Number | |
+| IsActive | Yes/No | |
+
 ### `Requests` — คำขอที่ยื่นเข้ามา
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
@@ -145,6 +158,7 @@
 | **Admins** | intranet.pr@primepower.co.th | **สำคัญที่สุด** — อีเมลผู้ดูแล คั่นด้วยจุลภาค เฉพาะคนในรายชื่อนี้เห็นเมนูจัดการข้อมูล |
 | ExecutiveGroup | ผู้บริหาร | ชื่อกลุ่มที่ปักไว้บนสุดของหน้าบุคลากร |
 | ProjectDepartments | ฝ่ายบริหารโครงการ | ฝ่ายที่ช่องโครงการจะแสดง |
+| AllowedEmails | (เว้นว่างได้) | อีเมลนอกโดเมนบริษัทที่อนุญาตให้เข้าระบบ คั่นด้วยจุลภาค เช่นที่ปรึกษาที่ใช้ @hotmail.com |
 | SupportDept | ฝ่ายประสานงานและอำนวยการ — งานเทคโนโลยีสารสนเทศ | แสดงในหน้าติดต่อ |
 | SupportName | ชื่อผู้ดูแล | |
 | SupportExt | 216 | |
