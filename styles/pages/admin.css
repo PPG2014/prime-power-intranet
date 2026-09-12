@@ -132,3 +132,12 @@
 .check-item[hidden] { display: none; }
 .off-note { padding: 9px 20px; background: #fff8ec; border-bottom: 1px solid #f0e2c8;
   font-size: 12.5px; color: #8a5a00; }
+
+/* ช่องที่ต้องการพื้นที่กว้าง เช่นกล่องเลือกคนหลายคนและกล่องข้อความยาว */
+.field-full { grid-column: 1 / -1; }
+.field-full textarea { min-height: 120px; }
+
+/* รายชื่อในกล่องติ๊ก ให้กว้างพอที่ชื่อกับนามสกุลอยู่บรรทัดเดียว */
+.field-full .check-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  max-height: 230px; }
+.check-item span { line-height: 1.5; }

@@ -181,7 +181,8 @@ export async function formBody(schema, record = {}) {
     }
 
     const shown = await fieldVisible(f, record);
-    parts.push(`<div class="field" data-field="${f.key}" ${shown ? '' : 'hidden'}>
+    parts.push(`<div class="field${f.full ? ' field-full' : ''}" data-field="${f.key}"
+      ${shown ? '' : 'hidden'}>
       <label for="${id}">${esc(f.label)}${f.required ? ' *' : ''}</label>${help}${input}</div>`);
   }
   return `<div class="field-grid">${parts.join('')}</div>

@@ -41,8 +41,9 @@
 .pg-label b { color: var(--ink); }
 .pg-track { height: 9px; background: #eceff3; border-radius: 20px; overflow: hidden; }
 .pg-fill { height: 100%; border-radius: 20px; transition: width .4s; }
-.pg-fill.plan   { background: #b9c6d4; }
-.pg-fill.actual { background: linear-gradient(90deg, var(--blue), var(--green)); }
+/* แผนเป็นเขียวอ่อน ผลงานจริงเป็นเขียวเข้ม เทียบกันได้ในแถบสีเดียวกัน */
+.pg-fill.plan   { background: #8fd6ae; }
+.pg-fill.actual { background: linear-gradient(90deg, var(--green-dark), var(--green)); }
 .pg-fill.pay    { background: var(--navy); }
 
 .pj-var { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 11px;
