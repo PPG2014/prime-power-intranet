@@ -138,6 +138,5 @@
 .field-full textarea { min-height: 120px; }
 
 /* รายชื่อในกล่องติ๊ก ให้กว้างพอที่ชื่อกับนามสกุลอยู่บรรทัดเดียว */
-.field-full .check-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  max-height: 230px; }
-.check-item span { line-height: 1.5; }
+.field-full .check-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  max-height: 240px; }
