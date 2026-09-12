@@ -1,0 +1,68 @@
+/* ---------- หน้ากรอกแบบฟอร์ม ---------- */
+.wrap.narrow { max-width: 880px; }
+.back-link { display: inline-block; font-size: 13px; color: var(--muted); margin-bottom: var(--gap); }
+.back-link:hover { color: var(--blue); }
+
+.form-head { display: flex; gap: var(--gap); align-items: flex-start; margin-bottom: var(--gap); }
+.form-icon-lg { font-size: 34px; line-height: 1; flex: none; }
+.form-head h1 { font-size: 24px; line-height: 1.35; }
+.form-sub { font-size: 12.5px; color: var(--dim); letter-spacing: .03em; margin-top: 3px; }
+.form-desc { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+
+.form-panel { padding: 4px 0 0; }
+.q-group { padding: var(--gap) var(--gap-lg); border-bottom: 1px solid var(--line-soft); }
+.q-group:last-of-type { border-bottom: 0; }
+.q-group-title { font-size: 13px; font-weight: 700; color: var(--blue); letter-spacing: .03em;
+  text-transform: none; margin-bottom: var(--gap); padding-bottom: 8px;
+  border-bottom: 2px solid #eef2f6; }
+
+.q-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--gap); }
+.q-grid > * { min-width: 0; }
+.q-field { display: flex; flex-direction: column; min-width: 0; }
+.q-full { grid-column: 1 / -1; }
+.q-field label { font-size: 13.5px; font-weight: 600; margin-bottom: 5px; }
+.q-field label .req { color: var(--danger); }
+.q-help { font-size: 12px; color: var(--dim); line-height: 1.55; margin-bottom: 6px; }
+
+.q-field input, .q-field select, .q-field textarea {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; font-family: inherit; font-size: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.q-field textarea { resize: vertical; min-height: 110px; }
+.q-field input:focus, .q-field select:focus, .q-field textarea:focus {
+  border-color: var(--blue-light); outline: none; box-shadow: 0 0 0 3px rgba(0,103,184,.12); }
+
+/* ช่องที่ระบบกรอกให้ ไม่ให้ดูเหมือนช่องที่พิมพ์ได้ */
+.q-readonly { padding: 10px 12px; background: #f4f7fa; border: 1px dashed var(--line);
+  border-radius: var(--radius-sm); font-size: 14px; color: #3d4650; min-height: 42px;
+  display: flex; align-items: center; }
+
+.q-switch { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; }
+.q-switch input { width: 16px; height: 16px; }
+.q-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px 12px; background: var(--surface); }
+.q-files { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.q-files .file-list { width: 100%; }
+
+.form-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--gap);
+  padding: var(--gap) var(--gap-lg); background: #fafbfc; border-top: 1px solid var(--line-soft);
+  flex-wrap: wrap; }
+.form-foot .btn { padding: 11px 30px; }
+.page-form .field-error { margin: 0 var(--gap-lg) var(--gap); }
+
+/* ---------- หน้าจอหลังส่งสำเร็จ ---------- */
+.sent-panel { text-align: center; padding: var(--gap-xl) var(--gap-lg); }
+.sent-mark { width: 62px; height: 62px; margin: 0 auto var(--gap); border-radius: 50%;
+  background: #e4f2ec; color: var(--ok); font-size: 30px; display: grid; place-items: center; }
+.sent-panel h2 { font-size: 21px; margin-bottom: 8px; }
+.sent-panel p { font-size: 14.5px; color: var(--muted); margin: 0 0 4px; }
+.sent-panel b { color: var(--navy); font-size: 16px; }
+.sent-actions { display: flex; gap: var(--gap-sm); justify-content: center;
+  align-items: center; margin-top: var(--gap-lg); flex-wrap: wrap; }
+
+@media (max-width: 620px) {
+  .q-group { padding: var(--gap) var(--gap); }
+  .form-foot { padding: var(--gap); }
+  .page-form .field-error { margin: 0 var(--gap) var(--gap); }
+}

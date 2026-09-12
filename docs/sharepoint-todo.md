@@ -57,6 +57,46 @@
 
 ---
 
+## ข-0. คอลัมน์ที่ต้องมีใน `FormFields` และ `Requests`
+
+### `FormFields` — นิยามช่องของแต่ละแบบฟอร์ม
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | ชื่อช่องที่ผู้ใช้เห็น |
+| FormCode | Single line of text | เช่น FM-HR-001 |
+| FieldKey | Single line of text | ชื่อช่องในระบบ อังกฤษตัวเล็ก |
+| FieldType | Choice | text, textarea, number, currency, date, time, choice, multichoice, lookup, person, yesno, file, readonly |
+| Options | Multiple lines of text (plain) | บรรทัดละหนึ่งตัวเลือก |
+| IsRequired | Yes/No | |
+| DefaultValue | Single line of text | `{today}` `{me.Title}` `{me.Position}` `{me.Department}` `{me.EmployeeCode}` |
+| HelpText | Single line of text | |
+| Section | Single line of text | หัวข้อที่จัดกลุ่มช่อง |
+| ColumnWidth | Choice | `half` / `full` |
+| ShowIf | Single line of text | เช่น `subject=เรื่องอื่น ๆ` |
+| SortOrder | Number | |
+| IsActive | Yes/No | |
+
+### `Requests` — คำขอที่ยื่นเข้ามา
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | เลขที่คำขอ เช่น REQ-2569-0001 |
+| FormCode | Single line of text | |
+| FormName | Single line of text | |
+| RequesterName | Single line of text | |
+| RequesterEmail | Single line of text | |
+| RequesterDept | Single line of text | |
+| Status | Choice | `ร่าง` `รออนุมัติ` `อนุมัติแล้ว` `ไม่อนุมัติ` `ยกเลิก` |
+| SubmittedDate | Date and Time | |
+| FormData | Multiple lines of text (plain) | คำตอบทุกช่องเก็บเป็น JSON |
+| Files | Multiple lines of text (plain) | ไฟล์แนบ |
+
+**ต้องเพิ่มคอลัมน์ `EmployeeCode` ใน `Directory`** ชนิด Single line of text
+เพราะฟอร์มดึงรหัสบุคลากรมากรอกให้อัตโนมัติ ไฟล์ CSV บุคลากรมีรหัสครบทั้ง 159 คนแล้ว
+
+---
+
 ## ข. เพิ่มคอลัมน์ใน List เดิม
 
 ### `Directory`

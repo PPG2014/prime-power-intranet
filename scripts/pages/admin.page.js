@@ -6,6 +6,7 @@ import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
 import { thaiDateShort } from '../utils/format.js';
+import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
 import { showAnnouncements } from '../components/announcement-popup.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
@@ -61,6 +62,10 @@ export async function render(ctx) {
               >${state.adminNavHidden ? '☰' : '⟨'}</button>
             ${s.icon} ${esc(s.title)} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
+            <button class="head-btn" data-csvout="1" title="ดาวน์โหลดข้อมูลชุดนี้เป็นไฟล์ CSV">⭳ ส่งออก</button>
+            ${s.readOnly ? '' : `<label class="head-btn" for="csv-in"
+              title="นำเข้าข้อมูลจากไฟล์ CSV">⭱ นำเข้า</label>
+              <input type="file" id="csv-in" accept=".csv,text/csv" hidden>`}
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           ${(() => {
             const off = rows.filter((r) => r.IsActive === false).length;
@@ -208,6 +213,79 @@ async function openEditor(key, record) {
 
 export function mount(ctx) {
   onClick('set', (k) => setState({ adminSet: k }));
+
+  /* ---------- ส่งออกเป็น CSV ---------- */
+  onClick('csvout', () => {
+    const keys = [...s.fields.map((f) => f.key), ...(s.sortField ? [s.sortField] : [])];
+    downloadText(
+      `${s.spName || s.list}-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(keys, rows.map((r) => keys.map((k) => r[k]))));
+  });
+
+  /* ---------- นำเข้าจาก CSV ---------- */
+  const picker = $('#csv-in');
+  if (picker) picker.onchange = async (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+
+    const table = parseCsv(await file.text());
+    if (table.length < 2) { alert('ไฟล์ว่างหรืออ่านไม่ได้ ต้องมีบรรทัดหัวคอลัมน์และข้อมูลอย่างน้อยหนึ่งแถว'); return; }
+
+    const header = table[0].map((h) => h.trim());
+    // ลำดับการแสดงผลไม่ใช่ช่องในฟอร์ม แต่ถ้ามีมากับไฟล์ก็ควรนำเข้าด้วย
+    const known = [...s.fields.map((f) => f.key), ...(s.sortField ? [s.sortField] : [])];
+    const matched = header.filter((h) => known.includes(h));
+    const ignored = header.filter((h) => !known.includes(h));
+
+    if (!matched.length) {
+      alert('ไม่พบคอลัมน์ที่ตรงกับชุดข้อมูลนี้เลย\n\n' +
+        'หัวคอลัมน์ในไฟล์: ' + header.join(', ') +
+        '\n\nที่ระบบรองรับ: ' + known.join(', ') +
+        '\n\nกดปุ่มส่งออกเพื่อดูรูปแบบไฟล์ที่ถูกต้อง');
+      return;
+    }
+
+    const body = table.slice(1);
+    const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+    // แยกแถวที่ซ้ำกับข้อมูลเดิมออกก่อน เพื่อไม่ให้นำเข้าทับโดยไม่ตั้งใจ
+    const items = [], dups = [];
+    body.forEach((line) => {
+      const item = {};
+      header.forEach((h, i) => {
+        const f = s.fields.find((x) => x.key === h)
+          || (h === s.sortField ? { key: h, type: 'number' } : null);
+        if (f) item[h] = castValue(f, line[i]);
+      });
+      const clash = (s.unique || []).some((k) =>
+        item[k] && rows.some((r) => norm(r[k]) === norm(item[k])));
+      (clash ? dups : items).push(item);
+    });
+
+    const ok = confirm(
+      `ไฟล์ ${file.name}\n\n` +
+      `จะเพิ่ม ${items.length} รายการ` +
+      (dups.length ? `\nข้าม ${dups.length} รายการที่ซ้ำกับข้อมูลเดิม` : '') +
+      `\nคอลัมน์ที่ใช้ ${matched.length} ช่อง` +
+      (ignored.length ? `\nไม่รู้จักและข้ามไป: ${ignored.join(', ')}` : '') +
+      '\n\nดำเนินการต่อหรือไม่');
+    if (!ok || !items.length) return;
+
+    let done = 0;
+    const failed = [];
+    for (const item of items) {
+      try { await create(s.list, item); done++; }
+      catch (e) { failed.push(`${item[s.fields[0].key] || '(ไม่มีชื่อ)'} — ${e.message}`); }
+    }
+
+    clearCaches();
+    rerender();
+    alert(`นำเข้าสำเร็จ ${done} รายการ` +
+      (dups.length ? `\nข้ามรายการซ้ำ ${dups.length}` : '') +
+      (failed.length ? `\n\nไม่สำเร็จ ${failed.length} รายการ\n${failed.slice(0, 5).join('\n')}` : ''));
+  };
+
   onClick('navtoggle', () => setState({ adminNavHidden: !state.adminNavHidden }));
   const key = state.adminSet || 'departments';
   const s = SCHEMA[key];

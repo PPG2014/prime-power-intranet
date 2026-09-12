@@ -140,3 +140,7 @@
 /* รายชื่อในกล่องติ๊ก ให้กว้างพอที่ชื่อกับนามสกุลอยู่บรรทัดเดียว */
 .field-full .check-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   max-height: 240px; }
+/* ปุ่มบนแถบหัวตาราง ใช้ label กับ button ปนกัน จึงต้องจัดให้เท่ากัน */
+label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
+.page-admin .panel-head { flex-wrap: wrap; gap: 6px; }
+.page-admin .panel-head > :first-child { margin-right: auto; }

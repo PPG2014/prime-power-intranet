@@ -10,7 +10,7 @@ const BADGE = { 'ใช้บ่อย': 'badge-hot', 'ใหม่': 'badge-new
 const card = (f) => {
   const tag = f.ExternalUrl
     ? `<a class="form-card" href="${esc(f.ExternalUrl)}" target="_blank" rel="noopener">`
-    : `<button class="form-card">`;
+    : `<a class="form-card" href="#/form/${esc(f.FormCode || '')}">`;
   return `${tag}
     <div class="form-top">
       <span class="form-icon">${f.Icon}</span>
@@ -21,7 +21,7 @@ const card = (f) => {
     <div class="form-meta">${(f.MetaTags || '').split(',').filter(Boolean)
       .map((m) => `<span>${esc(m.trim())}</span>`).join('')}</div>
     <div class="form-go">${f.ExternalUrl ? 'เปิดระบบ ↗' : 'กรอกแบบฟอร์ม →'}</div>
-  ${f.ExternalUrl ? '</a>' : '</button>'}`;
+  </a>`;
 };
 
 export async function render(ctx) {
