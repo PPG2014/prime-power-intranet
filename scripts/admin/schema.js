@@ -9,6 +9,7 @@
 export const SCHEMA = {
   departments: {
     title: 'หน่วยงานและเบอร์ต่อ', icon: '📞', list: 'departments', spName: 'Departments', sortField: 'SortOrder',
+    unique: ['Title'],
     hint: 'ลำดับในตารางนี้คือลำดับที่แสดงบนหน้าบุคลากร หน้าแบบฟอร์ม และสมุดโทรศัพท์',
     columns: ['Title', 'Extension'],
     labels:  { Title: 'ชื่อหน่วยงาน', Extension: 'เบอร์ต่อ' },
@@ -21,6 +22,7 @@ export const SCHEMA = {
 
   sections: {
     title: 'แผนก', icon: '🗂', list: 'sections', spName: 'Sections', sortField: 'SortOrder',
+    unique: ['Title', 'Department'],
     hint: 'ทะเบียนแผนกย่อยภายในฝ่าย ใช้เป็นตัวเลือกในหน้าบุคลากร เพื่อไม่ให้พิมพ์ชื่อแผนกไม่ตรงกัน',
     columns: ['Title', 'Department'],
     labels: { Title: 'ชื่อแผนก', Department: 'อยู่ใต้ฝ่าย' },
@@ -34,6 +36,7 @@ export const SCHEMA = {
 
   projects: {
     title: 'โครงการ', icon: '🏗', list: 'projects', spName: 'Projects', sortField: 'SortOrder',
+    unique: ['Title', 'ProjectCode'],
     history: 'projectHistory',
     hint: 'ทะเบียนโครงการและความคืบหน้า · ทุกครั้งที่บันทึก ระบบเก็บค่าเดิมไว้ในประวัติให้อัตโนมัติ',
     columns: ['ProjectCode', 'Title', 'Status', 'Owner', 'ActualProgress', 'UpdatedDate'],
@@ -53,10 +56,11 @@ export const SCHEMA = {
       { key: 'ActualProgress', label: 'ความคืบหน้าจริง (%)', type: 'number' },
       { key: 'ActualPayment', label: 'เบิกจ่ายแล้ว (%)', type: 'number' },
       { key: 'Owner', label: 'ผู้รับผิดชอบหลัก', type: 'lookup', from: 'directory',
-        allowEmpty: true, labelWith: 'Position',
+        allowEmpty: true, labelWith: 'Position', searchable: true,
+        placeholder: 'พิมพ์ชื่อเพื่อค้นหา',
         help: 'เลือกจากทะเบียนบุคลากร แสดงตอนกดดูรายละเอียดโครงการ' },
       { key: 'Team', label: 'ทีมงาน (เลือกได้หลายคน)', type: 'multilookup', from: 'directory',
-        labelWith: 'Position',
+        labelWith: 'Position', searchable: true,
         help: 'ผู้ร่วมรับผิดชอบโครงการ แสดงพร้อมรูปในหน้ารายละเอียด' },
       { key: 'Detail', label: 'ขณะนี้ดำเนินการอะไรอยู่', type: 'textarea',
         help: 'เขียนสิ่งที่กำลังทำและอุปสรรคที่พบ ข้อความนี้แสดงบนแดชบอร์ด' },
@@ -85,6 +89,7 @@ export const SCHEMA = {
 
   directory: {
     title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
+    unique: ['Title'],
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
     columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section'],
     labels: { PhotoUrl: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
@@ -122,6 +127,7 @@ export const SCHEMA = {
 
   formCatalog: {
     title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', spName: 'FormCatalog', sortField: 'SortOrder',
+    unique: ['Title', 'FormCode'],
     columns: ['Icon', 'FormCode', 'Title', 'Department', 'Badge'],
     labels: { Icon: 'ไอคอน', FormCode: 'รหัส', Title: 'ชื่อแบบฟอร์ม',
               Department: 'ฝ่าย', Badge: 'ป้ายกำกับ' },
@@ -143,6 +149,7 @@ export const SCHEMA = {
 
   policies: {
     title: 'นโยบายบริษัท', icon: '📕', list: 'policies', spName: 'Policies', sortField: 'SortOrder',
+    unique: ['Title', 'DocCode'],
     columns: ['DocCode', 'Title', 'Revision', 'EffectiveDate', 'Files'],
     labels: { DocCode: 'เลขที่', Title: 'ชื่อเอกสาร', Revision: 'ฉบับแก้ไข',
               EffectiveDate: 'ประกาศใช้', Files: 'ไฟล์แนบ' },
@@ -219,6 +226,7 @@ export const SCHEMA = {
 
   rooms: {
     title: 'ห้องประชุม', icon: '📆', list: 'rooms', spName: 'Rooms', sortField: 'SortOrder',
+    unique: ['Title'],
     columns: ['Title', 'Location', 'Capacity'],
     labels: { Title: 'ชื่อห้อง', Location: 'ที่ตั้ง', Capacity: 'ความจุ' },
     fields: [
@@ -252,6 +260,7 @@ export const SCHEMA = {
 
   settings: {
     title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings', spName: 'Settings',
+    unique: ['Title'],
     columns: ['Title', 'Value', 'Description'],
     labels: { Title: 'ชื่อค่า', Value: 'ค่า', Description: 'ความหมาย' },
     fields: [

@@ -47,9 +47,8 @@ export const CONFIG = {
     lists: {
       departments:    '0963b2d2-7519-467e-8dc1-59b7f102b94b',
       sections:       '31d3973a-44ee-41cf-92c3-079a073be892',
-      /** ยังไม่ได้สร้างใน SharePoint — สร้าง List แล้วเอา GUID มาใส่แทนชื่อ */
-      projects:       'Projects',
-      projectHistory: 'ProjectHistory',
+      projects:       'b65c8e68-c2cc-4d2a-be5a-c944f02c681a',
+      projectHistory: '92cbad4e-8b1c-4f9c-8eb8-5e0baedbb8ac',
       directory:      '6cf0471b-85a4-403f-84aa-07f6fc200bb8',
       approvalMatrix: 'fc1465b8-a4fc-4055-b20a-7e3712a592fe',
       reportingLine:  'aad62b58-f63c-46b4-88be-b436aa615bc0',
@@ -63,8 +62,7 @@ export const CONFIG = {
       news:           'affaf4c2-1334-4c6c-8b1d-715c52cea788',
       rooms:          '2ea30ef2-89dd-4064-b021-4f9c8c664d8d',
       settings:       '84daeac7-b49e-4ea4-99d2-1c7a1523aace',
-      /** ยังไม่ได้สร้างใน SharePoint — สร้าง List ชื่อ Feedback แล้วเอา GUID มาใส่แทน */
-      feedback:       'Feedback',
+      feedback:       '61ff05c2-28d7-4d22-8059-af2943f02050',
     },
   },
 

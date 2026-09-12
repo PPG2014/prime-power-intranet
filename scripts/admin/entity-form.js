@@ -1,5 +1,5 @@
 /** ฟอร์มเพิ่ม/แก้ไขที่ใช้ร่วมทุกชุดข้อมูล ขับเคลื่อนด้วย SCHEMA */
-import { esc, $ } from '../core/dom.js';
+import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { CONFIG } from '../core/config.js';
@@ -142,7 +142,10 @@ export async function formBody(schema, record = {}) {
       const opts = await optionsFor({ ...f, type: 'lookup', allowEmpty: false },
         f.dependsOn ? record[f.dependsOn] : undefined);
       const chosen = toArray(v);
-      input = `<div class="check-list" id="${id}">
+      input = `${f.searchable
+        ? `<input class="check-filter" data-filter="${id}"
+             placeholder="พิมพ์เพื่อกรองรายชื่อ" autocomplete="off">` : ''}
+        <div class="check-list" id="${id}">
         ${opts.length ? opts.map((o) => `<label class="check-item">
           <input type="checkbox" value="${esc(o.value)}"
             ${chosen.includes(o.value) ? 'checked' : ''}>
@@ -158,6 +161,18 @@ export async function formBody(schema, record = {}) {
     } else if (f.type === 'yesno') {
       input = `<label class="switch"><input id="${id}" type="checkbox" ${v !== false ? 'checked' : ''}>
         <span>เปิดใช้งาน</span></label>`;
+    } else if (f.type === 'lookup' && f.searchable) {
+      /**
+       * ตัวเลือกที่มีเป็นร้อยรายการอย่างรายชื่อบุคลากร เลื่อนหาไม่ไหว
+       * ใช้ input คู่กับ datalist เพื่อให้พิมพ์ค้นหาได้และยังกดเลือกจากรายการได้
+       */
+      const opts = await optionsFor(f, f.dependsOn ? record[f.dependsOn] : undefined);
+      input = `<input id="${id}" list="${id}_opts" value="${esc(v)}"
+                 placeholder="${esc(f.placeholder || 'พิมพ์เพื่อค้นหา')}" autocomplete="off">
+        <datalist id="${id}_opts">
+          ${opts.filter((o) => o.value).map((o) =>
+            `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}
+        </datalist>`;
     } else if (f.type === 'choice' || f.type === 'lookup') {
       const opts = await optionsFor(f, f.dependsOn ? record[f.dependsOn] : undefined);
       input = `<select id="${id}">${optionHtml(opts, v, f.emptyHint)}</select>`;
@@ -312,6 +327,20 @@ export function bindFiles(schema) {
       ev.target.value = '';
     };
   }
+}
+
+/** ช่องกรองรายชื่อเหนือกล่องติ๊ก ซ่อนรายการที่ไม่ตรงคำค้นแบบทันที */
+export function bindFilters(schema) {
+  $$('[data-filter]').forEach((box) => {
+    const listEl = $('#' + box.dataset.filter);
+    if (!listEl) return;
+    box.oninput = () => {
+      const q = box.value.trim().toLowerCase();
+      listEl.querySelectorAll('.check-item').forEach((item) => {
+        item.hidden = q ? !item.textContent.toLowerCase().includes(q) : false;
+      });
+    };
+  });
 }
 
 export function bindDependents(schema) {

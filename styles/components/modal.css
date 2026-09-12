@@ -1,8 +1,13 @@
 .mask { position: fixed; inset: 0; background: rgba(0,20,40,.55); z-index: 60;
-  display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 32px 16px; overflow-y: auto; }
+@media (max-width: 600px) { .mask { padding: 12px 8px; } .modal-body { padding: 16px; } }
 .modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 560px;
-  overflow: hidden; box-shadow: var(--shadow-lg); }
-.modal-wide { max-width: 760px; }
+  overflow: hidden; box-shadow: var(--shadow-lg); box-sizing: border-box; }
+.modal * { box-sizing: border-box; }
+.modal-wide { max-width: 860px; }
+/* ฟอร์มที่ช่องเยอะต้องเลื่อนในตัวเอง ไม่ใช่ให้เนื้อหาล้นออกนอกกรอบ */
+.modal-body { max-height: calc(100vh - 220px); overflow-y: auto; }
 .modal-head { background: var(--navy); color: #fff; padding: 16px 22px; font-weight: 600; font-size: 16px;
   display: flex; justify-content: space-between; align-items: center; gap: var(--gap-sm); }
 .modal-head button { color: #9ecbf0; font-size: 17px; }

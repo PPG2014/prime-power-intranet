@@ -1,7 +1,7 @@
 import { esc, $, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
-import { formBody, collect, bindDependents, bindPhoto, bindFiles, toFiles } from '../admin/entity-form.js';
+import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, toFiles } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
@@ -62,6 +62,12 @@ export async function render(ctx) {
             ${s.icon} ${esc(s.title)} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
+          ${(() => {
+            const off = rows.filter((r) => r.IsActive === false).length;
+            return off
+              ? `<div class="off-note">${off} รายการปิดใช้งานอยู่ จึงไม่แสดงบนหน้าเว็บ
+                   แต่ยังนับรวมในตารางนี้</div>` : '';
+          })()}
           <div class="table-scroll"><table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
@@ -115,6 +121,7 @@ async function openEditor(key, record) {
   bindDependents(s);
   bindPhoto(s);
   bindFiles(s);
+  bindFilters(s);
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async (ev) => {
     const data = collect(s);
@@ -122,6 +129,33 @@ async function openEditor(key, record) {
 
     const btn = ev.currentTarget;
     const err = $('#form-error');
+
+    /**
+     * เตือนเมื่อค่าซ้ำกับรายการที่มีอยู่แล้ว
+     * เทียบแบบไม่สนตัวพิมพ์และช่องว่างหัวท้าย เพราะพิมพ์ซ้ำมักต่างกันแค่นั้น
+     */
+    const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    for (const key of (s.unique || [])) {
+      const value = norm(data[key]);
+      if (!value) continue;
+      const clash = rows.find((r) => norm(r[key]) === value && (isNew || r.id !== record.id));
+      if (!clash) continue;
+
+      const label = (s.fields.find((f) => f.key === key) || {}).label || key;
+      const ok = confirm(
+        `มี${s.title}ที่ใช้${label}นี้อยู่แล้ว\n\n` +
+        `"${clash[key]}"` +
+        (clash.Department ? `  (${clash.Department})` : '') +
+        '\n\nต้องการบันทึกซ้ำหรือไม่');
+      if (!ok) {
+        err.textContent = `ยกเลิกการบันทึก เพราะ${label}ซ้ำกับรายการที่มีอยู่`;
+        err.hidden = false;
+        const el = $('#f_' + key);
+        if (el) el.focus();
+        return;
+      }
+    }
+
     btn.disabled = true;
     const label = btn.textContent;
     btn.textContent = 'กำลังบันทึก…';

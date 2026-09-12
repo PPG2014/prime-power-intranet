@@ -153,7 +153,9 @@ let people = [];
 
 export async function render(ctx) {
   const q = (state.directoryQuery || '').trim().toLowerCase();
-  const all = (await list('directory')).filter((p) => p.IsActive !== false);
+  const everyone = await list('directory');
+  const all = everyone.filter((p) => p.IsActive !== false);
+  const hidden = everyone.length - all.length;
   people = all;
   const rows = q
     ? all.filter((p) => Object.values(p).join(' ').toLowerCase().includes(q))
@@ -204,7 +206,8 @@ export async function render(ctx) {
                  placeholder="ค้นหาชื่อ ชื่อเล่น ตำแหน่ง หรือฝ่าย" autocomplete="off">
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} คน${
-          q ? '' : ` · ${groups.length} ฝ่าย`}</span>
+          q ? '' : ` · ${groups.length} ฝ่าย`}${
+          hidden ? ` · <span class="hidden-note" title="ช่อง IsActive ไม่ได้ติ๊กไว้ จึงไม่แสดงบนหน้านี้">ปิดใช้งาน ${hidden} คน</span>` : ''}</span>
       </div>
 
       ${rows.length ? groups.map((g, i) => `

@@ -125,3 +125,4 @@
   .pv-row { justify-content: center; }
   .pv-block ul { text-align: left; }
 }
+.hidden-note { color: var(--warn); cursor: help; border-bottom: 1px dotted var(--warn); }
