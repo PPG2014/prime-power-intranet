@@ -157,8 +157,7 @@ async function columnsOf(name) {
   if (!columnCache[name]) {
     const data = await call(
       `/lists/${listId(name)}/columns` +
-      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`
-      + `&$expand=choice`);
+      `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`);
     const map = new Map();
     data.value.forEach((c) => map.set(c.name, c));
     columnCache[name] = map;
