@@ -59,6 +59,14 @@
 
 ## ข-0. คอลัมน์ที่ต้องมีใน `FormFields` และ `Requests`
 
+### `FormCatalog` — เพิ่มคอลัมน์เลขที่ ISO
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| ISODocNo | Single line of text | เลขที่เอกสารตาม ISO 9001 |
+| ISORevision | Single line of text | ฉบับแก้ไข เช่น Rev.01 |
+| UseStandardHeader | Yes/No | เว้นว่าง=ใช้หัวข้อมาตรฐาน |
+
 ### `FormFields` — นิยามช่องของแต่ละแบบฟอร์ม
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
@@ -66,13 +74,13 @@
 | Title | Single line of text | ชื่อช่องที่ผู้ใช้เห็น |
 | FormCode | Single line of text | เช่น FM-HR-001 |
 | FieldKey | Single line of text | ชื่อช่องในระบบ อังกฤษตัวเล็ก |
-| FieldType | Choice | text, textarea, number, currency, date, time, choice, multichoice, lookup, person, yesno, file, readonly |
+| FieldType | **Single line of text** | ค่ามาจาก dropdown ในเว็บ · อย่าใช้ Choice จะพังถ้าตัวเลือกไม่ครบ |
 | Options | Multiple lines of text (plain) | บรรทัดละหนึ่งตัวเลือก |
 | IsRequired | Yes/No | |
 | DefaultValue | Single line of text | `{today}` `{me.Title}` `{me.Position}` `{me.Department}` `{me.EmployeeCode}` |
 | HelpText | Single line of text | |
 | Section | Single line of text | หัวข้อที่จัดกลุ่มช่อง |
-| ColumnWidth | Choice | `half` / `full` |
+| ColumnWidth | **Single line of text** | `half` / `full` · อย่าใช้ Choice |
 | ShowIf | Single line of text | เช่น `subject=เรื่องอื่น ๆ` |
 | SortOrder | Number | |
 | IsActive | Yes/No | |

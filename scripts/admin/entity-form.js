@@ -77,9 +77,11 @@ export async function optionsFor(field, parentValue) {
     }
   }
 
+  const vf = field.valueField || 'Title';
   const opts = rows.map((r) => ({
-    value: r.Title,
-    label: field.labelWith && r[field.labelWith] ? `${r.Title} · ${r[field.labelWith]}` : r.Title,
+    value: r[vf],
+    label: field.labelWith && r[field.labelWith] && field.labelWith !== vf
+      ? `${r[vf]} · ${r[field.labelWith]}` : r[vf],
   }));
   return field.allowEmpty ? [{ value: '', label: '— ไม่ระบุ —' }, ...opts] : opts;
 }
