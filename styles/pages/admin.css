@@ -147,3 +147,9 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .import-row { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px dashed var(--line);
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .import-row label.btn-mini { display: inline-flex; align-items: center; cursor: pointer; }
+.group-bar { display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+  background: #eef6fd; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+.group-label { font-size: 13px; font-weight: 600; color: var(--navy); }
+.group-select { padding: 8px 12px; border: 1px solid var(--blue-light); border-radius: var(--radius-sm);
+  font-size: 13.5px; background: #fff; min-width: 280px; max-width: 100%; }
+.group-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(0,103,184,.12); }

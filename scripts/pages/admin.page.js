@@ -14,6 +14,11 @@ import { render as rerender } from '../core/render.js';
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true };
 
 let rows = [];
+let key = '';
+let s = null;
+let allRows = [];
+let activeGroup = '';
+let formNames = {};
 
 export async function render(ctx) {
   if (!state.isAdmin) return `<section class="page"><div class="wrap">
@@ -24,8 +29,15 @@ export async function render(ctx) {
       <span class="dim">เพิ่มอีเมลได้ที่ SharePoint List ชื่อ Settings รายการ Admins</span>
     </div></div></div></section>`;
 
-  const key = state.adminSet || 'departments';
-  const s = SCHEMA[key];
+  key = state.adminSet || 'departments';
+  s = SCHEMA[key];
+
+  // โหลดชื่อฟอร์มไว้แสดงในตัวเลือกกลุ่ม (เฉพาะชุดที่จัดกลุ่มตาม FormCode)
+  if (s.groupBy === 'FormCode' && !Object.keys(formNames).length) {
+    try {
+      (await list('formCatalog')).forEach((f) => { formNames[f.FormCode] = f.Title; });
+    } catch (e) { /* ไม่มีชื่อก็แสดงแค่รหัส */ }
+  }
 
   let loadError = null;
   try {
@@ -35,6 +47,17 @@ export async function render(ctx) {
     console.error(err);
     rows = [];
     loadError = err.message;
+  }
+
+  // ชุดที่จัดกลุ่ม เก็บทุกแถวไว้ทำรายการกลุ่ม แล้วแสดงเฉพาะกลุ่มที่เลือก
+  allRows = rows;
+  let groupList = [];
+  if (s.groupBy && !loadError) {
+    const seen = [];
+    rows.forEach((r) => { const g = r[s.groupBy] || '(ไม่ระบุ)'; if (!seen.includes(g)) seen.push(g); });
+    groupList = seen.sort();
+    activeGroup = groupList.includes(state.adminGroup) ? state.adminGroup : (groupList[0] || '');
+    rows = rows.filter((r) => (r[s.groupBy] || '(ไม่ระบุ)') === activeGroup);
   }
 
   return `
@@ -66,7 +89,8 @@ export async function render(ctx) {
             <button class="nav-toggle" data-navtoggle="1"
               title="${state.adminNavHidden ? 'แสดงเมนูชุดข้อมูล' : 'ซ่อนเมนูเพื่อให้ตารางกว้างขึ้น'}"
               >${state.adminNavHidden ? '☰' : '⟨'}</button>
-            ${s.icon} ${esc(s.title)} — ${rows.length} รายการ
+            ${s.icon} ${esc(s.title)}${s.groupBy && activeGroup
+              ? ' · ' + esc(formLabel(activeGroup)) : ''} — ${rows.length} รายการ
             ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           ${(() => {
@@ -75,6 +99,18 @@ export async function render(ctx) {
               ? `<div class="off-note">${off} รายการปิดใช้งานอยู่ จึงไม่แสดงบนหน้าเว็บ
                    แต่ยังนับรวมในตารางนี้</div>` : '';
           })()}
+          ${s.groupBy && !loadError ? `<div class="group-bar">
+            <span class="group-label">เลือก${
+              s.groupBy === 'FormCode' ? 'แบบฟอร์ม' : s.labels[s.groupBy] || s.groupBy}:</span>
+            <select class="group-select" data-group="1">
+              ${[...new Set(allRows.map((r) => r[s.groupBy] || '(ไม่ระบุ)'))].sort().map((g) => {
+                const label = formLabel(g);
+                const n = allRows.filter((r) => (r[s.groupBy] || '(ไม่ระบุ)') === g).length;
+                return `<option value="${esc(g)}" ${g === activeGroup ? 'selected' : ''}
+                  >${esc(label)} (${n})</option>`;
+              }).join('')}
+            </select>
+          </div>` : ''}
           ${loadError ? `<div class="mock-warning">
             <b>โหลดข้อมูลจาก SharePoint ไม่สำเร็จ</b>
             ${esc(loadError)}<br>
@@ -282,10 +318,18 @@ async function openEditor(key, record) {
   };
 }
 
+function formLabel(code) {
+  return formNames[code] ? `${code} · ${formNames[code]}` : code;
+}
+
 export function mount(ctx) {
-  onClick('set', (k) => setState({ adminSet: k }));
+  onClick('set', (k) => setState({ adminSet: k, adminGroup: '' }));
+
+  const gsel = $('.group-select');
+  if (gsel) gsel.onchange = () => setState({ adminGroup: gsel.value });
 
     onClick('new', () => openEditor(key, null));
+  onClick('group', () => {}); // select ใช้ onchange แยกด้านล่าง
   onClick('preview', () => showAnnouncements({ force: true }));
   onClick('edit', (id) => openEditor(key, rows.find((r) => String(r.id) === String(id))));
   /** สลับลำดับกับแถวข้างเคียง แล้วเขียนเลขลำดับใหม่ทั้งคู่ */

@@ -151,7 +151,7 @@ export const SCHEMA = {
 
   approvalMatrix: {
     title: 'เส้นทางอนุมัติ', icon: '✔️', list: 'approvalMatrix', spName: 'ApprovalMatrix',
-    sortField: 'SortOrder',
+    sortField: 'SortOrder', groupBy: 'FormCode',
     hint: 'กำหนดว่าแต่ละแบบฟอร์มต้องผ่านใครบ้างตามลำดับ · แต่ละลำดับใส่ผู้อนุมัติได้หลายคน',
     columns: ['FormCode', 'StepOrder', 'StepName', 'Approvers', 'ApproveMode'],
     labels: { FormCode: 'รหัสฟอร์ม', StepOrder: 'ลำดับ', StepName: 'ชื่อขั้น',
@@ -176,7 +176,7 @@ export const SCHEMA = {
 
   formFields: {
     title: 'ช่องกรอกของแบบฟอร์ม', icon: '🧩', list: 'formFields', spName: 'FormFields',
-    sortField: 'SortOrder',
+    sortField: 'SortOrder', groupBy: 'FormCode',
     hint: 'กำหนดว่าแต่ละแบบฟอร์มมีช่องอะไรบ้าง · เพิ่มช่องที่นี่แล้วหน้ากรอกจะเปลี่ยนตามทันที',
     columns: ['FormCode', 'Title', 'FieldType', 'Section', 'IsRequired'],
     labels: { FormCode: 'รหัสฟอร์ม', Title: 'ชื่อช่อง', FieldType: 'ชนิด',
