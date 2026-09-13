@@ -39,6 +39,44 @@ export async function loadLookups(fields) {
 }
 export const attachedFiles = () => files;
 
+/**
+ * ช่องหัวข้อมาตรฐานที่ทุกแบบฟอร์มมีเหมือนกัน
+ * 5 ช่องแรกดึงข้อมูลผู้ใช้อัตโนมัติ ผู้ยื่นไม่ต้องกรอก
+ * ผู้ดูแลไม่ต้องเพิ่มช่องเหล่านี้ในตาราง ระบบเติมให้เอง
+ * ถ้าฟอร์มไหนมีช่องชื่อซ้ำอยู่แล้ว จะใช้ของฟอร์มนั้นแทน ไม่เติมซ้ำ
+ */
+const STANDARD = [
+  { FieldKey: 'std_emp_code', Title: 'รหัสพนักงาน', FieldType: 'readonly',
+    DefaultValue: '{me.EmployeeCode}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_emp_name', Title: 'ชื่อ-นามสกุล', FieldType: 'readonly',
+    DefaultValue: '{me.Title}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_emp_email', Title: 'อีเมล', FieldType: 'readonly',
+    DefaultValue: '{me.Email}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_emp_dept', Title: 'ฝ่าย', FieldType: 'readonly',
+    DefaultValue: '{me.Department}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_emp_section', Title: 'แผนก', FieldType: 'readonly',
+    DefaultValue: '{me.Section}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_subject', Title: 'ชื่อเรื่อง', FieldType: 'text', IsRequired: 'Yes',
+    Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+  { FieldKey: 'std_date', Title: 'วันที่', FieldType: 'date', IsRequired: 'Yes',
+    DefaultValue: '{today}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
+];
+
+/**
+ * รวมช่องมาตรฐานเข้ากับช่องเฉพาะของฟอร์ม
+ * ช่องมาตรฐานมาก่อน เว้นแต่ฟอร์มปิดไว้ด้วย useStandard=false หรือมีช่องชื่อซ้ำเอง
+ */
+export function withStandard(formFields, form) {
+  if (form && (form.UseStandardHeader === false || form.UseStandardHeader === 'No')) {
+    return formFields;
+  }
+  const titles = new Set(formFields.map((f) => String(f.Title).trim()));
+  const std = STANDARD
+    .filter((f) => !titles.has(f.Title))
+    .map((f, i) => ({ ...f, Options: '', HelpText: '', ShowIf: '', SortOrder: -100 + i, IsActive: true }));
+  return [...std, ...formFields];
+}
+
 const opts = (f) => String(f.Options || '').split('\n').map((x) => x.trim()).filter(Boolean);
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
 

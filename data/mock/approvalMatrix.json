@@ -22,5 +22,41 @@
   "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
   "SortOrder": 2,
   "IsActive": true
+ },
+ {
+  "id": 10,
+  "FormCode": "FM-AC-002",
+  "StepOrder": 1,
+  "StepName": "ฝ่ายบัญชี",
+  "Approvers": [
+   "อรวรรณ พงษ์เจริญ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 10,
+  "IsActive": true
+ },
+ {
+  "id": 11,
+  "FormCode": "FM-AC-002",
+  "StepOrder": 2,
+  "StepName": "ฝ่ายการเงิน",
+  "Approvers": [
+   "อรวรรณ พงษ์เจริญ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 11,
+  "IsActive": true
+ },
+ {
+  "id": 12,
+  "FormCode": "FM-AC-002",
+  "StepOrder": 3,
+  "StepName": "ผู้บริหารอนุมัติจ่าย",
+  "Approvers": [
+   "สมชาย วัฒนกิจ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 12,
+  "IsActive": true
  }
 ]

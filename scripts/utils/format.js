@@ -14,3 +14,14 @@ export const thaiDateShort = (v) => {
   if (isNaN(d)) return String(v);          // ข้อมูลเก่าที่กรอกเป็นข้อความ ปล่อยตามเดิม
   return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 };
+
+/** วันที่พร้อมเวลา สำหรับบันทึกการอนุมัติที่ต้องรู้ว่ากี่โมง */
+export const thaiDateTime = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return String(v);
+  return d.toLocaleString('th-TH', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }) + ' น.';
+};

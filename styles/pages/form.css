@@ -66,3 +66,4 @@
   .form-foot { padding: var(--gap); }
   .page-form .field-error { margin: 0 var(--gap) var(--gap); }
 }
+.q-readonly { color: var(--muted); }

@@ -26,9 +26,15 @@ export async function render(ctx) {
 
   const key = state.adminSet || 'departments';
   const s = SCHEMA[key];
-  rows = await list(s.list);
-  if (s.sortField) {
-    rows.sort((a, b) => (+a[s.sortField] || 0) - (+b[s.sortField] || 0));
+
+  let loadError = null;
+  try {
+    rows = await list(s.list);
+    if (s.sortField) rows.sort((a, b) => (+a[s.sortField] || 0) - (+b[s.sortField] || 0));
+  } catch (err) {
+    console.error(err);
+    rows = [];
+    loadError = err.message;
   }
 
   return `
@@ -69,6 +75,11 @@ export async function render(ctx) {
               ? `<div class="off-note">${off} รายการปิดใช้งานอยู่ จึงไม่แสดงบนหน้าเว็บ
                    แต่ยังนับรวมในตารางนี้</div>` : '';
           })()}
+          ${loadError ? `<div class="mock-warning">
+            <b>โหลดข้อมูลจาก SharePoint ไม่สำเร็จ</b>
+            ${esc(loadError)}<br>
+            ลองรีเฟรชหน้า หรือออกจากระบบแล้วเข้าใหม่ · เมนูอื่นยังใช้ได้ตามปกติ
+          </div>` : ''}
           <div class="table-scroll"><table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}

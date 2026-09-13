@@ -2,7 +2,7 @@ import { esc, $ } from '../core/dom.js';
 import { list, create } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
-import { renderForm, collectForm, bindForm, attachedFiles, loadLookups } from '../components/form-renderer.js';
+import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard } from '../components/form-renderer.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -31,9 +31,12 @@ export async function render(ctx) {
   ]);
 
   form = forms.find((f) => f.FormCode === code);
-  fields = allFields
+
+  const own = allFields
     .filter((f) => f.FormCode === code && f.IsActive !== false)
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+  // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
+  fields = withStandard(own, form);
 
   await loadLookups(fields);   // ช่องที่ดึงตัวเลือกจาก List อื่นต้องโหลดก่อนวาด
 
