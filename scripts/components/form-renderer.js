@@ -135,8 +135,9 @@ function control(f, value) {
        */
       const src = f.FieldType === 'person' ? 'directory' : String(f.Options || '').trim();
       const rows = lookupData[src] || [];
+      const hint = !src ? ' (ยังไม่ได้ระบุว่าดึงตัวเลือกจาก List ไหน)' : '';
       return `<input id="${id}" list="${id}_opts" value="${esc(value)}" ${req}
-                placeholder="พิมพ์เพื่อค้นหา" autocomplete="off">
+                placeholder="พิมพ์เพื่อค้นหา${esc(hint)}" autocomplete="off">
         <datalist id="${id}_opts">
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}

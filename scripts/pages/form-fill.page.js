@@ -7,6 +7,9 @@ import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStan
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
 let fields = [];
+
+/** IsActive จาก SharePoint เป็น Yes/No ส่วน mock เป็น true/false รองรับทั้งคู่ · ค่าว่าง = แสดง */
+const active = (v) => v !== false && v !== 'No' && v !== 'ไม่' && v !== 0;
 let form = null;
 let me = null;
 
@@ -33,7 +36,7 @@ export async function render(ctx) {
   form = forms.find((f) => f.FormCode === code);
 
   const own = allFields
-    .filter((f) => f.FormCode === code && f.IsActive !== false)
+    .filter((f) => f.FormCode === code && active(f.IsActive))
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
   fields = withStandard(own, form);
