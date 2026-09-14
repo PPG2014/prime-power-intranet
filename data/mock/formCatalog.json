@@ -245,5 +245,20 @@
   "ExternalUrl": "",
   "SortOrder": 19,
   "IsActive": true
+ },
+ {
+  "id": 20,
+  "Title": "Memo แจ้งลืมลงเวลาเข้า-ออกงาน",
+  "FormCode": "FM-HRM-008",
+  "Description": "สำหรับบุคลากรที่ลืมลงเวลาเข้าหรือออกงาน",
+  "Department": "ฝ่ายทรัพยากรบุคคล",
+  "Icon": "⏰",
+  "Badge": "",
+  "MetaTags": "⏱ 2 นาที, ✍ อนุมัติ",
+  "ExternalUrl": "",
+  "ISODocNo": "",
+  "ISORevision": "",
+  "SortOrder": 20,
+  "IsActive": true
  }
 ]
