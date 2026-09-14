@@ -20,6 +20,13 @@ let allRows = [];
 let activeGroup = '';
 let formNames = {};
 
+/** ค่ากลุ่มอาจมาเป็นออบเจ็กต์ (ถ้าคอลัมน์เป็น Choice/Lookup) แปลงเป็นข้อความเสมอ */
+function groupVal(r, kBy) {
+  const v = r[kBy];
+  if (v && typeof v === 'object') return v.LookupValue ?? v.Label ?? v.Value ?? v.Title ?? '';
+  return v || '';
+}
+
 export async function render(ctx) {
   if (!state.isAdmin) return `<section class="page"><div class="wrap">
     <h1 class="page-title">${esc(meta.title)}</h1>
@@ -54,10 +61,10 @@ export async function render(ctx) {
   let groupList = [];
   if (s.groupBy && !loadError) {
     const seen = [];
-    rows.forEach((r) => { const g = r[s.groupBy] || '(ไม่ระบุ)'; if (!seen.includes(g)) seen.push(g); });
+    rows.forEach((r) => { const g = groupVal(r, s.groupBy) || '(ไม่ระบุ)'; if (!seen.includes(g)) seen.push(g); });
     groupList = seen.sort();
     activeGroup = groupList.includes(state.adminGroup) ? state.adminGroup : (groupList[0] || '');
-    rows = rows.filter((r) => (r[s.groupBy] || '(ไม่ระบุ)') === activeGroup);
+    rows = rows.filter((r) => (groupVal(r, s.groupBy) || '(ไม่ระบุ)') === activeGroup);
   }
 
   return `
@@ -101,7 +108,7 @@ export async function render(ctx) {
           })()}
           ${(() => {
             if (!s.groupBy || loadError) return '';
-            const orphans = allRows.filter((r) => !r[s.groupBy]);
+            const orphans = allRows.filter((r) => !groupVal(r, s.groupBy));
             if (!orphans.length) return '';
             return `<div class="mock-warning">
               <b>พบ ${orphans.length} รายการที่ไม่มีค่า ${s.groupBy}</b>
@@ -114,9 +121,9 @@ export async function render(ctx) {
             <span class="group-label">เลือก${
               s.groupBy === 'FormCode' ? 'แบบฟอร์ม' : s.labels[s.groupBy] || s.groupBy}:</span>
             <select class="group-select" data-group="1">
-              ${[...new Set(allRows.map((r) => r[s.groupBy] || '(ไม่ระบุ)'))].sort().map((g) => {
+              ${[...new Set(allRows.map((r) => groupVal(r, s.groupBy) || '(ไม่ระบุ)'))].sort().map((g) => {
                 const label = formLabel(g);
-                const n = allRows.filter((r) => (r[s.groupBy] || '(ไม่ระบุ)') === g).length;
+                const n = allRows.filter((r) => (groupVal(r, s.groupBy) || '(ไม่ระบุ)') === g).length;
                 return `<option value="${esc(g)}" ${g === activeGroup ? 'selected' : ''}
                   >${esc(label)} (${n})</option>`;
               }).join('')}
