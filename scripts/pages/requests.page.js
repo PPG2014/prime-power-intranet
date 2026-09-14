@@ -4,7 +4,7 @@ import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
-import { stepsOf, roleOnRequest, parseLog, decide } from '../services/requests.js';
+import { stepsOf, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -21,6 +21,15 @@ async function loadSteps(codes) {
   for (const c of codes) if (!(c in stepCache)) stepCache[c] = await stepsOf(c);
 }
 
+/** เติมผู้อนุมัติจริงให้คำขอแต่ละใบ ตามผู้ยื่นของใบนั้น */
+async function resolveFor(requests) {
+  for (const r of requests) {
+    const base = stepCache[r.FormCode] || [];
+    // clone เพราะผู้ยื่นต่างกัน ผู้อนุมัติตามตำแหน่งก็ต่างกัน
+    r._steps = await loadResolved(base.map((x) => ({ ...x })), r);
+  }
+}
+
 function statusPill(s) {
   return `<span class="rq-status st-${STATUS_TONE[s] || 'gray'}">${esc(s || '')}</span>`;
 }
@@ -33,7 +42,7 @@ function summaryLine(req) {
 }
 
 function requestRow(req, opts = {}) {
-  const steps = stepCache[req.FormCode] || [];
+  const steps = req._steps || stepCache[req.FormCode] || [];
   const cur = +req.CurrentStep || 1;
   const curName = (steps.find((s) => +s.StepOrder === cur) || {}).StepName || '';
   return `
@@ -60,6 +69,7 @@ export async function render(ctx) {
   allRequests = (await list('requests').catch(() => []))
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
   await loadSteps([...new Set(allRequests.map((r) => r.FormCode))]);
+  await resolveFor(allRequests);
 
   const mine = allRequests.filter((r) => r.RequesterEmail
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
@@ -67,7 +77,7 @@ export async function render(ctx) {
   // คำขอที่ผู้ใช้เกี่ยวข้องในฐานะผู้อนุมัติ (แอดมินเห็นทุกใบ)
   const toReview = allRequests.filter((r) => {
     if (isAdmin) return true;
-    const role = roleOnRequest(r, stepCache[r.FormCode] || [], me);
+    const role = roleOnRequest(r, r._steps || [], me);
     return role.isInvolved;
   });
 
@@ -82,7 +92,7 @@ export async function render(ctx) {
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
 
   const actableCount = toReview.filter((r) =>
-    roleOnRequest(r, stepCache[r.FormCode] || [], me).canActNow).length;
+    roleOnRequest(r, r._steps || [], me).canActNow).length;
 
   return `
   <section class="page page-requests">
@@ -105,7 +115,7 @@ export async function render(ctx) {
             <div class="rq-list">
               ${shownGroup.rows.map((r) => requestRow(r, {
                 showRequester: true,
-                canAct: roleOnRequest(r, stepCache[r.FormCode] || [], me).canActNow,
+                canAct: roleOnRequest(r, r._steps || [], me).canActNow,
               })).join('')}
             </div>`
           : `<div class="panel"><div class="empty">
@@ -129,7 +139,7 @@ export async function render(ctx) {
 
 /** หน้าต่างรายละเอียดคำขอ พร้อมปุ่มอนุมัติถ้าถึงคิว */
 async function openRequest(req) {
-  const steps = stepCache[req.FormCode] || [];
+  const steps = req._steps || stepCache[req.FormCode] || [];
   const role = roleOnRequest(req, steps, me);
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;

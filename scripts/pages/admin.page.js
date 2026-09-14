@@ -99,6 +99,17 @@ export async function render(ctx) {
               ? `<div class="off-note">${off} รายการปิดใช้งานอยู่ จึงไม่แสดงบนหน้าเว็บ
                    แต่ยังนับรวมในตารางนี้</div>` : '';
           })()}
+          ${(() => {
+            if (!s.groupBy || loadError) return '';
+            const orphans = allRows.filter((r) => !r[s.groupBy]);
+            if (!orphans.length) return '';
+            return `<div class="mock-warning">
+              <b>พบ ${orphans.length} รายการที่ไม่มีค่า ${s.groupBy}</b>
+              รายการเหล่านี้จะไม่ผูกกับฟอร์มใด มักเกิดจากตอนวาง CSV คอลัมน์ไม่ตรงกัน<br>
+              เลือกฟอร์มที่ถูกต้องด้านล่างแล้วกด "ผูกรายการที่ค้าง" เพื่อเติมให้
+              <button class="btn-mini" data-fixgroup="1" style="margin-left:8px">ผูกรายการที่ค้าง (${orphans.length})</button>
+            </div>`;
+          })()}
           ${s.groupBy && !loadError ? `<div class="group-bar">
             <span class="group-label">เลือก${
               s.groupBy === 'FormCode' ? 'แบบฟอร์ม' : s.labels[s.groupBy] || s.groupBy}:</span>
@@ -301,6 +312,12 @@ async function openEditor(key, record) {
       if (res && res.skipped && res.skipped.length) {
         notes.push('ยังไม่มีคอลัมน์เหล่านี้ใน List "' + (s.spName || s.list) + '"\n  '
           + res.skipped.join('\n  '));
+        // เตือนเป็นพิเศษถ้าช่องที่ใช้จัดกลุ่มถูกข้าม เพราะจะทำให้รายการลอยไม่ผูกกับกลุ่ม
+        if (s.groupBy && res.skipped.some((x) => x.startsWith(s.groupBy))) {
+          notes.push('⚠ คอลัมน์ ' + s.groupBy + ' หายไป ทำให้รายการนี้ไม่ผูกกับฟอร์มใด\n'
+            + '  ต้องเพิ่มคอลัมน์ ' + s.groupBy + ' ใน SharePoint List "' + (s.spName || s.list)
+            + '" ก่อน จึงจะใช้งานได้');
+        }
       }
       if (res && res.dropped && res.dropped.length) {
         notes.push('SharePoint ปฏิเสธการบันทึกช่องที่เลือกได้หลายค่า\n  '

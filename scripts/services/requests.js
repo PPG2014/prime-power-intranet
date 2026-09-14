@@ -7,7 +7,46 @@
  */
 import { list, update } from './data.js';
 
+/**
+ * หาผู้อนุมัติจริงของลำดับหนึ่ง
+ * ถ้าเป็นประเภทตามตำแหน่ง จะหาจากสายบังคับบัญชาหรือผังฝ่ายของผู้ยื่น
+ * req = คำขอ (มี RequesterName, RequesterDept)
+ */
+export async function resolveApprovers(step, req) {
+  const type = step.ApproverType || 'ระบุชื่อเจาะจง';
+  const named = Array.isArray(step.Approvers)
+    ? step.Approvers.map((x) => (x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x)).filter(Boolean)
+    : String(step.Approvers || '').split(',').map((x) => x.trim()).filter(Boolean);
+
+  if (type === 'ระบุชื่อเจาะจง') return named;
+
+  const dir = await list('directory').catch(() => []);
+  const me = dir.find((p) => p.Title === req.RequesterName);
+
+  if (type === 'ผู้บังคับบัญชาของผู้ยื่น') {
+    const rl = await list('reportingLine').catch(() => []);
+    const row = rl.find((r) => r.Title === req.RequesterName);
+    return row && row.Manager ? [row.Manager] : named;
+  }
+
+  if (type === 'ผู้จัดการฝ่ายของผู้ยื่น' || type === 'หัวหน้าฝ่ายตามสังกัด') {
+    // หาคนระดับหัวหน้าสูงสุดของฝ่ายเดียวกับผู้ยื่น
+    const dept = req.RequesterDept || (me && me.Department);
+    const heads = dir.filter((p) => p.Department === dept
+      && /ผู้จัดการฝ่าย|หัวหน้าฝ่าย|ผู้อำนวยการ/.test(p.Position || ''));
+    return heads.length ? heads.map((p) => p.Title) : named;
+  }
+
+  return named;
+}
+
 /** อ่านลำดับอนุมัติของฟอร์ม เรียงจากน้อยไปมาก */
+/** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น */
+export async function loadResolved(steps, req) {
+  for (const s of steps) s._resolved = await resolveApprovers(s, req);
+  return steps;
+}
+
 export async function stepsOf(formCode) {
   const all = await list('approvalMatrix').catch(() => []);
   return all
@@ -28,8 +67,9 @@ export const parseLog = (v) => { try { const a = JSON.parse(v || '[]'); return A
  */
 export function roleOnRequest(req, steps, userName) {
   const cur = +req.CurrentStep || 1;
+  // ผู้อนุมัติที่ resolve ไว้ล่วงหน้าใน step._resolved (เติมโดย loadResolved)
   const myStepNums = steps
-    .filter((s) => toArr(s.Approvers).includes(userName))
+    .filter((s) => (s._resolved || toArr(s.Approvers)).includes(userName))
     .map((s) => +s.StepOrder);
 
   const isInvolved = myStepNums.length > 0;
@@ -60,7 +100,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null })
     patch.Status = 'ไม่อนุมัติ';
   } else if (action === 'อนุมัติ') {
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
-    const approvers = toArr(step && step.Approvers);
+    const approvers = (step && step._resolved) || toArr(step && step.Approvers);
     const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').map((l) => l.by);
     const stepDone = mode === 'ต้องอนุมัติครบทุกคน'
       ? approvers.every((a) => approvedBy.includes(a))

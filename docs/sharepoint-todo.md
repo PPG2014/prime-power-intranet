@@ -93,7 +93,8 @@
 | FormCode | Single line of text | รหัสฟอร์มที่ใช้เส้นทางนี้ |
 | StepOrder | Number | ลำดับ เริ่มจาก 1 |
 | StepName | Single line of text | |
-| Approvers | Lookup → Directory.Title (**Allow multiple values**) | ผู้อนุมัติในลำดับนี้ 2-3 คน |
+| ApproverType | Choice | `ระบุชื่อเจาะจง` / `ผู้บังคับบัญชาของผู้ยื่น` / `ผู้จัดการฝ่ายของผู้ยื่น` / `หัวหน้าฝ่ายตามสังกัด` |
+| Approvers | Lookup → Directory.Title (**Allow multiple values**) | ใช้เมื่อเลือกระบุชื่อเจาะจง 2-3 คน |
 | ApproveMode | Choice | `คนใดคนหนึ่งอนุมัติก็ผ่าน` / `ต้องอนุมัติครบทุกคน` |
 | SortOrder | Number | |
 | IsActive | Yes/No | |
@@ -116,7 +117,10 @@
 | RequesterName | Single line of text | |
 | RequesterEmail | Single line of text | |
 | RequesterDept | Single line of text | |
-| Status | Choice | `ร่าง` `รออนุมัติ` `อนุมัติแล้ว` `ไม่อนุมัติ` `ยกเลิก` |
+| Status | Choice | `ร่าง` `รออนุมัติ` `อนุมัติแล้ว` `ไม่อนุมัติ` `เสร็จสิ้น` `ยกเลิก` |
+| CurrentStep | Number | ลำดับที่กำลังรออนุมัติ |
+| ApprovalLog | Multiple lines of text (plain) | ประวัติการอนุมัติ เก็บเป็น JSON |
+| PaymentSlip | Multiple lines of text (plain) | สลิปโอนเงินขั้นสุดท้าย |
 | SubmittedDate | Date and Time | |
 | FormData | Multiple lines of text (plain) | คำตอบทุกช่องเก็บเป็น JSON |
 | Files | Multiple lines of text (plain) | ไฟล์แนบ |
