@@ -1,7 +1,7 @@
 [
  {
   "id": 1,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "StepOrder": 1,
   "StepName": "ผู้บังคับบัญชา",
   "Approvers": [
@@ -13,7 +13,7 @@
  },
  {
   "id": 2,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "StepOrder": 2,
   "StepName": "ฝ่ายทรัพยากรบุคคล",
   "Approvers": [
@@ -25,7 +25,7 @@
  },
  {
   "id": 10,
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "StepOrder": 1,
   "StepName": "ฝ่ายบัญชี",
   "Approvers": [
@@ -37,7 +37,7 @@
  },
  {
   "id": 11,
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "StepOrder": 2,
   "StepName": "ฝ่ายการเงิน",
   "Approvers": [
@@ -49,7 +49,7 @@
  },
  {
   "id": 12,
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "StepOrder": 3,
   "StepName": "ผู้บริหารอนุมัติจ่าย",
   "Approvers": [

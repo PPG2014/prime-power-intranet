@@ -2,7 +2,7 @@
  {
   "id": 1,
   "Title": "REQ-2569-0001",
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FormName": "Memo บันทึกข้อความภายใน",
   "RequesterName": "สุทธิพงษ์ เกิดผล",
   "RequesterEmail": "sutthipong.k@primepower.co.th",
@@ -18,7 +18,7 @@
  {
   "id": 2,
   "Title": "REQ-2569-0002",
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FormName": "ขอเบิกเงินทดรองจ่าย",
   "RequesterName": "สุทธิพงษ์ เกิดผล",
   "RequesterEmail": "sutthipong.k@primepower.co.th",

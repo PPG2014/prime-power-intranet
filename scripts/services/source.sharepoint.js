@@ -258,18 +258,34 @@ function multiKeys(name, fields) {
  * เพราะ Graph จัดการคอลัมน์ Lookup แบบหลายค่าได้ไม่สม่ำเสมอ
  * ดีกว่าปล่อยให้บันทึกไม่ได้ทั้งรายการทั้งที่ช่องอื่นถูกต้องหมด
  */
+/** ช่องที่ตัดออกได้เสมอ = ช่องที่ไม่ใช่ค่าบังคับหลัก (คง Title ไว้) */
 async function send(name, fields, request) {
   try {
     return { res: await request(fields), dropped: [] };
   } catch (err) {
+    // รอบสอง ตัดช่องที่เลือกได้หลายค่าออกก่อน เพราะเป็นสาเหตุที่พบบ่อยสุด
     const multi = multiKeys(name, fields);
-    if (!multi.length) throw err;
+    if (multi.length) {
+      const trimmed = { ...fields };
+      multi.forEach((k) => { delete trimmed[k]; delete trimmed[k + '@odata.type']; });
+      try {
+        return { res: await request(trimmed), dropped: multi.map((k) => k.replace(/LookupId$/, '')) };
+      } catch (e2) { /* ยังพัง ไปลองตัดทีละช่องต่อ */ }
+    }
 
-    const trimmed = { ...fields };
-    multi.forEach((k) => { delete trimmed[k]; delete trimmed[k + '@odata.type']; });
+    // รอบสาม ลองตัดทีละช่องจนเจอตัวที่ SharePoint ไม่รับ แล้วบันทึกที่เหลือ
+    // คง Title ไว้เสมอเพราะเป็นคอลัมน์บังคับของทุก List
+    const keys = Object.keys(fields).filter((k) => k !== 'Title' && !k.endsWith('@odata.type'));
+    for (const bad of keys) {
+      const trial = { ...fields };
+      delete trial[bad]; delete trial[bad + '@odata.type'];
+      try {
+        const res = await request(trial);
+        return { res, dropped: [bad + ' (SharePoint ไม่รับค่านี้)'] };
+      } catch (e3) { /* ไม่ใช่ช่องนี้ ลองช่องถัดไป */ }
+    }
 
-    const res = await request(trimmed);          // ถ้ารอบนี้ยังพัง ให้โยนต่อไปเลย
-    return { res, dropped: multi.map((k) => k.replace(/LookupId$/, '')) };
+    throw err;   // ตัดทุกช่องแล้วยังไม่ผ่าน โยน error เดิม
   }
 }
 

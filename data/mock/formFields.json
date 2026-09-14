@@ -1,7 +1,7 @@
 [
  {
   "id": 1,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "memo_date",
   "Title": "วันที่",
   "FieldType": "date",
@@ -18,7 +18,7 @@
  },
  {
   "id": 2,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "subject",
   "Title": "เรื่อง",
   "FieldType": "choice",
@@ -35,7 +35,7 @@
  },
  {
   "id": 3,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "subject_other",
   "Title": "ระบุเรื่อง",
   "FieldType": "text",
@@ -52,7 +52,7 @@
  },
  {
   "id": 4,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "to_whom",
   "Title": "เรียน",
   "FieldType": "choice",
@@ -69,7 +69,7 @@
  },
  {
   "id": 5,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "emp_name",
   "Title": "ชื่อ-สกุล",
   "FieldType": "readonly",
@@ -86,7 +86,7 @@
  },
  {
   "id": 6,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "emp_code",
   "Title": "รหัสบุคลากร",
   "FieldType": "readonly",
@@ -103,7 +103,7 @@
  },
  {
   "id": 7,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "emp_position",
   "Title": "ตำแหน่ง",
   "FieldType": "readonly",
@@ -120,7 +120,7 @@
  },
  {
   "id": 8,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "emp_dept",
   "Title": "สังกัด",
   "FieldType": "readonly",
@@ -137,7 +137,7 @@
  },
  {
   "id": 9,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "incident_date",
   "Title": "วันที่เกิดเหตุ",
   "FieldType": "date",
@@ -154,7 +154,7 @@
  },
  {
   "id": 10,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "reason",
   "Title": "ระบุเหตุผล",
   "FieldType": "textarea",
@@ -171,7 +171,7 @@
  },
  {
   "id": 11,
-  "FormCode": "FM-HR-001",
+  "FormCode": "FM-HRM-001",
   "FieldKey": "attachment",
   "Title": "เอกสารแนบ",
   "FieldType": "file",
@@ -187,7 +187,7 @@
   "IsActive": true
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "requester",
   "Title": "ชื่อผู้ขอใช้บริการ",
   "FieldType": "readonly",
@@ -204,7 +204,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "dept",
   "Title": "สังกัด/ส่วนงาน",
   "FieldType": "readonly",
@@ -221,7 +221,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "service_date",
   "Title": "วันที่ขอใช้บริการ",
   "FieldType": "date",
@@ -238,7 +238,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "time_slot",
   "Title": "ช่วงเวลา",
   "FieldType": "choice",
@@ -255,7 +255,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "time_note",
   "Title": "ระบุเวลา",
   "FieldType": "text",
@@ -272,7 +272,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "place",
   "Title": "สถานที่",
   "FieldType": "text",
@@ -289,7 +289,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "job_detail",
   "Title": "รายละเอียดงาน",
   "FieldType": "textarea",
@@ -306,7 +306,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-003",
+  "FormCode": "FM-HRM-003",
   "FieldKey": "attachment",
   "Title": "เอกสารแนบ",
   "FieldType": "file",
@@ -323,7 +323,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "emp_name",
   "Title": "ชื่อ-สกุล",
   "FieldType": "readonly",
@@ -340,7 +340,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "emp_position",
   "Title": "ตำแหน่ง",
   "FieldType": "readonly",
@@ -357,7 +357,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "emp_dept",
   "Title": "สังกัด/ส่วนงาน",
   "FieldType": "readonly",
@@ -374,7 +374,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "project",
   "Title": "ชื่อโครงการ",
   "FieldType": "lookup",
@@ -391,7 +391,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "use_date",
   "Title": "วันที่ขอใช้",
   "FieldType": "date",
@@ -408,7 +408,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "amount",
   "Title": "จำนวนเงินที่ขอใช้ (บาท)",
   "FieldType": "currency",
@@ -425,7 +425,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "reason",
   "Title": "เหตุผลในการขอใช้",
   "FieldType": "textarea",
@@ -442,7 +442,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-AC-002",
+  "FormCode": "FM-ACC-002",
   "FieldKey": "attachment",
   "Title": "เอกสารประกอบคำขอเบิก",
   "FieldType": "file",
@@ -459,7 +459,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "form_date",
   "Title": "วันที่กรอกแบบฟอร์ม",
   "FieldType": "date",
@@ -476,7 +476,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "emp_name",
   "Title": "ชื่อ-นามสกุล",
   "FieldType": "readonly",
@@ -493,7 +493,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "emp_code",
   "Title": "รหัสพนักงาน",
   "FieldType": "readonly",
@@ -510,7 +510,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "emp_position",
   "Title": "ตำแหน่ง",
   "FieldType": "readonly",
@@ -527,7 +527,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "site",
   "Title": "ประจำอยู่ที่ Site",
   "FieldType": "text",
@@ -544,7 +544,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "benefit_type",
   "Title": "ประเภทสวัสดิการที่ขอเบิก",
   "FieldType": "multichoice",
@@ -561,7 +561,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "month",
   "Title": "เดือนที่ขอเบิก",
   "FieldType": "text",
@@ -578,7 +578,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "amount",
   "Title": "จำนวนเงินรวม (บาท)",
   "FieldType": "currency",
@@ -595,7 +595,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "receipt",
   "Title": "ใบเสร็จรับเงิน",
   "FieldType": "file",
@@ -612,7 +612,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-HR-006",
+  "FormCode": "FM-HRM-006",
   "FieldKey": "note",
   "Title": "หมายเหตุ",
   "FieldType": "textarea",
@@ -629,7 +629,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "req_name",
   "Title": "ชื่อผู้ขอใช้รถ",
   "FieldType": "readonly",
@@ -646,7 +646,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "req_dept",
   "Title": "สังกัด",
   "FieldType": "readonly",
@@ -663,7 +663,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "use_date",
   "Title": "วันที่ขอใช้รถ",
   "FieldType": "date",
@@ -680,7 +680,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "time_from",
   "Title": "เวลาออก",
   "FieldType": "time",
@@ -697,7 +697,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "time_to",
   "Title": "เวลากลับโดยประมาณ",
   "FieldType": "time",
@@ -714,7 +714,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "destination",
   "Title": "สถานที่ปลายทาง",
   "FieldType": "text",
@@ -731,7 +731,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "purpose",
   "Title": "วัตถุประสงค์",
   "FieldType": "textarea",
@@ -748,7 +748,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "passengers",
   "Title": "จำนวนผู้โดยสาร",
   "FieldType": "number",
@@ -765,7 +765,7 @@
   "PromoteTo": ""
  },
  {
-  "FormCode": "FM-GA-002",
+  "FormCode": "FM-ADM-002",
   "FieldKey": "need_driver",
   "Title": "ต้องการพนักงานขับรถ",
   "FieldType": "yesno",
