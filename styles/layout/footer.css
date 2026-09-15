@@ -1,4 +1,13 @@
-footer { background: var(--navy); color: #cfe0f2; font-size: 13px; margin-top: var(--gap-xl); }
-footer .wrap { display: flex; justify-content: space-between; gap: var(--gap); padding-top: var(--gap-lg); padding-bottom: var(--gap-lg); flex-wrap: wrap; }
-footer nav { display: flex; gap: var(--gap); }
-footer a:hover { color: #fff; text-decoration: underline; }
+footer { background: var(--navy); color: #dce8f5; font-size: 13px; margin-top: var(--gap-xl);
+  border-top: 3px solid var(--green); }
+footer .wrap { display: flex; justify-content: space-between; gap: var(--gap);
+  padding-top: var(--gap-lg); padding-bottom: var(--gap-lg); flex-wrap: wrap; }
+footer nav { display: flex; gap: var(--gap-lg); }
+footer a { color: #fff; }
+footer a:hover { color: var(--green); text-decoration: underline; }
+/* บรรทัดรองใน footer ใช้สีที่ยังอ่านออกบนพื้นน้ำเงิน ไม่ใช่ --dim ที่จางเกิน */
+footer .dim { color: #9fbcd8; }
+@media (max-width: 600px) {
+  footer .wrap { flex-direction: column; gap: var(--gap-sm); }
+  footer nav { flex-wrap: wrap; gap: var(--gap); }
+}
