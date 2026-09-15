@@ -15,12 +15,37 @@ let staff = [];
 
 const num = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
 
-/** เหลือกี่วันตามสัญญา ติดลบแปลว่าเลยกำหนดแล้ว */
+/** เหลือกี่วันจากวันที่กำหนด ติดลบแปลว่าเลยแล้ว */
 function daysLeft(end) {
   if (!end) return null;
   const d = new Date(end);
   if (isNaN(d)) return null;
   return Math.ceil((d - new Date()) / 86400000);
+}
+
+/**
+ * ข้อความช่วงเวลาที่เหลือ ปรับตามสถานะโครงการ
+ * ปิดโครงการ = ไม่แสดง · ประกันผลงาน = แสดงช่วงประกัน · อื่น ๆ = นับวันตามสัญญา
+ * คืน null เมื่อไม่ต้องแสดงช่องนี้เลย
+ */
+function timeLeftInfo(p) {
+  if (p.Status === 'ปิดโครงการ') return null;
+
+  if (p.InWarranty === true || p.InWarranty === 'Yes') {
+    const wl = daysLeft(p.WarrantyEnd);
+    if (wl !== null) {
+      return wl < 0
+        ? { text: 'ประกันผลงานสิ้นสุดแล้ว', tone: '' }
+        : { text: `ประกันผลงาน · เหลือ ${wl} วัน`, tone: 'warranty' };
+    }
+    return { text: 'อยู่ระหว่างประกันผลงาน (O&M)', tone: 'warranty' };
+  }
+
+  const left = daysLeft(p.EndDate);
+  if (left === null) return { text: '—', tone: '' };
+  return left < 0
+    ? { text: `เลยกำหนด ${-left} วัน`, tone: 'over' }
+    : { text: `${left} วัน`, tone: '' };
 }
 
 /** ช้ากว่าแผนเท่าไร ใช้ตัดสินสีและข้อความเตือน */
@@ -42,7 +67,7 @@ function card(p) {
   const actual = num(p.ActualProgress);
   const pay = num(p.ActualPayment);
   const v = variance(p);
-  const left = daysLeft(p.EndDate);
+  const tl = timeLeftInfo(p);
 
   return `
   <article class="pj-card is-clickable tone-${v.tone}" data-project="${p.id}"
@@ -59,8 +84,7 @@ function card(p) {
       <div><span>ขนาดติดตั้ง</span><b>${p.Capacity ? Number(p.Capacity).toLocaleString('th-TH') + ' kWp' : '—'}</b></div>
       <div><span>เริ่มโครงการ</span><b>${esc(thaiDateShort(p.StartDate)) || '—'}</b></div>
       <div><span>สิ้นสุดตามสัญญา</span><b>${esc(thaiDateShort(p.EndDate)) || '—'}</b></div>
-      <div><span>เวลาที่เหลือ</span><b class="${left !== null && left < 0 ? 'over' : ''}">${
-        left === null ? '—' : left < 0 ? `เลยกำหนด ${-left} วัน` : `${left} วัน`}</b></div>
+      ${tl ? `<div><span>เวลาที่เหลือ</span><b class="${tl.tone}">${esc(tl.text)}</b></div>` : ''}
     </div>
 
     <div class="pj-bars">
@@ -184,7 +208,7 @@ const personChip = (name, role) => {
 function openProject(p) {
   const plan = num(p.PlanProgress), actual = num(p.ActualProgress), pay = num(p.ActualPayment);
   const v = variance(p);
-  const left = daysLeft(p.EndDate);
+  const tl = timeLeftInfo(p);
 
   const fact = (label, value, cls = '') => `
     <div class="pv-row"><span>${esc(label)}</span><b class="${cls}">${value}</b></div>`;
@@ -208,9 +232,7 @@ function openProject(p) {
             ${fact('ฝ่ายเจ้าของ', esc(p.Department || '—'))}
             ${fact('เริ่มโครงการ', esc(thaiDateShort(p.StartDate)) || '—')}
             ${fact('สิ้นสุดตามสัญญา', esc(thaiDateShort(p.EndDate)) || '—')}
-            ${fact('เวลาที่เหลือ',
-              left === null ? '—' : left < 0 ? `เลยกำหนด ${-left} วัน` : `${left} วัน`,
-              left !== null && left < 0 ? 'over' : '')}
+            ${tl ? fact('เวลาที่เหลือ', esc(tl.text), tl.tone) : ''}
             ${fact('อัปเดตล่าสุด', esc(thaiDateShort(p.UpdatedDate)) || '—')}
           </div>
 

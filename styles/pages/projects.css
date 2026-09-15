@@ -160,3 +160,4 @@
 .pph-hint { font-size: 11px; color: var(--blue); margin-top: 6px; }
 
 @media (max-width: 620px) { .pp-hover { display: none !important; } }
+.pj-facts b.warranty, .pj-view .pv-row b.warranty { color: var(--warn); }
