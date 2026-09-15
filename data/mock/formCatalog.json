@@ -119,9 +119,9 @@
  {
   "id": 10,
   "Title": "จองคิว Messenger",
-  "FormCode": "FM-HRM-003",
+  "FormCode": "FM-ADM-006",
   "Description": "จองคิวรับส่งเอกสารและพัสดุนอกสถานที่",
-  "Department": "ฝ่ายทรัพยากรบุคคล",
+  "Department": "ฝ่ายประสานงานและอำนวยการ",
   "Icon": "🛵",
   "Badge": "",
   "MetaTags": "⏱ 2 นาที, 📅 ล่วงหน้า 1 วัน",
