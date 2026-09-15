@@ -5,6 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { stepsOf, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
+import { LETTERHEAD } from '../core/letterhead.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -202,8 +203,13 @@ async function openRequest(req) {
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">ยังไม่ถึงคิวของคุณ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : ''}
+
+        <div class="rq-export-row">
+          <button class="btn-mini" data-exportreq="${req.id}">⭳ ส่งออกเป็นเอกสาร (PDF)</button>
+        </div>
       </div>`,
   });
+  onClick('exportreq', () => exportRequest(req, steps, answerRows));
 
   if (role.canActNow) bindActions(req, steps, role);
 }
@@ -275,6 +281,71 @@ function bindActions(req, steps, role) {
     closeModal();
     const { render: rerender } = await import('../core/render.js');
     rerender();
+  };
+}
+
+/** ส่งออกคำขอเป็นเอกสาร A4 พร้อมหัวกระดาษ ข้อมูล และบล็อกอนุมัติจากระบบ */
+async function exportRequest(req, steps, answerRows) {
+  const log = parseLog(req.ApprovalLog);
+  const dir = await list('directory').catch(() => []);
+  const sigOf = (name) => (dir.find((p) => p.Title === name) || {}).SignatureUrl || '';
+
+  // บล็อกผู้อนุมัติ สร้างจากบันทึกจริง ไม่ใช่ช่องเซ็นเปล่า
+  const approvals = steps.map((st) => {
+    const n = +st.StepOrder;
+    const act = log.filter((l) => l.step === n).slice(-1)[0];
+    const who = act ? act.by : ((st._resolved || [])[0] || '');
+    const sig = act && act.action === 'อนุมัติ' ? sigOf(act.by) : '';
+    return `
+      <div class="ex-approve">
+        <div class="ex-ap-role">${esc(st.StepName || 'ลำดับ ' + n)}</div>
+        <div class="ex-ap-sign">
+          ${sig ? `<img src="${esc(sig)}" alt="">` : '<div class="ex-ap-line"></div>'}
+        </div>
+        <div class="ex-ap-name">${act
+          ? `<b>${act.action === 'อนุมัติ' ? '✓ อนุมัติ' : '✗ ไม่อนุมัติ'}</b><br>
+             ( ${esc(act.by)} )<br>
+             <span class="ex-ap-time">${esc(thaiDateTime(act.at))}</span>`
+          : `( ${esc(who)} )<br><span class="ex-ap-time">รออนุมัติ</span>`}
+        </div>
+      </div>`;
+  }).join('');
+
+  const win = document.getElementById('overlay-root');
+  win.innerHTML = `
+    <div class="mask" id="ex-mask">
+      <div class="modal modal-wide">
+        <div class="modal-head">ส่งออกเอกสาร — ${esc(req.Title)}
+          <button id="ex-close">✕</button></div>
+        <div class="modal-body">
+          <div class="ex-doc" id="ex-doc">
+            <img class="ex-letterhead" src="${LETTERHEAD}" alt="Prime Power Construction">
+            <h2 class="ex-title">${esc(req.FormName || '')}</h2>
+            <div class="ex-meta">
+              <span>เลขที่คำขอ ${esc(req.Title)}</span>
+              <span>วันที่ ${esc(thaiDateShort(req.SubmittedDate))}</span>
+            </div>
+            <table class="ex-table">
+              ${answerRows.replace(/rq-ans/g, 'ex-ans')}
+            </table>
+            <div class="ex-approvals">${approvals}</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-mini" id="ex-cancel">ปิด</button>
+          <button class="btn btn-primary" id="ex-print">พิมพ์ / บันทึกเป็น PDF</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = () => { win.innerHTML = ''; };
+  document.getElementById('ex-close').onclick = close;
+  document.getElementById('ex-cancel').onclick = close;
+  document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
+  document.getElementById('ex-print').onclick = () => {
+    document.body.classList.add('printing-doc');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-doc'), 500);
   };
 }
 

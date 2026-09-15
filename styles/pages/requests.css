@@ -82,3 +82,34 @@
 }
 .tl-when { color: var(--dim); font-size: 11.5px; }
 .tl-act b { font-weight: 600; }
+
+/* ---------- เอกสารส่งออก ---------- */
+.rq-export-row { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px solid var(--line-soft); }
+.ex-doc { background: #fff; padding: 8px; max-width: 780px; margin: 0 auto; color: #1a1a1a; }
+.ex-letterhead { width: 100%; display: block; margin-bottom: 18px; }
+.ex-title { text-align: center; font-size: 19px; font-weight: 700; margin: 0 0 16px; color: var(--navy); }
+.ex-meta { display: flex; justify-content: space-between; font-size: 13px; color: #444;
+  margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #ccc; }
+.ex-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+.ex-ans { display: flex; gap: 16px; padding: 9px 4px; border-bottom: 1px solid #eee; font-size: 14px; }
+.ex-ans span { color: #555; min-width: 150px; flex: none; }
+.ex-ans b { font-weight: 600; }
+
+.ex-approvals { display: flex; justify-content: space-around; gap: 24px; flex-wrap: wrap;
+  margin-top: 32px; }
+.ex-approve { text-align: center; min-width: 180px; }
+.ex-ap-role { font-size: 13px; color: #555; margin-bottom: 40px; }
+.ex-ap-sign { height: 50px; display: flex; align-items: flex-end; justify-content: center; }
+.ex-ap-sign img { max-height: 50px; max-width: 160px; }
+.ex-ap-line { border-bottom: 1px dotted #999; width: 170px; }
+.ex-ap-name { font-size: 13px; margin-top: 6px; line-height: 1.6; }
+.ex-ap-time { font-size: 11.5px; color: #888; }
+
+@media print {
+  body.printing-doc .topbar, body.printing-doc header, body.printing-doc footer,
+  body.printing-doc #app, body.printing-doc .modal-head, body.printing-doc .modal-foot { display: none !important; }
+  body.printing-doc .mask { position: static; background: none; padding: 0; display: block; }
+  body.printing-doc .modal { box-shadow: none; max-width: none; border-radius: 0; }
+  body.printing-doc .modal-body { padding: 0; max-height: none; overflow: visible; }
+  .ex-letterhead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
