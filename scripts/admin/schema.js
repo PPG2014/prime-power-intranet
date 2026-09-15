@@ -145,6 +145,8 @@ export const SCHEMA = {
         help: 'เช่น Rev.01 · แสดงคู่กับเลขที่เอกสาร' },
       { key: 'Icon', label: 'ไอคอน', type: 'text', help: 'วางอิโมจิได้ เช่น 📅 🔧 💰' },
       { key: 'Description', label: 'คำอธิบาย', type: 'textarea', full: true },
+      { key: 'FormNote', label: 'หมายเหตุสำคัญ (แสดงเป็นกล่องเตือนเหนือปุ่มส่ง)', type: 'textarea',
+        full: true, help: 'เช่น เงื่อนไขเวลาตัดรอบ กำหนดส่ง หรือข้อควรระวัง' },
       { key: 'Department', label: 'ฝ่ายเจ้าของ', type: 'lookup', from: 'departments' },
       { key: 'Badge', label: 'ป้ายกำกับ', type: 'choice',
         options: ['', 'ใช้บ่อย', 'ใหม่', 'ต้องอนุมัติ'] },

@@ -67,3 +67,8 @@
   .page-form .field-error { margin: 0 var(--gap) var(--gap); }
 }
 .q-readonly { color: var(--muted); }
+.form-note-box { margin: 0 var(--gap-lg) var(--gap); padding: 12px 16px;
+  background: #fff4e0; border-left: 4px solid var(--warn); border-radius: var(--radius-sm);
+  font-size: 13.5px; line-height: 1.7; color: #7a4f00; }
+.form-note-box b { color: #8a5a00; }
+@media (max-width: 620px) { .form-note-box { margin: 0 var(--gap) var(--gap); } }

@@ -98,6 +98,9 @@ export async function render(ctx) {
       <div class="panel form-panel">
         ${renderForm(fields, me, state.formDraft || {})}
         <div class="field-error" id="q-error" hidden></div>
+        ${form.FormNote ? `<div class="form-note-box">
+          <b>หมายเหตุ</b> ${esc(form.FormNote)}
+        </div>` : ''}
         <div class="form-foot">
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
             esc(thaiDateShort(new Date().toISOString()))}</span>
