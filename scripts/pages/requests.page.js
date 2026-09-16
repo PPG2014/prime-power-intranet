@@ -6,6 +6,7 @@ import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { stepsOf, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
 import { LETTERHEAD } from '../core/letterhead.js';
+import { standardLabel } from '../components/form-renderer.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -183,7 +184,7 @@ async function openRequest(req) {
     .filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))
     .map(([k, v]) => {
       const f = fields.find((x) => x.FieldKey === k);
-      const label = f ? f.Title : k;
+      const label = (f ? f.Title : null) || standardLabel(k) || k;
       if (f && f.FieldType === 'lineitems' && Array.isArray(v)) {
         const cols = String(f.Options||'').split('\n').map(x=>x.split('|'));
         return `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
@@ -191,8 +192,10 @@ async function openRequest(req) {
           ${v.map(row=>`<tr>${cols.map(c=>`<td>${esc(row[c[0].trim()]||'')}</td>`).join('')}</tr>`).join('')}
           </table></div>`;
       }
+      const isDate = (f && f.FieldType === 'date') || k === 'std_date'
+        || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
       const val = Array.isArray(v) ? v.join(', ')
-        : (f && f.FieldType === 'date') ? thaiDateShort(v) : v;
+        : isDate ? thaiDateShort(v) : v;
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
     }).join('');
 

@@ -46,7 +46,7 @@ export const attachedFiles = () => files;
  * ผู้ดูแลไม่ต้องเพิ่มช่องเหล่านี้ในตาราง ระบบเติมให้เอง
  * ถ้าฟอร์มไหนมีช่องชื่อซ้ำอยู่แล้ว จะใช้ของฟอร์มนั้นแทน ไม่เติมซ้ำ
  */
-const STANDARD = [
+export const STANDARD = [
   { FieldKey: 'std_emp_code', Title: 'รหัสพนักงาน', FieldType: 'readonly',
     DefaultValue: '{me.EmployeeCode}', Section: 'ข้อมูลผู้ยื่น', ColumnWidth: 'half' },
   { FieldKey: 'std_emp_name', Title: 'ชื่อ-นามสกุล', FieldType: 'readonly',
@@ -67,6 +67,12 @@ const STANDARD = [
  * รวมช่องมาตรฐานเข้ากับช่องเฉพาะของฟอร์ม
  * ช่องมาตรฐานมาก่อน เว้นแต่ฟอร์มปิดไว้ด้วย useStandard=false หรือมีช่องชื่อซ้ำเอง
  */
+/** ชื่อไทยของช่องมาตรฐาน จาก FieldKey ใช้ตอนแสดงคำขอในหน้าอื่น */
+export function standardLabel(key) {
+  const f = STANDARD.find((x) => x.FieldKey === key);
+  return f ? f.Title : null;
+}
+
 export function withStandard(formFields, form) {
   if (form && (form.UseStandardHeader === false || form.UseStandardHeader === 'No')) {
     return formFields;
