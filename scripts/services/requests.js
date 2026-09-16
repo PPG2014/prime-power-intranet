@@ -67,10 +67,16 @@ export async function loadResolved(steps, req) {
   return steps;
 }
 
+/** ทำให้ค่าเป็นข้อความล้วน ตัดช่องว่าง เผื่อ FormCode มาเป็นออบเจ็กต์หรือมีช่องว่างเกิน */
+const plainCode = (v) => String(
+  (v && typeof v === 'object') ? (v.LookupValue ?? v.Value ?? v.Title ?? '') : (v ?? '')
+).trim();
+
 export async function stepsOf(formCode) {
   const all = await list('approvalMatrix').catch(() => []);
+  const target = plainCode(formCode);
   return all
-    .filter((s) => s.FormCode === formCode && s.IsActive !== false)
+    .filter((s) => plainCode(s.FormCode) === target && s.IsActive !== false)
     .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0));
 }
 
