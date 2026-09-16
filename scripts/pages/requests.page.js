@@ -156,6 +156,13 @@ async function openRequest(req) {
     .map(([k, v]) => {
       const f = fields.find((x) => x.FieldKey === k);
       const label = f ? f.Title : k;
+      if (f && f.FieldType === 'lineitems' && Array.isArray(v)) {
+        const cols = String(f.Options||'').split('\n').map(x=>x.split('|'));
+        return `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
+          <table class="li-view"><tr>${cols.map(c=>`<th>${esc(c[1]||c[0])}</th>`).join('')}</tr>
+          ${v.map(row=>`<tr>${cols.map(c=>`<td>${esc(row[c[0].trim()]||'')}</td>`).join('')}</tr>`).join('')}
+          </table></div>`;
+      }
       const val = Array.isArray(v) ? v.join(', ')
         : (f && f.FieldType === 'date') ? thaiDateShort(v) : v;
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;

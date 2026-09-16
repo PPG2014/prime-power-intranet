@@ -11,6 +11,7 @@ import { toDateInput } from '../admin/entity-form.js';
 
 /** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
 let files = [];
+let currentValues = {};
 
 /** ตัวเลือกของช่องที่ดึงจาก List อื่น เก็บไว้ใช้ตอนวาด */
 let lookupData = {};
@@ -80,6 +81,18 @@ export function withStandard(formFields, form) {
 const opts = (f) => String(f.Options || '').split('\n').map((x) => x.trim()).filter(Boolean);
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
 
+/** ค่าเริ่มต้นของช่องหนึ่ง จากค่าที่ renderForm ได้รับ (ใช้ตอน bind) */
+function getDefault(fields, f) {
+  return currentValues[f.FieldKey] ?? [];
+}
+
+/** แปลงค่ารายการเป็นอาร์เรย์ของแถวเสมอ */
+function toLineRows(v) {
+  if (Array.isArray(v)) return v;
+  try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+
 /**
  * แทนค่าอัตโนมัติในช่องค่าเริ่มต้น
  * {today} = วันนี้ · {me.X} = ข้อมูลของผู้ที่ล็อกอินจากทะเบียนบุคลากร
@@ -143,6 +156,32 @@ function control(f, value) {
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}
         </datalist>`;
     }
+    case 'lineitems': {
+      /**
+       * ตารางรายการที่เพิ่มบรรทัดได้ เช่นรายการซื้อของ
+       * คอลัมน์กำหนดใน Options บรรทัดละคอลัมน์ รูปแบบ key|ชื่อ|ชนิด
+       * ชนิด: text, number, money · คอลัมน์ money จะถูกรวมเป็นยอดท้ายตาราง
+       */
+      const cols = String(f.Options || 'detail|รายละเอียด|text\nqty|จำนวน|number\nprice|ราคา|money')
+        .split('\n').map((line) => {
+          const [key, label, type] = line.split('|').map((x) => x.trim());
+          return { key, label: label || key, type: type || 'text' };
+        }).filter((c) => c.key);
+      const rows = toLineRows(value);
+      return `<div class="li-field" id="${id}" data-cols='${esc(JSON.stringify(cols))}'>
+        <table class="li-table">
+          <thead><tr>
+            ${cols.map((c) => `<th>${esc(c.label)}</th>`).join('')}
+            <th class="li-x"></th>
+          </tr></thead>
+          <tbody class="li-body"></tbody>
+          ${cols.some((c) => c.type === 'money') ? `<tfoot><tr>
+            <td colspan="${cols.length - 1}" class="li-sumlabel">รวมเป็นเงิน</td>
+            <td class="li-sum">0</td><td></td></tr></tfoot>` : ''}
+        </table>
+        <button type="button" class="btn-mini li-add">+ เพิ่มรายการ</button>
+      </div>`;
+    }
     case 'multichoice':
       return `<div class="q-checks" id="${id}">
         ${opts(f).map((o) => `<label class="check-item">
@@ -163,6 +202,7 @@ function control(f, value) {
 /** วาดฟอร์มทั้งใบ จัดกลุ่มตามหัวข้อที่ระบุไว้ในช่อง Section */
 export function renderForm(fields, me, values = {}) {
   files = [];
+  currentValues = values || {};
   const groups = [];
   fields.forEach((f) => {
     const name = f.Section || 'ข้อมูลคำขอ';
@@ -206,6 +246,18 @@ export function collectForm(fields) {
     let v = '';
 
     if (f.FieldType === 'file') v = files;
+    else if (f.FieldType === 'lineitems') {
+      const box = $('#' + 'q_' + f.FieldKey);
+      const cols = box ? JSON.parse(box.dataset.cols) : [];
+      const rows = [];
+      if (box) box.querySelectorAll('.li-body tr').forEach((tr) => {
+        const row = {};
+        cols.forEach((c) => { row[c.key] = (tr.querySelector(`[data-k="${c.key}"]`) || {}).value || ''; });
+        // เก็บเฉพาะแถวที่กรอกอะไรบ้าง
+        if (Object.values(row).some((x) => String(x).trim())) rows.push(row);
+      });
+      v = rows;
+    }
     else if (f.FieldType === 'readonly') v = el ? el.dataset.value || '' : '';
     else if (f.FieldType === 'multichoice') {
       v = el ? [...el.querySelectorAll('input:checked')].map((c) => c.value) : [];
@@ -226,6 +278,50 @@ export function collectForm(fields) {
 
 /** ผูกช่องแนบไฟล์และเงื่อนไขการแสดงช่อง เรียกหลังฟอร์มขึ้นจอ */
 export function bindForm(fields, folder) {
+  // ตารางรายการ
+  fields.filter((f) => f.FieldType === 'lineitems').forEach((f) => {
+    const box = $('#q_' + f.FieldKey);
+    if (!box) return;
+    const cols = JSON.parse(box.dataset.cols);
+    const body = box.querySelector('.li-body');
+    const sumCell = box.querySelector('.li-sum');
+    const initial = toLineRows(getDefault(fields, f));
+
+    const cell = (c, val) => c.type === 'text'
+      ? `<td><input data-k="${c.key}" value="${esc(val ?? '')}"></td>`
+      : `<td><input data-k="${c.key}" type="number" ${c.type === 'money' ? 'step="0.01"' : ''}
+           value="${esc(val ?? '')}" class="li-num"></td>`;
+
+    const recalc = () => {
+      if (!sumCell) return;
+      let sum = 0;
+      body.querySelectorAll('tr').forEach((tr) => {
+        const money = cols.find((c) => c.type === 'money');
+        const qty = cols.find((c) => c.key === 'qty' || c.type === 'number');
+        if (!money) return;
+        const priceEl = tr.querySelector(`[data-k="${money.key}"]`);
+        const price = +(priceEl && priceEl.value) || 0;
+        const q = qty && qty.key !== money.key
+          ? (+(tr.querySelector(`[data-k="${qty.key}"]`) || {}).value || 1) : 1;
+        sum += price * q;
+      });
+      sumCell.textContent = sum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+    };
+
+    const addRow = (data = {}) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = cols.map((c) => cell(c, data[c.key])).join('')
+        + '<td class="li-x"><button type="button" class="li-del">✕</button></td>';
+      body.appendChild(tr);
+      tr.querySelectorAll('input').forEach((el) => { el.oninput = recalc; });
+      tr.querySelector('.li-del').onclick = () => { tr.remove(); recalc(); };
+    };
+
+    (initial.length ? initial : [{}]).forEach(addRow);
+    recalc();
+    box.querySelector('.li-add').onclick = () => addRow();
+  });
+
   // แนบไฟล์
   fields.filter((f) => f.FieldType === 'file').forEach((f) => {
     const id = 'q_' + f.FieldKey;

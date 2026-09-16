@@ -113,3 +113,7 @@
   body.printing-doc .modal-body { padding: 0; max-height: none; overflow: visible; }
   .ex-letterhead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.rq-ans-table { flex-direction: column; align-items: stretch; }
+.li-view { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+.li-view th { text-align: left; background: #fafbfc; padding: 6px 10px; border: 1px solid var(--line-soft); }
+.li-view td { padding: 6px 10px; border: 1px solid var(--line-soft); }

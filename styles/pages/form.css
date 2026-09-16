@@ -72,3 +72,22 @@
   font-size: 13.5px; line-height: 1.7; color: #7a4f00; }
 .form-note-box b { color: #8a5a00; }
 @media (max-width: 620px) { .form-note-box { margin: 0 var(--gap) var(--gap); } }
+
+/* ---------- ช่องตารางรายการ (lineitems) ---------- */
+.li-field { width: 100%; }
+.li-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.li-table th { text-align: left; font-size: 12.5px; color: var(--muted); font-weight: 600;
+  padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.li-table td { padding: 4px; }
+.li-table input { width: 100%; box-sizing: border-box; padding: 8px 10px; font-family: inherit;
+  font-size: 13.5px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.li-table input:focus { border-color: var(--blue-light); outline: none; box-shadow: 0 0 0 2px rgba(0,103,184,.1); }
+.li-num { text-align: right; }
+.li-x { width: 34px; text-align: center; }
+.li-del { color: var(--danger); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  width: 26px; height: 30px; font-size: 12px; }
+.li-del:hover { background: #fdf3f2; border-color: var(--danger); }
+.li-sumlabel { text-align: right; font-weight: 600; padding: 10px 8px; color: var(--muted); }
+.li-sum { text-align: right; font-weight: 700; font-size: 15px; color: var(--navy);
+  padding: 10px 8px; border-top: 2px solid var(--line); }
+.li-add { margin-top: 4px; }

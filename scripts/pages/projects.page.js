@@ -260,14 +260,25 @@ function openProject(p) {
           </div>` : ''}
       </div>`,
     footer: `<button class="btn-mini" data-vhistory="${p.id}">🕓 ประวัติความคืบหน้า</button>
-             <button class="btn btn-primary" data-vexport="${p.id}">⭳ ส่งออกรายงาน</button>`,
+             <button class="btn-mini" data-vexport="${p.id}">⭳ ส่งออกรายงาน</button>
+             ${state.isAdmin ? `<button class="btn btn-primary" data-vedit="${p.id}">✎ อัปเดตโครงการ</button>` : ''}`,
   });
 
   onClick('vhistory', () => showHistory(p));
   onClick('vexport', () => exportProject(p));
+  onClick('vedit', () => editProject(p));
   onClick('person-name', (name) => {
     const person = staff.find((x) => x.Title === name);
     if (person) openPerson(person, () => openProject(p));   // ปิดแล้วกลับมาที่โครงการเดิมได้
+  });
+}
+
+/** เปิดฟอร์มแก้ไขโครงการจากหน้าแดชบอร์ด (เฉพาะแอดมิน) */
+async function editProject(p) {
+  const { openProjectEditor } = await import('./admin.page.js');
+  await openProjectEditor(p, () => {
+    // หลังบันทึก โหลดหน้าแดชบอร์ดใหม่ให้เห็นค่าล่าสุด
+    import('../core/render.js').then((m) => m.render());
   });
 }
 

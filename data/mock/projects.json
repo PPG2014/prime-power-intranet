@@ -11,16 +11,16 @@
   "PlanProgress": 62,
   "ActualProgress": 58,
   "ActualPayment": 45,
-  "Detail": "ติดตั้งหม้อแปลงหลักเสร็จ 2 จาก 3 ลูก อยู่ระหว่างเดินสายแรงสูงช่วงที่ 2",
+  "Detail": "ติดตั้งหม้อแปลงหลักเสร็จ 2 จาก 3 ลูก",
+  "Owner": "ธนกฤต ศรีสุวรรณ",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 1,
-  "IsActive": true,
-  "Owner": "ธนกฤต ศรีสุวรรณ"
+  "IsActive": true
  },
  {
   "id": 2,
   "ProjectCode": "PJ-2569-02",
-  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมอุตสาหกรรมมาบตาพุด",
+  "Title": "ปรับปรุงระบบจำหน่ายไฟฟ้า นิคมมาบตาพุด",
   "Department": "ฝ่ายบริหารโครงการ",
   "Status": "กำลังดำเนินการ",
   "Capacity": 2150,
@@ -29,16 +29,16 @@
   "PlanProgress": 78,
   "ActualProgress": 81,
   "ActualPayment": 70,
-  "Detail": "งานเดินสายใต้ดินเสร็จตามแผน เริ่มทดสอบระบบป้องกันสัปดาห์หน้า",
+  "Detail": "เริ่มทดสอบระบบป้องกัน",
+  "Owner": "ปกรณ์ วิริยะกุล 1",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 2,
-  "IsActive": true,
-  "Owner": "ปกรณ์ วิริยะกุล 1"
+  "IsActive": true
  },
  {
   "id": 3,
   "ProjectCode": "PJ-2569-03",
-  "Title": "ติดตั้งระบบโซลาร์รูฟท็อป โรงงานอมตะซิตี้",
+  "Title": "ติดตั้งโซลาร์รูฟท็อป อมตะซิตี้",
   "Department": "ฝ่ายบริหารโครงการ",
   "Status": "กำลังดำเนินการ",
   "Capacity": 1250,
@@ -47,16 +47,16 @@
   "PlanProgress": 45,
   "ActualProgress": 32,
   "ActualPayment": 28,
-  "Detail": "รอวัสดุแผงโซลาร์ล็อตที่ 2 จากผู้ผลิต คาดว่าล่าช้าราว 3 สัปดาห์",
+  "Detail": "รอวัสดุแผงโซลาร์ล็อต 2",
+  "Owner": "ชลธิชา เพชรรัตน์ 1",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 3,
-  "IsActive": true,
-  "Owner": "ชลธิชา เพชรรัตน์ 1"
+  "IsActive": true
  },
  {
   "id": 4,
   "ProjectCode": "PJ-2568-07",
-  "Title": "ก่อสร้างระบบไฟฟ้าอาคารสำนักงาน บริษัทในเครือ",
+  "Title": "ระบบไฟฟ้าอาคารสำนักงาน",
   "Department": "ฝ่ายบริหารโครงการ",
   "Status": "ส่งมอบแล้ว",
   "Capacity": 320,
@@ -65,18 +65,18 @@
   "PlanProgress": 100,
   "ActualProgress": 100,
   "ActualPayment": 100,
-  "Detail": "ส่งมอบและอบรมการใช้งานเรียบร้อย อยู่ระหว่างประกันผลงาน",
+  "Detail": "ส่งมอบเรียบร้อย ประกันผลงาน",
+  "Owner": "อภิชาติ ยั่งยืน 1",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 4,
   "IsActive": true,
   "InWarranty": true,
-  "WarrantyEnd": "2027-02-28T00:00:00Z",
-  "Owner": "อภิชาติ ยั่งยืน 1"
+  "WarrantyEnd": "2027-02-28T00:00:00Z"
  },
  {
   "id": 5,
   "ProjectCode": "PJ-2570-01",
-  "Title": "สถานีไฟฟ้าย่อย 115/22 kV ระยอง เฟส 2",
+  "Title": "สถานีไฟฟ้าย่อย ระยอง เฟส 2",
   "Department": "ฝ่ายบริหารโครงการ",
   "Status": "เตรียมงาน",
   "Capacity": 6000,
@@ -85,10 +85,10 @@
   "PlanProgress": 0,
   "ActualProgress": 0,
   "ActualPayment": 0,
-  "Detail": "อยู่ระหว่างจัดทำแบบและขออนุญาต",
+  "Detail": "จัดทำแบบและขออนุญาต",
+  "Owner": "สุพัตรา ทองใบ 1",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 5,
-  "IsActive": true,
-  "Owner": "สุพัตรา ทองใบ 1"
+  "IsActive": true
  }
 ]

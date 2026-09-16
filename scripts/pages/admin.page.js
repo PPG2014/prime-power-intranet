@@ -386,3 +386,58 @@ export function mount(ctx) {
     }
   });
 }
+
+/**
+ * เปิดฟอร์มแก้ไขโครงการจากที่อื่น (เช่นหน้าแดชบอร์ด)
+ * เป็นฟังก์ชันอิสระที่ไม่พึ่งตัวแปรของหน้า admin จึงเรียกจากหน้าอื่นได้
+ * เก็บประวัติค่าเดิมและเติม UpdatedDate เหมือนแก้ในหน้าจัดการข้อมูล
+ */
+export async function openProjectEditor(record, onSaved) {
+  const sc = SCHEMA.projects;
+
+  openModal({
+    title: `${sc.icon} อัปเดตโครงการ`,
+    wide: true,
+    body: await formBody(sc, record || {}),
+    footer: `<button class="btn-mini" id="pe-cancel">ยกเลิก</button>
+             <button class="btn btn-primary" id="pe-save">บันทึกการแก้ไข</button>`,
+  });
+
+  bindDependents(sc);
+  bindPhoto(sc);
+  bindFiles(sc);
+  bindFilters(sc);
+
+  $('#pe-cancel').onclick = closeModal;
+  $('#pe-save').onclick = async (ev) => {
+    const data = collect(sc);
+    if (!data) return;
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'กำลังบันทึก…';
+    try {
+      // เก็บค่าเดิมลงประวัติก่อนเขียนทับ
+      if (sc.history && record) {
+        try {
+          await create(sc.history, {
+            Title: record.Title, ProjectCode: record.ProjectCode || '',
+            PlanProgress: record.PlanProgress ?? 0, ActualProgress: record.ActualProgress ?? 0,
+            ActualPayment: record.ActualPayment ?? 0, Detail: record.Detail || '',
+            RecordedDate: record.UpdatedDate || new Date().toISOString(),
+            RecordedBy: state.user?.name || '',
+          });
+        } catch (e) { console.warn('บันทึกประวัติไม่สำเร็จ:', e.message); }
+      }
+      data.UpdatedDate = new Date().toISOString();
+      await update(sc.list, record.id, data);
+      closeModal();
+      if (onSaved) onSaved();
+    } catch (e) {
+      console.error(e);
+      const err = $('#form-error');
+      if (err) { err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(e.message)}`; err.hidden = false; }
+      btn.disabled = false;
+      btn.textContent = 'บันทึกการแก้ไข';
+    }
+  };
+}
