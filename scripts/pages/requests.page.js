@@ -138,6 +138,34 @@ export async function render(ctx) {
   </section>`;
 }
 
+/**
+ * ปุ่มแก้ไข/ยกเลิกของผู้ยื่น
+ * ทำได้เฉพาะเมื่อยังไม่มีใครอนุมัติเลย (ApprovalLog ว่าง และสถานะรออนุมัติ)
+ * ถ้ามีการอนุมัติแล้ว ต้องให้ผู้อนุมัติลำดับถัดไปยกเลิกให้แทน
+ */
+function requesterActions(req, log) {
+  const isMine = req.RequesterEmail
+    && req.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase();
+  if (!isMine) return '';
+  if (['อนุมัติแล้ว', 'ไม่อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก'].includes(req.Status)) return '';
+
+  const approved = log.some((l) => l.action === 'อนุมัติ');
+  if (approved) {
+    return `<div class="rq-locked">
+      คำขอนี้มีการอนุมัติบางลำดับแล้ว จึงแก้ไขหรือยกเลิกเองไม่ได้<br>
+      หากต้องการยกเลิก กรุณาแจ้งผู้อนุมัติลำดับถัดไปให้กดไม่อนุมัติ
+    </div>`;
+  }
+
+  return `<div class="rq-owner-act">
+    <span>ยังไม่มีการอนุมัติ คุณแก้ไขหรือยกเลิกคำขอได้</span>
+    <span class="rq-owner-btns">
+      <button class="btn-mini" data-reqedit="${req.id}">✎ แก้ไขคำขอ</button>
+      <button class="btn-mini danger" data-reqcancel="${req.id}">ยกเลิกคำขอ</button>
+    </span>
+  </div>`;
+}
+
 /** หน้าต่างรายละเอียดคำขอ พร้อมปุ่มอนุมัติถ้าถึงคิว */
 async function openRequest(req) {
   const steps = req._steps || stepCache[req.FormCode] || [];
@@ -211,6 +239,8 @@ async function openRequest(req) {
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">ยังไม่ถึงคิวของคุณ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : ''}
 
+        ${requesterActions(req, log)}
+
         <div class="rq-export-row">
           <button class="btn-mini" data-exportreq="${req.id}">⭳ ส่งออกเป็นเอกสาร (PDF)</button>
         </div>
@@ -219,6 +249,22 @@ async function openRequest(req) {
   onClick('exportreq', () => exportRequest(req, steps, answerRows));
 
   if (role.canActNow) bindActions(req, steps, role);
+
+  onClick('reqcancel', async () => {
+    if (!confirm('ยกเลิกคำขอนี้ใช่หรือไม่ · การยกเลิกถาวร')) return;
+    try {
+      const { update } = await import('../services/data.js');
+      await update('requests', req.id, { Status: 'ยกเลิก' });
+      closeModal();
+      const { render: rr } = await import('../core/render.js'); rr();
+    } catch (e) { alert('ยกเลิกไม่สำเร็จ — ' + e.message); }
+  });
+
+  onClick('reqedit', async () => {
+    // เปิดฟอร์มกรอกใหม่พร้อมข้อมูลเดิม แล้วให้แก้แล้วส่งใหม่
+    closeModal();
+    location.hash = `#/form/${req.FormCode}?edit=${req.id}`;
+  });
 }
 
 function renderSlip(raw) {

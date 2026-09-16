@@ -91,3 +91,8 @@
 .li-sum { text-align: right; font-weight: 700; font-size: 15px; color: var(--navy);
   padding: 10px 8px; border-top: 2px solid var(--line); }
 .li-add { margin-top: 4px; }
+.foot-btns { display: flex; gap: 10px; align-items: center; }
+.edit-tag { font-size: 13px; background: var(--warn); color: #fff; padding: 2px 12px;
+  border-radius: 20px; vertical-align: middle; font-weight: 600; }
+@media (max-width: 500px) { .foot-btns { flex-direction: column-reverse; width: 100%; }
+  .foot-btns .btn, .foot-btns .btn-mini { width: 100%; } }

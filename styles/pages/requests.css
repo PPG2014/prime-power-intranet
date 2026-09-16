@@ -117,3 +117,10 @@
 .li-view { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
 .li-view th { text-align: left; background: #fafbfc; padding: 6px 10px; border: 1px solid var(--line-soft); }
 .li-view td { padding: 6px 10px; border: 1px solid var(--line-soft); }
+.rq-owner-act { margin-top: var(--gap); padding: 14px 16px; background: #eef6fd;
+  border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;
+  gap: var(--gap-sm); flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
+.rq-owner-btns { display: flex; gap: 8px; }
+.rq-locked { margin-top: var(--gap); padding: 12px 16px; background: #fff8ec;
+  border-left: 4px solid var(--warn); border-radius: var(--radius-sm); font-size: 13px;
+  line-height: 1.7; color: #8a5a00; }

@@ -3,6 +3,7 @@ import { list, create } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard } from '../components/form-renderer.js';
+import { LETTERHEAD } from '../core/letterhead.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -13,21 +14,74 @@ const active = (v) => v !== false && v !== 'No' && v !== 'ไม่' && v !== 0;
 let form = null;
 let me = null;
 
-/** เลขที่คำขอ รันต่อเนื่องทั้งบริษัทตามปีพุทธศักราช */
-function nextRequestNo(existing) {
-  const year = new Date().getFullYear() + 543;
-  const prefix = `REQ-${year}-`;
+/**
+ * เลขที่เอกสาร แยกรันตามฟอร์ม รีเซ็ตทุกปี
+ * รูปแบบ <รหัสฟอร์ม>-<ลำดับ 3 หลัก>-<ปี ค.ศ. 4 หลัก>  เช่น FM-ACC-002-001-2026
+ */
+function docNo(formCode, seq, year) {
+  return `${formCode}-${String(seq).padStart(3, '0')}-${year}`;
+}
+
+/** หาลำดับถัดไปของฟอร์มนี้ในปีนี้ จากรายการที่มีอยู่ */
+function nextSeq(existing, formCode, year) {
+  const re = new RegExp('^' + formCode.replace(/[-]/g, '\\-') + '-(\\d+)-' + year + '$');
   const last = existing
     .map((r) => String(r.Title || ''))
-    .filter((t) => t.startsWith(prefix))
-    .map((t) => parseInt(t.slice(prefix.length), 10))
+    .map((t) => { const m = t.match(re); return m ? parseInt(m[1], 10) : 0; })
     .filter((n) => !isNaN(n))
     .sort((a, b) => b - a)[0] || 0;
-  return prefix + String(last + 1).padStart(4, '0');
+  return last + 1;
+}
+
+/**
+ * บันทึกคำขอพร้อมออกเลขที่ไม่ซ้ำ
+ *
+ * ป้องกันเลขซ้ำตอนหลายคนส่งพร้อมกัน ด้วยการอ่านเลขล่าสุด → บันทึก →
+ * ถ้าพบว่าเลขซ้ำ (มีคนอื่นแทรกมาก่อน) ก็ขยับเลขแล้วลองใหม่ สูงสุด 5 ครั้ง
+ *
+ * นี่กันได้เกือบสมบูรณ์สำหรับการใช้งานจริง แต่ถ้าต้องการกันเด็ดขาด 100%
+ * ให้ Power Automate เป็นคนออกเลขแทน (ดูหมายเหตุในคู่มือ)
+ */
+async function createWithDocNo(formCode, payload) {
+  const year = new Date().getFullYear();       // ปี ค.ศ. 4 หลัก
+  let attempt = 0;
+
+  while (attempt < 5) {
+    const existing = await list('requests').catch(() => []);
+    const seq = nextSeq(existing, formCode, year) + attempt;
+    const no = docNo(formCode, seq, year);
+
+    // กันชั้นแรก ถ้าเลขนี้มีอยู่แล้วในรายการที่เพิ่งอ่าน ขยับไปเลย
+    if (existing.some((r) => String(r.Title) === no)) { attempt++; continue; }
+
+    try {
+      await create('requests', { ...payload, Title: no });
+      // กันชั้นสอง อ่านซ้ำหลังบันทึก ถ้ามีเลขนี้มากกว่าหนึ่งรายการ แปลว่าชนกัน
+      const after = await list('requests').catch(() => []);
+      const dup = after.filter((r) => String(r.Title) === no);
+      if (dup.length > 1) {
+        // คนที่ id มากกว่า (บันทึกทีหลัง) เป็นฝ่ายต้องแก้เลข
+        const mine = dup.sort((a, b) => (+b.id) - (+a.id))[0];
+        const winnerExists = dup.some((r) => +r.id < +mine.id);
+        if (winnerExists) {
+          const newNo = docNo(formCode, seq + 1 + attempt, year);
+          await update('requests', mine.id, { Title: newNo });
+          return newNo;
+        }
+      }
+      return no;
+    } catch (e) {
+      attempt++;
+      if (attempt >= 5) throw e;
+    }
+  }
+  throw new Error('ออกเลขที่เอกสารไม่สำเร็จ กรุณาลองใหม่');
 }
 
 export async function render(ctx) {
-  const code = (location.hash.split('/')[2] || '').trim();
+  const rawSeg = (location.hash.split('/')[2] || '');
+  const code = rawSeg.split('?')[0].trim();
+  const editId = (rawSeg.match(/edit=(\d+)/) || [])[1] || null;
 
   const [forms, allFields, people] = await Promise.all([
     list('formCatalog'), list('formFields'), list('directory').catch(() => []),
@@ -42,6 +96,14 @@ export async function render(ctx) {
   fields = withStandard(own, form);
 
   await loadLookups(fields);   // ช่องที่ดึงตัวเลือกจาก List อื่นต้องโหลดก่อนวาด
+
+  // โหมดแก้ไข: ดึงคำขอเดิมมาเติมในฟอร์ม
+  let editData = null;
+  if (editId) {
+    const all = await list('requests').catch(() => []);
+    const orig = all.find((r) => String(r.id) === String(editId));
+    if (orig) { try { editData = JSON.parse(orig.FormData || '{}'); } catch (e) {} }
+  }
 
   me = people.find((p) => p.Email && state.user
     && p.Email.toLowerCase() === String(state.user.email).toLowerCase()) || null;
@@ -84,7 +146,7 @@ export async function render(ctx) {
       <div class="form-head">
         <div class="form-icon-lg">${form.Icon || '📄'}</div>
         <div>
-          <h1>${esc(form.Title)}</h1>
+          <h1>${esc(form.Title)}${editId ? ' <span class="edit-tag">แก้ไข</span>' : ''}</h1>
           <div class="form-sub">${esc(form.FormCode)} · ${esc(form.Department || '')}</div>
           ${form.Description ? `<p class="form-desc">${esc(form.Description)}</p>` : ''}
         </div>
@@ -96,7 +158,7 @@ export async function render(ctx) {
       </div>`}
 
       <div class="panel form-panel">
-        ${renderForm(fields, me, state.formDraft || {})}
+        ${renderForm(fields, me, editData || state.formDraft || {})}
         <div class="field-error" id="q-error" hidden></div>
         ${form.FormNote ? `<div class="form-note-box">
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
@@ -104,11 +166,68 @@ export async function render(ctx) {
         <div class="form-foot">
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
             esc(thaiDateShort(new Date().toISOString()))}</span>
-          <button class="btn btn-primary" id="q-send">ส่งคำขอ</button>
+          <span class="foot-btns">
+            <button class="btn-mini" id="q-download">⭳ ดาวน์โหลดแบบฟอร์ม</button>
+            <button class="btn btn-primary" id="q-send">ส่งคำขอ</button>
+          </span>
         </div>
       </div>
     </div>
   </section>`;
+}
+
+/** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 พร้อมหัวกระดาษ กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
+function downloadBlankForm(form, fields) {
+  const val = (k) => {
+    const el = document.getElementById('q_' + k);
+    if (!el) return '';
+    if (el.dataset && el.dataset.value) return el.dataset.value;
+    return el.value || '';
+  };
+  const rows = fields
+    .filter((f) => { const b = document.querySelector(`[data-q="${f.FieldKey}"]`); return !b || !b.hidden; })
+    .filter((f) => f.FieldType !== 'file' && f.FieldType !== 'lineitems')
+    .map((f) => `<tr><th>${esc(f.Title)}</th><td>${esc(val(f.FieldKey)) || '&nbsp;'}</td></tr>`).join('');
+
+  const win = document.getElementById('overlay-root');
+  win.innerHTML = `
+    <div class="mask" id="dl-mask">
+      <div class="modal modal-wide">
+        <div class="modal-head">ดาวน์โหลดแบบฟอร์ม <button id="dl-close">✕</button></div>
+        <div class="modal-body">
+          <div class="ex-doc" id="dl-doc">
+            <img class="ex-letterhead" src="${LETTERHEAD}" alt="Prime Power">
+            <h2 class="ex-title">${esc(form.Title)}</h2>
+            ${form.ISODocNo ? `<div class="ex-meta"><span>เลขที่เอกสาร ${esc(form.ISODocNo)}</span>
+              <span>${esc(form.ISORevision || '')}</span></div>` : ''}
+            <table class="ex-table">${rows}</table>
+            <div class="ex-approvals">
+              <div class="ex-approve"><div class="ex-ap-role">ผู้ยื่นคำขอ</div>
+                <div class="ex-ap-sign"><div class="ex-ap-line"></div></div>
+                <div class="ex-ap-name">( ${esc(state.user?.name || '')} )<br>
+                  <span class="ex-ap-time">วันที่ ......../......../........</span></div></div>
+              <div class="ex-approve"><div class="ex-ap-role">ผู้อนุมัติ</div>
+                <div class="ex-ap-sign"><div class="ex-ap-line"></div></div>
+                <div class="ex-ap-name">( ................................ )<br>
+                  <span class="ex-ap-time">วันที่ ......../......../........</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-mini" id="dl-cancel">ปิด</button>
+          <button class="btn btn-primary" id="dl-print">พิมพ์ / บันทึกเป็น PDF</button>
+        </div>
+      </div>
+    </div>`;
+  const close = () => { win.innerHTML = ''; };
+  document.getElementById('dl-close').onclick = close;
+  document.getElementById('dl-cancel').onclick = close;
+  document.getElementById('dl-mask').onclick = (e) => { if (e.target.id === 'dl-mask') close(); };
+  document.getElementById('dl-print').onclick = () => {
+    document.body.classList.add('printing-doc');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-doc'), 500);
+  };
 }
 
 export function mount(ctx) {
@@ -119,6 +238,9 @@ export function mount(ctx) {
   if (!send || !fields.length) return;
 
   bindForm(fields, `Requests/${form.FormCode}`);
+
+  const dl = $('#q-download');
+  if (dl) dl.onclick = () => downloadBlankForm(form, fields);
 
   send.onclick = async () => {
     const err = $('#q-error');
@@ -134,17 +256,26 @@ export function mount(ctx) {
     send.textContent = 'กำลังส่ง…';
 
     try {
-      const existing = await list('requests').catch(() => []);
-      const no = nextRequestNo(existing);
+      if (editId) {
+        // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
+        const { update } = await import('../services/data.js');
+        await update('requests', editId, {
+          FormData: JSON.stringify(res.values),
+          Files: JSON.stringify(attachedFiles()),
+          Status: 'รออนุมัติ', CurrentStep: 1,
+        });
+        setState({ formSent: 'แก้ไขแล้ว', formDraft: null });
+        return;
+      }
 
-      await create('requests', {
-        Title: no,
+      const no = await createWithDocNo(form.FormCode, {
         FormCode: form.FormCode,
         FormName: form.Title,
         RequesterName: state.user?.name || '',
         RequesterEmail: state.user?.email || '',
         RequesterDept: me?.Department || '',
         Status: 'รออนุมัติ',
+        CurrentStep: 1,
         SubmittedDate: new Date().toISOString(),
         FormData: JSON.stringify(res.values),
         Files: JSON.stringify(attachedFiles()),
