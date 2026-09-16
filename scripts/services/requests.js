@@ -72,12 +72,49 @@ const plainCode = (v) => String(
   (v && typeof v === 'object') ? (v.LookupValue ?? v.Value ?? v.Title ?? '') : (v ?? '')
 ).trim();
 
+/**
+ * หาค่า FormCode ของแถว — เผื่อชื่อภายในของคอลัมน์ไม่ใช่ "FormCode" ตรง ๆ
+ * (ลบคอลัมน์แล้วสร้างใหม่ชื่อเดิม SharePoint จะตั้งชื่อภายในเป็น FormCode0)
+ */
+const codeOfRow = (s) => {
+  if (s.FormCode !== undefined) return plainCode(s.FormCode);
+  const k = Object.keys(s).find((x) => /^FormCode\d*$/i.test(x) || /^Form_x0020_Code/i.test(x));
+  return k ? plainCode(s[k]) : '';
+};
+
+/** IsActive ปิดเฉพาะเมื่อตั้งเป็น "ไม่" ชัดเจน ค่าว่างถือว่าใช้งาน */
+const isOff = (v) => v === false || /^(no|false|0|ไม่)$/i.test(String(v ?? '').trim());
+
+/** ผลตรวจล่าสุดของแต่ละฟอร์ม ใช้แสดงสาเหตุเมื่อหาเส้นทางไม่เจอ */
+export const stepDiag = {};
+
 export async function stepsOf(formCode) {
-  const all = await list('approvalMatrix').catch(() => []);
   const target = plainCode(formCode);
-  return all
-    .filter((s) => plainCode(s.FormCode) === target && s.IsActive !== false)
+  const diag = { target, total: 0, codes: [], keys: [], inactive: 0, error: '' };
+  stepDiag[target] = diag;
+
+  let all = [];
+  try {
+    all = await list('approvalMatrix');
+  } catch (err) {
+    diag.error = err.message || String(err);
+    console.warn('[ApprovalMatrix] อ่านไม่สำเร็จ:', err);
+    return [];
+  }
+
+  diag.total = all.length;
+  diag.codes = [...new Set(all.map(codeOfRow))];
+  diag.keys = all[0] ? Object.keys(all[0]) : [];
+
+  const matched = all.filter((s) => codeOfRow(s) === target);
+  diag.inactive = matched.filter((s) => isOff(s.IsActive)).length;
+
+  const steps = matched
+    .filter((s) => !isOff(s.IsActive))
     .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0));
+
+  if (!steps.length) console.warn('[ApprovalMatrix] ไม่พบเส้นทางของ', target, diag);
+  return steps;
 }
 
 const toArr = (v) => Array.isArray(v)

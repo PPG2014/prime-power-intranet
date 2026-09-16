@@ -9,6 +9,8 @@ import { CONFIG } from './core/config.js';
 import { resolveAdmin } from './utils/admin.js';
 import { esc, $ } from './core/dom.js';
 
+console.info('[Prime Power] build', CONFIG.build);
+
 /** แสดงหน้าเข้าสู่ระบบ พร้อมข้อความผิดพลาดถ้ามี */
 function showLogin(error) {
   renderLogin({

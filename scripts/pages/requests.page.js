@@ -4,7 +4,7 @@ import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
-import { stepsOf, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
+import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
 import { LETTERHEAD } from '../core/letterhead.js';
 import { standardLabel } from '../components/form-renderer.js';
 
@@ -18,6 +18,26 @@ const STATUS_TONE = {
 let allRequests = [];
 let stepCache = {};
 let me = '';
+
+/**
+ * หา FormCode ของคำขอให้ได้เป็นข้อความเสมอ เผื่อคอลัมน์เป็น Lookup/ออบเจ็กต์
+ * ลำดับ: ค่าตรง → คลี่ออบเจ็กต์ → ชื่อคอลัมน์แปลก (FormCode0) → กู้จากเลขเอกสารในชื่อเรื่อง
+ * เลขเอกสารรูปแบบ FM-XXX-000-nnn-yyyy สาม ส่วนแรกคือ FormCode
+ */
+export function formCodeOf(req) {
+  const clean = (v) => String(
+    (v && typeof v === 'object') ? (v.LookupValue ?? v.Value ?? v.Title ?? '') : (v ?? '')
+  ).trim();
+
+  let c = clean(req.FormCode);
+  if (c) return c;
+
+  const k = Object.keys(req).find((x) => /^FormCode\d+$/i.test(x) || /^Form_x0020_Code/i.test(x));
+  if (k) { c = clean(req[k]); if (c) return c; }
+
+  const m = String(req.Title || '').match(/^([A-Za-z]+-[A-Za-z]+-\d+)/);
+  return m ? m[1] : '';
+}
 
 async function loadSteps(codes) {
   for (const c of codes) if (!(c in stepCache)) stepCache[c] = await stepsOf(c);
@@ -70,7 +90,9 @@ export async function render(ctx) {
 
   allRequests = (await list('requests').catch(() => []))
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
-  await loadSteps([...new Set(allRequests.map((r) => r.FormCode))]);
+  // ทำ FormCode ให้เป็นข้อความก่อนใช้งานทั้งหน้า (แก้ทั้งชื่อช่องและเส้นทางอนุมัติ)
+  allRequests.forEach((r) => { r.FormCode = formCodeOf(r); });
+  await loadSteps([...new Set(allRequests.map((r) => r.FormCode).filter(Boolean))]);
   await resolveFor(allRequests);
 
   const mine = allRequests.filter((r) => r.RequesterEmail
@@ -167,6 +189,22 @@ function requesterActions(req, log) {
   </div>`;
 }
 
+/** ข้อความเมื่อไม่พบเส้นทาง พร้อมสาเหตุที่ตรวจได้ (แสดงรายละเอียดให้แอดมิน) */
+function noRouteBox(code) {
+  const d = stepDiag[String(code ?? '').trim()];
+  let why = '';
+  if (d) {
+    if (d.error) why = `อ่าน ApprovalMatrix ไม่สำเร็จ: ${d.error}`;
+    else if (!d.total) why = 'อ่าน ApprovalMatrix ได้ 0 แถว — ตรวจ GUID หรือสิทธิ์ของ List';
+    else if (d.inactive) why = `พบ ${d.inactive} แถวแต่ IsActive ถูกตั้งเป็น "ไม่"`;
+    else if (!d.keys.some((k) => /^FormCode/i.test(k)))
+      why = `ไม่พบคอลัมน์ FormCode ในข้อมูลที่ได้ — คอลัมน์ที่มี: ${d.keys.join(', ')}`;
+    else why = `ไม่มีแถวที่ FormCode ตรงกับ "${d.target}" — ค่าที่พบ: ${d.codes.map((c) => `"${c}"`).join(', ')}`;
+  }
+  return `<div class="dim">ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ</div>
+    ${why && state.isAdmin ? `<div class="dim" style="font-size:.85em;margin-top:.5em;word-break:break-all">🔎 ${esc(why)}</div>` : ''}`;
+}
+
 /** หน้าต่างรายละเอียดคำขอ พร้อมปุ่มอนุมัติถ้าถึงคิว */
 async function openRequest(req) {
   const steps = req._steps || stepCache[req.FormCode] || [];
@@ -176,8 +214,21 @@ async function openRequest(req) {
 
   let data = {};
   try { data = JSON.parse(req.FormData || '{}'); } catch (e) { /* ข้อมูลเสีย */ }
+  const code = formCodeOf(req);
+  // เผื่อ FormCode ในฟอร์มฟิลด์เป็น Lookup ที่คืนมาแค่เลข id → แปลงกลับผ่าน formCatalog
+  const catalog = await list('formCatalog').catch(() => []);
+  const codeById = {};
+  catalog.forEach((c) => { codeById[String(c.id)] = String(c.FormCode || '').trim(); });
+  const fcodeOf = (f) => {
+    if (f.FormCode !== undefined && f.FormCode !== null)
+      return String(typeof f.FormCode === 'object' ? (f.FormCode.LookupValue ?? f.FormCode.Title ?? '') : f.FormCode).trim();
+    const k = Object.keys(f).find((x) => /^FormCode\d+$/i.test(x));
+    if (k) return String(f[k]).trim();
+    if (f.FormCodeLookupId != null) return codeById[String(f.FormCodeLookupId)] || '';
+    return '';
+  };
   const fields = (await list('formFields').catch(() => []))
-    .filter((f) => f.FormCode === req.FormCode)
+    .filter((f) => fcodeOf(f) === code)
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
   const answerRows = Object.entries(data)
@@ -233,7 +284,7 @@ async function openRequest(req) {
           </div>
           <div class="rq-timeline">
             <h4>เส้นทางอนุมัติ</h4>
-            ${timeline || '<div class="dim">ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ</div>'}
+            ${timeline || noRouteBox(req.FormCode)}
           </div>
         </div>
 
