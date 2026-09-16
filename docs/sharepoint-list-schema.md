@@ -261,13 +261,14 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
-| Title | Person or Group | บุคลากร |
-| Manager | Person or Group | หัวหน้าโดยตรง |
-| BackupManager | Person or Group | ผู้อนุมัติแทนเมื่อหัวหน้าไม่อยู่ |
-| EffectiveFrom | Date | วันที่เริ่มมีผล |
+| Title | Single line of text | ชื่อพนักงาน ต้องตรงกับ Title ในทะเบียนบุคลากรเป๊ะ |
+| Manager | Single line of text | ชื่อหัวหน้าโดยตรง (ต้องตรงกับ Title ในทะเบียน) |
+| BackupManager | Single line of text | ผู้อนุมัติแทนเมื่อหัวหน้าไม่อยู่ (ยังไม่ใช้อัตโนมัติ) |
 | IsActive | Yes/No | |
 
-ตารางนี้แทนช่อง Manager ใน Microsoft 365 ทั้งหมด แก้ไขได้จาก SharePoint โดยตรงตามที่ต้องการ เวลาโฟลว์หาผู้อนุมัติจะอ่านจากที่นี่ที่เดียว
+⚠️ **ต้องเป็น Single line of text ไม่ใช่ Person or Group** — ระบบจับคู่ผู้อนุมัติด้วยชื่อ (Title) ทั้งหมด ถ้าตั้งเป็น Person จะเขียนผ่าน Graph ไม่ได้และหน้าจัดการข้อมูลบันทึกไม่ลง เหมือนบทเรียน FormCode/ApproverType
+
+ตารางนี้แทนช่อง Manager ใน Microsoft 365 ทั้งหมด แก้ได้ 2 ทาง: ผ่านเมนู **"สายบังคับบัญชา"** ในหน้าจัดการข้อมูลของเว็บ หรือแก้ที่ SharePoint โดยตรง เวลาหาผู้อนุมัติจะอ่านจากที่นี่ที่เดียว
 
 ### L05 — FormCatalog (ทะเบียนแบบฟอร์ม)
 

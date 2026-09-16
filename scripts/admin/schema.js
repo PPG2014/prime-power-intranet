@@ -162,6 +162,27 @@ export const SCHEMA = {
     ],
   },
 
+  reportingLine: {
+    title: 'สายบังคับบัญชา', icon: '🧭', list: 'reportingLine', spName: 'ReportingLine',
+    sortField: 'Title',
+    hint: 'กำหนดหัวหน้าโดยตรงของแต่ละคน · ใช้กับขั้นอนุมัติแบบ "ผู้บังคับบัญชาของผู้ยื่น" · หนึ่งคนหนึ่งแถว',
+    columns: ['Title', 'Manager', 'BackupManager', 'IsActive'],
+    labels: { Title: 'พนักงาน', Manager: 'หัวหน้าโดยตรง',
+              BackupManager: 'ผู้อนุมัติแทน', IsActive: 'ใช้งาน' },
+    fields: [
+      { key: 'Title', label: 'พนักงาน', type: 'lookup', from: 'directory',
+        valueField: 'Title', labelWith: 'Position', searchable: true, required: true,
+        help: 'เลือกจากทะเบียนบุคลากร · หนึ่งคนควรมีแถวเดียว' },
+      { key: 'Manager', label: 'หัวหน้าโดยตรง', type: 'lookup', from: 'directory',
+        valueField: 'Title', labelWith: 'Position', searchable: true,
+        help: 'คนนี้คือผู้อนุมัติเมื่อขั้นนั้นตั้งเป็น "ผู้บังคับบัญชาของผู้ยื่น"' },
+      { key: 'BackupManager', label: 'ผู้อนุมัติแทน (สำรอง)', type: 'lookup', from: 'directory',
+        valueField: 'Title', labelWith: 'Position', searchable: true,
+        help: 'ใช้แทนเมื่อหัวหน้าไม่อยู่ · ระบบยังไม่สลับให้อัตโนมัติ ต้องเพิ่มตรรกะก่อน' },
+      { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
+    ],
+  },
+
   approvalMatrix: {
     title: 'เส้นทางอนุมัติ', icon: '✔️', list: 'approvalMatrix', spName: 'ApprovalMatrix',
     sortField: 'SortOrder', groupBy: 'FormCode',
