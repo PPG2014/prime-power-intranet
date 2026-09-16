@@ -29,6 +29,26 @@ export async function resolveApprovers(step, req) {
     return row && row.Manager ? [row.Manager] : named;
   }
 
+  if (type === 'ผู้รับผิดชอบหลักของโครงการ') {
+    // อ่านชื่อโครงการจากคำตอบในฟอร์ม แล้วหา Owner จากทะเบียนโครงการ
+    let projectName = '';
+    try {
+      const d = JSON.parse(req.FormData || '{}');
+      projectName = d.project || d.project_name || d.ProjectName || '';
+    } catch (e) { /* ข้อมูลเสีย */ }
+    if (!projectName) return named;
+
+    const projects = await list('projects').catch(() => []);
+    const proj = projects.find((p) => p.Title === projectName || p.ProjectCode === projectName);
+    if (!proj) return named;
+
+    // Owner อาจมาเป็นออบเจ็กต์ (Lookup) หรือข้อความ
+    const owner = proj.Owner && typeof proj.Owner === 'object'
+      ? (proj.Owner.LookupValue ?? proj.Owner.Title ?? '')
+      : proj.Owner;
+    return owner ? [owner] : named;
+  }
+
   if (type === 'ผู้จัดการฝ่ายของผู้ยื่น' || type === 'หัวหน้าฝ่ายตามสังกัด') {
     // หาคนระดับหัวหน้าสูงสุดของฝ่ายเดียวกับผู้ยื่น
     const dept = req.RequesterDept || (me && me.Department);

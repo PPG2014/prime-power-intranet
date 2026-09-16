@@ -8,3 +8,29 @@
 .form-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
   font-size: 11.5px; color: var(--dim); }
 .page-forms .form-card { text-align: left; width: 100%; }
+
+/* ---------- การ์ดฟอร์มแบบมีกรอบชัด ---------- */
+.page-forms .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--gap); margin-bottom: var(--gap-lg); }
+
+.page-forms .form-card { display: flex; flex-direction: column; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px; transition: .15s; height: 100%; box-sizing: border-box; }
+.page-forms .form-card:hover { border-color: var(--blue); box-shadow: var(--shadow);
+  transform: translateY(-2px); }
+
+.page-forms .form-top { display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 10px; }
+.page-forms .form-icon { font-size: 26px; line-height: 1; }
+.page-forms .form-name { font-size: 15.5px; font-weight: 600; color: var(--navy); line-height: 1.4; }
+.page-forms .form-desc { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.6;
+  flex: 1; }
+.page-forms .form-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.page-forms .form-meta span { font-size: 11.5px; color: var(--dim); background: var(--canvas);
+  padding: 2px 9px; border-radius: 20px; }
+
+/* ปุ่มกรอกแบบฟอร์มเด่นชัด อยู่ท้ายการ์ดเสมอ มีเส้นคั่นบน */
+.page-forms .form-go { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft);
+  font-size: 13.5px; font-weight: 600; color: var(--blue); }
+.page-forms .form-card:hover .form-go { color: var(--navy); }
+.page-forms .form-card:hover .form-go::after { content: ''; }

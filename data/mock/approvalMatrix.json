@@ -24,42 +24,6 @@
   "IsActive": true
  },
  {
-  "id": 10,
-  "FormCode": "FM-ACC-002",
-  "StepOrder": 1,
-  "StepName": "ฝ่ายบัญชี",
-  "Approvers": [
-   "อรวรรณ พงษ์เจริญ"
-  ],
-  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
-  "SortOrder": 10,
-  "IsActive": true
- },
- {
-  "id": 11,
-  "FormCode": "FM-ACC-002",
-  "StepOrder": 2,
-  "StepName": "ฝ่ายการเงิน",
-  "Approvers": [
-   "อรวรรณ พงษ์เจริญ"
-  ],
-  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
-  "SortOrder": 11,
-  "IsActive": true
- },
- {
-  "id": 12,
-  "FormCode": "FM-ACC-002",
-  "StepOrder": 3,
-  "StepName": "ผู้บริหารอนุมัติจ่าย",
-  "Approvers": [
-   "สมชาย วัฒนกิจ"
-  ],
-  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
-  "SortOrder": 12,
-  "IsActive": true
- },
- {
   "id": 13,
   "FormCode": "FM-HRM-008",
   "StepOrder": 1,
@@ -68,6 +32,56 @@
   "Approvers": [],
   "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
   "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 14,
+  "FormCode": "FM-ACC-002",
+  "StepOrder": 1,
+  "StepName": "ผู้รับผิดชอบหลักโครงการ",
+  "ApproverType": "ผู้รับผิดชอบหลักของโครงการ",
+  "Approvers": [],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 1,
+  "IsActive": true
+ },
+ {
+  "id": 15,
+  "FormCode": "FM-ACC-002",
+  "StepOrder": 2,
+  "StepName": "ผู้บริหารอนุมัติจ่าย",
+  "ApproverType": "ระบุชื่อเจาะจง",
+  "Approvers": [
+   "สมชาย วัฒนกิจ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 2,
+  "IsActive": true
+ },
+ {
+  "id": 16,
+  "FormCode": "FM-ACC-002",
+  "StepOrder": 3,
+  "StepName": "ฝ่ายบัญชี",
+  "ApproverType": "ระบุชื่อเจาะจง",
+  "Approvers": [
+   "อรวรรณ พงษ์เจริญ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 3,
+  "IsActive": true
+ },
+ {
+  "id": 17,
+  "FormCode": "FM-ACC-002",
+  "StepOrder": 4,
+  "StepName": "ฝ่ายการเงิน (แนบสลิปและปิดงาน)",
+  "ApproverType": "ระบุชื่อเจาะจง",
+  "Approvers": [
+   "อรวรรณ พงษ์เจริญ"
+  ],
+  "ApproveMode": "คนใดคนหนึ่งอนุมัติก็ผ่าน",
+  "SortOrder": 4,
   "IsActive": true
  }
 ]

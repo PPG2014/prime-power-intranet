@@ -14,7 +14,8 @@
   "Detail": "ติดตั้งหม้อแปลงหลักเสร็จ 2 จาก 3 ลูก อยู่ระหว่างเดินสายแรงสูงช่วงที่ 2",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 1,
-  "IsActive": true
+  "IsActive": true,
+  "Owner": "ธนกฤต ศรีสุวรรณ"
  },
  {
   "id": 2,
@@ -31,7 +32,8 @@
   "Detail": "งานเดินสายใต้ดินเสร็จตามแผน เริ่มทดสอบระบบป้องกันสัปดาห์หน้า",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 2,
-  "IsActive": true
+  "IsActive": true,
+  "Owner": "ปกรณ์ วิริยะกุล 1"
  },
  {
   "id": 3,
@@ -48,7 +50,8 @@
   "Detail": "รอวัสดุแผงโซลาร์ล็อตที่ 2 จากผู้ผลิต คาดว่าล่าช้าราว 3 สัปดาห์",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 3,
-  "IsActive": true
+  "IsActive": true,
+  "Owner": "ชลธิชา เพชรรัตน์ 1"
  },
  {
   "id": 4,
@@ -67,7 +70,8 @@
   "SortOrder": 4,
   "IsActive": true,
   "InWarranty": true,
-  "WarrantyEnd": "2027-02-28T00:00:00Z"
+  "WarrantyEnd": "2027-02-28T00:00:00Z",
+  "Owner": "อภิชาติ ยั่งยืน 1"
  },
  {
   "id": 5,
@@ -84,6 +88,7 @@
   "Detail": "อยู่ระหว่างจัดทำแบบและขออนุญาต",
   "UpdatedDate": "2026-09-05T00:00:00Z",
   "SortOrder": 5,
-  "IsActive": true
+  "IsActive": true,
+  "Owner": "สุพัตรา ทองใบ 1"
  }
 ]
