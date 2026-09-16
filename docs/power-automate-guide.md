@@ -1,297 +1,315 @@
-# คู่มือตั้งค่า Power Automate — เส้นทางอนุมัติ Prime Power Intranet
+# คู่มือ Power Automate — เส้นทางอนุมัติครบวงจร (Prime Power Intranet)
 
-คู่มือนี้ทำให้ระบบส่งแจ้งเตือนและอนุมัติผ่าน Teams และอีเมลได้ โดยที่หน้าเว็บยังกดอนุมัติได้เหมือนเดิม ทั้งสองทางเขียนสถานะกลับ List `Requests` ที่เดียวกัน
+โฟลว์นี้ทำให้ผู้อนุมัติ **อนุมัติ / ส่งกลับแก้ไข / ไม่อนุมัติ พร้อมเหตุผล** ได้จากทั้ง
+**อีเมล, การ์ด Teams และหน้าเว็บ** โดยโฟลว์เขียนสถานะกลับ SharePoint เอง แล้ววิ่งไป
+ลำดับถัดไปอัตโนมัติจนจบ ทั้งสามช่องทางเขียนลง List `Requests` ที่เดียวกัน ประวัติจึงตรงกันเสมอ
 
-**สิ่งที่จะได้เมื่อทำเสร็จ**
-- มีคนยื่นคำขอ → ผู้อนุมัติลำดับแรกได้การ์ดใน Teams และอีเมลทันที
-- กดอนุมัติ/ไม่อนุมัติจากในการ์ดได้เลย ไม่ต้องเปิดเว็บ
-- อนุมัติแล้ววิ่งไปลำดับถัดไปอัตโนมัติ จนครบทุกลำดับ
-- ปิดงานแล้วผู้ยื่นได้แจ้งเตือนใน Teams
-
-**เวลาที่ใช้** ประมาณ 1-2 ชั่วโมงสำหรับ Flow แรก
+> โฟลว์มี **ตัวเดียว** ใช้ร่วมทุกฟอร์ม อ่านเส้นทางจาก `ApprovalMatrix` ห้ามสร้างแยกรายฟอร์ม
+> ทุก action ใช้ตัวเชื่อม **มาตรฐาน** เท่านั้น (SharePoint, Approvals, Teams, Office 365 Outlook)
+> อย่าใช้ HTTP หรือ Dataverse เพราะจะกลายเป็น Premium ทันที
 
 ---
 
-## สิ่งที่ต้องมีก่อนเริ่ม
+## 0) ภาพรวมทั้งโฟลว์ (อ่านรอบเดียวให้เห็นทั้งเส้น)
 
-1. บัญชี Microsoft 365 ที่มีสิทธิ์สร้าง Flow (ตรวจที่ make.powerautomate.com ว่าเข้าได้)
-2. List `Requests` และ `ApprovalMatrix` สร้างครบตามเอกสาร sharepoint-todo.md แล้ว
-3. คอลัมน์ใน `Requests` ต้องมีครบ โดยเฉพาะ `CurrentStep`, `Status`, `ApprovalLog`, `FormCode`, `RequesterEmail`
+```
+Trigger: เมื่อ Requests ถูกสร้าง/แก้ไข
+  └─ (Trigger Condition) ทำงานเฉพาะเมื่อ Status = "รออนุมัติ" เท่านั้น
+       │
+       1. Initialize ตัวแปร  varNames=[]  varEmails=[]  varLog=(ประวัติเดิม)
+       2. Get items ApprovalMatrix  (FormCode + StepOrder = CurrentStep)  → ขั้นปัจจุบัน
+       3. Switch ตาม ApproverType → เติมชื่อผู้อนุมัติลง varNames
+       4. Apply to each varNames → หา Email จาก Directory → varEmails
+       5. Start and wait for an approval (Custom: อนุมัติ/ส่งกลับแก้ไข/ไม่อนุมัติ + ช่องเหตุผล)
+       6. ต่อประวัติลง varLog (รูปแบบที่เว็บอ่านได้)
+       7. Switch ตามผลตอบกลับ:
+            อนุมัติ      → มีลำดับถัดไป? → CurrentStep=ถัดไป (Status คงรออนุมัติ, โฟลว์วนเอง)
+                                        ไม่มี → Status="อนุมัติแล้ว"
+            ส่งกลับแก้ไข → Status="ส่งกลับแก้ไข" (คง CurrentStep) แจ้งผู้ยื่นให้แก้
+            ไม่อนุมัติ   → Status="ไม่อนุมัติ"
+       8. แจ้งผู้ยื่นผลลัพธ์ทาง Teams + อีเมล
+```
 
-**GUID ที่ต้องใช้**
+**การแบ่งงานเว็บ ↔ โฟลว์**
+- เว็บ: กรอกฟอร์ม, ยื่น (ตั้ง Status=รออนุมัติ, CurrentStep=1), กดอนุมัติได้เอง, แนบสลิป/ปิดงานฟอร์มเบิกเงิน, **ยกเลิกคำขอ** (Status=ยกเลิก)
+- โฟลว์: ส่งการ์ด/อีเมลขออนุมัติ, รับผล, เขียนสถานะกลับ, เดินลำดับ, แจ้งเตือน
+- ทั้งคู่ใช้คอลัมน์เดียวกัน จึงสลับกันทำได้ เช่น ผู้อนุมัติกดในเว็บ โฟลว์ก็ไม่ต้องทำอะไรเพราะ Status เปลี่ยนไปแล้ว
+
+---
+
+## 1) เตรียมก่อนเริ่ม
+
+**GUID / ไซต์**
+- ไซต์: `primepowertl.sharepoint.com/sites/Intranet_PrimePower`
 - Requests: `09a369a9-0d42-44f5-bec8-644c78ec1d10`
 - ApprovalMatrix: `fc1465b8-a4fc-4055-b20a-7e3712a592fe`
-- ไซต์: `primepowertl.sharepoint.com/sites/Intranet_PrimePower`
+
+**คอลัมน์ที่ต้องมี (ชนิดสำคัญมาก)**
+- ใน `Requests`: `FormCode`(text), `Status`(text), `CurrentStep`(Number), `ApprovalLog`(**Multiple lines of text**), `RequesterName`(text), `RequesterEmail`(text), `RequesterDept`(text), `FormData`(**Multiple lines of text**)
+- ใน `ApprovalMatrix`: `FormCode`(text), `StepOrder`(Number), `StepName`(text), `ApproverType`(text), `ApproveMode`(text), `Approvers`
+- ใน `Directory`: `Title`, `Email`, `Department`, `Position`, `Manager`, `BackupManager` (Manager/BackupManager เป็น text)
+- ใน `Projects`: `Title`, `ProjectCode`, `Owner`
+- `ReportingLine`: ไม่จำเป็นแล้ว — ย้ายมาเก็บ Manager ที่ Directory (โฟลว์ยังอ่านลิสต์เก่าเป็น fallback ได้ถ้ามี)
+
+**ค่าที่ระบบใช้ (สะกดต้องตรงเป๊ะ)**
+- `Status`: `รออนุมัติ` · `อนุมัติแล้ว` · `ไม่อนุมัติ` · `ส่งกลับแก้ไข` · `เสร็จสิ้น` · `ยกเลิก`
+- `ApproverType`: `ระบุชื่อเจาะจง` · `ผู้บังคับบัญชาของผู้ยื่น` · `ผู้จัดการฝ่ายของผู้ยื่น` · `หัวหน้าฝ่ายตามสังกัด` · `ผู้รับผิดชอบหลักของโครงการ`
+- `ApproveMode`: `คนใดคนหนึ่งอนุมัติก็ผ่าน` · `ต้องอนุมัติครบทุกคน`
+
+> ⚠️ ถ้าคอลัมน์เป็น Choice/Lookup/Person แทน text จะเจอ error 500 หรือเขียนไม่ลง — บทเรียนเดิมที่เจอกับ FormCode/ApproverType
 
 ---
 
-## ตัวอย่างเส้นทางเบิกเงินทดรองจ่าย
+## 2) สร้างโฟลว์ + Trigger + Trigger Condition (จุดนี้แก้บั๊ก Condition=False เดิม)
 
+1. make.powerautomate.com → **My flows → New flow → Automated cloud flow**
+2. ชื่อ `Prime Power - เส้นทางอนุมัติคำขอ`
+3. Trigger: **SharePoint — When an item is created or modified**
+   - Site Address: Intranet_PrimePower · List Name: Requests
+4. **สำคัญ:** ที่การ์ด Trigger กด **… → Settings → Trigger Conditions → Add** ใส่:
+   ```
+   @equals(triggerOutputs()?['body/Status'], 'รออนุมัติ')
+   ```
+
+> ทำไมใช้ Trigger Condition แทน Condition action: โฟลว์จะ **ไม่ทำงานเลย** กับคำขอที่ Status ไม่ใช่ "รออนุมัติ"
+> — รวมถึงคำขอเก่าที่ Status เขียนไม่ลง (ค่าว่าง) ที่เคยทำให้ติด False ตอนก่อน — และกันโฟลว์วนไม่รู้จบ
+> เวลาเราเขียน Status เป็น "อนุมัติแล้ว/ไม่อนุมัติ/ส่งกลับแก้ไข" มันจะไม่ retrigger
+> ส่วนตอนตั้ง CurrentStep=ถัดไปโดยคง Status="รออนุมัติ" มันจะ retrigger เพื่อทำลำดับต่อไป (ตามที่ต้องการ)
+
+---
+
+## 3) Initialize ตัวแปร (ต้องอยู่บนสุด ก่อนทุก action อื่น)
+
+เพิ่ม 3 action **Initialize variable** เรียงกัน:
+
+| ชื่อ | Type | Value |
+|---|---|---|
+| `varNames` | Array | (เว้นว่าง) |
+| `varEmails` | Array | (เว้นว่าง) |
+| `varLog` | Array | ใส่ expression ด้านล่าง |
+
+varLog Value (อ่านประวัติเดิมมาต่อ):
 ```
-ผู้ยื่นส่งฟอร์ม
-  → 1. ผู้รับผิดชอบหลักโครงการ   อนุมัติ
-  → 2. ผู้บริหารอนุมัติจ่าย       อนุมัติ
-  → 3. ฝ่ายบัญชี                 อนุมัติ
-  → 4. ฝ่ายการเงิน   แนบสลิป → เสร็จสิ้น → ส่ง Teams หาผู้ยื่น
+@{if(empty(triggerOutputs()?['body/ApprovalLog']), json('[]'), json(triggerOutputs()?['body/ApprovalLog']))}
 ```
 
-ลำดับ 1 ใช้ ApproverType = ผู้รับผิดชอบหลักของโครงการ · ลำดับ 4 เป็นขั้นสุดท้าย
-ระบบบังคับแนบสลิปก่อนปิดงาน แล้วส่งแจ้งผู้ยื่นใน Teams อัตโนมัติ
-
-## ภาพรวมโครงสร้าง
-
-ระบบทำงานร่วมกันสองส่วน
-
-**หน้าเว็บ** เขียนคำขอลง Requests พร้อม Status = "รออนุมัติ" และ CurrentStep = 1
-
-**Power Automate** เฝ้าดู Requests เมื่อมีคำขอใหม่หรือ CurrentStep เปลี่ยน ก็หาผู้อนุมัติของลำดับนั้นจาก ApprovalMatrix แล้วส่งการ์ดไปขออนุมัติ พอได้คำตอบก็เขียนกลับ Requests
-
-เราจะสร้าง **Flow เดียว** ที่ทำงานทุกลำดับ ไม่ต้องแยก Flow ต่อฟอร์ม
-
 ---
 
-## ขั้นที่ 1 — สร้าง Flow และตั้ง Trigger
+## 4) ดึงขั้นปัจจุบันจาก ApprovalMatrix
 
-1. เข้า make.powerautomate.com ล็อกอินด้วยบัญชีบริษัท
-2. เมนูซ้าย **My flows** → **New flow** → **Automated cloud flow**
-3. ตั้งชื่อ `Prime Power - เส้นทางอนุมัติคำขอ`
-4. ช่องค้นหา trigger พิมพ์ `when an item is created or modified`
-5. เลือก **SharePoint — When an item is created or modified** แล้วกด Create
-6. ในการ์ด trigger
-   - **Site Address:** เลือก Intranet_PrimePower
-   - **List Name:** เลือก Requests
-
-> ใช้ "created or modified" ไม่ใช่แค่ "created" เพราะต้องจับตอน CurrentStep เปลี่ยนไปลำดับถัดไปด้วย
-
----
-
-## ขั้นที่ 2 — กรองเฉพาะคำขอที่ต้องอนุมัติ
-
-Flow จะทำงานทุกครั้งที่แถวเปลี่ยน แต่เราสนใจเฉพาะที่ Status = "รออนุมัติ" เท่านั้น
-
-1. **+ New step** → ค้นหา `condition` → เลือก **Condition**
-2. ตั้งเงื่อนไข
-   - ช่องซ้าย: กด **Add dynamic content** เลือก `Status Value`
-   - กลาง: `is equal to`
-   - ขวา: พิมพ์ `รออนุมัติ`
-3. หลังสร้าง Condition เสร็จ จะเห็นแตกเป็นสองกล่อง **True** (เงื่อนไขจริง) และ **False** (เงื่อนไขเท็จ)
-
-> **หมายเหตุ** Power Automate รุ่นใหม่ใช้คำว่า **True / False** · รุ่นเก่าใช้ **If yes / If no** ความหมายเดียวกัน
-> ในคู่มือนี้จะเรียก **True** หมายถึงกล่องที่ทำงานเมื่อเงื่อนไขเป็นจริง
-
-**ทุกขั้นต่อจากนี้ (3-8) ใส่ในกล่อง True ทั้งหมด** กดปุ่ม + ในกล่อง True เพื่อเพิ่ม action
-ส่วนกล่อง False ปล่อยว่างไว้ ไม่ต้องใส่อะไร
-
----
-
-## ขั้นที่ 3 — หาผู้อนุมัติของลำดับปัจจุบัน
-
-ดึงแถวจาก ApprovalMatrix ที่ตรงกับฟอร์มและลำดับปัจจุบัน
-
-1. ในกล่อง **True** → กดปุ่ม **+** → **Add an action** → **SharePoint — Get items**
-2. ตั้งค่า
-   - **Site Address:** Intranet_PrimePower
-   - **List Name:** ApprovalMatrix
-   - กด **Show advanced options** → **Filter Query** ใส่
+1. **SharePoint — Get items** ตั้งชื่อ `ขั้นปัจจุบัน`
+   - List: ApprovalMatrix
+   - **Filter Query:**
      ```
      FormCode eq '@{triggerOutputs()?['body/FormCode']}' and StepOrder eq @{triggerOutputs()?['body/CurrentStep']}
      ```
-   > บรรทัดนี้แปลว่า เอาแถวที่ FormCode ตรงกับคำขอ และ StepOrder ตรงกับ CurrentStep
+   - Top Count: 1
+2. **Compose** ชื่อ `stepNow`:
+   ```
+   @{first(outputs('ขั้นปัจจุบัน')?['body/value'])}
+   ```
 
-3. เพิ่ม action **Compose** ชื่อ `ขั้นปัจจุบัน` ใส่ค่า
-   ```
-   @{first(outputs('Get_items')?['body/value'])}
-   ```
-   > เก็บแถวลำดับปัจจุบันไว้ใช้ต่อ
+จากนี้อ้างค่าในขั้นได้เช่น `outputs('stepNow')?['ApproverType']`, `outputs('stepNow')?['StepOrder']`, `outputs('stepNow')?['ApproveMode']`
 
 ---
 
-## ขั้นที่ 4 — หาอีเมลผู้อนุมัติ
+## 5) หา "ชื่อผู้อนุมัติ" ตาม ApproverType → เก็บลง varNames
 
-ApprovalMatrix เก็บผู้อนุมัติสองแบบ ระบุชื่อ กับ ตามตำแหน่ง ต้องแปลงเป็นอีเมล
+เพิ่ม **Switch** บน `@{outputs('stepNow')?['ApproverType']}`
+ทุกกรณี ถ้าหาตามตำแหน่งไม่เจอ ให้ **fallback ไปใช้รายชื่อในช่อง Approvers** (เหมือนเว็บ) จึงควรกรอก Approvers เป็นตัวสำรองเสมอ
 
-### กรณีระบุชื่อเจาะจง (ApproverType = ระบุชื่อเจาะจง)
+**Case `ระบุชื่อเจาะจง`**
+- Approvers เป็น multi-lookup → ใช้ **Select**: From = `outputs('stepNow')?['Approvers']`, Map (โหมด text) = `@{item()?['Value']}`
+- **Set variable** varNames = `@{body('Select')}`
 
-ผู้อนุมัติอยู่ในคอลัมน์ Approvers เป็น Lookup ไปทะเบียนบุคลากร ต้องดึงอีเมลจาก Directory
+**Case `ผู้บังคับบัญชาของผู้ยื่น`**
+- ข้อมูลหัวหน้าอยู่ในทะเบียนบุคลากรแล้ว (คอลัมน์ `Manager` แก้ที่หน้าแก้ไขบุคลากรของเว็บ)
+- **Get items** Directory, Filter: `Title eq '@{triggerOutputs()?['body/RequesterName']}'`, Top 1
+- **Set variable** varNames =
+  ```
+  @{if(empty(first(outputs('Get_items_Dir_me')?['body/value'])?['Manager']),
+        json('[]'),
+        createArray(first(outputs('Get_items_Dir_me')?['body/value'])?['Manager']))}
+  ```
+  (ถ้า Manager ว่างจะปล่อยว่างไปเข้า fallback ท้ายสุด)
 
-1. **Get items** จาก List Directory
-2. Filter Query: `Title eq '<ชื่อผู้อนุมัติ>'`
-3. เอา field Email มาใช้
+**Case `ผู้รับผิดชอบหลักของโครงการ`**
+- **Parse JSON** Content = `triggerOutputs()?['body/FormData']` (Schema กด Generate จากตัวอย่าง JSON ของฟอร์มนั้น) → ได้ field `project`
+- **Get items** Projects, Filter: `Title eq '@{body('Parse_JSON')?['project']}'`, Top 1
+- **Set variable** varNames = `@{createArray(first(outputs('Get_items_Projects')?['body/value'])?['Owner'])}`
+  > ถ้า Owner เป็น Lookup ให้ใช้ `...?['Owner']?['Value']`
 
-### กรณีผู้รับผิดชอบหลักของโครงการ (ApproverType = ผู้รับผิดชอบหลักของโครงการ)
+**Case `ผู้จัดการฝ่ายของผู้ยื่น` และ `หัวหน้าฝ่ายตามสังกัด`** (ทำเหมือนกัน)
+- **Get items** Directory, Filter: `Department eq '@{triggerOutputs()?['body/RequesterDept']}'`
+- **Filter array**: From = `outputs('Get_items_Dir')?['body/value']`, สลับเป็น **Edit in advanced mode** ใส่:
+  ```
+  @or(contains(item()?['Position'],'ผู้จัดการฝ่าย'), contains(item()?['Position'],'หัวหน้าฝ่าย'), contains(item()?['Position'],'ผู้อำนวยการ'))
+  ```
+- **Select** (ชื่อ `Select_heads`): From = `body('Filter_array')`, Map = `@{item()?['Title']}`
+- **Set variable** varNames = `@{body('Select_heads')}`
 
-ใช้กับฟอร์มเบิกเงินที่ต้องให้หัวหน้าโครงการอนุมัติก่อน ผู้อนุมัติขึ้นกับโครงการที่เลือกในฟอร์ม
+**Default (fallback):** varNames = ค่าจาก Approvers เหมือน case แรก
 
-1. **Parse JSON** จาก FormData เพื่อดึงชื่อโครงการ (field `project`)
-2. **Get items** จาก List Projects, Filter: `Title eq '<ชื่อโครงการ>'`
-3. เอา field **Owner** ที่ได้ ไปหาอีเมลใน Directory อีกที (Owner เก็บชื่อ ต้องแปลงเป็นอีเมล)
-
-> นี่คือเหตุผลที่ต้องให้หัวหน้าโครงการอยู่ลำดับแรกของเส้นทาง คนทีมเดียวกันเบิกคนละโครงการจะไปหาหัวหน้าคนละคนอัตโนมัติ
-
-### กรณีผู้บังคับบัญชา (ApproverType = ผู้บังคับบัญชาของผู้ยื่น)
-
-ใช้ action สำเร็จรูป
-
-1. **Add an action** → ค้นหา `get manager` → **Office 365 Users — Get manager (V2)**
-2. **User (UPN):** ใส่ `RequesterEmail` จาก trigger
-3. อีเมลผู้อนุมัติคือ Mail ที่ได้กลับมา
-
-> แนะนำเริ่มจากแบบระบุชื่อเจาะจงก่อน ให้ Flow ทำงานได้ แล้วค่อยเพิ่มกรณีตามตำแหน่งทีหลังด้วย Switch แยกตาม ApproverType
+> **fallback กันผู้อนุมัติว่าง:** หลัง Switch เพิ่ม **Condition** `length(variables('varNames')) is equal to 0`
+> ถ้าใช่ → Set varNames จาก Approvers (Select แบบ case แรก)
 
 ---
 
-## ขั้นที่ 5 — ส่งการ์ดขออนุมัติ
+## 6) แปลงชื่อ → อีเมล (Directory)
 
-1. **Add an action** → ค้นหา `start and wait for an approval`
-2. เลือก **Approvals — Start and wait for an approval**
-3. ตั้งค่า
-   - **Approval type:** `Approve/Reject – First to respond`
-     (ถ้าลำดับนี้ต้องอนุมัติครบทุกคน เลือก `Everyone must approve`)
-   - **Title:** `ขออนุมัติ @{triggerOutputs()?['body/FormName']} เลขที่ @{triggerOutputs()?['body/Title']}`
-   - **Assigned to:** อีเมลผู้อนุมัติจากขั้นที่ 4 (หลายคนคั่นด้วย `;`)
-   - **Details:** ใส่รายละเอียดคำขอ ดูวิธีดึง FormData ด้านล่าง
-   - **Item link:** `https://ppg2014.github.io/prime-power-intranet/#/requests`
+1. **Apply to each** on `@{variables('varNames')}`
+2. ข้างใน: **Get items** Directory (ชื่อ `Get_email`), Filter: `Title eq '@{item()}'`, Top 1
+3. **Append to array variable** varEmails = `@{first(outputs('Get_email')?['body/value'])?['Email']}`
 
-> action นี้ส่งการ์ดเข้า Teams อัตโนมัติ และค้างรอจนกว่าจะมีคนตอบ
+อีเมลรวมสำหรับส่งการ์ด = `@{join(variables('varEmails'), ';')}`
 
-### ทำให้ Details อ่านง่าย
+---
 
-FormData เก็บเป็น JSON ถ้าอยากแสดงสวย ให้เพิ่ม action **Parse JSON** ก่อน โดยใช้ Content = FormData และ Schema generate จากตัวอย่าง แล้วดึงทีละช่องมาใส่ Details
+## 7) ส่งการ์ดขออนุมัติ (ได้ทั้ง Teams และอีเมล ในตัวเดียว)
 
-ขั้นแรกใส่ดิบ ๆ ไปก่อนก็ได้
+1. **Approvals — Start and wait for an approval**
+2. **Approval type:** `Custom Responses – Wait for one response`
+   - ถ้า ApproveMode = "ต้องอนุมัติครบทุกคน" ใช้ `Custom Responses – Wait for all responses` (เลือกอัตโนมัติดูข้อ 12)
+3. **Response options — Item:** ใส่ 3 บรรทัด
+   ```
+   อนุมัติ
+   ส่งกลับแก้ไข
+   ไม่อนุมัติ
+   ```
+4. **Title:** `ขออนุมัติ @{triggerOutputs()?['body/FormName']} เลขที่ @{triggerOutputs()?['body/Title']}`
+5. **Assigned to:** `@{join(variables('varEmails'), ';')}`
+6. **Details:** สรุปคำขอ (Markdown ได้) เช่น
+   ```
+   **ผู้ยื่น:** @{triggerOutputs()?['body/RequesterName']} (@{triggerOutputs()?['body/RequesterDept']})
+   **เรื่อง:** @{triggerOutputs()?['body/Title']}
+   **ลำดับ:** @{outputs('stepNow')?['StepName']}
+
+   กรุณาระบุเหตุผลในช่องความคิดเห็นเมื่อ "ส่งกลับแก้ไข" หรือ "ไม่อนุมัติ"
+   ```
+7. **Item link:** `https://ppg2014.github.io/prime-power-intranet/#/requests`
+
+> การ์ดนี้เข้า **Teams** อัตโนมัติ และใน**อีเมล** ก็มีปุ่ม อนุมัติ/ส่งกลับแก้ไข/ไม่อนุมัติ พร้อมช่องพิมพ์เหตุผลในตัว ไม่ต้องส่งอีเมลแยก
+
+**อ่านผลตอบกลับ** (ใช้ต่อ)
+- ผลที่เลือก: `@{first(body('Start_and_wait_for_an_approval')?['responses'])?['responseValue']}`
+- เหตุผล: `@{first(body('Start_and_wait_for_an_approval')?['responses'])?['comments']}`
+- ผู้ตอบ: `@{first(body('Start_and_wait_for_an_approval')?['responses'])?['responder']?['displayName']}`
+
+---
+
+## 8) ต่อประวัติลง ApprovalLog (รูปแบบที่เว็บอ่านได้)
+
+**Append to array variable** varLog — Value (สลับเป็น expression/JSON):
 ```
-ผู้ยื่น: @{triggerOutputs()?['body/RequesterName']}
-ฝ่าย: @{triggerOutputs()?['body/RequesterDept']}
-ข้อมูล: @{triggerOutputs()?['body/FormData']}
+{
+  "step": @{outputs('stepNow')?['StepOrder']},
+  "action": "@{first(body('Start_and_wait_for_an_approval')?['responses'])?['responseValue']}",
+  "by": "@{first(body('Start_and_wait_for_an_approval')?['responses'])?['responder']?['displayName']}",
+  "note": "@{first(body('Start_and_wait_for_an_approval')?['responses'])?['comments']}",
+  "at": "@{utcNow()}"
+}
 ```
 
----
-
-## ขั้นที่ 6 — ส่งอีเมลด้วย (นอกจาก Teams)
-
-การ์ด Approvals เข้า Teams อยู่แล้ว ถ้าต้องการอีเมลเพิ่ม
-
-1. หลัง action approval เพิ่ม **Office 365 Outlook — Send an email (V2)**
-2. **To:** อีเมลผู้อนุมัติ
-3. **Subject:** `ขออนุมัติ เลขที่ @{triggerOutputs()?['body/Title']}`
-4. **Body:** ใส่รายละเอียด + ลิงก์ไปหน้าติดตามสถานะ
-   ```
-   https://ppg2014.github.io/prime-power-intranet/#/requests
-   ```
-
-> อีเมลนี้เป็นการแจ้งเฉย ๆ ให้กดอนุมัติในเว็บหรือ Teams · ถ้าต้องการปุ่มอนุมัติในอีเมลโดยตรง ใช้ Approval type แล้ว Power Automate จะแนบปุ่มในอีเมลให้เอง ไม่ต้องส่งอีเมลแยก
+> เว็บอ่าน 5 คีย์นี้พอดี: `step, action, by, note, at` — ไทม์ไลน์ในหน้าติดตามสถานะจะขึ้นเหมือนกดในเว็บ
+> ถ้า PA ฟ้อง type ที่ `step` ให้ครอบเป็น `"@{...StepOrder}"` ก็ได้ ไม่กระทบการทำงาน
 
 ---
 
-## ขั้นที่ 7 — เขียนผลกลับ SharePoint
+## 9) เขียนสถานะกลับ + เดินลำดับ (Switch ตามผลตอบกลับ)
 
-หลัง approval ได้คำตอบ ให้ตรวจว่าอนุมัติหรือไม่ แล้วเขียนกลับ
+เพิ่ม **Switch** บน `@{first(body('Start_and_wait_for_an_approval')?['responses'])?['responseValue']}`
 
-1. เพิ่ม **Condition** ตรวจ `Outcome` (จาก approval) `is equal to` `Approve`
+**Case `อนุมัติ`**
+1. **Get items** ApprovalMatrix ชื่อ `หาลำดับถัดไป`
+   - Filter: `FormCode eq '@{triggerOutputs()?['body/FormCode']}' and StepOrder gt @{outputs('stepNow')?['StepOrder']}`
+   - Order By: `StepOrder asc` · Top 1
+2. **Condition:** `length(outputs('หาลำดับถัดไป')?['body/value'])` **is greater than** `0`
+   - **ถ้ามี (True):** **Update item** (Requests, Id = `triggerOutputs()?['body/ID']`)
+     - CurrentStep = `@{first(outputs('หาลำดับถัดไป')?['body/value'])?['StepOrder']}`
+     - Status = `รออนุมัติ`
+     - ApprovalLog = `@{string(variables('varLog'))}`
+     → โฟลว์ retrigger เอง ไปทำลำดับใหม่
+   - **ถ้าไม่มี (False):** **Update item**
+     - Status = `อนุมัติแล้ว` · ApprovalLog = `@{string(variables('varLog'))}`
+     → ไปข้อ 10 (ฟอร์มเบิกเงินดูข้อ 11)
 
-### ถ้า Approve (กล่อง True ของ Condition ตรวจผลอนุมัติ)
+**Case `ส่งกลับแก้ไข`**
+- **Update item**: Status = `ส่งกลับแก้ไข` · ApprovalLog = `@{string(variables('varLog'))}` · **ไม่แตะ CurrentStep**
+- ไปข้อ 10 (เว็บจะให้ผู้ยื่นกด "แก้ไขและยื่นใหม่" ได้ทันที เห็นเหตุผลที่ส่งกลับด้วย)
+  > ผู้ยื่นแก้แล้วยื่นใหม่ เว็บตั้ง Status=รออนุมัติ, CurrentStep=1 → เริ่มอนุมัติใหม่ตั้งแต่ต้น
 
-ต้องดูว่ามีลำดับถัดไปไหม
-
-1. **Get items** จาก ApprovalMatrix, Filter: `FormCode eq '...' and StepOrder gt @{...CurrentStep}`
-2. **Condition:** length ของผลลัพธ์ มากกว่า 0 หรือไม่
-   - **มีลำดับถัดไป:** SharePoint **Update item** ตั้ง CurrentStep = ลำดับถัดไปที่น้อยที่สุด, Status คงเป็น "รออนุมัติ"
-     → Flow จะ trigger ตัวเองอีกรอบ วนหาผู้อนุมัติลำดับใหม่
-   - **ไม่มีแล้ว:** Update item ตั้ง Status = "อนุมัติแล้ว"
-
-### ถ้า Reject (กล่อง False)
-
-**Update item** ตั้ง Status = "ไม่อนุมัติ"
-
-### บันทึกประวัติทุกครั้ง
-
-ทั้งสองกรณี ให้ต่อ ApprovalLog ด้วยผลล่าสุด อ่าน ApprovalLog เดิม แปลงเป็น array เพิ่มรายการใหม่ แล้ว Update กลับ (ใช้ Compose + expression `json()`)
+**Case `ไม่อนุมัติ`**
+- **Update item**: Status = `ไม่อนุมัติ` · ApprovalLog = `@{string(variables('varLog'))}`
+- ไปข้อ 10
 
 ---
 
-## ขั้นที่ 8 — แจ้งผู้ยื่นเมื่อจบ
+## 10) แจ้งผู้ยื่นผลลัพธ์ (Teams + อีเมล)
 
-หลัง Status เป็น "อนุมัติแล้ว" หรือ "ไม่อนุมัติ"
-
-1. **Microsoft Teams — Post message in a chat or channel**
-2. **Post as:** Flow bot
-3. **Recipient:** `RequesterEmail`
-4. **Message:**
+1. **Teams — Post message in a chat or channel** · Post as: Flow bot · Recipient: `@{triggerOutputs()?['body/RequesterEmail']}`
    ```
-   คำขอเลขที่ @{triggerOutputs()?['body/Title']} @{outputs...Outcome เป็นภาษาไทย}
+   คำขอเลขที่ @{triggerOutputs()?['body/Title']} — ผลล่าสุด: @{first(body('Start_and_wait_for_an_approval')?['responses'])?['responseValue']}
+   โดย: @{first(body('Start_and_wait_for_an_approval')?['responses'])?['responder']?['displayName']}
+   เหตุผล: @{first(body('Start_and_wait_for_an_approval')?['responses'])?['comments']}
    ดูรายละเอียด: https://ppg2014.github.io/prime-power-intranet/#/requests
    ```
+2. **Office 365 Outlook — Send an email (V2)** (เนื้อหาเดียวกัน) To = RequesterEmail
 
 ---
 
-## ขั้นที่ 9 — ทดสอบ
+## 11) กรณีพิเศษ — ฟอร์มเบิกเงิน ขั้นสุดท้าย (การเงิน)
 
-1. กด **Save** มุมขวาบน
-2. เปิดเว็บ ยื่นคำขอทดสอบหนึ่งใบ
-3. กลับมาที่ Flow กด **Test** → **Manually** ดูว่าแต่ละขั้นเขียว
-4. เช็กว่าผู้อนุมัติได้การ์ดใน Teams
-5. กดอนุมัติในการ์ด แล้วดูว่า Requests เปลี่ยน CurrentStep หรือ Status ถูกต้อง
+ขั้นสุดท้ายเบิกเงินคือการเงิน **แนบสลิป → ปิดงาน** ซึ่งต้องอัปโหลดไฟล์ ทำในการ์ด Teams ไม่ได้ จึงทำ **บนเว็บ**:
+- โฟลว์เดินจนขั้นก่อนสุดท้ายอนุมัติเสร็จ ขั้นการเงินตั้ง Status = `อนุมัติแล้ว`
+- แจ้งการเงินเข้าเว็บ แนบสลิปแล้วกด **ปิดงาน** (เว็บตั้ง Status = `เสร็จสิ้น` และบันทึก action `ปิดงาน`)
+- ถ้าไม่บังคับสลิป จะให้ขั้นสุดท้ายจบที่ `อนุมัติแล้ว` เลยก็ได้
 
-**ถ้าขั้นไหนแดง** กดเข้าไปดู error ส่วนใหญ่เป็นชื่อคอลัมน์ไม่ตรง หรือ Filter Query พิมพ์ผิด
-
----
-
-## เรื่องที่ต้องระวัง
-
-**เขียนกลับแล้ว Flow trigger ตัวเองซ้ำ** เป็นเรื่องปกติของ trigger "created or modified" เราคุมด้วยการเช็ก Status = "รออนุมัติ" ตอนต้น ถ้าไม่ใช่ก็ไม่ทำอะไร แต่ถ้ากังวลเรื่องวนไม่รู้จบ เพิ่ม **Trigger condition** ที่ตั้งค่า trigger ให้ทำงานเฉพาะเมื่อ Status = รออนุมัติ
-
-**การ์ด Teams ไปหาคนที่ไม่มีสิทธิ์** ถ้าอีเมลผู้อนุมัติผิดหรือว่าง การ์ดจะไม่ถึง ตรวจ ApprovalMatrix ว่ากรอกผู้อนุมัติครบ
-
-**ผู้อนุมัติคนเดียวกันในหลายลำดับ** Approvals ไม่ให้ใช้อีเมลซ้ำในลำดับติดกัน ถ้าออกแบบเส้นทางให้คนเดิมอนุมัติสองลำดับ ต้องรวมเป็นลำดับเดียว
-
-**สิทธิ์ Premium** action Approvals กับ Get manager อยู่ในชุดมาตรฐาน ใช้ได้กับ license ทั่วไป ไม่ต้อง Premium สำหรับงานพื้นฐานนี้
+> ยกเลิกคำขอ = ผู้ยื่นกดบนเว็บ (Status=`ยกเลิก`) โฟลว์มองข้ามอัตโนมัติเพราะ Trigger Condition จับเฉพาะ "รออนุมัติ"
 
 ---
 
-## ลำดับที่แนะนำให้ทำ
+## 12) (ทางเลือก) รองรับ "ต้องอนุมัติครบทุกคน" อัตโนมัติ
 
-1. ทำ Flow ให้ครบขั้นที่ 1-3 ก่อน แล้ว Test ดูว่าหาแถว ApprovalMatrix เจอ
-2. เพิ่มขั้นที่ 4-5 แบบระบุชื่อเจาะจงอย่างเดียว ให้การ์ดส่งได้
-3. เพิ่มขั้นที่ 7 เขียนกลับ ให้วงจรครบหนึ่งลำดับ
-4. ทดสอบฟอร์มที่มีลำดับเดียวก่อน (เช่น Memo ลืมลงเวลา)
-5. เพิ่มการวนหลายลำดับ แล้วทดสอบเบิกเงิน 3 ลำดับ
-6. เพิ่มกรณีผู้บังคับบัญชา (ขั้น 4 แบบ Get manager)
-7. เพิ่มแจ้งผู้ยื่นตอนจบ (ขั้น 8)
-
-ทำทีละส่วนแล้วทดสอบ จะหา error ง่ายกว่าทำทั้งหมดแล้วค่อยรัน
+Approval type เลือกตอนออกแบบ เปลี่ยนตามข้อมูลตรง ๆ ไม่ได้ ถ้าต้องรองรับทั้งสองแบบ:
+- ครอบข้อ 7 ด้วย **Condition** `@{outputs('stepNow')?['ApproveMode']}` = `ต้องอนุมัติครบทุกคน`
+  - True: approval แบบ **Wait for all responses** · False: **Wait for one response**
+- ข้อ 8–10 อ่านผลจาก action สาขาที่ตรงกัน (ตั้งชื่อ action ต่างกัน)
 
 ---
 
-## ถ้าติดขัด
+## 13) (ทางเลือก) โฟลว์ตัวที่สอง — เตือนคำขอค้าง
 
-ส่งภาพหน้าจอ Flow ที่ขั้นที่แดง พร้อมข้อความ error มาได้ ผมช่วยดูว่าตรงไหนพลาด แม้จะตั้งค่าเองไม่ได้ แต่ชี้จุดผิดจาก error ได้
-
+**Recurrence** วันละครั้ง → **Get items** Requests Filter `Status eq 'รออนุมัติ'` และ DueDate เลยกำหนด →
+Apply to each → หาอีเมลผู้อนุมัติลำดับปัจจุบัน (ตรรกะเดียวกับข้อ 5–6) → ส่งเตือน Teams/อีเมล
 
 ---
 
-## ภาคผนวก — ออกเลขที่เอกสารแบบกันซ้ำเด็ดขาด (ทางเลือก)
+## 14) ทดสอบตามลำดับ (ทำทีละส่วน หา error ง่ายกว่า)
 
-หน้าเว็บออกเลขเอง (รูปแบบ FM-ACC-002-001-2026) พร้อมระบบตรวจแล้วลองใหม่
-ซึ่งกันเลขซ้ำได้เกือบสมบูรณ์ แต่ถ้าองค์กรต้องการกัน 100% แม้ส่งพร้อมกันเป๊ะ
-ให้ Power Automate เป็นคนออกเลขแทน
+1. ข้อ 2–4 ก่อน แล้ว **Test → Manually** ยื่นใบทดสอบ ดูว่า `stepNow` ได้แถวถูกต้อง
+2. เพิ่มข้อ 5–7 เฉพาะ case `ระบุชื่อเจาะจง` → ดูว่าการ์ดเข้า Teams/อีเมล
+3. เพิ่มข้อ 8–9 ให้ครบหนึ่งลำดับ ทดสอบฟอร์มลำดับเดียวก่อน (เช่น FM-HRM-008 ลืมลงเวลา)
+4. ทดสอบครบสามผล: อนุมัติ / ส่งกลับแก้ไข (ใส่เหตุผล แล้วดูว่าเว็บขึ้นปุ่ม "แก้ไขและยื่นใหม่" พร้อมเหตุผล) / ไม่อนุมัติ
+5. เพิ่มการวนหลายลำดับ ทดสอบเบิกเงิน (FM-ACC-002) 3–4 ลำดับ
+6. เพิ่ม case ตามตำแหน่ง (ผู้บังคับบัญชา/หัวหน้าฝ่าย/ผู้รับผิดชอบโครงการ) ทีละอัน
+7. เพิ่มแจ้งผู้ยื่น (ข้อ 10) และโฟลว์เตือน (ข้อ 13)
 
-**วิธีทำ**
-1. สร้าง List ใหม่ชื่อ `DocCounter` เพิ่มแค่**คอลัมน์เดียว** — ใช้ Title ที่มีอยู่แล้วเป็นคีย์
+---
 
-   | คอลัมน์ | ชนิด | เก็บอะไร |
-   |---|---|---|
-   | Title | (มีอยู่แล้ว ไม่ต้องสร้าง) | คีย์รวม เช่น `FM-ACC-002-2026` |
-   | LastNo | Number | เลขล่าสุดที่ออกไป เช่น 5 |
+## 15) ข้อควรระวัง / ที่เจอบ่อย
 
-   > รวม FormCode กับ Year ไว้ใน Title เพื่อให้หนึ่งแถวคือหนึ่งตัวนับ ค้นด้วย Filter เดียว
-   > พอขึ้นปีใหม่ Title เปลี่ยนเป็น `-2027` เป็นแถวใหม่เริ่มนับ 1 เอง รีเซ็ตทุกปีอัตโนมัติ
+- **การ์ดไม่ถึงผู้อนุมัติ:** varEmails ว่าง — ชื่อใน Approvers/ReportingLine ต้องตรงกับ Title ใน Directory เป๊ะ และดู fallback ข้อ 5
+- **โฟลว์วนไม่จบ:** ต้องมี Trigger Condition ข้อ 2 · ตอนยังมีลำดับถัดไปให้คง Status="รออนุมัติ" อย่างเดียว
+- **ApprovalLog เพี้ยน:** ต้องเป็น Multiple lines of text และเขียนกลับด้วย `string(variables('varLog'))` เสมอ ห้ามทับด้วยค่าว่าง
+- **ผู้อนุมัติคนเดียวติดกันสองลำดับ:** Approvals ไม่ให้อีเมลซ้ำในลำดับติดกัน — รวมเป็นลำดับเดียวใน ApprovalMatrix
+- **ชื่อ action ในสูตรไม่ตรง:** ถ้าตั้งชื่อ action ต่างจากคู่มือ ต้องแก้ชื่อในทุก expression ให้ตรง
+- **Filter Query:** ค่า Number (StepOrder/CurrentStep) ไม่ต้องมีคำพูด · ค่า text (FormCode/Title/Department) ต้องมี `'...'`
 
-2. ในโฟลว์ตอนมีคำขอใหม่
-   - **Get items** จาก DocCounter, Filter Query: `Title eq 'FM-ACC-002-2026'`
-   - ถ้าไม่เจอ (ปีนี้ยังไม่เคยออกเลข) → **Create item** ตั้ง Title นั้น LastNo = 1
-   - ถ้าเจอ → **Update item** เพิ่ม LastNo ทีละ 1 (SharePoint จัดคิวให้ทีละคน ไม่ชนกัน)
-   - ประกอบเลข: `FM-ACC-002-` + เติมศูนย์หน้า 3 หลัก + `-2026`
-3. ตั้งหน้าเว็บให้ส่งคำขอโดย **ยังไม่ใส่ Title** แล้วให้โฟลว์เติมให้
+---
 
-แบบนี้เลขออกจากที่เดียวเสมอ ไม่มีทางซ้ำ แต่ต้องมี List เพิ่มและปรับหน้าเว็บ
-สำหรับการใช้งานทั่วไป วิธีที่หน้าเว็บทำอยู่เพียงพอแล้ว
+## ภาคผนวก — ออกเลขเอกสารกันซ้ำ 100% ด้วยโฟลว์ (ทางเลือก)
+
+หน้าเว็บออกเลข (FM-ACC-002-001-2026) พร้อมกันเลขซ้ำอยู่แล้ว ถ้าต้องการกัน 100% แม้ยื่นพร้อมกันเป๊ะ
+ให้สร้าง List `DocCounter` (Title=คีย์รวม เช่น `FM-ACC-002-2026`, LastNo=Number) แล้วให้โฟลว์
+Get→ถ้าไม่มี Create(LastNo=1)→ถ้ามี Update(+1) ประกอบเลขเติมศูนย์ 3 หลัก ตั้ง Title ให้คำขอ
+(ต้องปรับเว็บให้ส่งคำขอโดยยังไม่ใส่ Title) — สำหรับงานทั่วไป วิธีที่เว็บทำอยู่เพียงพอแล้ว

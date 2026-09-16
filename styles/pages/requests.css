@@ -34,6 +34,7 @@
 .st-blue { background: #eef6fd; color: var(--blue); }
 .st-green { background: #e4f2ec; color: var(--ok); }
 .st-red { background: #fdf3f2; color: var(--danger); }
+.st-amber { background: #fef6e7; color: #b7791f; }
 
 .side-empty { padding: 20px 16px; font-size: 12.5px; color: var(--dim); text-align: center; }
 
@@ -124,3 +125,5 @@
 .rq-locked { margin-top: var(--gap); padding: 12px 16px; background: #fff8ec;
   border-left: 4px solid var(--warn); border-radius: var(--radius-sm); font-size: 13px;
   line-height: 1.7; color: #8a5a00; }
+
+.rq-sentback { background: #fef6e7; border: 1px solid #f6e0b0; border-radius: 8px; padding: 10px 12px; }

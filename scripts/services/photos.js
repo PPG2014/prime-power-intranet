@@ -156,3 +156,60 @@ export async function uploadFile(file, folder = '') {
   const item = await res.json();
   return { ...meta, url: item.webUrl };
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * แสดงรูปที่เก็บใน SharePoint บนเว็บภายนอก (GitHub Pages)
+ * webUrl ของ SharePoint เป็นลิงก์หน้าเว็บที่ต้องล็อกอิน ใส่ใน <img> ตรง ๆ ไม่ได้
+ * จึงดึงไบต์รูปผ่าน Graph (Shares API) ด้วย access token แล้วทำเป็น blob URL
+ * ───────────────────────────────────────────────────────────── */
+const _photoCache = new Map();
+
+/** เข้ารหัส URL เป็นรูปแบบ share id ของ Graph */
+function shareId(url) {
+  const b64 = btoa(unescape(encodeURIComponent(url)));
+  return 'u!' + b64.replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+}
+
+/** คืน blob URL ของรูป (ลิงก์สาธารณะคืนตามเดิม, โหมด mock คืน data URL ตามเดิม) */
+export async function photoBlobUrl(webUrl) {
+  if (!webUrl) return '';
+  if (CONFIG.dataSource === 'mock') return webUrl;
+  if (!/sharepoint\.com/i.test(webUrl)) return webUrl;   // ลิงก์ภายนอก/สาธารณะโหลดเองได้
+  if (_photoCache.has(webUrl)) return _photoCache.get(webUrl);
+
+  const token = await getToken();
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/content`,
+    { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error('โหลดรูปไม่สำเร็จ (' + res.status + ')');
+
+  const objUrl = URL.createObjectURL(await res.blob());
+  _photoCache.set(webUrl, objUrl);
+  return objUrl;
+}
+
+/** แทนที่ <img> ที่โหลดไม่ได้ ด้วยตัวอักษรย่อของชื่อ (เหมือนช่องไม่มีรูป) */
+function fallbackInitials(img) {
+  const s = document.createElement('span');
+  s.textContent = String(img.getAttribute('alt') || '').slice(0, 2);
+  img.replaceWith(s);
+}
+
+/**
+ * เติมรูปให้ <img data-photo="..."> ทุกตัวใน root
+ * เรียกหลัง render หน้า หรือหลังเปิด modal ที่มีรูป
+ */
+export async function hydratePhotos(root) {
+  const scope = root || document;
+  const imgs = scope.querySelectorAll('img[data-photo]');
+  await Promise.all([...imgs].map(async (img) => {
+    const url = img.getAttribute('data-photo');
+    img.removeAttribute('data-photo');
+    try {
+      const src = await photoBlobUrl(url);
+      if (src) img.src = src; else fallbackInitials(img);
+    } catch (e) {
+      fallbackInitials(img);
+    }
+  }));
+}

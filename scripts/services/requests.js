@@ -24,6 +24,11 @@ export async function resolveApprovers(step, req) {
   const me = dir.find((p) => p.Title === req.RequesterName);
 
   if (type === 'ผู้บังคับบัญชาของผู้ยื่น') {
+    // อ่านหัวหน้าจากทะเบียนบุคลากรก่อน (แก้ได้ที่หน้าแก้ไขบุคลากร) แล้วค่อยเผื่อลิสต์เก่า
+    const mgr = me && me.Manager
+      ? (typeof me.Manager === 'object' ? (me.Manager.LookupValue ?? me.Manager.Title) : me.Manager)
+      : '';
+    if (mgr) return [mgr];
     const rl = await list('reportingLine').catch(() => []);
     const row = rl.find((r) => r.Title === req.RequesterName);
     return row && row.Manager ? [row.Manager] : named;

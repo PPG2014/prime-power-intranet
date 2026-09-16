@@ -5,10 +5,13 @@ import { thaiDateShort } from '../utils/format.js';
 import { openModal } from '../components/modal.js';
 import { toArray } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
+import { hydratePhotos } from '../services/photos.js';
 
 export const meta = { route: 'projects', title: 'ความคืบหน้าโครงการ', nav: false, order: 5, adminOnly: false };
 
 const STATUSES = ['เตรียมงาน', 'กำลังดำเนินการ', 'ส่งมอบแล้ว', 'ปิดโครงการ'];
+/** ดัชนีสีของสถานะ · รองรับค่าที่ขึ้นต้นด้วย "ปิดโครงการ" ทุกแบบ */
+const stIdx = (v) => /^ปิดโครงการ/.test(String(v || '').trim()) ? 3 : STATUSES.indexOf(v);
 
 let projects = [];
 let staff = [];
@@ -77,7 +80,7 @@ function card(p) {
         <div class="pj-code">${esc(p.ProjectCode || '')}</div>
         <h3>${esc(p.Title)}</h3>
       </div>
-      <span class="pj-status st-${STATUSES.indexOf(p.Status)}">${esc(p.Status || '')}</span>
+      <span class="pj-status st-${stIdx(p.Status)}">${esc(p.Status || '')}</span>
     </div>
 
     <div class="pj-facts">
@@ -117,14 +120,19 @@ export async function renderDashboard() {
     // ดึงทะเบียนบุคลากรมาด้วย เพื่อแสดงรูปและตำแหน่งของผู้รับผิดชอบตอนกดดูโครงการ
     list('directory').catch(() => []),
   ]);
-  projects = all.filter((p) => p.IsActive !== false);
+  const isClosed = (v) => /^ปิดโครงการ/.test(String(v || '').trim());
+  // โครงการที่ปิดแล้วต้องแสดงในตัวกรอง "ปิดโครงการ" เสมอ แม้จะถูกปิดใช้งาน (IsActive=false)
+  projects = all.filter((p) => p.IsActive !== false || isClosed(p.Status));
   staff = people;
 
   const q = (state.projectQuery || '').trim().toLowerCase();
   const st = state.projectStatus || 'ทั้งหมด';
 
+  const matchStatus = (p) => st === 'ทั้งหมด'
+    || (st === 'ปิดโครงการ' ? isClosed(p.Status) : String(p.Status || '').trim() === st);
+
   const rows = projects.filter((p) =>
-    (st === 'ทั้งหมด' || p.Status === st) &&
+    matchStatus(p) &&
     (!q || (p.Title + p.ProjectCode + p.Detail).toLowerCase().includes(q)));
 
   const active = projects.filter((p) => p.Status === 'กำลังดำเนินการ');
@@ -141,7 +149,7 @@ export async function renderDashboard() {
 
     <div class="toolbar">
       <div class="search-box"><span>🔍</span>
-        <input id="pj-q" type="search" value="${esc(state.projectQuery || '')}"
+        <input id="pj-q" type="search" data-keepfocus value="${esc(state.projectQuery || '')}"
                placeholder="ค้นหาชื่อโครงการ รหัส หรือรายละเอียด" autocomplete="off"></div>
       <span class="toolbar-meta">แสดง ${rows.length} จาก ${projects.length} โครงการ</span>
     </div>
@@ -173,7 +181,7 @@ const findPerson = (name) => staff.find((x) => x.Title === name) || { Title: nam
 const personChip = (name, role) => {
   const p = findPerson(name);
   const photo = (cls) => `<div class="${cls}">${p.PhotoUrl
-    ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy">`
+    ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy">`
     : `<span>${esc(String(p.Title || '?').slice(0, 2))}</span>`}</div>`;
 
   return `
@@ -223,7 +231,7 @@ function openProject(p) {
             <div class="pj-code">${esc(p.ProjectCode || '')}</div>
             <h3>${esc(p.Title)}</h3>
           </div>
-          <span class="pj-status st-${STATUSES.indexOf(p.Status)}">${esc(p.Status || '')}</span>
+          <span class="pj-status st-${stIdx(p.Status)}">${esc(p.Status || '')}</span>
         </div>
 
         <div class="pv-cols">
@@ -264,6 +272,7 @@ function openProject(p) {
              ${state.isAdmin ? `<button class="btn btn-primary" data-vedit="${p.id}">✎ อัปเดตโครงการ</button>` : ''}`,
   });
 
+  hydratePhotos($('#overlay-root'));
   onClick('vhistory', () => showHistory(p));
   onClick('vexport', () => exportProject(p));
   onClick('vedit', () => editProject(p));
@@ -381,12 +390,11 @@ export function mountDashboard() {
 
   const box = $('#pj-q');
   if (!box) return;
+  let t;
   box.oninput = (ev) => {
-    const pos = ev.target.selectionStart;
-    setState({ projectQuery: ev.target.value });
-    const next = $('#pj-q');
-    next.focus();
-    next.setSelectionRange(pos, pos);
+    const val = ev.target.value;
+    clearTimeout(t);
+    t = setTimeout(() => setState({ projectQuery: val }), 250);
   };
 }
 

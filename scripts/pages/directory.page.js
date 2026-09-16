@@ -1,5 +1,6 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { openModal } from '../components/modal.js';
+import { hydratePhotos } from '../services/photos.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
 import { toArray as rawArray } from '../admin/entity-form.js';
@@ -57,7 +58,7 @@ const card = (p, cls = '') => `
   <article class="staff-card is-clickable ${cls}" data-person="${p.id}"
            role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
     <div class="staff-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+      ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="staff-info">
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
@@ -81,7 +82,7 @@ const miniCard = (p) => `
   <article class="mini-card is-clickable" data-person="${p.id}"
            role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
     <div class="mini-photo">${p.PhotoUrl
-      ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+      ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="mini-name">${esc(p.Title)}</div>
     ${p.Nickname ? `<div class="mini-nick">(${esc(p.Nickname)})</div>` : ''}
@@ -202,7 +203,7 @@ export async function render(ctx) {
       <div class="toolbar">
         <div class="search-box">
           <span>🔍</span>
-          <input id="dir-q" type="search" value="${esc(state.directoryQuery || '')}"
+          <input id="dir-q" type="search" data-keepfocus value="${esc(state.directoryQuery || '')}"
                  placeholder="ค้นหาชื่อ ชื่อเล่น ตำแหน่ง หรือฝ่าย" autocomplete="off">
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} คน${
@@ -241,7 +242,7 @@ export function openPerson(p, back) {
     body: `
       <div class="person-view">
         <div class="pv-photo">${p.PhotoUrl
-          ? `<img src="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
+          ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
           : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
 
         <div class="pv-info">
@@ -268,10 +269,12 @@ export function openPerson(p, back) {
     footer: back ? '<button class="btn-mini" id="pv-back">← กลับไปที่โครงการ</button>' : '',
   });
 
+  hydratePhotos($('#overlay-root'));
   if (back) $('#pv-back').onclick = back;
 }
 
 export function mount(ctx) {
+  hydratePhotos($('#app'));
   const show = (id) => {
     const p = people.find((x) => String(x.id) === String(id));
     if (p) openPerson(p);
@@ -290,11 +293,10 @@ export function mount(ctx) {
 
   const box = $('#dir-q');
   if (!box) return;
+  let t;
   box.oninput = (ev) => {
-    const pos = ev.target.selectionStart;
-    setState({ directoryQuery: ev.target.value });
-    const next = $('#dir-q');
-    next.focus();
-    next.setSelectionRange(pos, pos);
+    const val = ev.target.value;
+    clearTimeout(t);
+    t = setTimeout(() => setState({ directoryQuery: val }), 250);
   };
 }

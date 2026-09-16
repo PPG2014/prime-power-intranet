@@ -13,6 +13,7 @@ export const meta = { route: 'requests', title: 'ติดตามสถาน�
 const STATUS_TONE = {
   'ร่าง': 'gray', 'รออนุมัติ': 'blue', 'อนุมัติแล้ว': 'green',
   'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'gray',
+  'ส่งกลับแก้ไข': 'amber',
 };
 
 let allRequests = [];
@@ -170,6 +171,21 @@ function requesterActions(req, log) {
   const isMine = req.RequesterEmail
     && req.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase();
   if (!isMine) return '';
+
+  // ส่งกลับแก้ไข: ผู้ยื่นแก้แล้วยื่นใหม่ได้ แม้จะมีลำดับก่อนหน้าอนุมัติมาแล้ว
+  if (req.Status === 'ส่งกลับแก้ไข') {
+    const back = [...log].reverse().find((l) => l.action === 'ส่งกลับแก้ไข');
+    return `<div class="rq-owner-act rq-sentback">
+      <span>📝 ผู้อนุมัติส่งกลับให้แก้ไข${back && back.by ? ` โดย ${esc(back.by)}` : ''}
+        ${back && back.note ? `<br><b>เหตุผล:</b> ${esc(back.note)}` : ''}
+        <br>แก้ไขแล้วยื่นใหม่ได้เลย (จะเริ่มอนุมัติใหม่ตั้งแต่ลำดับแรก)</span>
+      <span class="rq-owner-btns">
+        <button class="btn-mini" data-reqedit="${req.id}">✎ แก้ไขและยื่นใหม่</button>
+        <button class="btn-mini danger" data-reqcancel="${req.id}">ยกเลิกคำขอ</button>
+      </span>
+    </div>`;
+  }
+
   if (['อนุมัติแล้ว', 'ไม่อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก'].includes(req.Status)) return '';
 
   const approved = log.some((l) => l.action === 'อนุมัติ');

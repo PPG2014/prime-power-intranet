@@ -45,7 +45,7 @@ export async function render(ctx) {
       <div class="toolbar">
         <div class="search-box">
           <span>🔍</span>
-          <input id="form-q" type="search" value="${esc(state.formQuery || '')}"
+          <input id="form-q" type="search" data-keepfocus value="${esc(state.formQuery || '')}"
                  placeholder="ค้นหาชื่อฟอร์ม รหัส หรือฝ่าย" autocomplete="off">
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} รายการ</span>
@@ -73,11 +73,10 @@ export function mount(ctx) {
   onClick('chip', (c) => setState({ formChip: c }));
   const box = $('#form-q');
   if (!box) return;
+  let t;
   box.oninput = (ev) => {
-    const pos = ev.target.selectionStart;
-    setState({ formQuery: ev.target.value });
-    const next = $('#form-q');
-    next.focus();
-    next.setSelectionRange(pos, pos);
+    const val = ev.target.value;
+    clearTimeout(t);
+    t = setTimeout(() => setState({ formQuery: val }), 250);
   };
 }

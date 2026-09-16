@@ -8,6 +8,7 @@ import { CONFIG } from '../core/config.js';
 import { thaiDateShort } from '../utils/format.js';
 import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
 import { showAnnouncements } from '../components/announcement-popup.js';
+import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 
@@ -141,7 +142,7 @@ export async function render(ctx) {
             <tbody>${rows.length ? rows.map((r, i) => `<tr>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
-                ? `<td class="col-thumb">${r[c] ? `<img src="${r[c]}" alt="">` : '—'}</td>`
+                ? `<td class="col-thumb">${r[c] ? `<img data-photo="${esc(r[c])}" alt="">` : '—'}</td>`
                 : `<td data-col="${c}">${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
@@ -347,6 +348,7 @@ function formLabel(code) {
 }
 
 export function mount(ctx) {
+  hydratePhotos($('#app'));
   onClick('set', (k) => setState({ adminSet: k, adminGroup: '' }));
 
   const gsel = $('.group-select');

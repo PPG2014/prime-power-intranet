@@ -220,6 +220,8 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 | Oversees | Lookup → L01.Title (**Allow multiple values**) | ใช้กับผู้อำนวยการที่ดูแลหลายฝ่าย เว้นว่างสำหรับคนทั่วไป |
 | Level | Choice | 5 ตัวเลือก ดูด้านล่าง (ไม่ต้องมีเลขนำหน้า) |
 | Email | Single line of text | อีเมลบริษัท |
+| Manager | Single line of text | หัวหน้าโดยตรง (ชื่อตรงกับ Title) · ใช้กับขั้น "ผู้บังคับบัญชาของผู้ยื่น" |
+| BackupManager | Single line of text | ผู้อนุมัติแทน (สำรอง) · ยังไม่สลับอัตโนมัติ |
 | Extension | Single line of text | เบอร์ต่อ |
 | PhotoUrl | **Multiple lines of text (plain)** | ลิงก์รูปติดบัตร ระบบใส่ให้อัตโนมัติ · ต้องไม่ใช่บรรทัดเดียว เพราะลิงก์ที่มีชื่อฝ่ายภาษาไทยยาวเกิน 255 อักขระ |
 | UserAccount | Person or Group | ผูกกับบัญชี M365 ใช้ตอนหาผู้อนุมัติ |
@@ -230,34 +232,30 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 
 หัวใจของระบบ เพิ่มฟอร์มใหม่ = เพิ่มแถวที่นี่ ไม่ต้องแก้โฟลว์
 
+> ⚠️ ทุกคอลัมน์ที่โฟลว์/เว็บต้องอ่านเทียบ ต้องเป็น **Single line of text** (ห้าม Choice/Lookup/Person)
+
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
-| Title | Single line of text | รหัสฟอร์ม เช่น FM-HR-001 |
-| StepNumber | Number | ลำดับขั้น 1, 2, 3 |
-| StepName | Single line of text | ชื่อขั้น เช่น หัวหน้างานอนุมัติ |
-| ApproverType | Choice | Manager / Role / Person |
-| ApproverRole | Lookup → L01.Title | ใช้เมื่อ ApproverType = Role |
-| ApproverPerson | Person or Group | ใช้เมื่อ ApproverType = Person |
-| ConditionField | Single line of text | ชื่อช่องที่ใช้ตัดสิน เช่น Amount |
-| ConditionOperator | Choice | none / gt / gte / lt / lte / eq |
-| ConditionValue | Single line of text | ค่าที่ใช้เทียบ เช่น 50000 |
-| DelegateTo | Person or Group | ผู้ทำการแทนเมื่อผู้อนุมัติไม่อยู่ |
-| SLADays | Number | ค้างเกินกี่วันให้เตือน |
-| IsActive | Yes/No | |
+| FormCode | Single line of text | รหัสฟอร์ม เช่น FM-HRM-001 (คีย์จับคู่คำขอ) |
+| StepOrder | Number | ลำดับขั้น 1, 2, 3 |
+| StepName | Single line of text | ชื่อขั้น เช่น ผู้บังคับบัญชาอนุมัติ |
+| ApproverType | Single line of text | ระบุชื่อเจาะจง / ผู้บังคับบัญชาของผู้ยื่น / ผู้จัดการฝ่ายของผู้ยื่น / หัวหน้าฝ่ายตามสังกัด / ผู้รับผิดชอบหลักของโครงการ |
+| Approvers | Lookup → L02 (หลายค่า) | ใช้เมื่อ ApproverType = ระบุชื่อเจาะจง · และเป็นตัวสำรอง (fallback) ของแบบตามตำแหน่ง |
+| ApproveMode | Single line of text | คนใดคนหนึ่งอนุมัติก็ผ่าน / ต้องอนุมัติครบทุกคน |
+| IsActive | Yes/No | ปิดขั้นชั่วคราวได้ (ค่าว่าง = ใช้งาน) |
 
-**ตัวอย่างการกรอก** — ใบขออนุมัติจัดซื้อที่แยกตามวงเงิน
+**ตัวอย่างการกรอก** — เบิกเงินทดรองจ่าย FM-ACC-002
 
-| Title | Step | StepName | ApproverType | ApproverRole | ConditionField | Operator | Value |
-|---|---|---|---|---|---|---|---|
-| FM-PC-001 | 1 | หัวหน้างานอนุมัติ | Manager | — | — | none | — |
-| FM-PC-001 | 2 | ฝ่ายจัดซื้อตรวจสอบ | Role | ฝ่ายจัดซื้อและคลังสินค้า | — | none | — |
-| FM-PC-001 | 3 | รองกรรมการฯ อนุมัติ | Role | รองกรรมการผู้จัดการด้านการเงิน | Amount | gte | 50000 |
+| FormCode | StepOrder | StepName | ApproverType | Approvers | ApproveMode |
+|---|---|---|---|---|---|
+| FM-ACC-002 | 1 | ผู้รับผิดชอบโครงการอนุมัติ | ผู้รับผิดชอบหลักของโครงการ | (สำรอง) | คนใดคนหนึ่งอนุมัติก็ผ่าน |
+| FM-ACC-002 | 2 | ผู้บริหารอนุมัติจ่าย | ระบุชื่อเจาะจง | ชื่อผู้บริหาร | คนใดคนหนึ่งอนุมัติก็ผ่าน |
+| FM-ACC-002 | 3 | ฝ่ายบัญชีตรวจสอบ | หัวหน้าฝ่ายตามสังกัด | (สำรอง) | คนใดคนหนึ่งอนุมัติก็ผ่าน |
+| FM-ACC-002 | 4 | ฝ่ายการเงิน แนบสลิป/ปิดงาน | ระบุชื่อเจาะจง | ชื่อการเงิน | คนใดคนหนึ่งอนุมัติก็ผ่าน |
 
-ขั้นที่ 3 จะทำงานเฉพาะเมื่อวงเงินตั้งแต่ 50,000 บาทขึ้นไป ต่ำกว่านั้นจบที่ขั้น 2
+ผู้อนุมัติแบบตามตำแหน่งเปลี่ยนตามผู้ยื่น/โครงการอัตโนมัติ (ผู้บังคับบัญชาอ่านจาก **L04**, หัวหน้าฝ่ายอ่านจากผังใน **L02**, ผู้รับผิดชอบโครงการอ่าน Owner จาก **L05 Projects**) — วิธีตั้งค่าในโฟลว์ดู `power-automate-guide.md` ข้อ 5
 
-`ApproverType = Manager` ให้โฟลว์ไปอ่านหัวหน้าจาก Entra ID เอง แต่เนื่องจากต้องการระบุเองใน SharePoint ให้ใช้ **L04** แทน
-
-### L04 — ReportingLine (สายบังคับบัญชา)
+### L04 — ReportingLine (สายบังคับบัญชา) — ไม่จำเป็นแล้ว
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
@@ -268,7 +266,7 @@ Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเ�
 
 ⚠️ **ต้องเป็น Single line of text ไม่ใช่ Person or Group** — ระบบจับคู่ผู้อนุมัติด้วยชื่อ (Title) ทั้งหมด ถ้าตั้งเป็น Person จะเขียนผ่าน Graph ไม่ได้และหน้าจัดการข้อมูลบันทึกไม่ลง เหมือนบทเรียน FormCode/ApproverType
 
-ตารางนี้แทนช่อง Manager ใน Microsoft 365 ทั้งหมด แก้ได้ 2 ทาง: ผ่านเมนู **"สายบังคับบัญชา"** ในหน้าจัดการข้อมูลของเว็บ หรือแก้ที่ SharePoint โดยตรง เวลาหาผู้อนุมัติจะอ่านจากที่นี่ที่เดียว
+**ย้ายมาเก็บที่ L02 Directory แล้ว** (คอลัมน์ Manager/BackupManager) แก้ที่หน้า **แก้ไขบุคลากร** ของเว็บได้เลย ไม่ต้องเลือกคนใหม่ ระบบอ่าน Manager จาก Directory ก่อน ถ้าไม่มีค่อยมองลิสต์ L04 นี้เป็น fallback — จะคงลิสต์นี้ไว้หรือไม่ก็ได้
 
 ### L05 — FormCatalog (ทะเบียนแบบฟอร์ม)
 
