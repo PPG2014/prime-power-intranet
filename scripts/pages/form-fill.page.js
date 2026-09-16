@@ -13,6 +13,7 @@ let fields = [];
 const active = (v) => v !== false && v !== 'No' && v !== 'ไม่' && v !== 0;
 let form = null;
 let me = null;
+let editId = null;
 
 /**
  * เลขที่เอกสาร แยกรันตามฟอร์ม รีเซ็ตทุกปี
@@ -81,7 +82,7 @@ async function createWithDocNo(formCode, payload) {
 export async function render(ctx) {
   const rawSeg = (location.hash.split('/')[2] || '');
   const code = rawSeg.split('?')[0].trim();
-  const editId = (rawSeg.match(/edit=(\d+)/) || [])[1] || null;
+  editId = (rawSeg.match(/edit=(\d+)/) || [])[1] || null;
 
   const [forms, allFields, people] = await Promise.all([
     list('formCatalog'), list('formFields'), list('directory').catch(() => []),
