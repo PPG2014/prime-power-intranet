@@ -293,18 +293,22 @@ async function openRequest(req) {
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
     }).join('');
 
+  // สถานะของแต่ละลำดับนับเฉพาะรอบล่าสุด (หลังการยื่นใหม่ครั้งล่าสุด) ส่วนประวัติยังแสดงครบ
+  const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
   const timeline = steps.map((s) => {
     const n = +s.StepOrder;
     const acts = log.filter((l) => l.step === n);
-    const rejected = acts.find((l) => l.action === 'ไม่อนุมัติ');
-    const approved = acts.filter((l) => l.action === 'อนุมัติ');
-    const st = rejected ? 'bad' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
+    const now = log.slice(lastRound + 1).filter((l) => l.step === n);
+    const rejected = now.find((l) => l.action === 'ไม่อนุมัติ');
+    const sentBack = now.find((l) => l.action === 'ส่งกลับแก้ไข');
+    const approved = now.filter((l) => l.action === 'อนุมัติ');
+    const st = rejected ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
     return `<div class="tl-step tl-${st}">
       <div class="tl-dot"></div>
       <div class="tl-body">
         <div class="tl-name">${esc(s.StepName || 'ลำดับ ' + n)}</div>
         <div class="tl-people">${esc((Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers]).filter(Boolean).join(', '))}</div>
-        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : 'ok'}">
+        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}</span>
           ${a.note ? `<div class="tl-note">${esc(a.note)}</div>` : ''}</div>`).join('')}
       </div></div>`;
@@ -397,7 +401,9 @@ function actionBox(req, role) {
   return `
     <div class="rq-action">
       <h4>${role.isFinalStep ? 'ขั้นสุดท้าย — แนบสลิปแล้วปิดงาน' : 'ดำเนินการ'}</h4>
-      <textarea id="rq-note" rows="2" placeholder="บันทึกความเห็น (ถ้ามี)"></textarea>
+      <label class="rq-note-label" for="rq-note">เหตุผล / ความเห็น
+        <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
+      <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
       ${role.isFinalStep ? `
         <div class="rq-slip-upload">
           <label class="btn-mini upload-btn" for="rq-slip">แนบสลิปการโอน</label>
@@ -406,10 +412,11 @@ function actionBox(req, role) {
         </div>` : ''}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
-        <button class="btn-mini danger" id="rq-reject">ไม่อนุมัติ</button>
+        <button class="btn-mini danger" id="rq-reject">✗ ไม่อนุมัติ</button>
+        <button class="btn-mini warn" id="rq-sendback">↩ ส่งกลับแก้ไข</button>
         ${role.isFinalStep
-          ? '<button class="btn btn-primary" id="rq-finish">อนุมัติและปิดงาน</button>'
-          : '<button class="btn btn-primary" id="rq-approve">อนุมัติ</button>'}
+          ? '<button class="btn btn-primary" id="rq-finish">✓ อนุมัติและปิดงาน</button>'
+          : '<button class="btn btn-primary" id="rq-approve">✓ อนุมัติ</button>'}
       </div>
     </div>`;
 }
@@ -432,25 +439,42 @@ function bindActions(req, steps, role) {
     } catch (e) { $('#rq-slip-name').textContent = e.message; }
   };
 
+  const note = () => $('#rq-note').value.trim();
+  const busy = (on) => $$('.rq-buttons button').forEach((b) => { b.disabled = on; });
+  const done = async () => {
+    closeModal();
+    const { render: rerender } = await import('../core/render.js');
+    rerender();
+  };
+
   const run = async (action) => {
-    if (action === 'ปิดงาน' && !pendingSlip) { fail('ต้องแนบสลิปการโอนก่อนปิดงาน'); return; }
+    err.hidden = true;
+    if ((action === 'ไม่อนุมัติ' || action === 'ส่งกลับแก้ไข') && !note()) {
+      fail(`กรุณาพิมพ์เหตุผลก่อนกด "${action}"`);
+      $('#rq-note').focus();
+      return;
+    }
+    if (action === 'ไม่อนุมัติ' && !confirm('ยืนยันไม่อนุมัติคำขอนี้? คำขอจะสิ้นสุดทันที')) return;
+    if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
+    busy(true);
     try {
-      await decide(req, steps, { action, by: me, note: $('#rq-note').value.trim(), slip: pendingSlip });
-      closeModal();
-      const { render: rerender } = await import('../core/render.js');
-      rerender();
-    } catch (e) { fail('บันทึกไม่สำเร็จ — ' + e.message); }
+      await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip });
+      await done();
+    } catch (e) { busy(false); fail('บันทึกไม่สำเร็จ — ' + e.message); }
   };
 
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
   const rj = $('#rq-reject'); if (rj) rj.onclick = () => run('ไม่อนุมัติ');
+  const sb = $('#rq-sendback'); if (sb) sb.onclick = () => run('ส่งกลับแก้ไข');
   const fn = $('#rq-finish'); if (fn) fn.onclick = async () => {
+    err.hidden = true;
     if (!pendingSlip) { fail('ต้องแนบสลิปการโอนก่อนปิดงาน'); return; }
-    await decide(req, steps, { action: 'อนุมัติ', by: me, note: $('#rq-note').value.trim() });
-    await decide({ ...req, CurrentStep: 999 }, steps, { action: 'ปิดงาน', by: me, slip: pendingSlip });
-    closeModal();
-    const { render: rerender } = await import('../core/render.js');
-    rerender();
+    busy(true);
+    try {
+      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note() });
+      await decide({ ...req, CurrentStep: 999 }, steps, { action: 'ปิดงาน', by: me, slip: pendingSlip });
+      await done();
+    } catch (e) { busy(false); fail('บันทึกไม่สำเร็จ — ' + e.message); }
   };
 }
 
@@ -473,7 +497,8 @@ async function exportRequest(req, steps, answerRows) {
           ${sig ? `<img src="${esc(sig)}" alt="">` : '<div class="ex-ap-line"></div>'}
         </div>
         <div class="ex-ap-name">${act
-          ? `<b>${act.action === 'อนุมัติ' ? '✓ อนุมัติ' : '✗ ไม่อนุมัติ'}</b><br>
+          ? `<b>${act.action === 'อนุมัติ' ? '✓ อนุมัติ' : act.action === 'ส่งกลับแก้ไข' ? '↩ ส่งกลับแก้ไข' : '✗ ไม่อนุมัติ'}</b><br>
+             ${act.note ? `<span class="ex-ap-time">เหตุผล: ${esc(act.note)}</span><br>` : ''}
              ( ${esc(act.by)} )<br>
              <span class="ex-ap-time">${esc(thaiDateTime(act.at))}</span>`
           : `( ${esc(who)} )<br><span class="ex-ap-time">รออนุมัติ</span>`}

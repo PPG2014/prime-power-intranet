@@ -141,3 +141,16 @@
 }
 .rq-pager-info { color: var(--muted, #6b7280); font-size: .9em; }
 .rq-pager button[disabled] { opacity: .45; cursor: default; }
+
+/* แผงดำเนินการ 3 ปุ่ม + เหตุผล */
+.rq-note-label { display: block; font-size: .92em; margin: 4px 0 6px; }
+.rq-note-label .dim { font-weight: normal; }
+.rq-action textarea { width: 100%; box-sizing: border-box; }
+.rq-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
+.btn-mini.warn { color: #b7791f; border-color: #f0d49a; background: #fef6e7; }
+.btn-mini.warn:hover { background: #fcecc8; }
+.rq-buttons button[disabled] { opacity: .5; cursor: wait; }
+
+/* ไทม์ไลน์: ส่งกลับแก้ไข */
+.tl-act.back { color: #b7791f; }
+.tl-back .tl-dot { background: #d69e2e; }

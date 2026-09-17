@@ -147,7 +147,7 @@ export function roleOnRequest(req, steps, userName) {
     .map((s) => +s.StepOrder);
 
   const isInvolved = myStepNums.length > 0;
-  const done = ['อนุมัติแล้ว', 'ไม่อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก'].includes(req.Status);
+  const done = ['อนุมัติแล้ว', 'ไม่อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก', 'ส่งกลับแก้ไข'].includes(req.Status);
   const canActNow = isInvolved && myStepNums.includes(cur) && !done;
   const lastStep = steps.length ? +steps[steps.length - 1].StepOrder : 1;
 

@@ -14,7 +14,7 @@
 
 ## ขั้นที่ 0 — เตรียมก่อน (ห้ามข้าม)
 
-**0.1** อัป ZIP ล่าสุดขึ้น GitHub → Ctrl+Shift+R → F12 ต้องเห็น `build 2026-09-17-flowv2c`
+**0.1** อัป ZIP ล่าสุดขึ้น GitHub → Ctrl+Shift+R → F12 ต้องเห็น `build 2026-09-17-3btn`
 
 **0.2** เพิ่ม 3 คอลัมน์ใน SharePoint List **Requests**
 | ชื่อคอลัมน์ (พิมพ์ตามนี้เป๊ะ) | ชนิด |
@@ -158,8 +158,19 @@ if(equals(variables('varCode'), '1'), 'อนุมัติ', if(equals(variabl
 - แถว 1: ซ้าย (fx) `outputs('latest')?['body/PAState']` · is equal to · ขวา (พิมพ์) `WAITING`
 - **+ New row** (And)
 - แถว 2: ซ้าย (fx) `string(outputs('latest')?['body/CurrentStep'])` · is equal to · ขวา (fx) `string(triggerOutputs()?['body/CurrentStep'])`
+- **+ New row** (And)
+- แถว 3 (จำนวนบรรทัดประวัติต้องเท่าเดิม):
+  - ซ้าย (fx)
+    ```
+    length(json(if(empty(outputs('latest')?['body/ApprovalLog']), '[]', outputs('latest')?['body/ApprovalLog'])))
+    ```
+  - **is equal to**
+  - ขวา (fx)
+    ```
+    length(json(if(empty(triggerOutputs()?['body/ApprovalLog']), '[]', triggerOutputs()?['body/ApprovalLog'])))
+    ```
 
-> ถ้ามีคนดำเนินการในเว็บไปก่อนแล้ว = False → โฟลว์ไม่เขียนทับ · **กล่อง 10–13 ใส่ในสาขา True ทั้งหมด** · สาขา False ปล่อยว่าง
+> ถ้ามีคนดำเนินการในเว็บไปก่อน หรือผู้ยื่นแก้ไขและยื่นใหม่ระหว่างที่การ์ดเก่ายังค้าง = False → ผลจากการ์ดเก่าถูกข้าม ไม่เขียนทับ · **กล่อง 10–13 ใส่ในสาขา True ทั้งหมด** · สาขา False ปล่อยว่าง
 
 ---
 
@@ -239,6 +250,6 @@ concat('ผลการพิจารณา: <b>', outputs('resultText'), '</b>
 | กล่อง approval แดงที่ Assigned to | CurrentApprovers ว่างหรืออีเมลผิด → แก้ทะเบียนบุคลากร → ↻ ส่งแจ้งอนุมัติใหม่ |
 | ไม่เห็นปุ่มในอีเมล | เปิดใน Outlook (ปุ่มแบบกดได้ทำงานใน Outlook) หรือใช้ Teams → Approvals / ลิงก์ในอีเมลที่พาไปหน้า Approvals |
 | ได้การ์ดซ้ำ | โฟลว์เก่ายังเปิด → Turn off |
-| กดแล้วสถานะไม่เปลี่ยน | มีคนดำเนินการในเว็บไปก่อน (stillValid = False) ถูกต้องตามออกแบบ |
+| กดแล้วสถานะไม่เปลี่ยน | เป็นการ์ดใบเก่า — มีคนดำเนินการในเว็บไปก่อน หรือคำขอถูกยื่นใหม่แล้ว (stillValid = False) ถูกต้องตามออกแบบ ให้ใช้การ์ดใบล่าสุด |
 
 **ข้อจำกัดที่ต้องรู้:** ขั้นสุดท้ายของฟอร์มเบิกเงินที่ต้อง **แนบสลิป** — การ์ด Approvals ในอีเมล/Teams รับไฟล์แนบไม่ได้ ฝ่ายการเงินกด "1. อนุมัติ" ในการ์ดเพื่อปิดลำดับได้ แต่การแนบสลิปต้องทำในเว็บ

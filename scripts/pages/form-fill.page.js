@@ -272,7 +272,13 @@ export function mount(ctx) {
           FormData: JSON.stringify(res.values),
           Files: JSON.stringify(attachedFiles()),
           Status: 'รออนุมัติ', CurrentStep: first,
-          ApprovalLog: orig.ApprovalLog || '[]',
+          ApprovalLog: (() => {
+            let lg = []; try { lg = JSON.parse(orig.ApprovalLog || '[]'); } catch (e) { lg = []; }
+            if (!Array.isArray(lg)) lg = [];
+            lg.push({ step: 0, action: 'ยื่นใหม่', by: (me && me.Title) || state.user?.name || '',
+                      note: 'แก้ไขและยื่นใหม่', at: new Date().toISOString() });
+            return JSON.stringify(lg);
+          })(),
           ...flowFieldsFor(route, first),
         });
         if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
