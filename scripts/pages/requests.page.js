@@ -4,7 +4,7 @@ import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
-import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved } from '../services/requests.js';
+import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor } from '../services/requests.js';
 import { LETTERHEAD } from '../core/letterhead.js';
 import { standardLabel } from '../components/form-renderer.js';
 
@@ -331,6 +331,11 @@ async function openRequest(req) {
           ? '<div class="rq-wait">ยังไม่ถึงคิวของคุณ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : ''}
 
         ${requesterActions(req, log)}
+        ${state.isAdmin && req.Status === 'รออนุมัติ' ? `<div class="rq-owner-act">
+          <span>แอดมิน: สถานะแจ้งอนุมัติอัตโนมัติ = <b>${esc(req.PAState || 'ยังไม่ตั้ง')}</b>
+          · กดเพื่อคำนวณผู้อนุมัติใหม่และส่งการ์ดลำดับปัจจุบันอีกครั้ง</span>
+          <span class="rq-owner-btns"><button class="btn-mini" data-reqresend="${req.id}">↻ ส่งแจ้งอนุมัติใหม่</button></span>
+        </div>` : ''}
 
         <div class="rq-export-row">
           <button class="btn-mini" data-exportreq="${req.id}">⭳ ส่งออกเป็นเอกสาร (PDF)</button>
@@ -345,10 +350,25 @@ async function openRequest(req) {
     if (!confirm('ยกเลิกคำขอนี้ใช่หรือไม่ · การยกเลิกถาวร')) return;
     try {
       const { update } = await import('../services/data.js');
-      await update('requests', req.id, { Status: 'ยกเลิก' });
+      await update('requests', req.id, { Status: 'ยกเลิก', PAState: 'DONE' });
       closeModal();
       const { render: rr } = await import('../core/render.js'); rr();
     } catch (e) { alert('ยกเลิกไม่สำเร็จ — ' + e.message); }
+  });
+
+  onClick('reqresend', async () => {
+    try {
+      const { update } = await import('../services/data.js');
+      const { route, missing } = await buildRoute(req);
+      const f = flowFieldsFor(route, +req.CurrentStep || (route[0] && route[0].step) || 1);
+      await update('requests', req.id, f);
+      alert(String(f.PAState).startsWith('PENDING')
+        ? 'ส่งแจ้งแล้ว ผู้อนุมัติ: ' + f.CurrentApprovers
+        : 'ยังส่งไม่ได้ — ไม่พบอีเมลผู้อนุมัติของลำดับนี้'
+          + (missing.length ? '\nชื่อที่ไม่มีอีเมล/ไม่พบ: ' + missing.join(', ') : '')
+          + '\nตรวจช่อง Manager และ Email ในทะเบียนบุคลากร หรือช่อง Approvers ใน ApprovalMatrix');
+      setState({});
+    } catch (e) { alert('ส่งไม่สำเร็จ: ' + e.message); }
   });
 
   onClick('reqedit', async () => {

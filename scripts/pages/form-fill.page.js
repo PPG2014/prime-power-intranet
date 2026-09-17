@@ -1,9 +1,10 @@
 import { esc, $ } from '../core/dom.js';
-import { list, create } from '../services/data.js';
+import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard } from '../components/form-renderer.js';
 import { LETTERHEAD } from '../core/letterhead.js';
+import { buildRoute, flowFieldsFor } from '../services/requests.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -124,8 +125,8 @@ export async function render(ctx) {
         <h2>ส่งคำขอเรียบร้อย</h2>
         <p>เลขที่คำขอ <b>${esc(state.formSent)}</b></p>
         ${(state.formWarn && state.formWarn.length) ? `<div class="mock-warning" style="text-align:left">
-          ⚠ บันทึกสำเร็จ แต่บางช่องไม่ได้ลง SharePoint: ${esc(state.formWarn.join(', '))}<br>
-          ตรวจชนิดคอลัมน์ใน List Requests ให้ตรงกับคู่มือ</div>` : ''}
+          ⚠ บันทึกแล้ว แต่มีเรื่องที่ต้องแก้ ไม่งั้นการแจ้งอนุมัติอัตโนมัติจะไม่ทำงาน:<br>
+          • ${state.formWarn.map(esc).join('<br>• ')}</div>` : ''}
         <p class="dim">ติดตามความคืบหน้าได้ที่เมนูติดตามสถานะ</p>
         <div class="sent-actions">
           <a class="btn btn-primary" href="#/forms">กลับไปหน้าแบบฟอร์ม</a>
@@ -263,30 +264,49 @@ export function mount(ctx) {
     try {
       if (editId) {
         // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
-        const { update } = await import('../services/data.js');
+        const orig = (await list('requests').catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
+        const rq = { ...orig, FormCode: form.FormCode, FormData: JSON.stringify(res.values) };
+        const { route, missing } = await buildRoute(rq);
+        const first = route.length ? route[0].step : 1;
         const um = await update('requests', editId, {
           FormData: JSON.stringify(res.values),
           Files: JSON.stringify(attachedFiles()),
-          Status: 'รออนุมัติ', CurrentStep: 1,
+          Status: 'รออนุมัติ', CurrentStep: first,
+          ApprovalLog: orig.ApprovalLog || '[]',
+          ...flowFieldsFor(route, first),
         });
+        if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
         const uprob = [...(um?.skipped || []), ...(um?.dropped || [])];
         if (uprob.some((x) => /^(Status|CurrentStep|FormData)\b/.test(x)))
           throw new Error('บันทึกการแก้ไขไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + uprob.join('\n• '));
-        setState({ formSent: 'แก้ไขแล้ว', formDraft: null, formWarn: uprob.length ? uprob : null });
+        const w1 = [...uprob];
+        if (missing.length) w1.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
+        if (!route.length) w1.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
+        setState({ formSent: 'แก้ไขแล้ว', formDraft: null, formWarn: w1.length ? w1 : null });
         return;
       }
 
-      const r = await createWithDocNo(form.FormCode, {
+      const base = {
         FormCode: form.FormCode,
         FormName: form.Title,
         RequesterName: state.user?.name || '',
         RequesterEmail: state.user?.email || '',
         RequesterDept: me?.Department || '',
-        Status: 'รออนุมัติ',
-        CurrentStep: 1,
-        SubmittedDate: new Date().toISOString(),
         FormData: JSON.stringify(res.values),
+      };
+      // คำนวณเส้นทาง + อีเมลผู้อนุมัติทุกลำดับไว้ล่วงหน้า ให้ Power Automate ใช้ได้ทันที
+      const { route, missing } = await buildRoute(base);
+      const first = route.length ? route[0].step : 1;
+      if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
+
+      const r = await createWithDocNo(form.FormCode, {
+        ...base,
+        Status: 'รออนุมัติ',
+        CurrentStep: first,
+        SubmittedDate: new Date().toISOString(),
         Files: JSON.stringify(attachedFiles()),
+        ApprovalLog: '[]',
+        ...flowFieldsFor(route, first),
       });
 
       // ถ้าช่องสำคัญเขียนลง SharePoint ไม่ได้ อย่าขึ้นสำเร็จปลอม — บอกสาเหตุให้ชัด
@@ -299,7 +319,10 @@ export function mount(ctx) {
           'Status/FormCode ต้องเป็น Single line of text (ไม่ใช่ Choice), CurrentStep ต้องเป็น Number, ApprovalLog ต้องเป็น Multiple lines of text');
       }
 
-      setState({ formSent: r.no, formDraft: null, formWarn: problems.length ? problems : null });
+      const warn = [...problems];
+      if (missing.length) warn.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
+      if (!route.length) warn.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
+      setState({ formSent: r.no, formDraft: null, formWarn: warn.length ? warn : null });
     } catch (e) {
       console.error(e);
       err.innerHTML = `ส่งคำขอไม่สำเร็จ<br>${esc(e.message).replace(/\n/g, '<br>')}`;

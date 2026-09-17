@@ -154,6 +154,52 @@ export function roleOnRequest(req, steps, userName) {
 }
 
 /** บันทึกการตัดสินใจของผู้อนุมัติ แล้วเลื่อนสถานะคำขอ */
+
+/* ─────────────────────────────────────────────────────────────
+ * เส้นทางสำเร็จรูปสำหรับ Power Automate
+ * เว็บคำนวณผู้อนุมัติ + อีเมล ของทุกลำดับไว้ล่วงหน้า แล้วเขียนลงคำขอ
+ * โฟลว์จึงไม่ต้องค้น List อื่นเลย อ่านจากคำขอใบเดียวจบ
+ *   Route            = JSON [{step, name, mode, emails}]
+ *   CurrentApprovers = อีเมลของลำดับปัจจุบัน คั่นด้วย ;
+ *   PAState          = PENDING / PENDING_ALL (ให้โฟลว์ส่งการ์ด) / WAITING / DONE / NOAPPROVER
+ * ───────────────────────────────────────────────────────────── */
+export async function buildRoute(req) {
+  const steps = await stepsOf(req.FormCode);
+  const dir = await list('directory').catch(() => []);
+  const emailOf = (name) => {
+    const p = dir.find((x) => String(x.Title).trim() === String(name).trim());
+    return p && p.Email ? String(p.Email).trim() : '';
+  };
+  const route = [];
+  const missing = [];
+  for (const s of steps) {
+    const names = await resolveApprovers(s, req).catch(() => []);
+    const emails = names.map(emailOf).filter(Boolean);
+    names.forEach((n) => { if (!emailOf(n)) missing.push(n); });
+    route.push({
+      step: +s.StepOrder || route.length + 1,
+      name: String(s.StepName || s.Title || ''),
+      mode: String(s.ApproveMode || ''),
+      all: String(s.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน',
+      emails: [...new Set(emails)].join(';'),
+    });
+  }
+  return { route, missing: [...new Set(missing)] };
+}
+
+/** ช่องที่ต้องเขียนเพื่อให้โฟลว์ส่งการ์ดของลำดับ stepNo */
+export function flowFieldsFor(route, stepNo) {
+  const cur = route.find((r) => r.step === +stepNo);
+  return {
+    Route: JSON.stringify(route),
+    CurrentApprovers: cur ? cur.emails : '',
+    // PENDING = ใครคนใดคนหนึ่งกดก็ผ่าน · PENDING_ALL = ต้องกดครบทุกคน
+    PAState: !(cur && cur.emails) ? 'NOAPPROVER' : (cur.all ? 'PENDING_ALL' : 'PENDING'),
+  };
+}
+
+const routeOf = (req) => { try { const a = JSON.parse(req.Route || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+
 export async function decide(req, steps, { action, by, note = '', slip = null }) {
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
@@ -166,6 +212,10 @@ export async function decide(req, steps, { action, by, note = '', slip = null })
 
   if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
+    patch.PAState = 'DONE';
+  } else if (action === 'ส่งกลับแก้ไข') {
+    patch.Status = 'ส่งกลับแก้ไข';
+    patch.PAState = 'DONE';
   } else if (action === 'อนุมัติ') {
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
     const approvers = (step && step._resolved) || toArr(step && step.Approvers);
@@ -176,13 +226,21 @@ export async function decide(req, steps, { action, by, note = '', slip = null })
 
     if (stepDone) {
       const next = steps.filter((s) => +s.StepOrder > cur).map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
-      if (next) { patch.CurrentStep = next; patch.Status = 'รออนุมัติ'; }
-      else patch.Status = 'อนุมัติแล้ว';
+      if (next) {
+        patch.CurrentStep = next; patch.Status = 'รออนุมัติ';
+        // ให้โฟลว์ส่งการ์ดลำดับถัดไป
+        let route = routeOf(req);
+        if (!route.length) route = (await buildRoute(req)).route;
+        Object.assign(patch, flowFieldsFor(route, next));
+      } else {
+        patch.Status = 'อนุมัติแล้ว';
+        patch.PAState = 'DONE';
+      }
     }
   }
 
   if (slip) patch.PaymentSlip = JSON.stringify(slip);
-  if (action === 'ปิดงาน') patch.Status = 'เสร็จสิ้น';
+  if (action === 'ปิดงาน') { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
 
   await update('requests', req.id, patch);
   return { ...req, ...patch };
