@@ -153,3 +153,19 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .group-select { padding: 8px 12px; border: 1px solid var(--blue-light); border-radius: var(--radius-sm);
   font-size: 13.5px; background: #fff; min-width: 280px; max-width: 100%; }
 .group-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(0,103,184,.12); }
+
+/* แถบค้นหา + ตัวกรอง ฝ่าย/แผนก ในหน้าจัดการข้อมูล */
+.admin-toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin: 10px 0 6px;
+}
+.admin-toolbar .admin-q {
+  flex: 1 1 220px; min-width: 180px;
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
+  font: inherit; background: var(--surface, #fff);
+}
+.admin-toolbar .facet-select {
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+  font: inherit; background: var(--surface, #fff); max-width: 220px;
+}
+.admin-toolbar .admin-count-wrap { margin-left: auto; color: var(--muted, #6b7280); font-size: .9em; }

@@ -1,4 +1,4 @@
-import { esc, $, onClick } from '../core/dom.js';
+import { esc, $, $$, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
 import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, toFiles } from '../admin/entity-form.js';
@@ -135,11 +135,23 @@ export async function render(ctx) {
             ${esc(loadError)}<br>
             ลองรีเฟรชหน้า หรือออกจากระบบแล้วเข้าใหม่ · เมนูอื่นยังใช้ได้ตามปกติ
           </div>` : ''}
+          ${(s.search || (s.facets && s.facets.length)) && !loadError ? `<div class="admin-toolbar">
+            ${s.search ? `<input class="admin-q" id="admin-q" type="search" data-keepfocus
+              placeholder="ค้นหาในตาราง…" autocomplete="off">` : ''}
+            ${(s.facets || []).map((f) => `<select class="facet-select" data-facet="${f}">
+              <option value="">${esc(s.labels[f] || f)}: ทั้งหมด</option>
+              ${[...new Set(rows.map((r) => String(r[f] ?? '').trim()).filter(Boolean))].sort()
+                .map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+            </select>`).join('')}
+            <span class="admin-count-wrap">แสดง <span id="admin-count">${rows.length}</span> / ${rows.length}</span>
+          </div>` : ''}
           <div class="table-scroll"><table>
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
               <th class="col-actions"></th></tr></thead>
-            <tbody>${rows.length ? rows.map((r, i) => `<tr>
+            <tbody id="admin-tbody">${rows.length ? rows.map((r, i) => `<tr data-search="${esc(
+              s.columns.concat(s.facets || []).map((c) => (r[c] == null ? '' : (typeof r[c] === 'object' ? '' : r[c]))).join(' ').toLowerCase())
+            }"${(s.facets || []).map((f) => ` data-f-${f}="${esc(String(r[f] ?? '').trim())}"`).join('')}>
               ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img data-photo="${esc(r[c])}" alt="">` : '—'}</td>`
@@ -161,6 +173,7 @@ export async function render(ctx) {
                 <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
               </td></tr>`).join('')
               : `<tr><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ยังไม่มีข้อมูล กด “เพิ่มรายการ” เพื่อเริ่มต้น</div></td></tr>`}
+              <tr id="admin-nomatch" style="display:none"><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ไม่พบรายการที่ตรงกับการค้นหา</div></td></tr>
             </tbody>
           </table></div>
           <div class="panel-note">
@@ -349,6 +362,29 @@ function formLabel(code) {
 
 export function mount(ctx) {
   hydratePhotos($('#app'));
+
+  // ค้นหา + ตัวกรอง ฝ่าย/แผนก แบบกรองในที่ (ไม่รีเฟรชทั้งหน้า เคอร์เซอร์ไม่หลุด)
+  const q = $('#admin-q');
+  const facetSels = $$('.facet-select');
+  if (q || facetSels.length) {
+    const applyFilter = () => {
+      const term = (q?.value || '').trim().toLowerCase();
+      const picked = {};
+      facetSels.forEach((se) => { if (se.value) picked[se.dataset.facet] = se.value; });
+      let shown = 0;
+      $$('#admin-tbody tr[data-search]').forEach((tr) => {
+        let ok = !term || tr.dataset.search.includes(term);
+        for (const k in picked) { if (tr.getAttribute('data-f-' + k) !== picked[k]) ok = false; }
+        tr.style.display = ok ? '' : 'none';
+        if (ok) shown += 1;
+      });
+      const nm = $('#admin-nomatch'); if (nm) nm.style.display = shown ? 'none' : '';
+      const c = $('#admin-count'); if (c) c.textContent = shown;
+    };
+    if (q) q.oninput = applyFilter;
+    facetSels.forEach((se) => { se.onchange = applyFilter; });
+  }
+
   onClick('set', (k) => setState({ adminSet: k, adminGroup: '' }));
 
   const gsel = $('.group-select');

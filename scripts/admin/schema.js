@@ -22,6 +22,7 @@ export const SCHEMA = {
 
   sections: {
     title: 'แผนก', icon: '🗂', list: 'sections', spName: 'Sections', sortField: 'SortOrder',
+    search: true, facets: ['Department'],
     unique: ['Title', 'Department'],
     hint: 'ทะเบียนแผนกย่อยภายในฝ่าย ใช้เป็นตัวเลือกในหน้าบุคลากร เพื่อไม่ให้พิมพ์ชื่อแผนกไม่ตรงกัน',
     columns: ['Title', 'Department'],
@@ -36,11 +37,12 @@ export const SCHEMA = {
 
   projects: {
     title: 'โครงการ', icon: '🏗', list: 'projects', spName: 'Projects', sortField: 'SortOrder',
+    search: true, facets: ['Department'],
     unique: ['Title', 'ProjectCode'],
     history: 'projectHistory',
     hint: 'ทะเบียนโครงการและความคืบหน้า · ทุกครั้งที่บันทึก ระบบเก็บค่าเดิมไว้ในประวัติให้อัตโนมัติ',
     columns: ['ProjectCode', 'Title', 'Status', 'Owner', 'ActualProgress', 'UpdatedDate'],
-    labels: { ProjectCode: 'รหัส', Title: 'ชื่อโครงการ', Status: 'สถานะ',
+    labels: { ProjectCode: 'รหัส', Title: 'ชื่อโครงการ', Status: 'สถานะ', Department: 'ฝ่าย',
               Owner: 'ผู้รับผิดชอบ', ActualProgress: 'จริง %', UpdatedDate: 'อัปเดต' },
     fields: [
       { key: 'ProjectCode', label: 'รหัสโครงการ', type: 'text', help: 'เช่น PJ-2569-01' },
@@ -74,6 +76,7 @@ export const SCHEMA = {
 
   projectHistory: {
     title: 'ประวัติความคืบหน้า', icon: '🕓', list: 'projectHistory', spName: 'ProjectHistory',
+    search: true, facets: ['Title'],
     hint: 'ระบบบันทึกให้อัตโนมัติทุกครั้งที่แก้ไขความคืบหน้าโครงการ ใช้ดูย้อนหลังและทำกราฟ',
     readOnly: true,
     columns: ['RecordedDate', 'ProjectCode', 'Title', 'PlanProgress', 'ActualProgress', 'ActualPayment'],
@@ -93,6 +96,7 @@ export const SCHEMA = {
 
   directory: {
     title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
+    search: true, facets: ['Department', 'Section'],
     unique: ['Title'],
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
     columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section'],
