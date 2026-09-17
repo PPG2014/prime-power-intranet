@@ -21,7 +21,10 @@ export async function resolveApprovers(step, req) {
   if (type === 'ระบุชื่อเจาะจง') return named;
 
   const dir = await list('directory').catch(() => []);
-  const me = dir.find((p) => p.Title === req.RequesterName);
+  // หาตัวผู้ยื่นด้วยอีเมลก่อน (ชื่อจาก Microsoft 365 มักเป็นภาษาอังกฤษ ไม่ตรงกับชื่อไทยในทะเบียน)
+  const em = String(req.RequesterEmail || '').trim().toLowerCase();
+  const me = (em && dir.find((p) => String(p.Email || '').trim().toLowerCase() === em))
+    || dir.find((p) => String(p.Title).trim() === String(req.RequesterName || '').trim());
 
   if (type === 'ผู้บังคับบัญชาของผู้ยื่น') {
     // อ่านหัวหน้าจากทะเบียนบุคลากรก่อน (แก้ได้ที่หน้าแก้ไขบุคลากร) แล้วค่อยเผื่อลิสต์เก่า
@@ -135,9 +138,12 @@ export const parseLog = (v) => { try { const a = JSON.parse(v || '[]'); return A
  */
 export function roleOnRequest(req, steps, userName) {
   const cur = +req.CurrentStep || 1;
+  // ตัวตนผู้ใช้ รับได้ทั้งชื่อเดียวหรือหลายชื่อ (ชื่อไทยในทะเบียน + ชื่อจาก Microsoft 365)
+  const ids = (Array.isArray(userName) ? userName : [userName])
+    .map((x) => String(x || '').trim()).filter(Boolean);
   // ผู้อนุมัติที่ resolve ไว้ล่วงหน้าใน step._resolved (เติมโดย loadResolved)
   const myStepNums = steps
-    .filter((s) => (s._resolved || toArr(s.Approvers)).includes(userName))
+    .filter((s) => (s._resolved || toArr(s.Approvers)).some((a) => ids.includes(String(a).trim())))
     .map((s) => +s.StepOrder);
 
   const isInvolved = myStepNums.length > 0;

@@ -289,7 +289,7 @@ export function mount(ctx) {
       const base = {
         FormCode: form.FormCode,
         FormName: form.Title,
-        RequesterName: state.user?.name || '',
+        RequesterName: (me && me.Title) || state.user?.name || '',
         RequesterEmail: state.user?.email || '',
         RequesterDept: me?.Department || '',
         FormData: JSON.stringify(res.values),

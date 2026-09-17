@@ -19,6 +19,7 @@ const STATUS_TONE = {
 let allRequests = [];
 let stepCache = {};
 let me = '';
+let meIds = [];
 
 /**
  * หา FormCode ของคำขอให้ได้เป็นข้อความเสมอ เผื่อคอลัมน์เป็น Lookup/ออบเจ็กต์
@@ -86,7 +87,12 @@ function requestRow(req, opts = {}) {
 }
 
 export async function render(ctx) {
-  me = state.user?.name || '';
+  // ชื่อที่ใช้เทียบ/บันทึก = ชื่อในทะเบียนบุคลากร (หาด้วยอีเมล) ถ้าไม่เจอใช้ชื่อจาก Microsoft 365
+  const dirAll = await list('directory').catch(() => []);
+  const myEmail = String(state.user?.email || '').trim().toLowerCase();
+  const mePerson = dirAll.find((p) => String(p.Email || '').trim().toLowerCase() === myEmail);
+  me = (mePerson && mePerson.Title) || state.user?.name || '';
+  meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
 
   allRequests = (await list('requests').catch(() => []))
@@ -112,7 +118,7 @@ export async function render(ctx) {
   // คำขอที่ผู้ใช้เกี่ยวข้องในฐานะผู้อนุมัติ (แอดมินเห็นทุกใบ)
   const toReview = allRequests.filter((r) => {
     if (isAdmin) return true;
-    const role = roleOnRequest(r, r._steps || [], me);
+    const role = roleOnRequest(r, r._steps || [], meIds);
     return role.isInvolved;
   });
 
@@ -127,7 +133,7 @@ export async function render(ctx) {
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
 
   const actableCount = toReview.filter((r) =>
-    roleOnRequest(r, r._steps || [], me).canActNow).length;
+    roleOnRequest(r, r._steps || [], meIds).canActNow).length;
 
   return `
   <section class="page page-requests">
@@ -150,7 +156,7 @@ export async function render(ctx) {
             <div class="rq-list">
               ${shownGroup.rows.map((r) => requestRow(r, {
                 showRequester: true,
-                canAct: roleOnRequest(r, r._steps || [], me).canActNow,
+                canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
               })).join('')}
             </div>`
           : `<div class="panel"><div class="empty">
@@ -245,7 +251,7 @@ function noRouteBox(code) {
 /** หน้าต่างรายละเอียดคำขอ พร้อมปุ่มอนุมัติถ้าถึงคิว */
 async function openRequest(req) {
   const steps = req._steps || stepCache[req.FormCode] || [];
-  const role = roleOnRequest(req, steps, me);
+  const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
 
