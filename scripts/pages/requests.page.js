@@ -99,6 +99,16 @@ export async function render(ctx) {
   const mine = allRequests.filter((r) => r.RequesterEmail
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
 
+  // ค้นหา + แบ่งหน้า กล่อง "คำขอของฉัน" (15 รายการต่อหน้า)
+  const MINE_PER = 15;
+  const mineQ = (state.mineQuery || '').trim().toLowerCase();
+  const mineFiltered = mineQ
+    ? mine.filter((r) => (String(r.Title) + ' ' + String(r.FormName || '')).toLowerCase().includes(mineQ))
+    : mine;
+  const minePages = Math.max(1, Math.ceil(mineFiltered.length / MINE_PER));
+  const minePage = Math.min(Math.max(1, state.minePage || 1), minePages);
+  const mineRows = mineFiltered.slice((minePage - 1) * MINE_PER, minePage * MINE_PER);
+
   // คำขอที่ผู้ใช้เกี่ยวข้องในฐานะผู้อนุมัติ (แอดมินเห็นทุกใบ)
   const toReview = allRequests.filter((r) => {
     if (isAdmin) return true;
@@ -151,10 +161,21 @@ export async function render(ctx) {
         <aside class="rq-mine">
           <div class="panel">
             <div class="panel-head">📄 คำขอของฉัน
-              <span class="panel-meta">${mine.length} รายการ</span></div>
-            ${mine.length ? `<div class="rq-list">
-              ${mine.map((r) => requestRow(r)).join('')}</div>`
-            : '<div class="side-empty">คุณยังไม่ได้ยื่นคำขอ<br><a href="#/forms">ไปหน้าแบบฟอร์ม</a></div>'}
+              <span class="panel-meta">${mineFiltered.length} รายการ</span></div>
+            ${mine.length ? `<div class="rq-mine-tools">
+              <input id="mine-q" type="search" data-keepfocus value="${esc(state.mineQuery || '')}"
+                placeholder="ค้นหาเลขที่ / ชื่อฟอร์ม…" autocomplete="off">
+            </div>` : ''}
+            ${mineFiltered.length ? `<div class="rq-list rq-mine-list">
+              ${mineRows.map((r) => requestRow(r)).join('')}</div>
+              ${minePages > 1 ? `<div class="rq-pager">
+                <button class="btn-mini" data-minepage="${minePage - 1}" ${minePage <= 1 ? 'disabled' : ''}>‹ ก่อนหน้า</button>
+                <span class="rq-pager-info">หน้า ${minePage} / ${minePages}</span>
+                <button class="btn-mini" data-minepage="${minePage + 1}" ${minePage >= minePages ? 'disabled' : ''}>ถัดไป ›</button>
+              </div>` : ''}`
+            : (mine.length
+              ? '<div class="side-empty">ไม่พบคำขอที่ค้นหา</div>'
+              : '<div class="side-empty">คุณยังไม่ได้ยื่นคำขอ<br><a href="#/forms">ไปหน้าแบบฟอร์ม</a></div>')}
           </div>
         </aside>
       </div>
@@ -474,6 +495,18 @@ async function exportRequest(req, steps, answerRows) {
 
 export function mount(ctx) {
   onClick('tab', (code) => setState({ reviewTab: code }));
+
+  // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
+  const mq = $('#mine-q');
+  if (mq) {
+    let t;
+    mq.oninput = (e) => {
+      const v = e.target.value;
+      clearTimeout(t);
+      t = setTimeout(() => setState({ mineQuery: v, minePage: 1 }), 250);
+    };
+  }
+  onClick('minepage', (p) => setState({ minePage: +p }));
   onClick('open', (id) => {
     const r = allRequests.find((x) => String(x.id) === String(id));
     if (r) openRequest(r);
