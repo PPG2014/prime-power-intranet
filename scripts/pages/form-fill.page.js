@@ -56,7 +56,8 @@ async function createWithDocNo(formCode, payload) {
     if (existing.some((r) => String(r.Title) === no)) { attempt++; continue; }
 
     try {
-      await create('requests', { ...payload, Title: no });
+      const meta = await create('requests', { ...payload, Title: no });
+      const info = { skipped: meta?.skipped || [], dropped: meta?.dropped || [] };
       // กันชั้นสอง อ่านซ้ำหลังบันทึก ถ้ามีเลขนี้มากกว่าหนึ่งรายการ แปลว่าชนกัน
       const after = await list('requests').catch(() => []);
       const dup = after.filter((r) => String(r.Title) === no);
@@ -67,10 +68,10 @@ async function createWithDocNo(formCode, payload) {
         if (winnerExists) {
           const newNo = docNo(formCode, seq + 1 + attempt, year);
           await update('requests', mine.id, { Title: newNo });
-          return newNo;
+          return { no: newNo, ...info };
         }
       }
-      return no;
+      return { no, ...info };
     } catch (e) {
       attempt++;
       if (attempt >= 5) throw e;
@@ -122,6 +123,9 @@ export async function render(ctx) {
         <div class="sent-mark">✓</div>
         <h2>ส่งคำขอเรียบร้อย</h2>
         <p>เลขที่คำขอ <b>${esc(state.formSent)}</b></p>
+        ${(state.formWarn && state.formWarn.length) ? `<div class="mock-warning" style="text-align:left">
+          ⚠ บันทึกสำเร็จ แต่บางช่องไม่ได้ลง SharePoint: ${esc(state.formWarn.join(', '))}<br>
+          ตรวจชนิดคอลัมน์ใน List Requests ให้ตรงกับคู่มือ</div>` : ''}
         <p class="dim">ติดตามความคืบหน้าได้ที่เมนูติดตามสถานะ</p>
         <div class="sent-actions">
           <a class="btn btn-primary" href="#/forms">กลับไปหน้าแบบฟอร์ม</a>
@@ -260,16 +264,19 @@ export function mount(ctx) {
       if (editId) {
         // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
         const { update } = await import('../services/data.js');
-        await update('requests', editId, {
+        const um = await update('requests', editId, {
           FormData: JSON.stringify(res.values),
           Files: JSON.stringify(attachedFiles()),
           Status: 'รออนุมัติ', CurrentStep: 1,
         });
-        setState({ formSent: 'แก้ไขแล้ว', formDraft: null });
+        const uprob = [...(um?.skipped || []), ...(um?.dropped || [])];
+        if (uprob.some((x) => /^(Status|CurrentStep|FormData)\b/.test(x)))
+          throw new Error('บันทึกการแก้ไขไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + uprob.join('\n• '));
+        setState({ formSent: 'แก้ไขแล้ว', formDraft: null, formWarn: uprob.length ? uprob : null });
         return;
       }
 
-      const no = await createWithDocNo(form.FormCode, {
+      const r = await createWithDocNo(form.FormCode, {
         FormCode: form.FormCode,
         FormName: form.Title,
         RequesterName: state.user?.name || '',
@@ -282,10 +289,20 @@ export function mount(ctx) {
         Files: JSON.stringify(attachedFiles()),
       });
 
-      setState({ formSent: no, formDraft: null });
+      // ถ้าช่องสำคัญเขียนลง SharePoint ไม่ได้ อย่าขึ้นสำเร็จปลอม — บอกสาเหตุให้ชัด
+      const problems = [...(r.skipped || []), ...(r.dropped || [])];
+      const critical = problems.filter((x) => /^(Status|CurrentStep|FormCode|FormData)\b/.test(x));
+      if (critical.length) {
+        throw new Error(
+          'คำขอบันทึกไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + problems.join('\n• ') +
+          '\n\nวิธีแก้: เปิด List Requests ที่ SharePoint แล้วแก้ชนิดคอลัมน์ให้ถูก — ' +
+          'Status/FormCode ต้องเป็น Single line of text (ไม่ใช่ Choice), CurrentStep ต้องเป็น Number, ApprovalLog ต้องเป็น Multiple lines of text');
+      }
+
+      setState({ formSent: r.no, formDraft: null, formWarn: problems.length ? problems : null });
     } catch (e) {
       console.error(e);
-      err.innerHTML = `ส่งคำขอไม่สำเร็จ<br>${esc(e.message)}`;
+      err.innerHTML = `ส่งคำขอไม่สำเร็จ<br>${esc(e.message).replace(/\n/g, '<br>')}`;
       err.hidden = false;
       send.disabled = false;
       send.textContent = 'ส่งคำขอ';

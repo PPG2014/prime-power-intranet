@@ -294,6 +294,8 @@ export async function create(name, item) {
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
   const { res, dropped } = await send(name, fields, (f) =>
     call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields: f }) }));
+  if (skipped.length || dropped.length)
+    console.warn(`[create ${name}] SharePoint ไม่รับบางช่อง:`, { skipped, dropped });
   return { ...res, skipped, dropped };
 }
 
@@ -301,6 +303,8 @@ export async function update(name, id, item) {
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
   const { res, dropped } = await send(name, fields, (f) =>
     call(`/lists/${listId(name)}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(f) }));
+  if (skipped.length || dropped.length)
+    console.warn(`[update ${name}] SharePoint ไม่รับบางช่อง:`, { skipped, dropped });
   return { ...res, skipped, dropped };
 }
 

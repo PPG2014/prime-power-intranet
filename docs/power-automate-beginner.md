@@ -22,9 +22,15 @@
 
 ### 0.3 กติกาทองของมือใหม่
 1. ทำ **ทีละส่วน** แล้วกด **บันทึก (Save)** ทุกครั้ง — ไม่ต้องรอทำครบแล้วค่อยเซฟ
-2. **ชื่อของแต่ละ Action ต้องตรงกับในคู่มือ** เพราะสูตรอ้างถึงชื่อพวกนี้ ถ้าคุณตั้งชื่อเอง ต้องแก้ในสูตรให้ตรงด้วย
-   (วิธีเปลี่ยนชื่อ Action: คลิกจุดสามจุด ⋯ บนกล่อง → เปลี่ยนชื่อ / Rename)
+2. **ชื่อกล่องที่ถูกอ้างในสูตร ต้องเป็นอังกฤษล้วน ไม่มีเว้นวรรค และตรงกับในคู่มือเป๊ะ**
+   ⚠️ ห้ามตั้งชื่อภาษาไทยหรือมีเว้นวรรคกับกล่องที่สูตรอ้างถึง (เช่น `stepItems`, `approval`, `nextStep`)
+   เพราะเวลาสูตรอ้างชื่อที่มีเว้นวรรค/ภาษาไทย Power Automate จะหาไม่เจอ ขึ้นแถบแดง "invalid reference"
+   ตอนตั้งชื่ออย่าลบคำนำหน้าครึ่ง ๆ เช่นเหลือ "Get items stepItems" — ต้องเป็น `stepItems` ล้วน ๆ
+   (วิธีเปลี่ยนชื่อ: คลิก ⋯ บนกล่อง → Rename)
 3. สูตรในกรอบโค้ด ให้ **คัดลอกทั้งบรรทัด** ไปวาง อย่าพิมพ์เอง (กันพิมพ์ตก)
+   - ⚠️ **ในหน้าต่าง fx (Expression) ห้ามใส่ `@{ }` ครอบ** พิมพ์เฉพาะสูตรข้างใน
+     ใช้กับช่อง: On ของ Switch, Inputs ของ Compose, Value ของ Set/Append variable
+   - ช่องข้อความธรรมดาที่พิมพ์ปนคำอื่น (Title, Details, **Filter Query**) → ใช้ `@{...}` ครอบเฉพาะส่วนสูตร
 4. ค่าภาษาไทย (เช่น `รออนุมัติ`) ต้องสะกดตรงเป๊ะ เว้นวรรคห้ามเกิน
 
 ### 0.4 ของที่ต้องมีก่อน
@@ -138,13 +144,13 @@ if(empty(triggerOutputs()?['body/ApprovalLog']), json('[]'), json(triggerOutputs
 FormCode eq '@{triggerOutputs()?['body/FormCode']}' and StepOrder eq @{triggerOutputs()?['body/CurrentStep']}
 ```
 4. ช่อง **Top Count** ใส่ `1`
-5. **เปลี่ยนชื่อกล่องนี้เป็น** `ขั้นปัจจุบัน` (⋯ → เปลี่ยนชื่อ)
+5. **เปลี่ยนชื่อกล่องนี้เป็น** `stepItems` (⋯ → Rename) — อังกฤษล้วน ไม่มีเว้นวรรค ห้ามเหลือคำว่า "Get items" นำหน้า
 
 จากนั้นเพิ่มกล่องพักค่า 1 อัน:
 6. **+ ขั้นตอนใหม่** → ค้นหา `Compose` → เลือก → **เปลี่ยนชื่อเป็น** `stepNow`
 7. ช่อง Inputs ใส่ (แท็บ Expression):
 ```
-first(outputs('ขั้นปัจจุบัน')?['body/value'])
+first(outputs('stepItems')?['body/value'])
 ```
 > ต่อจากนี้เราจะอ้างค่าของลำดับปัจจุบันด้วย `outputs('stepNow')?['ApproverType']` เป็นต้น
 
@@ -157,7 +163,7 @@ first(outputs('ขั้นปัจจุบัน')?['body/value'])
 ผู้อนุมัติมี 5 แบบ เราใช้กล่อง **Switch** แยกกรณีตามค่า `ApproverType`
 
 1. **+ ขั้นตอนใหม่** → ค้นหา `Switch` → เลือก
-2. ช่อง **On** ใส่ (Expression): `@{outputs('stepNow')?['ApproverType']}`
+2. ช่อง **On** → กด fx แล้วพิมพ์ (ไม่มี @{ }): `outputs('stepNow')?['ApproverType']`
 3. กด **+ เพิ่ม Case** ให้ครบตามด้านล่าง (พิมพ์ค่าในช่อง Equals ให้ตรงเป๊ะ)
 
 **Case 1 — `ระบุชื่อเจาะจง`** (ระบุตัวคนไว้แล้วใน Approvers)
@@ -174,24 +180,39 @@ first(outputs('ขั้นปัจจุบัน')?['body/value'])
 if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), createArray(first(outputs('Get_me')?['body/value'])?['Manager']))
 ```
 
-**Case 3 — `ผู้รับผิดชอบหลักของโครงการ`**
-- **Parse JSON**: Content = `@{triggerOutputs()?['body/FormData']}` → กด "Generate from sample" แล้ววาง JSON ตัวอย่างของฟอร์มนั้น (ให้มี field `project`)
-- **Get items** (Projects) → Filter: `Title eq '@{body('Parse_JSON')?['project']}'`, Top 1 → ชื่อกล่อง `Get_project`
-- **Set variable** `varNames` = `@{createArray(first(outputs('Get_project')?['body/value'])?['Owner'])}`
-
-**Case 4 และ 5 — `ผู้จัดการฝ่ายของผู้ยื่น` / `หัวหน้าฝ่ายตามสังกัด`** (ทำเหมือนกัน สร้าง 2 Case ชี้มาชุด Action เดียวกันได้)
-- **Get items** (Directory) → Filter: `Department eq '@{triggerOutputs()?['body/RequesterDept']}'` → ชื่อ `Get_dept`
-- **Filter array**: From = `@{outputs('Get_dept')?['body/value']}` → กดปุ่ม "แก้ไขในโหมดขั้นสูง" แล้ววาง:
+**Case 3 — `ผู้รับผิดชอบหลักของโครงการ`** (ไม่ต้องใช้ Parse JSON — ใช้ json() ในสูตรทีเดียวจบ)
+- **Get items** (Projects) → ชื่อกล่อง `Get_project` → **Filter Query** (ช่องปกติ ใช้ @{}):
 ```
-@or(contains(item()?['Position'],'ผู้จัดการฝ่าย'), contains(item()?['Position'],'หัวหน้าฝ่าย'), contains(item()?['Position'],'ผู้อำนวยการ'))
+Title eq '@{coalesce(json(triggerOutputs()?['body/FormData'])?['project'], json(triggerOutputs()?['body/FormData'])?['project_name'], json(triggerOutputs()?['body/FormData'])?['ProjectName'])}'
 ```
-- **Select** (ชื่อ `Select_heads`): From = `@{body('Filter_array')}`, Map = `@{item()?['Title']}`
-- **Set variable** `varNames` = `@{body('Select_heads')}`
+  → Show all → Top Count `1`
+- **Set variable** `varNames` = (fx, ไม่มี @{}):
+```
+createArray(coalesce(first(outputs('Get_project')?['body/value'])?['Owner']?['Value'], first(outputs('Get_project')?['body/value'])?['Owner']))
+```
+  > `json()` แกะ FormData · `coalesce` ครอบชื่อช่องโครงการทุกแบบ (project/project_name/ProjectName) และรองรับ Owner ทั้งข้อความและ Lookup
 
-**ช่องสำรอง (กันผู้อนุมัติว่าง) — ทำต่อจาก Switch**
-หลังกล่อง Switch เพิ่ม **Condition**: ซ้าย `@{length(variables('varNames'))}` / เท่ากับ / `0`
-- ในสาขา **ถ้าใช่ (If yes)**: Select จาก `@{outputs('stepNow')?['Approvers']}` (map `@{item()?['Value']}`) แล้ว Set `varNames`
-> แปลว่า: ถ้าหาตามตำแหน่งไม่เจอ ให้ใช้รายชื่อสำรองในช่อง Approvers เสมอ
+**Case 4 และ 5 — `ผู้จัดการฝ่ายของผู้ยื่น` / `หัวหน้าฝ่ายตามสังกัด`**
+> ⚠️ Switch ใส่ค่าได้ Case ละ 1 ค่า ชี้ 2 Case มาชุด Action เดียวกันไม่ได้ — เราจึง **ไม่ใส่ 2 ค่านี้ใน Switch** แต่ดักด้วย Condition หลัง Switch ทีเดียว (ทำงานน้อยกว่า ไม่ชนกัน) · ใน Switch เหลือแค่ Case 1, 2, 3
+
+**A) Condition "เป็นหัวหน้าฝ่ายไหม" (ใต้กล่อง Switch, นอก Switch):**
+- เงื่อนไขแบบ Or 2 แถว: `outputs('stepNow')?['ApproverType']` is equal to `ผู้จัดการฝ่ายของผู้ยื่น` **หรือ** is equal to `หัวหน้าฝ่ายตามสังกัด`
+- สาขา True ใส่ 4 กล่อง:
+  - **Get items** (Directory) ชื่อ `Get_dept` → Filter: `Department eq '@{triggerOutputs()?['body/RequesterDept']}'`
+  - **Filter array** (ชื่อเดิม `Filter_array`) → From (fx) `outputs('Get_dept')?['body/value']` → กด "แก้ไขในโหมดขั้นสูง" วาง:
+    ```
+    @or(contains(item()?['Position'],'ผู้จัดการฝ่าย'), contains(item()?['Position'],'หัวหน้าฝ่าย'), contains(item()?['Position'],'ผู้อำนวยการ'))
+    ```
+  - **Select** ชื่อ `Select_heads` → From (fx) `body('Filter_array')` → Map (สลับโหมดข้อความ, fx) `item()?['Title']`
+  - **Set variable** `varNames` = (fx) `body('Select_heads')`
+
+**B) Condition สำรอง กันผู้อนุมัติว่าง (ต่อจาก A, นอกกล่อง):**
+- เงื่อนไข: (fx) `length(variables('varNames'))` is equal to `0`
+- สาขา True ใส่ 2 กล่อง:
+  - **Select** ชื่อ `Select_fallback` → From (fx) `outputs('stepNow')?['Approvers']` → Map (โหมดข้อความ, fx) `item()?['Value']`
+  - **Set variable** `varNames` = (fx) `body('Select_fallback')`
+
+> Switch จัดการ Case 1–3 · ค่าหัวหน้าฝ่าย 2 แบบตกไป Default แล้วมาโดน Condition A ดักหาให้ · Condition B กันว่าถ้ายังไม่ได้ใครเลย ใช้รายชื่อสำรองใน Approvers
 
 กด **บันทึก**
 
@@ -236,7 +257,7 @@ if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), creat
 โปรดพิมพ์เหตุผลในช่องความคิดเห็นเมื่อ "ส่งกลับแก้ไข" หรือ "ไม่อนุมัติ"
 ```
 7. **Item link**: `https://ppg2014.github.io/prime-power-intranet/#/requests`
-8. **เปลี่ยนชื่อกล่องนี้เป็น** `ขออนุมัติ`
+8. **เปลี่ยนชื่อกล่องนี้เป็น** `approval` (อังกฤษล้วน)
 
 > การ์ดนี้จะเด้งใน Teams และในอีเมลจะมีปุ่มให้กดเลือกได้เลย พร้อมช่องพิมพ์เหตุผล — ไม่ต้องส่งอีเมลแยก
 
@@ -251,9 +272,9 @@ if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), creat
 ```
 {
   "step": @{outputs('stepNow')?['StepOrder']},
-  "action": "@{first(body('ขออนุมัติ')?['responses'])?['responseValue']}",
-  "by": "@{first(body('ขออนุมัติ')?['responses'])?['responder']?['displayName']}",
-  "note": "@{first(body('ขออนุมัติ')?['responses'])?['comments']}",
+  "action": "@{first(body('approval')?['responses'])?['responseValue']}",
+  "by": "@{first(body('approval')?['responses'])?['responder']?['displayName']}",
+  "note": "@{first(body('approval')?['responses'])?['comments']}",
   "at": "@{utcNow()}"
 }
 ```
@@ -266,18 +287,21 @@ if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), creat
 
 ## ส่วนที่ 9 — เขียนสถานะกลับ + เดินลำดับถัดไป (หัวใจของระบบ)
 
+> ⚠️ **Update item บังคับ Title** — ทุกกล่อง Update item ต้องเติมช่อง **Title** = (fx) `triggerOutputs()?['body/Title']`
+> ไม่งั้นเลขเอกสารของคำขอจะถูกลบทิ้งทุกครั้งที่อัปเดต · ถ้ามีช่องอื่นขึ้น required (ดอกจันแดง) ให้เติมค่าเดิมจาก trigger กลับไปด้วย
+
 1. **+ ขั้นตอนใหม่** → **Switch** → On ใส่:
 ```
-@{first(body('ขออนุมัติ')?['responses'])?['responseValue']}
+@{first(body('approval')?['responses'])?['responseValue']}
 ```
 
 **Case `อนุมัติ`**
-- **Get items** (ApprovalMatrix) หาลำดับถัดไป → ชื่อ `หาถัดไป`
+- **Get items** (ApprovalMatrix) หาลำดับถัดไป → ชื่อ `nextStep`
   - Filter: `FormCode eq '@{triggerOutputs()?['body/FormCode']}' and StepOrder gt @{outputs('stepNow')?['StepOrder']}`
   - Order By: `StepOrder asc` · Top 1
-- **Condition**: ซ้าย `@{length(outputs('หาถัดไป')?['body/value'])}` / มากกว่า / `0`
+- **Condition**: ซ้าย `@{length(outputs('nextStep')?['body/value'])}` / มากกว่า / `0`
   - **ถ้าใช่ (ยังมีลำดับต่อไป)** → **Update item** (Requests, Id = `@{triggerOutputs()?['body/ID']}`):
-    - CurrentStep = `@{first(outputs('หาถัดไป')?['body/value'])?['StepOrder']}`
+    - CurrentStep = `@{first(outputs('nextStep')?['body/value'])?['StepOrder']}`
     - Status = `รออนุมัติ`
     - ApprovalLog = `@{string(variables('varLog'))}`
     - *(หุ่นยนต์จะตื่นเองอีกรอบเพื่อทำลำดับถัดไป)*
@@ -300,8 +324,8 @@ if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), creat
 ทำต่อท้าย (นอก Switch หรือใส่ในแต่ละ Case ก็ได้)
 1. **Post message in a chat or channel** (Teams) → Post as: Flow bot, Recipient: `@{triggerOutputs()?['body/RequesterEmail']}`, ข้อความ:
 ```
-คำขอ @{triggerOutputs()?['body/Title']} — ผล: @{first(body('ขออนุมัติ')?['responses'])?['responseValue']}
-เหตุผล: @{first(body('ขออนุมัติ')?['responses'])?['comments']}
+คำขอ @{triggerOutputs()?['body/Title']} — ผล: @{first(body('approval')?['responses'])?['responseValue']}
+เหตุผล: @{first(body('approval')?['responses'])?['comments']}
 ดูรายละเอียด: https://ppg2014.github.io/prime-power-intranet/#/requests
 ```
 2. (จะเพิ่ม **Send an email (V2)** เนื้อหาเดียวกัน ส่งไป RequesterEmail ด้วยก็ได้)
@@ -329,17 +353,17 @@ if(empty(first(outputs('Get_me')?['body/value'])?['Manager']), json('[]'), creat
 - **การ์ดไม่เข้าใคร** → ส่วนที่ 6 อีเมลว่าง: ชื่อใน Approvers/Manager ต้องตรงกับ Title ใน Directory เป๊ะ
 - **โฟลว์วนไม่หยุด** → ลืมใส่เงื่อนไขทริกเกอร์ (ส่วน 2.3) หรือตอนอนุมัติแล้วยังมีลำดับต่อ ให้ตั้ง Status เป็น `รออนุมัติ` อย่างเดียว
 - **ประวัติหาย/เพี้ยน** → ApprovalLog ต้องเป็น Multiple lines of text และเขียนกลับด้วย `@{string(variables('varLog'))}` เสมอ
-- **สูตรหากล่องไม่เจอ (สีแดง)** → ชื่อ Action ในสูตรไม่ตรงกับชื่อจริง ให้แก้ชื่อในสูตรให้ตรง (เช่น `body('ขออนุมัติ')`)
+- **สูตรหากล่องไม่เจอ (สีแดง)** → ชื่อ Action ในสูตรไม่ตรงกับชื่อจริง ให้แก้ชื่อในสูตรให้ตรง (เช่น `body('approval')`)
 - **ดูว่าพังขั้นไหน** → เมนู "แก้ไขล่าสุด/ประวัติการเรียกใช้ (Run history)" → เปิดรอบที่แดง → กล่องไหนติด ✗ จะบอกสาเหตุ
 
 ---
 
 ## ภาคผนวก A — ค่าที่คัดลอกบ่อย
 - เงื่อนไขทริกเกอร์: `@equals(triggerOutputs()?['body/Status'], 'รออนุมัติ')`
-- ลำดับปัจจุบัน: `first(outputs('ขั้นปัจจุบัน')?['body/value'])`
+- ลำดับปัจจุบัน: `first(outputs('stepItems')?['body/value'])`
 - รวมอีเมล: `@{join(variables('varEmails'), ';')}`
-- ผลที่กด: `@{first(body('ขออนุมัติ')?['responses'])?['responseValue']}`
-- เหตุผล: `@{first(body('ขออนุมัติ')?['responses'])?['comments']}`
+- ผลที่กด: `@{first(body('approval')?['responses'])?['responseValue']}`
+- เหตุผล: `@{first(body('approval')?['responses'])?['comments']}`
 - เขียนประวัติกลับ: `@{string(variables('varLog'))}`
 
 ## ภาคผนวก B — เรื่องที่มือใหม่ไม่ต้องทำตอนนี้ (ไว้ค่อยเพิ่ม)
