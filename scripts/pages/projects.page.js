@@ -16,7 +16,10 @@ const stIdx = (v) => /^ปิดโครงการ/.test(String(v || '').trim
 let projects = [];
 let staff = [];
 
-const num = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+/** ร้อยละ 0–100 เก็บทศนิยม 2 ตำแหน่ง */
+const num = (v) => Math.max(0, Math.min(100, Math.round((Number(v) || 0) * 100) / 100));
+/** แสดงร้อยละเป็นทศนิยม 2 ตำแหน่งเสมอ เช่น 45.50 */
+const pct = (v) => num(v).toFixed(2);
 
 /** เหลือกี่วันจากวันที่กำหนด ติดลบแปลว่าเลยแล้ว */
 function daysLeft(end) {
@@ -53,16 +56,16 @@ function timeLeftInfo(p) {
 
 /** ช้ากว่าแผนเท่าไร ใช้ตัดสินสีและข้อความเตือน */
 function variance(p) {
-  const diff = num(p.ActualProgress) - num(p.PlanProgress);
-  if (diff >= 0) return { diff, tone: 'ok',   text: diff === 0 ? 'ตรงตามแผน' : `เร็วกว่าแผน ${diff}%` };
-  if (diff >= -5) return { diff, tone: 'warn', text: `ช้ากว่าแผน ${-diff}%` };
-  return { diff, tone: 'bad', text: `ช้ากว่าแผน ${-diff}%` };
+  const diff = Math.round((num(p.ActualProgress) - num(p.PlanProgress)) * 100) / 100;
+  if (diff >= 0) return { diff, tone: 'ok',   text: diff === 0 ? 'ตรงตามแผน' : `เร็วกว่าแผน ${diff.toFixed(2)}%` };
+  if (diff >= -5) return { diff, tone: 'warn', text: `ช้ากว่าแผน ${(-diff).toFixed(2)}%` };
+  return { diff, tone: 'bad', text: `ช้ากว่าแผน ${(-diff).toFixed(2)}%` };
 }
 
 const bar = (label, value, cls) => `
   <div class="pg-line">
-    <div class="pg-label"><span>${esc(label)}</span><b>${value}%</b></div>
-    <div class="pg-track"><div class="pg-fill ${cls}" style="width:${value}%"></div></div>
+    <div class="pg-label"><span>${esc(label)}</span><b>${pct(value)}%</b></div>
+    <div class="pg-track"><div class="pg-fill ${cls}" style="width:${num(value)}%"></div></div>
   </div>`;
 
 function card(p) {
@@ -122,7 +125,12 @@ export async function renderDashboard() {
   ]);
   const isClosed = (v) => /^ปิดโครงการ/.test(String(v || '').trim());
   // โครงการที่ปิดแล้วต้องแสดงในตัวกรอง "ปิดโครงการ" เสมอ แม้จะถูกปิดใช้งาน (IsActive=false)
-  projects = all.filter((p) => p.IsActive !== false || isClosed(p.Status));
+  // เรียงตามลำดับที่จัดไว้ในหน้าจัดการข้อมูล (SortOrder) แล้วตามชื่อ
+  // ใช้กติกาเดียวกับหน้าจัดการข้อมูลเป๊ะ ลำดับจึงตรงกันเสมอ
+  projects = all
+    .slice()
+    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0))
+    .filter((p) => p.IsActive !== false || isClosed(p.Status));
   staff = people;
 
   const q = (state.projectQuery || '').trim().toLowerCase();
@@ -312,9 +320,9 @@ function exportProject(p) {
           <tr><th>ขนาดติดตั้ง</th><td>${p.Capacity ? Number(p.Capacity).toLocaleString('th-TH') + ' kWp' : '—'}</td></tr>
           <tr><th>ระยะเวลา</th><td>${esc(thaiDateShort(p.StartDate))} ถึง ${esc(thaiDateShort(p.EndDate))}</td></tr>
           <tr><th>สถานะ</th><td>${esc(p.Status || '—')}</td></tr>
-          <tr><th>ความคืบหน้าตามแผน</th><td>${plan}%</td></tr>
-          <tr><th>ความคืบหน้าจริง</th><td>${actual}% (${esc(v.text)})</td></tr>
-          <tr><th>เบิกจ่ายแล้ว</th><td>${pay}%</td></tr>
+          <tr><th>ความคืบหน้าตามแผน</th><td>${pct(plan)}%</td></tr>
+          <tr><th>ความคืบหน้าจริง</th><td>${pct(actual)}% (${esc(v.text)})</td></tr>
+          <tr><th>เบิกจ่ายแล้ว</th><td>${pct(pay)}%</td></tr>
           <tr><th>การดำเนินงานปัจจุบัน</th><td>${esc(p.Detail || '—')}</td></tr>
           <tr><th>ผู้รับผิดชอบโครงการ</th><td>${esc(p.Owner || '—')}${
             findPerson(p.Owner).Extension ? ` · ต่อ ${esc(findPerson(p.Owner).Extension)}` : ''}</td></tr>
@@ -357,9 +365,9 @@ async function showHistory(p) {
           <thead><tr><th>วันที่บันทึก</th><th>แผน</th><th>จริง</th><th>เบิกจ่าย</th><th>ผู้บันทึก</th></tr></thead>
           <tbody>${rows.map((h) => `<tr>
             <td>${esc(thaiDateShort(h.RecordedDate))}</td>
-            <td>${num(h.PlanProgress)}%</td>
-            <td>${num(h.ActualProgress)}%</td>
-            <td>${num(h.ActualPayment)}%</td>
+            <td>${pct(h.PlanProgress)}%</td>
+            <td>${pct(h.ActualProgress)}%</td>
+            <td>${pct(h.ActualPayment)}%</td>
             <td class="dim">${esc(h.RecordedBy || '—')}</td>
           </tr>`).join('')}</tbody>
         </table>`

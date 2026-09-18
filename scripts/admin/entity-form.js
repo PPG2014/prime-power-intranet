@@ -159,7 +159,8 @@ export async function formBody(schema, record = {}) {
     } else if (f.type === 'date') {
       input = `<input id="${id}" type="date" value="${esc(toDateInput(v))}">`;
     } else if (f.type === 'number') {
-      input = `<input id="${id}" type="number" value="${esc(v)}">`;
+      input = `<input id="${id}" type="number" value="${esc(v)}" step="${esc(f.step || 'any')}"${
+        f.min != null ? ` min="${f.min}"` : ''}${f.max != null ? ` max="${f.max}"` : ''} inputmode="decimal">`;
     } else if (f.type === 'yesno') {
       input = `<label class="switch"><input id="${id}" type="checkbox" ${v !== false ? 'checked' : ''}>
         <span>เปิดใช้งาน</span></label>`;

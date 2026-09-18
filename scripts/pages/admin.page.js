@@ -400,10 +400,18 @@ export function mount(ctx) {
     const j = i + step;
     if (i < 0 || j < 0 || j >= rows.length) return;
     const f = s.sortField;
-    await Promise.all([
-      update(s.list, rows[i].id, { [f]: j + 1 }),
-      update(s.list, rows[j].id, { [f]: i + 1 }),
-    ]);
+    // สลับตำแหน่งในลำดับทั้งหมด (รวมกลุ่มอื่นด้วยถ้ามีการจัดกลุ่ม) แล้วเขียนเลข 1..n ใหม่ทุกแถว
+    // เดิมเขียนแค่ 2 แถว แถวที่ยังไม่มีเลขลำดับทำให้หน้าอื่นเรียงไม่ตรงกับหน้านี้
+    const order = allRows.slice();
+    const a = order.indexOf(rows[i]);
+    const b = order.indexOf(rows[j]);
+    if (a < 0 || b < 0) return;
+    [order[a], order[b]] = [order[b], order[a]];
+    const writes = order
+      .map((r, k) => ({ r, n: k + 1 }))
+      .filter(({ r, n }) => +r[f] !== n)
+      .map(({ r, n }) => update(s.list, r.id, { [f]: n }));
+    await Promise.all(writes);
     clearCaches();
     rerender();
   };
