@@ -161,3 +161,28 @@
 
 @media (max-width: 620px) { .pp-hover { display: none !important; } }
 .pj-facts b.warranty, .pj-view .pv-row b.warranty { color: var(--warn); }
+
+/* ตัวกรองโครงการที่ช้ากว่าแผน */
+.chip.chip-late { color: #b7791f; border-color: #f0d49a; }
+.chip.chip-late[aria-pressed="true"] { background: #d69e2e; border-color: #d69e2e; color: #fff; }
+
+/* ปุ่มส่งออกสรุป + รายงานรวมทุกโครงการ */
+.pj-tools { display: flex; justify-content: flex-end; margin: 6px 0 2px; }
+.rp-sub { font-size: .9em; color: var(--muted, #6b7280); margin-top: 2px; }
+.rp-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.rp-kpis > div {
+  flex: 1 1 110px; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; text-align: center;
+}
+.rp-kpis b { display: block; font-size: 1.25em; }
+.rp-kpis span { font-size: .82em; color: var(--muted, #6b7280); }
+.rp-kpis .bad b { color: var(--danger); }
+.rp-grid { width: 100%; border-collapse: collapse; font-size: .86em; }
+.rp-grid th, .rp-grid td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; }
+.rp-grid th { background: #f3f5f8; }
+.rp-grid td.num { text-align: right; white-space: nowrap; }
+.rp-grid td.bad { color: var(--danger); }
+.rp-grid td.warn { color: #b7791f; }
+.rp-late { margin-top: 14px; font-size: .9em; }
+.rp-late ul { margin: 6px 0 0; padding-left: 18px; }
+@media print { .rp-grid { font-size: 10pt; } .rp-kpis { break-inside: avoid; } }

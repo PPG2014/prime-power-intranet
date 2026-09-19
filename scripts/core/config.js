@@ -7,7 +7,7 @@ export const CONFIG = {
   appName: 'Prime Power Group',
 
   /** เลขรุ่นโค้ด — เปิด Console (F12) จะเห็นบรรทัดนี้ ใช้ตรวจว่าเบราว์เซอร์รันโค้ดล่าสุดแล้ว */
-  build: '2026-09-19-nodup',
+  build: '2026-09-19-rooms',
 
   /**
    * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
@@ -21,7 +21,7 @@ export const CONFIG = {
     clientId: '4e75dabb-44b1-486f-bc4f-82ee14be22ea',
     tenantId: '2ca2640f-6b35-45d1-930b-9b4ee11fb711',
     /** ขอเท่าที่ใช้จริงตอนนี้ — เพิ่ม Calendars.Read.Shared ตอนทำหน้าห้องประชุมแบบดึงสด */
-    scopes: ['User.Read', 'Sites.ReadWrite.All'],
+    scopes: ['User.Read', 'Sites.ReadWrite.All', 'Calendars.ReadWrite'],
     /**
      * URL ที่เด้งกลับหลังล็อกอิน — คำนวณจากที่อยู่ปัจจุบัน จึงใช้ได้ทั้งบน GitHub Pages
      * และบน localhost โดยไม่ต้องแก้โค้ด ค่าที่ได้จะลงท้ายด้วย / เสมอ

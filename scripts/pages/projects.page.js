@@ -6,6 +6,7 @@ import { openModal } from '../components/modal.js';
 import { toArray } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
 import { hydratePhotos } from '../services/photos.js';
+import { toCsv, downloadText } from '../utils/csv.js';
 
 export const meta = { route: 'projects', title: 'ความคืบหน้าโครงการ', nav: false, order: 5, adminOnly: false };
 
@@ -14,6 +15,7 @@ const STATUSES = ['เตรียมงาน', 'กำลังดำเนิ
 const stIdx = (v) => /^ปิดโครงการ/.test(String(v || '').trim()) ? 3 : STATUSES.indexOf(v);
 
 let projects = [];
+let shownRows = [];   // โครงการที่แสดงอยู่ตามตัวกรอง ใช้ตอนส่งออกสรุป
 let staff = [];
 
 /** ร้อยละ 0–100 เก็บทศนิยม 2 ตำแหน่ง */
@@ -137,11 +139,13 @@ export async function renderDashboard() {
   const st = state.projectStatus || 'ทั้งหมด';
 
   const matchStatus = (p) => st === 'ทั้งหมด'
-    || (st === 'ปิดโครงการ' ? isClosed(p.Status) : String(p.Status || '').trim() === st);
+    || (st === 'ช้ากว่าแผน' ? variance(p).diff < 0
+      : st === 'ปิดโครงการ' ? isClosed(p.Status) : String(p.Status || '').trim() === st);
 
   const rows = projects.filter((p) =>
     matchStatus(p) &&
     (!q || (p.Title + p.ProjectCode + p.Detail).toLowerCase().includes(q)));
+  shownRows = rows;
 
   const active = projects.filter((p) => p.Status === 'กำลังดำเนินการ');
   const behind = active.filter((p) => variance(p).diff < 0);
@@ -162,9 +166,16 @@ export async function renderDashboard() {
       <span class="toolbar-meta">แสดง ${rows.length} จาก ${projects.length} โครงการ</span>
     </div>
 
+    <div class="pj-tools">
+      <button class="btn-mini" id="pj-export-all">⭳ ส่งออกสรุปทุกโครงการ</button>
+    </div>
+
     <div class="chips">
-      ${['ทั้งหมด', ...STATUSES].map((x) => `<button class="chip" data-status="${esc(x)}"
-        aria-pressed="${st === x}">${esc(x)}</button>`).join('')}
+      ${['ทั้งหมด', ...STATUSES, 'ช้ากว่าแผน'].map((x) => {
+        const n = x === 'ช้ากว่าแผน' ? projects.filter((p) => variance(p).diff < 0).length : 0;
+        return `<button class="chip${x === 'ช้ากว่าแผน' ? ' chip-late' : ''}" data-status="${esc(x)}"
+        aria-pressed="${st === x}">${esc(x)}${x === 'ช้ากว่าแผน' ? ` (${n})` : ''}</button>`;
+      }).join('')}
     </div>
 
     ${rows.length
@@ -299,6 +310,94 @@ async function editProject(p) {
   });
 }
 
+
+/** สรุปภาพรวมทุกโครงการ (ตามตัวกรองที่เลือกอยู่) — พิมพ์เป็น PDF หรือดาวน์โหลด CSV */
+function exportAll(rows, label) {
+  const late = rows.filter((p) => variance(p).diff < 0);
+  const kwp = rows.reduce((t, p) => t + (Number(p.Capacity) || 0), 0);
+  const avg = (k) => rows.length
+    ? num(rows.reduce((t, p) => t + num(p[k]), 0) / rows.length) : 0;
+
+  const row = (p) => {
+    const v = variance(p);
+    return `<tr>
+      <td>${esc(p.ProjectCode || '—')}</td>
+      <td>${esc(p.Title)}</td>
+      <td>${esc(p.Status || '—')}</td>
+      <td class="num">${p.Capacity ? Number(p.Capacity).toLocaleString('th-TH') : '—'}</td>
+      <td class="num">${pct(p.PlanProgress)}</td>
+      <td class="num">${pct(p.ActualProgress)}</td>
+      <td class="num ${v.tone}">${v.diff > 0 ? '+' : ''}${v.diff.toFixed(2)}</td>
+      <td class="num">${pct(p.ActualPayment)}</td>
+      <td>${esc(p.Owner || '—')}</td>
+      <td>${esc(thaiDateShort(p.UpdatedDate))}</td>
+    </tr>`;
+  };
+
+  openModal({
+    title: 'ส่งออกสรุปทุกโครงการ',
+    wide: true,
+    body: `
+      <div class="pj-report" id="pj-report-all">
+        <div class="rp-head">
+          <div class="rp-brand">Prime Power Group</div>
+          <div class="rp-title">สรุปภาพรวมความคืบหน้าโครงการ</div>
+          <div class="rp-sub">ตัวกรอง: ${esc(label)} · ${rows.length} โครงการ</div>
+        </div>
+
+        <div class="rp-kpis">
+          <div><b>${rows.length}</b><span>โครงการ</span></div>
+          <div><b>${kwp.toLocaleString('th-TH')}</b><span>kWp รวม</span></div>
+          <div><b>${pct(avg('PlanProgress'))}%</b><span>ตามแผนเฉลี่ย</span></div>
+          <div><b>${pct(avg('ActualProgress'))}%</b><span>ผลงานจริงเฉลี่ย</span></div>
+          <div class="${late.length ? 'bad' : ''}"><b>${late.length}</b><span>ช้ากว่าแผน</span></div>
+        </div>
+
+        <table class="rp-grid">
+          <thead><tr>
+            <th>รหัส</th><th>ชื่อโครงการ</th><th>สถานะ</th><th>kWp</th>
+            <th>แผน %</th><th>จริง %</th><th>ต่าง</th><th>เบิกจ่าย %</th>
+            <th>ผู้รับผิดชอบ</th><th>อัปเดต</th>
+          </tr></thead>
+          <tbody>${rows.map(row).join('')}</tbody>
+        </table>
+
+        ${late.length ? `<div class="rp-late">
+          <b>โครงการที่ช้ากว่าแผน (${late.length})</b>
+          <ul>${late.sort((a, b) => variance(a).diff - variance(b).diff).map((p) =>
+            `<li>${esc(p.ProjectCode || '')} ${esc(p.Title)} — ช้ากว่าแผน ${(-variance(p).diff).toFixed(2)}%${
+              p.Detail ? ` · ${esc(p.Detail)}` : ''}</li>`).join('')}</ul>
+        </div>` : ''}
+
+        <div class="rp-foot">พิมพ์เมื่อ ${esc(thaiDateShort(new Date().toISOString()))}</div>
+      </div>`,
+    footer: `<button class="btn-mini" id="rpa-close">ปิด</button>
+             <button class="btn-mini" id="rpa-csv">⭳ ดาวน์โหลด CSV</button>
+             <button class="btn btn-primary" id="rpa-print">พิมพ์ / บันทึกเป็น PDF</button>`,
+  });
+
+  $('#rpa-close').onclick = () => $('#overlay-root').replaceChildren();
+  $('#rpa-print').onclick = () => {
+    document.body.classList.add('printing-report');
+    window.print();
+    setTimeout(() => document.body.classList.remove('printing-report'), 500);
+  };
+  $('#rpa-csv').onclick = () => {
+    const keys = ['รหัส', 'ชื่อโครงการ', 'สถานะ', 'kWp', 'แผน %', 'จริง %', 'ต่าง %', 'เบิกจ่าย %',
+      'ผู้รับผิดชอบ', 'เริ่มโครงการ', 'สิ้นสุดสัญญา', 'การดำเนินงานปัจจุบัน', 'อัปเดตล่าสุด'];
+    const data = rows.map((p) => ({
+      'รหัส': p.ProjectCode || '', 'ชื่อโครงการ': p.Title || '', 'สถานะ': p.Status || '',
+      'kWp': Number(p.Capacity) || '', 'แผน %': pct(p.PlanProgress), 'จริง %': pct(p.ActualProgress),
+      'ต่าง %': variance(p).diff.toFixed(2), 'เบิกจ่าย %': pct(p.ActualPayment),
+      'ผู้รับผิดชอบ': p.Owner || '', 'เริ่มโครงการ': p.StartDate || '', 'สิ้นสุดสัญญา': p.EndDate || '',
+      'การดำเนินงานปัจจุบัน': p.Detail || '', 'อัปเดตล่าสุด': p.UpdatedDate || '',
+    }));
+    // \uFEFF = BOM ให้ Excel อ่านภาษาไทยไม่เป็นตัวยึกยือ
+    downloadText(`สรุปโครงการ-${new Date().toISOString().slice(0, 10)}.csv`,
+      '\uFEFF' + toCsv(keys, data));
+  };
+}
+
 /** หน้าต่างสำหรับพิมพ์หรือบันทึกเป็น PDF ส่งให้หน่วยงานภายนอก */
 function exportProject(p) {
   const plan = num(p.PlanProgress), actual = num(p.ActualProgress), pay = num(p.ActualPayment);
@@ -377,6 +476,9 @@ async function showHistory(p) {
 
 export function mountDashboard() {
   onClick('status', (x) => setState({ projectStatus: x }));
+
+  const exAll = $('#pj-export-all');
+  if (exAll) exAll.onclick = () => exportAll(shownRows, state.projectStatus || 'ทั้งหมด');
 
   const open = (id) => {
     const p = projects.find((x) => String(x.id) === String(id));
