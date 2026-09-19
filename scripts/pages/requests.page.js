@@ -81,7 +81,7 @@ function requestRow(req, opts = {}) {
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
-        <time>${esc(thaiDateShort(req.SubmittedDate))}</time>
+        <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
       </div>
     </button>`;
@@ -318,6 +318,23 @@ async function openRequest(req) {
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
     }).join('');
 
+  // เวลาที่ใช้ในแต่ละครั้งที่อนุมัติ นับจากเวลายื่นหรือจากการดำเนินการครั้งก่อน
+  const sortedActs = [...log].filter((l) => l.at).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const tookMap = new Map();
+  let prevAt = new Date(req.SubmittedDate);
+  sortedActs.forEach((l) => {
+    const at = new Date(l.at);
+    if (!isNaN(at) && !isNaN(prevAt)) {
+      const h = (at - prevAt) / 3600000;
+      if (h >= 0) tookMap.set(l.at + '|' + l.by, h);
+    }
+    prevAt = at;
+  });
+  const took = (h) => (h == null ? ''
+    : h < 1 ? `ใช้เวลา ${Math.max(1, Math.round(h * 60))} นาที`
+      : h < 24 ? `ใช้เวลา ${h.toFixed(1)} ชม.`
+        : `ใช้เวลา ${(h / 24).toFixed(1)} วัน`);
+
   // สถานะของแต่ละลำดับนับเฉพาะรอบล่าสุด (หลังการยื่นใหม่ครั้งล่าสุด) ส่วนประวัติยังแสดงครบ
   const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
   const timeline = steps.map((s) => {
@@ -333,8 +350,15 @@ async function openRequest(req) {
       <div class="tl-body">
         <div class="tl-name">${esc(s.StepName || 'ลำดับ ' + n)}</div>
         <div class="tl-people">${esc((Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers]).filter(Boolean).join(', '))}</div>
+        ${st === 'now' && req.Status === 'รออนุมัติ' ? (() => {
+          const base = sortedActs.length ? new Date(sortedActs[sortedActs.length - 1].at) : new Date(req.SubmittedDate);
+          const h = (Date.now() - base) / 3600000;
+          return isNaN(h) ? '' : `<div class="tl-waiting">⏳ รออยู่ ${
+            h < 24 ? `${h.toFixed(1)} ชม.` : `${(h / 24).toFixed(1)} วัน`}</div>`;
+        })() : ''}
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : 'ok'}">
-          <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}</span>
+          <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
+            tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? `<div class="tl-note">${esc(a.note)}</div>` : ''}</div>`).join('')}
       </div></div>`;
   }).join('');
@@ -346,7 +370,7 @@ async function openRequest(req) {
       <div class="rq-detail">
         <div class="rq-detail-head">
           ${statusPill(req.Status)}
-          <span class="dim">ยื่นโดย ${esc(req.RequesterName)} · ${esc(thaiDateShort(req.SubmittedDate))}</span>
+          <span class="dim">ยื่นโดย ${esc(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
         </div>
 
         <div class="rq-cols">
@@ -558,7 +582,7 @@ async function exportRequest(req, steps, answerRows) {
             <h2 class="ex-title">${esc(req.FormName || '')}</h2>
             <div class="ex-meta">
               <span>เลขที่คำขอ ${esc(req.Title)}</span>
-              <span>วันที่ ${esc(thaiDateShort(req.SubmittedDate))}</span>
+              <span>วันที่ยื่น ${esc(thaiDateTime(req.SubmittedDate))}</span>
             </div>
             <table class="ex-table">
               ${answerRows.replace(/rq-ans/g, 'ex-ans')}

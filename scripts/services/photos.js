@@ -14,30 +14,42 @@ import { getToken } from './auth.js';
 const MAX_W = 600;
 const MAX_H = 800;      // สัดส่วน 3:4 แบบรูปติดบัตร
 const QUALITY = 0.82;
+const KEEP_MAX = 1400;  // ด้านยาวสุดของรูปที่ไม่ครอป เช่น รูปประกาศแนวนอน
 const PHOTO_ROOT = 'Photos';
 const ATTACH_ROOT = 'Attachments';
 
-/** ย่อและครอปรูปให้ได้สัดส่วน 3:4 คืนค่าเป็น Blob */
-export function resizeImage(file) {
+/**
+ * ย่อรูปก่อนอัปโหลด
+ *   mode 'card' (ค่าเริ่มต้น) — ครอปกลางภาพเป็น 3:4 สำหรับรูปติดบัตร
+ *   mode 'keep' — คงสัดส่วนเดิม ไม่ครอป ใช้กับรูปประกาศแนวนอนและลายเซ็น
+ */
+export function resizeImage(file, mode = 'card') {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
 
     img.onload = () => {
       URL.revokeObjectURL(url);
-
-      // ครอปจากกลางภาพให้ได้สัดส่วน 3:4 ก่อน แล้วค่อยย่อ
-      const target = MAX_W / MAX_H;
-      let sw = img.width, sh = img.height, sx = 0, sy = 0;
-      if (sw / sh > target) { sw = sh * target; sx = (img.width - sw) / 2; }
-      else                  { sh = sw / target; sy = (img.height - sh) / 2; }
-
       const canvas = document.createElement('canvas');
-      canvas.width = MAX_W;
-      canvas.height = MAX_H;
       const ctx = canvas.getContext('2d');
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, MAX_W, MAX_H);
+
+      if (mode === 'keep') {
+        // ย่อให้ด้านยาวสุดไม่เกิน KEEP_MAX คงสัดส่วนเดิมไว้ทั้งแนวตั้งและแนวนอน
+        const scale = Math.min(1, KEEP_MAX / Math.max(img.width, img.height));
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      } else {
+        // ครอปจากกลางภาพให้ได้สัดส่วน 3:4 ก่อน แล้วค่อยย่อ
+        const target = MAX_W / MAX_H;
+        let sw = img.width, sh = img.height, sx = 0, sy = 0;
+        if (sw / sh > target) { sw = sh * target; sx = (img.width - sw) / 2; }
+        else                  { sh = sw / target; sy = (img.height - sh) / 2; }
+        canvas.width = MAX_W;
+        canvas.height = MAX_H;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, MAX_W, MAX_H);
+      }
 
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error('ย่อรูปไม่สำเร็จ'))),
@@ -72,8 +84,8 @@ function safeName(hint, ext = 'jpg') {
  * อัปโหลดรูปเข้าคลังเอกสารของไซต์ คืนลิงก์ที่เอาไปใส่ใน <img> ได้
  * โหมดข้อมูลตัวอย่างจะคืนเป็น data URL แทน เพื่อให้ทดสอบได้โดยไม่ต้องต่อ SharePoint
  */
-export async function uploadPhoto(file, hint, folder = '') {
-  const blob = await resizeImage(file);
+export async function uploadPhoto(file, hint, folder = '', mode = 'card') {
+  const blob = await resizeImage(file, mode);
 
   if (CONFIG.dataSource === 'mock') {
     return new Promise((resolve) => {

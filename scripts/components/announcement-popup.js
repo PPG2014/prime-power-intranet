@@ -9,6 +9,7 @@ import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { esc, $, $$ } from '../core/dom.js';
 import { thaiDateShort } from '../utils/format.js';
+import { hydratePhotos } from '../services/photos.js';
 
 const SEEN_KEY = 'ppg-announce-seen';
 
@@ -41,10 +42,10 @@ function slideHtml(a, interval) {
       <button class="pop-close" id="pop-x" aria-label="ปิดประกาศ">✕</button>
 
       ${isImage
-        ? `<div class="pop-full"><img src="${esc(a.ImageUrl)}" alt="${esc(a.Title)}"></div>
+        ? `<div class="pop-full"><img data-photo="${esc(a.ImageUrl)}" alt="${esc(a.Title)}"></div>
            ${a.Title ? `<div class="pop-caption">${esc(a.Title)}${
              a.Department ? ' · ' + esc(a.Department) : ''}</div>` : ''}`
-        : `${a.ImageUrl ? `<div class="pop-image"><img src="${esc(a.ImageUrl)}" alt=""></div>` : ''}
+        : `${a.ImageUrl ? `<div class="pop-image"><img data-photo="${esc(a.ImageUrl)}" alt=""></div>` : ''}
            <div class="pop-body">
              ${a.Department ? `<span class="pop-dept">${esc(a.Department)}</span>` : ''}
              <h3>${esc(a.Title)}</h3>
@@ -73,6 +74,8 @@ function slideHtml(a, interval) {
 function draw(interval) {
   const root = $('#overlay-root');
   root.innerHTML = `<div class="pop-mask" id="pop-mask">${slideHtml(items[index], interval)}</div>`;
+  // รูปจาก SharePoint ต้องแนบ token จึงจะโหลดได้ทุกบัญชี ไม่ใช่เฉพาะคนที่เปิด SharePoint ค้างไว้
+  hydratePhotos(root);
 
   const stop = () => { clearTimeout(timer); timer = null; };
   const close = () => {

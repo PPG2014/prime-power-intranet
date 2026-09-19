@@ -6,7 +6,7 @@ import { CONFIG } from '../core/config.js';
 import { uploadPhoto, uploadFile, kb, fileSize, fileKind } from '../services/photos.js';
 
 /** รูปที่เลือกไว้ในฟอร์มที่เปิดอยู่ เก็บเป็น data URL */
-let draftPhoto = '';
+let draftPhotos = {};   // ลิงก์รูปของแต่ละช่อง แยกตาม key (รูปภาพ/ลายเซ็น ใช้คนละช่อง)
 /** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
 let draftFiles = [];
 
@@ -126,7 +126,7 @@ export async function formBody(schema, record = {}) {
       </div>
       <input type="hidden" id="${id}">`;
     } else if (f.type === 'photo') {
-      draftPhoto = v || '';
+      draftPhotos[f.key] = v || '';
       input = `<div class="photo-field">
         <div class="photo-preview" id="${id}_prev">${v
           ? `<img src="${esc(v)}" alt="">` : '<span>ยังไม่มีรูป</span>'}</div>
@@ -198,7 +198,7 @@ export function collect(schema) {
   for (const f of schema.fields) {
     const el = $('#f_' + f.key);
     if (!el) continue;
-    if (f.type === 'photo') { out[f.key] = draftPhoto; continue; }
+    if (f.type === 'photo') { out[f.key] = draftPhotos[f.key] || ''; continue; }
     if (f.type === 'files') { out[f.key] = JSON.stringify(draftFiles); continue; }
     if (f.type === 'multilookup') {
       out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value);
@@ -269,8 +269,8 @@ export function bindPhoto(schema) {
       // ไม่จำกัดขนาดไฟล์ต้นทาง เพราะระบบย่อให้เองอยู่แล้ว
       setStatus('กำลังย่อรูปและอัปโหลด…');
       try {
-        const url = await uploadPhoto(img, hintName(), folderFor(schema));
-        draftPhoto = url;
+        const url = await uploadPhoto(img, hintName(), folderFor(schema), f.keepRatio ? 'keep' : 'card');
+        draftPhotos[f.key] = url;
         prev.innerHTML = `<img src="${url}" alt="">`;
         setStatus(`เรียบร้อย · จากไฟล์ ${kb(img.size)} ย่อเหลือประมาณ 60–80 KB`, 'ok');
       } catch (err) {
@@ -281,7 +281,7 @@ export function bindPhoto(schema) {
     };
 
     if (clear) clear.onclick = () => {
-      draftPhoto = '';
+      draftPhotos[f.key] = '';
       prev.innerHTML = '<span>ยังไม่มีรูป</span>';
       file.value = '';
     };

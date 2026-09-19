@@ -110,7 +110,7 @@ export const SCHEMA = {
               Department: 'ฝ่าย', Section: 'แผนก' },
     fields: [
       { key: 'PhotoUrl', label: 'รูปภาพ', type: 'photo' },
-      { key: 'SignatureUrl', label: 'ลายเซ็น (ถ้าต้องการให้แสดงในเอกสาร)', type: 'photo',
+      { key: 'SignatureUrl', label: 'ลายเซ็น (ถ้าต้องการให้แสดงในเอกสาร)', type: 'photo', keepRatio: true,
         help: 'ทางเลือก · ระบบบันทึกชื่อและวันเวลาอนุมัติอยู่แล้ว ลายเซ็นเป็นเพียงส่วนเสริม' },
       { key: 'Title', label: 'ชื่อ-สกุล (ไทย)', type: 'text', required: true },
       { key: 'Nickname', label: 'ชื่อเล่น', type: 'text' },
@@ -309,7 +309,7 @@ export const SCHEMA = {
         help: 'รูปภาพแนะนำ 1080 × 1350 px แนวตั้ง หรือ 1080 × 1080 px จัตุรัส ไม่เกิน 2 MB' },
       { key: 'Department', label: 'ฝ่ายที่ประกาศ', type: 'lookup', from: 'departments' },
       { key: 'Content', label: 'เนื้อหา', type: 'textarea' },
-      { key: 'ImageUrl', label: 'รูปประกาศ', type: 'photo',
+      { key: 'ImageUrl', label: 'รูปประกาศ', type: 'photo', keepRatio: true,
         help: 'แนะนำแนวตั้ง 1080 × 1350 px หรือจัตุรัส 1080 × 1080 px · ตัวหนังสือในรูปควรใหญ่พอที่จะอ่านบนมือถือ' },
       { key: 'PublishDate', label: 'วันที่ประกาศ', type: 'date' },
       { key: 'StartDate', label: 'เริ่มแสดง', type: 'date' },
