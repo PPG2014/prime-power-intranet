@@ -73,6 +73,11 @@ export async function render(ctx) {
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
       <p class="page-lead">เพิ่ม แก้ไข หรือลบข้อมูลทุกชุดที่แสดงบนเว็บ โดยไม่ต้องแก้ไขโค้ด</p>
+
+      <div class="admin-quick">
+        <a class="btn-mini" href="#/health">🩺 ตรวจสุขภาพระบบ</a>
+        <span class="dim">ตรวจว่าข้อมูลตั้งต้นครบไหม เช่น อีเมล ผู้บังคับบัญชา เส้นทางอนุมัติ คอลัมน์ใน SharePoint</span>
+      </div>
       ${state.adminUnconfigured ? `<div class="mock-warning">
         <b>⚠ ยังไม่ได้กำหนดว่าใครเป็นผู้ดูแลระบบ</b>
         ตอนนี้ทุกคนที่ล็อกอินเข้ามาแก้ข้อมูลได้ทั้งหมด

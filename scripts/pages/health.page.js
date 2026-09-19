@@ -1,9 +1,9 @@
 import { esc, $, onClick } from '../core/dom.js';
-import { list } from '../services/data.js';
+import { list, schemaOf } from '../services/data.js';
 import { toArray } from '../admin/entity-form.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 
-export const meta = { route: 'health', title: 'ตรวจสุขภาพระบบ', nav: true, order: 12, adminOnly: true };
+export const meta = { route: 'health', title: 'ตรวจสุขภาพระบบ', nav: false, order: 12, adminOnly: true };
 
 /** ผลตรวจล่าสุด เก็บไว้ระดับโมดูลเพื่อให้ปุ่มส่งออกใช้ได้ */
 let findings = [];
@@ -170,16 +170,43 @@ async function runChecks() {
   }
 
   // ── คอลัมน์ที่ระบบใหม่ต้องใช้ ────────────────────────────
-  const sample = requests[0];
-  if (sample) {
-    [['PAState', 'แจ้งเตือนอัตโนมัติ'], ['CurrentApprovers', 'อีเมลผู้อนุมัติปัจจุบัน'],
-      ['Route', 'เส้นทางสำเร็จรูป'], ['SummaryText', 'สรุปคำขอในการ์ด'],
-      ['ApprovalLog', 'ประวัติการอนุมัติ']].forEach(([col, use]) => {
-      if (!(col in sample)) {
-        add('stop', 'คอลัมน์ SharePoint', `ยังไม่มีคอลัมน์ ${col}`, `ใช้สำหรับ${use}`,
-          'สร้างใน List Requests ตามคู่มือ (ข้อความหลายบรรทัดต้องเป็น Plain text)');
-      }
-    });
+  // อ่านโครงสร้างคอลัมน์จริงจาก SharePoint ไม่เดาจากข้อมูลในแถว
+  // (คอลัมน์ที่เพิ่งสร้างและยังไม่มีข้อมูล จะไม่ปรากฏในผลอ่านรายการ)
+  const need = [
+    ['PAState', 'แจ้งเตือนอัตโนมัติ'], ['CurrentApprovers', 'อีเมลผู้อนุมัติปัจจุบัน'],
+    ['Route', 'เส้นทางสำเร็จรูป'], ['SummaryText', 'สรุปคำขอในการ์ด'],
+    ['ApprovalLog', 'ประวัติการอนุมัติ'], ['CurrentStep', 'ลำดับปัจจุบัน'],
+  ];
+  try {
+    const cols = await schemaOf('requests');
+    if (cols) {
+      need.forEach(([col, use]) => {
+        if (!cols.has(col)) {
+          add('stop', 'คอลัมน์ SharePoint', `ยังไม่มีคอลัมน์ ${col}`, `ใช้สำหรับ${use}`,
+            'สร้างใน List Requests ตามคู่มือ (ข้อความหลายบรรทัดต้องเป็น Plain text)');
+        }
+      });
+      // ชนิดคอลัมน์ที่ผิดจะทำให้เขียนไม่ลงแบบเงียบ ๆ
+      ['Status', 'FormCode'].forEach((col) => {
+        const c = cols.get(col);
+        if (c && c.choice) {
+          add('stop', 'คอลัมน์ SharePoint', `คอลัมน์ ${col} เป็นชนิด Choice`,
+            'ค่าที่ไม่ตรงตัวเลือกจะถูกตัดทิ้งโดยไม่แจ้งเตือน',
+            'เปลี่ยนเป็น Single line of text');
+        }
+      });
+      ['ApprovalLog', 'Route', 'CurrentApprovers', 'SummaryText'].forEach((col) => {
+        const c = cols.get(col);
+        if (c && c.text && c.text.allowMultipleLines === false) {
+          add('warn', 'คอลัมน์ SharePoint', `คอลัมน์ ${col} เป็นข้อความบรรทัดเดียว`,
+            'ข้อมูลยาวเกิน 255 อักขระจะบันทึกไม่ได้',
+            'เปลี่ยนเป็น Multiple lines of text แบบ Plain text');
+        }
+      });
+    }
+  } catch (e) {
+    add('info', 'คอลัมน์ SharePoint', 'ตรวจโครงสร้างคอลัมน์ไม่ได้', e.message,
+      'ข้ามการตรวจส่วนนี้ ไม่กระทบการใช้งาน');
   }
 
   return out;
@@ -217,6 +244,7 @@ export async function render(ctx) {
         <div class="hl-kpi warn"><b>${by('warn').length}</b><span>ควรแก้</span></div>
         <div class="hl-kpi info"><b>${by('info').length}</b><span>ข้อสังเกต</span></div>
         <div class="hl-actions">
+          <a class="btn-mini" href="#/admin">← กลับไปจัดการข้อมูล</a>
           <button class="btn-mini" id="hl-csv">⭳ ส่งออก CSV</button>
           <button class="btn btn-primary" id="hl-again">↻ ตรวจอีกครั้ง</button>
         </div>

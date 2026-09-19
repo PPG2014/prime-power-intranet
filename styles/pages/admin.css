@@ -169,3 +169,7 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
   font: inherit; background: var(--surface, #fff); max-width: 220px;
 }
 .admin-toolbar .admin-count-wrap { margin-left: auto; color: var(--muted, #6b7280); font-size: .9em; }
+
+/* ทางลัดไปหน้าตรวจสุขภาพระบบ */
+.admin-quick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.admin-quick .dim { font-size: .85em; }

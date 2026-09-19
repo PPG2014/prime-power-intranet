@@ -15,3 +15,5 @@ export const get    = (name, id)      => src().get(name, id);
 export const create = (name, item)    => src().create(name, item);
 export const update = (name, id, item)=> src().update(name, id, item);
 export const remove = (name, id)      => src().remove(name, id);
+/** โครงสร้างคอลัมน์จริงของ List — คืน null ถ้าแหล่งข้อมูลไม่รองรับ */
+export const schemaOf = (name) => (src().schemaOf ? src().schemaOf(name) : Promise.resolve(null));

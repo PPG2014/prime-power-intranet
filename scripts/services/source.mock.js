@@ -29,3 +29,6 @@ export const remove = async (name, id) => {
   const i = rows.findIndex((r) => String(r.id) === String(id));
   if (i > -1) rows.splice(i, 1);
 };
+
+/** โหมดตัวอย่างไม่มีโครงสร้างคอลัมน์จริง คืนค่าว่างให้ตัวตรวจข้ามไป */
+export async function schemaOf() { return null; }

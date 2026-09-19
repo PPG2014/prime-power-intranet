@@ -202,6 +202,9 @@ function coerce(col, value) {
   return value;
 }
 
+/** คืนรายละเอียดคอลัมน์จริงของ List (ชื่อ → นิยามคอลัมน์) ใช้ตรวจว่ามีคอลัมน์ครบไหม */
+export async function schemaOf(name) { return columnsOf(name); }
+
 export function clearColumnCache() { for (const k of Object.keys(columnCache)) delete columnCache[k]; }
 
 /** คัดช่องที่ List ไม่มี คืนทั้งข้อมูลที่ส่งได้และรายชื่อที่ถูกข้าม */
