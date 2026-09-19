@@ -339,6 +339,9 @@ function exportAll(rows, label) {
     wide: true,
     body: `
       <div class="pj-report" id="pj-report-all">
+        <div class="rp-runhead">Prime Power Group · สรุปภาพรวมความคืบหน้าโครงการ
+          <span>${esc(label)} · ${rows.length} โครงการ</span></div>
+
         <div class="rp-head">
           <div class="rp-brand">Prime Power Group</div>
           <div class="rp-title">สรุปภาพรวมความคืบหน้าโครงการ</div>
