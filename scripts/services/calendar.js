@@ -1,10 +1,10 @@
 /** ตารางห้องประชุมจากปฏิทิน Outlook */
 import { CONFIG } from '../core/config.js';
-import { getToken } from './auth.js';
+import { getToken, getTokenFor } from './auth.js';
 
 /** อ่านช่วงเวลาที่ห้องไม่ว่าง จาก Room Mailbox */
 export async function getRoomSchedule(roomMailbox, startISO, endISO) {
-  const token = await getToken();
+  const token = await getTokenFor(CONFIG.auth.calendarScopes);
   const res = await fetch('https://graph.microsoft.com/v1.0/me/calendar/getSchedule', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -31,7 +31,7 @@ export const composeBookingUrl = (room) =>
  * ผลลัพธ์จึงเหมือนจองจาก Outlook ทุกประการ เห็นได้ทั้งใน Outlook และ Teams
  */
 export async function createRoomBooking({ room, subject, startISO, endISO, attendees = [], note = '' }) {
-  const token = await getToken();
+  const token = await getTokenFor(CONFIG.auth.calendarScopes);
 
   const people = attendees
     .map((e) => String(e).trim()).filter(Boolean)

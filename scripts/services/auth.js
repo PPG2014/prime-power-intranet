@@ -128,6 +128,34 @@ export async function getToken() {
   }
 }
 
+/**
+ * ขอ token สำหรับสิทธิ์เสริม (เช่น ปฏิทิน) แบบขอตอนใช้งานจริงเท่านั้น
+ * ใช้หน้าต่างป๊อปอัปเพื่อไม่ให้หลุดออกจากหน้าที่ทำอยู่ และไม่กระทบการล็อกอินของคนอื่น
+ */
+export async function getTokenFor(scopes) {
+  if (CONFIG.dataSource === 'mock') return 'mock-token';
+
+  const app = await client();
+  const acct = app.getActiveAccount() || app.getAllAccounts()[0];
+  if (!acct) throw new Error('ยังไม่ได้เข้าสู่ระบบ');
+
+  try {
+    const res = await app.acquireTokenSilent({ scopes, account: acct });
+    return res.accessToken;
+  } catch (err) {
+    try {
+      const res = await app.acquireTokenPopup({ scopes, account: acct });
+      return res.accessToken;
+    } catch (e) {
+      if (/consent|AADSTS65001|AADSTS90094/i.test(e.message || '')) {
+        throw new Error('ต้องให้ผู้ดูแล Microsoft 365 อนุมัติสิทธิ์ปฏิทิน (Calendars.ReadWrite) ก่อนจึงจะจองผ่านเว็บได้'
+          + ' — ระหว่างนี้ใช้ปุ่ม "จองผ่าน Outlook" ได้ตามปกติ');
+      }
+      throw e;
+    }
+  }
+}
+
 export async function signOut() {
   if (CONFIG.dataSource === 'mock') {
     location.reload();   // โหมดตัวอย่างไม่มีเซสชันจริง แค่กลับไปหน้าเข้าสู่ระบบ

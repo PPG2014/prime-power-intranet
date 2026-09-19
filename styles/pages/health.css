@@ -1,0 +1,21 @@
+/* หน้าตรวจสุขภาพระบบ */
+.hl-summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0 16px; }
+.hl-kpi { border: 1px solid var(--line); border-radius: 10px; padding: 8px 16px; text-align: center; }
+.hl-kpi b { display: block; font-size: 1.5em; }
+.hl-kpi span { font-size: .82em; color: var(--muted, #6b7280); }
+.hl-kpi.stop b { color: var(--danger); }
+.hl-kpi.warn b { color: #b7791f; }
+.hl-actions { margin-left: auto; display: flex; gap: 8px; }
+.hl-list { display: grid; gap: 10px; }
+.hl-item { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 10px 14px; background: #fff; }
+.hl-item.hl-stop { border-left-color: var(--danger); }
+.hl-item.hl-warn { border-left-color: #d69e2e; }
+.hl-item.hl-info { border-left-color: #90a4bd; }
+.hl-top { display: flex; gap: 8px; align-items: center; font-size: .8em; margin-bottom: 4px; }
+.hl-tag { padding: 1px 8px; border-radius: 999px; background: #eef2f7; color: var(--muted, #6b7280); }
+.hl-stop .hl-tag { background: #fdf3f2; color: var(--danger); }
+.hl-warn .hl-tag { background: #fef6e7; color: #b7791f; }
+.hl-area { color: var(--muted, #6b7280); }
+.hl-issue { font-weight: 600; }
+.hl-detail { font-size: .9em; color: var(--muted, #6b7280); margin-top: 2px; word-break: break-word; }
+.hl-fix { font-size: .88em; margin-top: 6px; }

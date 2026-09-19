@@ -154,3 +154,10 @@
 /* ไทม์ไลน์: ส่งกลับแก้ไข */
 .tl-act.back { color: #b7791f; }
 .tl-back .tl-dot { background: #d69e2e; }
+
+/* แถบคำขอย้อนหลัง */
+.rq-older {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+  font-size: .85em; color: var(--muted, #6b7280);
+}

@@ -1,0 +1,13 @@
+/* หน้ารายงาน */
+.rr-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.rr-kpis > div { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; text-align: center; background: #fff; }
+.rr-kpis b { display: block; font-size: 1.4em; }
+.rr-kpis span { font-size: .82em; color: var(--muted, #6b7280); }
+.rr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.rr-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: .9em; }
+.rr-label { flex: 0 0 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-bar { flex: 1; height: 10px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.rr-bar i { display: block; height: 100%; background: var(--brand, #1d4ed8); }
+.rr-table { width: 100%; border-collapse: collapse; font-size: .88em; }
+.rr-table th, .rr-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+.rr-table tr.late td { color: var(--danger); }

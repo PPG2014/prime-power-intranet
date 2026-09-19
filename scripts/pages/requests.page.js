@@ -20,6 +20,7 @@ let allRequests = [];
 let stepCache = {};
 let me = '';
 let meIds = [];
+let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
 
 /**
  * หา FormCode ของคำขอให้ได้เป็นข้อความเสมอ เผื่อคอลัมน์เป็น Lookup/ออบเจ็กต์
@@ -95,8 +96,24 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
 
-  allRequests = (await list('requests').catch(() => []))
+  // โหลดทั้งหมดแล้วตัดเหลือช่วงล่าสุด กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
+  // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด"
+  const MONTHS = 6;
+  const cutoff = Date.now() - MONTHS * 30 * 86400000;
+  const everything = (await list('requests').catch(() => []))
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
+
+  const isRecent = (r) => {
+    const d = new Date(r.SubmittedDate);
+    return isNaN(d) ? true : d.getTime() >= cutoff;
+  };
+  // คำขอที่ยังเดินอยู่ต้องเห็นเสมอ ต่อให้ยื่นนานแล้ว
+  const live = (r) => ['รออนุมัติ', 'ส่งกลับแก้ไข'].includes(String(r.Status || '').trim());
+
+  olderCount = everything.filter((r) => !isRecent(r) && !live(r)).length;
+  allRequests = state.showAllRequests
+    ? everything
+    : everything.filter((r) => isRecent(r) || live(r));
   // ทำ FormCode ให้เป็นข้อความก่อนใช้งานทั้งหน้า (แก้ทั้งชื่อช่องและเส้นทางอนุมัติ)
   allRequests.forEach((r) => { r.FormCode = formCodeOf(r); });
   await loadSteps([...new Set(allRequests.map((r) => r.FormCode).filter(Boolean))]);
@@ -182,6 +199,14 @@ export async function render(ctx) {
             : (mine.length
               ? '<div class="side-empty">ไม่พบคำขอที่ค้นหา</div>'
               : '<div class="side-empty">คุณยังไม่ได้ยื่นคำขอ<br><a href="#/forms">ไปหน้าแบบฟอร์ม</a></div>')}
+            ${olderCount && !state.showAllRequests ? `<div class="rq-older">
+              ซ่อนคำขอเก่ากว่า 6 เดือนไว้ ${olderCount} ใบ
+              <button class="btn-mini" id="rq-showall">แสดงย้อนหลังทั้งหมด</button>
+            </div>` : ''}
+            ${state.showAllRequests ? `<div class="rq-older">
+              กำลังแสดงย้อนหลังทั้งหมด
+              <button class="btn-mini" id="rq-showrecent">แสดงเฉพาะ 6 เดือนล่าสุด</button>
+            </div>` : ''}
           </div>
         </aside>
       </div>
@@ -573,6 +598,11 @@ export function mount(ctx) {
     };
   }
   onClick('minepage', (p) => setState({ minePage: +p }));
+
+  const showAll = $('#rq-showall');
+  if (showAll) showAll.onclick = () => setState({ showAllRequests: true, minePage: 1 });
+  const showRecent = $('#rq-showrecent');
+  if (showRecent) showRecent.onclick = () => setState({ showAllRequests: false, minePage: 1 });
   onClick('open', (id) => {
     const r = allRequests.find((x) => String(x.id) === String(id));
     if (r) openRequest(r);
