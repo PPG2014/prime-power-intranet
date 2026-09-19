@@ -354,6 +354,7 @@ export const SCHEMA = {
 
   settings: {
     title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings', spName: 'Settings',
+    hint: 'ค่าที่ระบบรู้จัก · Admins = อีเมลผู้ดูแล (คั่นด้วยจุลภาค) · SupportEmail = อีเมลติดต่อผู้ดูแลที่แสดงหน้าติดต่อ · PopupInterval = วินาทีที่ประกาศเลื่อนอัตโนมัติ · FeedbackRecipients = อีเมลผู้รับแจ้งเตือนความคิดเห็นใหม่ (คั่นด้วยจุลภาค)',
     unique: ['Title'],
     columns: ['Title', 'Value', 'Description'],
     labels: { Title: 'ชื่อค่า', Value: 'ค่า', Description: 'ความหมาย' },
