@@ -394,3 +394,57 @@ export function bindForm(fields, folder) {
   });
   refresh();
 }
+
+/**
+ * สรุปคำตอบทั้งใบเป็นข้อความอ่านง่าย สำหรับแสดงในการ์ด Teams และอีเมล
+ * ผู้อนุมัติจะเห็นข้อมูลครบโดยไม่ต้องเปิดเว็บ
+ * ใช้ชื่อหัวข้อภาษาไทยจาก FormFields และรองรับตารางรายการ/ตัวเลือกหลายค่า
+ */
+export function summarizeForm(fields, values, opts = {}) {
+  const nl = opts.html ? '<br>' : '\n';
+  const esc = opts.html
+    ? (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    : (t) => String(t);
+
+  const thaiDate = (iso) => {
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso);
+    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const one = (f, v) => {
+    if (v == null || v === '') return '';
+    if (f.FieldType === 'yesno') return v ? 'ใช่' : 'ไม่ใช่';
+    if (f.FieldType === 'date') return thaiDate(v);
+    if (f.FieldType === 'file') {
+      const arr = Array.isArray(v) ? v : [];
+      return arr.length ? arr.map((x) => x.name || x).join(', ') : '';
+    }
+    if (f.FieldType === 'lineitems') {
+      const rows = Array.isArray(v) ? v : [];
+      if (!rows.length) return '';
+      let cols = [];
+      try { cols = JSON.parse(f.Options || '[]'); } catch (e) { cols = []; }
+      const head = (k) => (cols.find((c) => c.key === k) || {}).label || k;
+      return nl + rows.map((r, i) => '   ' + (i + 1) + ') '
+        + Object.keys(r).filter((k) => String(r[k]).trim())
+            .map((k) => `${esc(head(k))}: ${esc(r[k])}`).join('  ·  ')).join(nl);
+    }
+    if (Array.isArray(v)) return v.map((x) => esc(typeof x === 'object' ? (x.Title || x.LookupValue || '') : x)).join(', ');
+    if (typeof v === 'object') return esc(v.Title || v.LookupValue || '');
+    if (f.FieldType === 'currency') {
+      const n = Number(v);
+      return isNaN(n) ? esc(v) : n.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท';
+    }
+    return esc(v);
+  };
+
+  const lines = [];
+  for (const f of fields) {
+    if (f.FieldType === 'section') continue;
+    const text = one(f, values[f.FieldKey]);
+    if (!String(text).trim()) continue;
+    lines.push(`${esc(f.Title)}: ${text}`);
+  }
+  return lines.join(nl);
+}

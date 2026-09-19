@@ -441,6 +441,13 @@ function bindActions(req, steps, role) {
 
   const note = () => $('#rq-note').value.trim();
   const busy = (on) => $$('.rq-buttons button').forEach((b) => { b.disabled = on; });
+  // มีคนดำเนินการไปแล้ว: รีเฟรชหน้าให้เห็นสถานะล่าสุดหลังผู้ใช้อ่านข้อความ
+  const refreshLater = () => setTimeout(async () => {
+    closeModal();
+    const { render: rerender } = await import('../core/render.js');
+    rerender();
+  }, 4000);
+
   const done = async () => {
     closeModal();
     const { render: rerender } = await import('../core/render.js');
@@ -460,7 +467,11 @@ function bindActions(req, steps, role) {
     try {
       await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip });
       await done();
-    } catch (e) { busy(false); fail('บันทึกไม่สำเร็จ — ' + e.message); }
+    } catch (e) {
+      busy(false);
+      if (e.name === 'AlreadyActedError') { fail('⚠ ' + e.message); refreshLater(); }
+      else fail('บันทึกไม่สำเร็จ — ' + e.message);
+    }
   };
 
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
@@ -474,7 +485,11 @@ function bindActions(req, steps, role) {
       await decide(req, steps, { action: 'อนุมัติ', by: me, note: note() });
       await decide({ ...req, CurrentStep: 999 }, steps, { action: 'ปิดงาน', by: me, slip: pendingSlip });
       await done();
-    } catch (e) { busy(false); fail('บันทึกไม่สำเร็จ — ' + e.message); }
+    } catch (e) {
+      busy(false);
+      if (e.name === 'AlreadyActedError') { fail('⚠ ' + e.message); refreshLater(); }
+      else fail('บันทึกไม่สำเร็จ — ' + e.message);
+    }
   };
 }
 

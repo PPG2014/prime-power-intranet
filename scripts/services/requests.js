@@ -206,13 +206,50 @@ export function flowFieldsFor(route, stepNo) {
 
 const routeOf = (req) => { try { const a = JSON.parse(req.Route || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
 
+/** ข้อผิดพลาดเมื่อมีคนอื่นดำเนินการไปก่อนแล้ว (กันอนุมัติซ้ำข้ามช่องทาง) */
+export class AlreadyActedError extends Error {
+  constructor(msg) { super(msg); this.name = 'AlreadyActedError'; }
+}
+
+/**
+ * อ่านคำขอสดจาก SharePoint แล้วตรวจว่ายังเป็นสถานะเดิมอยู่ไหม
+ * กันกรณีมีคนกดจากการ์ด Teams/อีเมล หรืออีกหน้าจอไปก่อนหน้า
+ */
+async function assertFresh(req) {
+  const all = await list('requests').catch(() => null);
+  if (!all) return req;                        // อ่านไม่ได้ ปล่อยผ่าน ไม่บล็อกงาน
+  const now = all.find((r) => String(r.id) === String(req.id));
+  if (!now) return req;
+
+  const same = String(now.Status) === String(req.Status)
+    && (+now.CurrentStep || 1) === (+req.CurrentStep || 1)
+    && parseLog(now.ApprovalLog).length === parseLog(req.ApprovalLog).length;
+
+  if (!same) {
+    const last = parseLog(now.ApprovalLog).slice(-1)[0];
+    throw new AlreadyActedError(
+      'คำขอนี้มีผู้ดำเนินการไปแล้ว'
+      + (last ? ` — ${last.action} โดย ${last.by || '-'}` : '')
+      + ` (สถานะล่าสุด: ${now.Status})\nระบบจึงไม่บันทึกซ้ำ กรุณาปิดหน้าต่างแล้วเปิดใหม่เพื่อดูสถานะล่าสุด`);
+  }
+  return now;
+}
+
 export async function decide(req, steps, { action, by, note = '', slip = null }) {
+  req = await assertFresh(req);                // ด่านกันอนุมัติซ้ำ
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
   const step = steps.find((s) => +s.StepOrder === cur);
   const mode = step ? step.ApproveMode : 'คนใดคนหนึ่งอนุมัติก็ผ่าน';
 
   log.push({ step: cur, action, by, note, at: new Date().toISOString() });
+
+  // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก)
+  const already = parseLog(req.ApprovalLog)
+    .some((l) => l.step === cur && String(l.by) === String(by) && l.action === action);
+  if (already) {
+    throw new AlreadyActedError(`คุณได้${action}คำขอนี้ในลำดับนี้ไปแล้ว ระบบจึงไม่บันทึกซ้ำ`);
+  }
 
   const patch = { ApprovalLog: JSON.stringify(log) };
 
@@ -226,6 +263,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null })
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
     const approvers = (step && step._resolved) || toArr(step && step.Approvers);
     const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').map((l) => l.by);
+    // คนเดิมกดอนุมัติซ้ำในลำดับเดียวกัน ไม่นับเพิ่ม
     const stepDone = mode === 'ต้องอนุมัติครบทุกคน'
       ? approvers.every((a) => approvedBy.includes(a))
       : true;

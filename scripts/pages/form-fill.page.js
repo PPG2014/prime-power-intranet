@@ -2,7 +2,7 @@ import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
-import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard } from '../components/form-renderer.js';
+import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm } from '../components/form-renderer.js';
 import { LETTERHEAD } from '../core/letterhead.js';
 import { buildRoute, flowFieldsFor } from '../services/requests.js';
 
@@ -270,6 +270,7 @@ export function mount(ctx) {
         const first = route.length ? route[0].step : 1;
         const um = await update('requests', editId, {
           FormData: JSON.stringify(res.values),
+          SummaryText: summarizeForm(fields, res.values),
           Files: JSON.stringify(attachedFiles()),
           Status: 'รออนุมัติ', CurrentStep: first,
           ApprovalLog: (() => {
@@ -299,6 +300,8 @@ export function mount(ctx) {
         RequesterEmail: state.user?.email || '',
         RequesterDept: me?.Department || '',
         FormData: JSON.stringify(res.values),
+        // สรุปทั้งใบเป็นข้อความ ให้การ์ด Teams/อีเมล แสดงได้ครบโดยไม่ต้องเปิดเว็บ
+        SummaryText: summarizeForm(fields, res.values),
       };
       // คำนวณเส้นทาง + อีเมลผู้อนุมัติทุกลำดับไว้ล่วงหน้า ให้ Power Automate ใช้ได้ทันที
       const { route, missing } = await buildRoute(base);
