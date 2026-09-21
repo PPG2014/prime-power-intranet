@@ -113,6 +113,15 @@
   body.printing-doc .modal { box-shadow: none; max-width: none; border-radius: 0; }
   body.printing-doc .modal-body { padding: 0; max-height: none; overflow: visible; }
   .ex-letterhead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* เอกสารคำขอเป็นแนวตั้ง และห้ามตัดกลางส่วนสำคัญ */
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+  .ex-doc { font-size: 10pt; }
+  .ex-table tr, .ex-ans, .li-view tr { break-inside: avoid; page-break-inside: avoid; }
+  .li-view thead { display: table-header-group; }
+  .ex-approvals { break-inside: avoid; }
+  .ex-ap-box { break-inside: avoid; }
+  .ex-meta { break-after: avoid; }
 }
 .rq-ans-table { flex-direction: column; align-items: stretch; }
 .li-view { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
@@ -161,3 +170,6 @@
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
   font-size: .85em; color: var(--muted, #6b7280);
 }
+
+/* ระยะเวลารออนุมัติของลำดับปัจจุบัน */
+.tl-waiting { font-size: .82em; color: #b7791f; margin-top: 2px; }

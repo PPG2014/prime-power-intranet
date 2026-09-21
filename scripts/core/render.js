@@ -12,6 +12,17 @@ function renderNav() {
     .join('');
 }
 
+/** แถบความคืบหน้าบาง ๆ ด้านบน บอกว่ากำลังโหลดข้อมูลอยู่ */
+function busy(on) {
+  let bar = document.getElementById('loadbar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'loadbar';
+    document.body.appendChild(bar);
+  }
+  bar.classList.toggle('on', !!on);
+}
+
 export async function render() {
   const page = pageByRoute(state.route) || pageByRoute('home');
   const ctx = { state, config: CONFIG };
@@ -21,9 +32,15 @@ export async function render() {
   const keepId = act && act.matches && act.matches('input[data-keepfocus]') ? act.id : null;
   const caret = keepId ? act.selectionStart : null;
 
+  // เปลี่ยนแถบเมนูทันทีที่กด แล้วค่อยรอข้อมูล จะได้ไม่รู้สึกว่าไม่ตอบสนอง
   renderNav();
-  $('#app').innerHTML = await page.render(ctx);
-  page.mount?.(ctx);
+  busy(true);
+  try {
+    $('#app').innerHTML = await page.render(ctx);
+    page.mount?.(ctx);
+  } finally {
+    busy(false);
+  }
 
   document.title =
     (page.meta.route === 'home' ? '' : page.meta.title + ' — ') + CONFIG.appName;

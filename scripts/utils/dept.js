@@ -1,6 +1,7 @@
 /** เรียงและจัดกลุ่มตามลำดับฝ่ายในสมุดโทรศัพท์ ไม่ใช่เรียงตามตัวอักษร */
 import { list } from '../services/data.js';
 import { settings, clearSettings } from './settings.js';
+import { clearDataCache } from '../services/data.js';
 
 let cached = null;
 export async function departments() {
@@ -25,7 +26,10 @@ export async function sections() {
 }
 
 /** เรียกหลังผู้ดูแลแก้ข้อมูล เพื่อให้หน้าอื่นเห็นลำดับใหม่ทันที */
-export function clearCaches() { cached = null; cachedSections = null; clearSettings(); }
+export function clearCaches() {
+  cached = null; cachedSections = null; clearSettings();
+  clearDataCache();          // ล้างแคชข้อมูลทั้งหมด หลังแอดมินแก้ข้อมูลหลัก
+}
 
 /**
  * ลำดับการแสดงกลุ่มบนหน้าเว็บ
