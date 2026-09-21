@@ -165,6 +165,8 @@ export const SCHEMA = {
         help: 'เช่น Rev.01 · แสดงคู่กับเลขที่เอกสาร' },
       { key: 'Icon', label: 'ไอคอน', type: 'text', help: 'วางอิโมจิได้ เช่น 📅 🔧 💰' },
       { key: 'Description', label: 'คำอธิบาย', type: 'textarea', full: true },
+      { key: 'TemplateUrl', label: 'ลิงก์เอกสารใบปะหน้า / แบบฟอร์มดาวน์โหลด', type: 'textarea', full: true,
+        help: 'บรรทัดละลิงก์ ตั้งชื่อปุ่มได้ด้วยรูปแบบ ชื่อ|ลิงก์ เช่น ใบปะหน้าค่าแรง|https://… · ถ้าเป็น Google Sheets/Docs จะมีปุ่มดาวน์โหลดเป็น Excel/Word และ PDF ให้อัตโนมัติ' },
       { key: 'FormNote', label: 'หมายเหตุสำคัญ (แสดงเป็นกล่องเตือนเหนือปุ่มส่ง)', type: 'textarea',
         full: true, help: 'เช่น เงื่อนไขเวลาตัดรอบ กำหนดส่ง หรือข้อควรระวัง' },
       { key: 'Department', label: 'ฝ่ายเจ้าของ', type: 'lookup', from: 'departments' },

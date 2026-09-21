@@ -96,3 +96,11 @@
   border-radius: 20px; vertical-align: middle; font-weight: 600; }
 @media (max-width: 500px) { .foot-btns { flex-direction: column-reverse; width: 100%; }
   .foot-btns .btn, .foot-btns .btn-mini { width: 100%; } }
+
+/* ปุ่มเอกสารใบปะหน้า / แบบฟอร์มดาวน์โหลด */
+.tpl-links { display: grid; gap: 8px; margin: 4px 0 14px; }
+.tpl-item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #f7faff;
+}
+.tpl-label { font-weight: 600; margin-right: auto; }

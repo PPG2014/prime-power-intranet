@@ -154,9 +154,10 @@ export async function render(ctx) {
         <div>
           <h1>${esc(form.Title)}${editId ? ' <span class="edit-tag">แก้ไข</span>' : ''}</h1>
           <div class="form-sub">${esc(form.FormCode)} · ${esc(form.Department || '')}</div>
-          ${form.Description ? `<p class="form-desc">${esc(form.Description)}</p>` : ''}
+          ${descWithoutLinks(form.Description) ? `<p class="form-desc">${esc(descWithoutLinks(form.Description))}</p>` : ''}
         </div>
       </div>
+      ${templateButtons(form)}
 
       ${me ? '' : `<div class="mock-warning">
         <b>ไม่พบข้อมูลของคุณในทะเบียนบุคลากร</b>
@@ -180,6 +181,61 @@ export async function render(ctx) {
       </div>
     </div>
   </section>`;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+ * ลิงก์เอกสารใบปะหน้า / แบบฟอร์มสำหรับดาวน์โหลด
+ * อ่านจากช่อง TemplateUrl (บรรทัดละลิงก์ ใส่ชื่อนำหน้าได้ "ชื่อ|ลิงก์")
+ * และดึงลิงก์ที่พิมพ์ไว้ในคำอธิบายมาทำเป็นปุ่มด้วย จะได้ไม่ต้องแก้ข้อมูลเดิม
+ * ───────────────────────────────────────────────────────────── */
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+
+/** ลิงก์ Google Docs/Sheets/Slides → ลิงก์ดาวน์โหลดเป็นไฟล์ Office ตรง ๆ */
+function googleExport(url) {
+  const m = String(url).match(/docs\.google\.com\/(spreadsheets|document|presentation)\/d\/([\w-]+)/);
+  if (!m) return null;
+  const fmt = { spreadsheets: 'xlsx', document: 'docx', presentation: 'pptx' }[m[1]];
+  const name = { spreadsheets: 'Excel', document: 'Word', presentation: 'PowerPoint' }[m[1]];
+  const gid = (String(url).match(/[#&?]gid=(\d+)/) || [])[1];
+  return {
+    url: `https://docs.google.com/${m[1]}/d/${m[2]}/export?format=${fmt}${gid && fmt === 'xlsx' ? `&gid=${gid}` : ''}`,
+    pdf: `https://docs.google.com/${m[1]}/d/${m[2]}/export?format=pdf${gid && fmt === 'xlsx' ? `&gid=${gid}` : ''}`,
+    name,
+  };
+}
+
+function templateLinks(form) {
+  const out = [];
+  String(form.TemplateUrl || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).forEach((line) => {
+    const [a, b] = line.includes('|') ? line.split('|') : ['', line];
+    const url = (b || '').trim();
+    if (/^https?:\/\//.test(url)) out.push({ label: a.trim() || 'เอกสารใบปะหน้า', url });
+  });
+  (String(form.Description || '').match(URL_RE) || []).forEach((url) => {
+    if (!out.some((x) => x.url === url)) out.push({ label: 'เอกสารใบปะหน้า', url });
+  });
+  return out;
+}
+
+/** คำอธิบายที่ตัดลิงก์ออกแล้ว (ลิงก์ไปแสดงเป็นปุ่มแทน) */
+const descWithoutLinks = (text) => String(text || '')
+  .replace(URL_RE, '').replace(/ดาวน์โหลดแบบฟอร์ม\s*[:：]?\s*$/m, '').replace(/\s{2,}/g, ' ').trim();
+
+function templateButtons(form) {
+  const links = templateLinks(form);
+  if (!links.length) return '';
+  return `<div class="tpl-links">
+    ${links.map((l) => {
+      const g = googleExport(l.url);
+      return `<div class="tpl-item">
+        <span class="tpl-label">📎 ${esc(l.label)}</span>
+        ${g ? `<a class="btn-mini" href="${esc(g.url)}" target="_blank" rel="noopener">⭳ ดาวน์โหลด ${esc(g.name)}</a>
+               <a class="btn-mini" href="${esc(g.pdf)}" target="_blank" rel="noopener">⭳ PDF</a>` : ''}
+        <a class="btn-mini" href="${esc(l.url)}" target="_blank" rel="noopener">↗ ${g ? 'เปิดดู' : 'เปิด / ดาวน์โหลด'}</a>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 /** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 พร้อมหัวกระดาษ กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
