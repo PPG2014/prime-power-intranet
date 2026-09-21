@@ -357,9 +357,15 @@ export function bindForm(fields, folder) {
       status.className = 'photo-status';
       status.textContent = `กำลังอัปโหลด ${picked.length} ไฟล์…`;
       let ok = 0;
-      for (const file of picked) {
-        try { files.push(await uploadFile(file, folder)); ok++; draw(); }
-        catch (err) { status.className = 'photo-status bad'; status.textContent = err.message; }
+      for (const [n, file] of picked.entries()) {
+        const label = `${picked.length > 1 ? `(${n + 1}/${picked.length}) ` : ''}${file.name}`;
+        try {
+          files.push(await uploadFile(file, folder, (pct) => {
+            status.className = 'photo-status';
+            status.textContent = `กำลังอัปโหลด ${label} · ${pct}%`;
+          }));
+          ok++; draw();
+        } catch (err) { status.className = 'photo-status bad'; status.textContent = err.message; }
       }
       if (ok === picked.length) {
         status.className = 'photo-status ok';

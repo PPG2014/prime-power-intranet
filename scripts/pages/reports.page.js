@@ -177,7 +177,7 @@ export function mount(ctx) {
         'ลำดับปัจจุบัน': r.CurrentStep || '', 'วันที่ยื่น': r.SubmittedDate || '',
         'จำนวนครั้งที่ดำเนินการ': parseLog(r.ApprovalLog).length,
       }));
-      downloadText(`รายงานคำขอ-${new Date().toISOString().slice(0, 10)}.csv`, '\uFEFF' + toCsv(keys, rows));
+      downloadText(`รายงานคำขอ-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(keys, rows));
     };
   }
 }

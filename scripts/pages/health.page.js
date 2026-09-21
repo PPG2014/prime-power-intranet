@@ -274,7 +274,7 @@ export function mount(ctx) {
         'รายละเอียด': f.detail, 'วิธีแก้': f.fix,
       }));
       downloadText(`ตรวจสุขภาพระบบ-${new Date().toISOString().slice(0, 10)}.csv`,
-        '\uFEFF' + toCsv(keys, rows));
+        toCsv(keys, rows));
     };
   }
 }

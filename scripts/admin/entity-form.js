@@ -321,7 +321,13 @@ export function bindFiles(schema) {
 
       let ok = 0;
       for (const file of picked) {
-        try { draftFiles.push(await uploadFile(file, folderFor(schema))); ok++; draw(); }
+        try {
+          draftFiles.push(await uploadFile(file, folderFor(schema), (pct) => {
+            status.className = 'photo-status';
+            status.textContent = `กำลังอัปโหลด ${file.name} · ${pct}%`;
+          }));
+          ok++; draw();
+        }
         catch (err) { status.className = 'photo-status bad'; status.textContent = err.message; }
       }
       if (ok === picked.length) {

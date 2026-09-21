@@ -43,7 +43,9 @@ export function toCsv(headers, rows) {
       : String(v);
     return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
-  return '\uFEFF' + [headers, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+  // รับแถวได้ทั้งแบบ array และแบบ object (ดึงค่าตามชื่อคอลัมน์)
+  const asArr = (r) => (Array.isArray(r) ? r : headers.map((h) => (r ? r[h] : '')));
+  return '\uFEFF' + [headers, ...rows.map(asArr)].map((r) => r.map(cell).join(',')).join('\r\n');
 }
 
 /** สั่งให้เบราว์เซอร์ดาวน์โหลดข้อความเป็นไฟล์ */

@@ -397,7 +397,7 @@ function exportAll(rows, label) {
     }));
     // \uFEFF = BOM ให้ Excel อ่านภาษาไทยไม่เป็นตัวยึกยือ
     downloadText(`สรุปโครงการ-${new Date().toISOString().slice(0, 10)}.csv`,
-      '\uFEFF' + toCsv(keys, data));
+      toCsv(keys, data));
   };
 }
 

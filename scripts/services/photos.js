@@ -130,21 +130,29 @@ export const fileKind = (name) => {
   return ext.length <= 5 ? ext : 'FILE';
 };
 
-const MAX_ATTACH = 15 * 1024 * 1024;
+/** ขนาดไฟล์แนบสูงสุดต่อไฟล์ — รองรับทุกชนิดไฟล์ */
+export const MAX_ATTACH = 1024 * 1024 * 1024;          // 1 GB
+const SIMPLE_LIMIT = 4 * 1024 * 1024;                   // ไฟล์เล็กกว่านี้ส่งทีเดียว
+const CHUNK = 320 * 1024 * 32;                          // 10 MB ต่อชิ้น (ต้องเป็นทวีคูณของ 320 KB ตามข้อกำหนด Graph)
 
 /**
- * อัปโหลดไฟล์แนบเข้าคลังเอกสารของไซต์ โดยไม่ย่อและไม่แปลงไฟล์
- * คืนข้อมูลไฟล์ที่เก็บลงคอลัมน์ได้เลย
+ * อัปโหลดไฟล์แนบเข้าคลังเอกสารของไซต์ โดยไม่ย่อและไม่แปลงไฟล์ รับได้ทุกชนิดไฟล์
+ * - ไฟล์ไม่เกิน 4 MB ส่งทีเดียว (เร็ว)
+ * - ไฟล์ใหญ่กว่านั้นใช้ upload session แบ่งส่งทีละ 10 MB จนถึง 1 GB
+ *   ถ้าเน็ตสะดุดกลางทาง จะลองส่งชิ้นนั้นซ้ำให้อัตโนมัติ
+ * onProgress(0–100) ใช้แสดงความคืบหน้าให้ผู้ใช้เห็น
  */
-export async function uploadFile(file, folder = '') {
+export async function uploadFile(file, folder = '', onProgress = () => {}) {
   if (file.size > MAX_ATTACH) {
-    throw new Error(`ไฟล์ ${file.name} ใหญ่ ${fileSize(file.size)} เกิน 15 MB`);
+    throw new Error(`ไฟล์ ${file.name} ใหญ่ ${fileSize(file.size)} เกินขนาดสูงสุด 1 GB`);
   }
+  if (file.size === 0) throw new Error(`ไฟล์ ${file.name} ว่างเปล่า`);
 
   const meta = { name: file.name, size: file.size,
                  sizeText: fileSize(file.size), kind: fileKind(file.name) };
 
   if (CONFIG.dataSource === 'mock') {
+    onProgress(100);
     return { ...meta, url: '#' };
   }
 
@@ -152,21 +160,65 @@ export async function uploadFile(file, folder = '') {
   const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
   const path = [ATTACH_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean),
                 safeName(file.name, ext)].join('/');
+  const base = `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
+               `/drive/root:/${encodeURIComponent(path)}:`;
 
-  const res = await fetch(
-    `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
-    `/drive/root:/${encodeURIComponent(path)}:/content`,
-    { method: 'PUT',
+  // ── ไฟล์เล็ก: ส่งทีเดียว ─────────────────────────────
+  if (file.size <= SIMPLE_LIMIT) {
+    const res = await fetch(`${base}/content`, {
+      method: 'PUT',
       headers: { Authorization: `Bearer ${token}`,
                  'Content-Type': file.type || 'application/octet-stream' },
       body: file });
-
-  if (!res.ok) {
-    if (res.status === 403) throw new Error('ไม่มีสิทธิ์อัปโหลดไฟล์เข้าคลังเอกสารของไซต์');
-    throw new Error(`อัปโหลด ${file.name} ไม่สำเร็จ (${res.status})`);
+    if (!res.ok) throw uploadError(res.status, file.name);
+    onProgress(100);
+    const item = await res.json();
+    return { ...meta, url: item.webUrl };
   }
-  const item = await res.json();
+
+  // ── ไฟล์ใหญ่: เปิด upload session แล้วแบ่งส่งทีละชิ้น ───
+  const ses = await fetch(`${base}/createUploadSession`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item: { '@microsoft.graph.conflictBehavior': 'rename' } }),
+  });
+  if (!ses.ok) throw uploadError(ses.status, file.name);
+  const { uploadUrl } = await ses.json();
+
+  let item = null;
+  for (let start = 0; start < file.size; start += CHUNK) {
+    const end = Math.min(start + CHUNK, file.size) - 1;
+    const body = file.slice(start, end + 1);
+
+    let res = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        // uploadUrl มีสิทธิ์ในตัวแล้ว ห้ามแนบ Authorization ไม่งั้นจะถูกปฏิเสธ
+        res = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Range': `bytes ${start}-${end}/${file.size}` },
+          body });
+        if (res.ok || res.status === 202) break;
+      } catch (e) { res = null; }
+      await new Promise((r) => setTimeout(r, 1500 * attempt));   // รอแล้วลองใหม่
+    }
+    if (!res || !(res.ok || res.status === 202)) {
+      fetch(uploadUrl, { method: 'DELETE' }).catch(() => {});      // ทิ้ง session ที่ค้าง
+      throw new Error(`อัปโหลด ${file.name} ขาดตอนที่ ${Math.round((start / file.size) * 100)}% กรุณาลองใหม่`);
+    }
+
+    onProgress(Math.round(((end + 1) / file.size) * 100));
+    if (res.status === 200 || res.status === 201) item = await res.json();
+  }
+
+  if (!item) throw new Error(`อัปโหลด ${file.name} ไม่สมบูรณ์`);
   return { ...meta, url: item.webUrl };
+}
+
+function uploadError(status, name) {
+  if (status === 403) return new Error('ไม่มีสิทธิ์อัปโหลดไฟล์เข้าคลังเอกสารของไซต์');
+  if (status === 507) return new Error('พื้นที่จัดเก็บของ SharePoint เต็ม');
+  return new Error(`อัปโหลด ${name} ไม่สำเร็จ (${status})`);
 }
 
 /* ─────────────────────────────────────────────────────────────
