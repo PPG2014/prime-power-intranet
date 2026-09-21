@@ -36,3 +36,12 @@
 @import url('pages/health.css');
 @import url('pages/reports.css');
 @import url('pages/pr-form.css');
+
+/* แถบโหลดบางด้านบน ตอบสนองทันทีที่กดเปลี่ยนเมนู */
+body.is-loading::before {
+  content: ''; position: fixed; top: 0; left: 0; height: 3px; width: 40%; z-index: 9999;
+  background: var(--blue, #1d6fd8);
+  animation: nav-loading 1s ease-in-out infinite;
+}
+body.is-loading #app { opacity: .55; transition: opacity .15s; }
+@keyframes nav-loading { 0% { left: -40%; } 100% { left: 100%; } }

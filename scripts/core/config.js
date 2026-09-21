@@ -7,7 +7,7 @@ export const CONFIG = {
   appName: 'Prime Power Group',
 
   /** เลขรุ่นโค้ด — เปิด Console (F12) จะเห็นบรรทัดนี้ ใช้ตรวจว่าเบราว์เซอร์รันโค้ดล่าสุดแล้ว */
-  build: '2026-09-21-reorder',
+  build: '2026-09-22-fresh',
 
   /**
    * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
@@ -20,9 +20,9 @@ export const CONFIG = {
   auth: {
     clientId: '4e75dabb-44b1-486f-bc4f-82ee14be22ea',
     tenantId: '2ca2640f-6b35-45d1-930b-9b4ee11fb711',
-    /** ขอเท่าที่ใช้จริงตอนนี้ — เพิ่ม Calendars.Read.Shared ตอนทำหน้าห้องประชุมแบบดึงสด */
+    /** สิทธิ์ที่ขอตอนล็อกอิน — ต้องมีทุกคน */
     scopes: ['User.Read', 'Sites.ReadWrite.All'],
-    /** สิทธิ์เสริม ขอเฉพาะตอนกดจองห้องจริง จะได้ไม่บล็อกการล็อกอินของทุกคน */
+    /** สิทธิ์เสริม ขอเฉพาะตอนกดจองห้องจริง (ตรวจห้องว่าง + สร้างนัดหมาย) · Microsoft Graph แบบ Delegated */
     calendarScopes: ['Calendars.ReadWrite'],
     /**
      * URL ที่เด้งกลับหลังล็อกอิน — คำนวณจากที่อยู่ปัจจุบัน จึงใช้ได้ทั้งบน GitHub Pages

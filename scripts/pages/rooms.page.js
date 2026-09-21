@@ -16,11 +16,24 @@ const todayStr = () => new Date().toLocaleDateString('sv-SE');   // YYYY-MM-DD �
 export const meta = { route: 'rooms', title: 'จองห้องประชุม', nav: true, order: 6, adminOnly: false };
 
 export async function render(ctx) {
-  rooms = (await list('rooms')).filter((r) => r.IsActive !== false)
+  let all = [];
+  let loadErr = '';
+  try { all = await list('rooms'); } catch (e) { loadErr = e.message; }
+  rooms = all.filter((r) => r.IsActive !== false)
     .sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
-  if (!rooms.length) return `<section class="page"><div class="wrap">
+  if (!rooms.length) {
+    // บอกสาเหตุให้ชัด แทนข้อความว่างเปล่า
+    const why = loadErr
+      ? `อ่านรายการห้องจาก SharePoint ไม่สำเร็จ — ${esc(loadErr)}`
+      : all.length
+        ? `มีห้องในระบบ ${all.length} ห้อง แต่ทุกห้องถูกปิดใช้งานอยู่`
+        : 'ยังไม่มีห้องประชุมในระบบ';
+    return `<section class="page"><div class="wrap">
     <h1 class="page-title">${esc(meta.title)}</h1>
-    <div class="panel"><div class="empty">ยังไม่มีห้องประชุมในระบบ</div></div></div></section>`;
+    <div class="panel"><div class="empty">${why}${state.isAdmin
+      ? `<br><span class="dim">เพิ่มหรือเปิดใช้งานห้องได้ที่ <a href="#/admin">จัดการข้อมูล → ห้องประชุม</a>
+         · กรอก "อีเมลของ Room Mailbox" ให้ครบเพื่อให้จองห้องได้จริง</span>` : ''}</div></div></div></section>`;
+  }
 
   const i = Math.min(state.roomIndex || 0, rooms.length - 1);
   const r = rooms[i];

@@ -23,6 +23,8 @@ function busy(on) {
   bar.classList.toggle('on', !!on);
 }
 
+let renderSeq = 0;
+
 export async function render() {
   const page = pageByRoute(state.route) || pageByRoute('home');
   const ctx = { state, config: CONFIG };

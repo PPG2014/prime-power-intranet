@@ -1,3 +1,4 @@
+import { list } from './services/data.js';
 /** จุดเริ่มต้นของแอป — โหลดไฟล์เดียวนี้จาก index.html */
 import { startRouter } from './core/router.js';
 import { render, startRendering } from './core/render.js';
@@ -55,6 +56,12 @@ async function enter(user) {
 
   // ประกาศเด้งขึ้นหลังหน้าแรกวาดเสร็จ เพื่อไม่ให้บังตอนหน้ายังโหลดไม่เสร็จ
   showAnnouncements();
+
+  // โหลดข้อมูลที่ใช้บ่อยรอไว้เบื้องหลัง พอกดเมนูไหนก็ขึ้นได้ทันที
+  const warm = () => ['directory', 'formCatalog', 'requests', 'approvalMatrix',
+    'policies', 'documents', 'rooms', 'departments', 'sections']
+    .forEach((n) => list(n).catch(() => {}));
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(warm);
 }
 
 /** แปลรหัสผิดพลาดของไมโครซอฟท์เป็นข้อความที่บอกได้ว่าต้องทำอะไรต่อ */

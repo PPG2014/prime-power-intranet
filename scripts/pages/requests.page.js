@@ -1,5 +1,5 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
-import { list } from '../services/data.js';
+import { list, get, clearDataCache } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
@@ -101,6 +101,7 @@ export async function render(ctx) {
   // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด"
   const MONTHS = 6;
   const cutoff = Date.now() - MONTHS * 30 * 86400000;
+  clearDataCache('requests');   // สถานะอาจเพิ่งเปลี่ยนจากการกดในอีเมล/Teams ต้องอ่านสดเสมอ
   const everything = (await list('requests').catch(() => []))
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
 
@@ -276,6 +277,11 @@ function noRouteBox(code) {
 
 /** หน้าต่างรายละเอียดคำขอ พร้อมปุ่มอนุมัติถ้าถึงคิว */
 async function openRequest(req) {
+  // อ่านคำขอใบนี้สดอีกครั้ง ถ้ามีคนกดอนุมัติจากอีเมล/Teams ไปแล้ว จะไม่ขึ้นปุ่มให้กดซ้ำ
+  try {
+    const fresh = await get('requests', req.id);
+    if (fresh) req = { ...req, ...fresh, FormCode: formCodeOf({ ...req, ...fresh }) };
+  } catch (e) { /* อ่านไม่ได้ ใช้ข้อมูลเดิม */ }
   const steps = req._steps || stepCache[req.FormCode] || [];
   const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);
