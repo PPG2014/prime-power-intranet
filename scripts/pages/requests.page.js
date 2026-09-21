@@ -6,6 +6,7 @@ import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor } from '../services/requests.js';
 import { LETTERHEAD } from '../core/letterhead.js';
+import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel } from '../components/form-renderer.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -547,6 +548,24 @@ async function exportRequest(req, steps, answerRows) {
   const log = parseLog(req.ApprovalLog);
   const dir = await list('directory').catch(() => []);
   const sigOf = (name) => (dir.find((p) => p.Title === name) || {}).SignatureUrl || '';
+
+  // ฟอร์มที่มีแม่แบบเอกสารเฉพาะ ใช้หน้าตาตามต้นฉบับ ISO แทนเอกสารทั่วไป
+  if (isPR(req.FormCode)) {
+    let values = {};
+    try { values = JSON.parse(req.FormData || '{}'); } catch (e) { values = {}; }
+    const em = String(req.RequesterEmail || '').toLowerCase();
+    const who = dir.find((p) => String(p.Email || '').toLowerCase() === em)
+      || dir.find((p) => p.Title === req.RequesterName) || {};
+    const reqName = who.Title || req.RequesterName || '';
+    const html = renderPR({
+      values,
+      requester: { name: reqName, dept: req.RequesterDept || who.Department || '', position: who.Position || '' },
+      submitted: req.SubmittedDate,
+      prNo: req.PRNo || '',
+      sign: { requester: { name: reqName, sig: who.SignatureUrl || '' }, ...mapSignatures(steps, log, sigOf) },
+    });
+    return openPRWindow(html, `ใบขอสั่งซื้อ — ${req.Title}`);
+  }
 
   // บล็อกผู้อนุมัติ สร้างจากบันทึกจริง ไม่ใช่ช่องเซ็นเปล่า
   const approvals = steps.map((st) => {

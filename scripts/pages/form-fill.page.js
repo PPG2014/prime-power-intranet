@@ -5,6 +5,7 @@ import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm } from '../components/form-renderer.js';
 import { LETTERHEAD } from '../core/letterhead.js';
 import { buildRoute, flowFieldsFor } from '../services/requests.js';
+import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -240,6 +241,16 @@ function templateButtons(form) {
 
 /** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 พร้อมหัวกระดาษ กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
 function downloadBlankForm(form, fields) {
+  // ใบขอสั่งซื้อใช้แม่แบบเอกสารจริง เติมค่าที่พิมพ์ไว้แล้วให้ ที่เหลือเว้นว่างให้เขียนมือ
+  if (isPR(form.FormCode)) {
+    const values = readLiveValues(fields);
+    return openPRWindow(renderPR({
+      values,
+      requester: { name: (me && me.Title) || state.user?.name || '', dept: (me && me.Department) || '', position: (me && me.Position) || '' },
+      submitted: new Date().toISOString(),
+      sign: { requester: { name: (me && me.Title) || state.user?.name || '' } },
+    }), 'ดาวน์โหลดแบบฟอร์ม — ใบขอสั่งซื้อ');
+  }
   const val = (k) => {
     const el = document.getElementById('q_' + k);
     if (!el) return '';

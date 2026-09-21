@@ -1,0 +1,142 @@
+/* ─────────────────────────────────────────────────────────────
+ * แม่แบบ FM-PUR-004 ใบขอสั่งซื้อ — วางตำแหน่งเป็นมิลลิเมตรบน A4
+ * ฟอนต์: ใช้ TH SarabunPSK ที่ติดตั้งในเครื่องก่อน ถ้าไม่มีใช้ Sarabun (OFL)
+ * ซึ่งเป็นรุ่นโอเพนซอร์สของตระกูลเดียวกัน ปรับขนาดให้เท่า TH SarabunPSK
+ * ───────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'PPC Sarabun';
+  src: url('../../assets/fonts/Sarabun-Regular.ttf') format('truetype');
+  font-weight: 400;
+  size-adjust: 53%;          /* ปรับให้ความกว้างตัวอักษรเท่า TH SarabunPSK (วัดเทียบกับต้นฉบับ) */
+}
+@font-face {
+  font-family: 'PPC Sarabun';
+  src: url('../../assets/fonts/Sarabun-Bold.ttf') format('truetype');
+  font-weight: 700;
+  size-adjust: 53%;
+}
+
+.pr-doc {
+  font-family: 'TH SarabunPSK', 'TH Sarabun PSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif;
+  color: #000;
+  background: #e9edf2;
+  padding: 8mm 0;
+}
+.pr-page {
+  position: relative;
+  width: 210mm; height: 297mm;
+  margin: 0 auto 8mm;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  overflow: hidden;
+  font-size: 14pt; line-height: 1.15;
+}
+.pr-page b, .pr-page th { font-weight: 700; }
+.pr-page *, .pr-page *::before, .pr-page *::after { box-sizing: border-box; }
+
+/* หัวกระดาษ */
+.pr-logo   { position: absolute; left: 16.2mm; top: 8.2mm; width: 51.4mm; }
+.pr-title1 { position: absolute; left: 70mm; width: 80mm; top: 8.4mm; text-align: center; font-weight: 700; font-size: 17pt; }
+.pr-title2 { position: absolute; left: 60mm; width: 100mm; top: 14.6mm; text-align: center; font-size: 21pt; }
+.pr-pageno { position: absolute; left: 191.8mm; top: 8.9mm; font-size: 14pt; white-space: nowrap; }
+
+/* กล่องข้อมูลซ้าย-ขวา */
+.pr-box { position: absolute; top: 31.9mm; height: 29mm; border-collapse: collapse; border: 0.3mm solid #000; table-layout: fixed; }
+.pr-box tr { height: 5.8mm; }
+.pr-box th, .pr-box td {
+  padding: 0 1.2mm; text-align: left; vertical-align: middle;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14pt; line-height: 1;
+}
+.pr-box th { border-right: 0.3mm solid #000; }
+.pr-left  { left: 16.6mm; width: 99.1mm; }
+.pr-left th  { width: 29.4mm; }
+.pr-right { left: 134.5mm; width: 60.1mm; }
+.pr-right th { width: 19mm; }
+.pr-right tr.first th, .pr-right tr.first td { border-bottom: 0.3mm solid #000; }
+
+/* ตารางรายการ 20 แถว */
+.pr-items {
+  position: absolute; left: 16.6mm; top: 66.6mm; width: 178mm;
+  border-collapse: collapse; border: 0.3mm solid #000; table-layout: fixed;
+}
+.pr-items thead tr { height: 11.1mm; }
+.pr-items thead th {
+  border-left: 0.3mm solid #000; border-bottom: 0.3mm solid #000;
+  font-weight: 700; font-size: 13pt; line-height: 1.05; text-align: center; vertical-align: middle; padding: 0;
+}
+.pr-items thead th span { font-weight: 400; font-size: 15pt; }
+.pr-items tbody tr { height: 5.79mm; }
+.pr-items tbody td {
+  border-left: 0.3mm solid #000; padding: 0 1.2mm; font-size: 14pt; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+}
+.pr-items .c-no   { width: 14.6mm; text-align: center; font-size: 15pt; }
+.pr-items .c-desc { width: 84.6mm; }
+.pr-items .c-qty  { width: 18.8mm; text-align: center; }
+.pr-items .c-unit { width: 19mm;   text-align: center; }
+.pr-items .c-rem  { width: 41.1mm; }
+.pr-items th:first-child, .pr-items td:first-child { border-left: 0; }
+
+/* ระบุเหตุผล */
+.pr-reason-label { position: absolute; left: 17mm; top: 196.6mm; font-weight: 700; }
+.pr-reason-line  { position: absolute; left: 45.9mm; width: 148.6mm; border-top: 0.25mm solid #000; }
+.pr-reason-line.l1 { top: 202.9mm; }
+.pr-reason-line.l2 { top: 208.7mm; }
+.pr-reason-text {
+  position: absolute; left: 47mm; width: 146mm; top: 197.6mm;
+  line-height: 5.8mm; max-height: 11.6mm; overflow: hidden; font-size: 14pt;
+}
+
+/* บล็อกลายเซ็น */
+.pr-sg { position: absolute; white-space: nowrap; font-size: 14pt; }
+.pr-sg.small { font-size: 12pt; }
+/* ตำแหน่ง: ป้ายชิดซ้ายของคอลัมน์ ค่าเริ่มตรงแนวเส้นประเหมือนต้นฉบับ */
+.pr-sg.pos-l { font-size: 12.5pt; }
+.pr-sg.pos-v { font-size: 12.5pt; }
+.pr-sg.a.pos-v { left: 32mm; }
+.pr-sg.b.pos-v { left: 90.7mm; }
+.pr-sg.a { left: 17mm; }
+.pr-sg.b { left: 75.7mm; }
+.pr-sg.c { left: 134.7mm; }
+.pr-sg.r1   { top: 213.8mm; }
+.pr-sg.r1p  { top: 218.6mm; }
+.pr-sg.a.r1p { left: 32mm; }
+.pr-sg.b.r1p { left: 90.7mm; }
+.pr-sg.r1t  { top: 223.8mm; }
+.pr-sg.c.r1s  { top: 223.2mm; left: 135.1mm; }
+.pr-sg.c.r1p2 { top: 227.6mm; left: 135.1mm; }
+.pr-sg.c.r1t2 { top: 234.4mm; }
+.pr-sg.r2   { top: 238.6mm; }
+.pr-sg.a.r2p { top: 243.4mm; left: 32mm; }
+.pr-sg.a.r2t { top: 249.6mm; }
+.pr-sg.b.r2p { top: 243.6mm; }
+
+.pr-dots { position: relative; display: inline-block; }
+.pr-fill { display: inline-block; min-width: 26mm; border-bottom: 0.2mm dotted #000; }
+.pr-name { display: inline-block; min-width: 24mm; text-align: center; }
+.pr-sig  { position: absolute; left: 2mm; bottom: 1mm; height: 11mm; max-width: 30mm; object-fit: contain; }
+.pr-dir-name { position: absolute; left: 22mm; top: 5mm; font-size: 12pt; }
+
+/* ท้ายกระดาษ */
+.pr-foot-l { position: absolute; left: 16.6mm; top: 281.9mm; font-size: 16.5pt; }
+.pr-foot-r { position: absolute; right: 5.6mm; top: 282.1mm; font-size: 16.5pt; }
+
+/* ── พิมพ์: กระดาษ A4 ขอบศูนย์ เพราะตำแหน่งทั้งหมดวัดจากขอบกระดาษจริง ── */
+.pr-page { page: prform; }
+@page prform { size: A4 portrait; margin: 0; }
+
+@media print {
+  body.printing-pr .topbar, body.printing-pr header, body.printing-pr footer,
+  body.printing-pr #app, body.printing-pr .modal-head, body.printing-pr .modal-foot { display: none !important; }
+  body.printing-pr .mask { position: static; background: none; padding: 0; display: block; }
+  body.printing-pr .modal { box-shadow: none; max-width: none; width: auto; border-radius: 0; margin: 0; }
+  body.printing-pr .modal-body { padding: 0; overflow: visible !important; max-height: none !important; }
+  body.printing-pr .pr-doc { background: none; padding: 0; }
+  body.printing-pr .pr-page { margin: 0; box-shadow: none; break-after: page; }
+  body.printing-pr .pr-page:last-child { break-after: auto; }
+}
+
+/* หน้าต่างแสดงเอกสารบนจอ */
+.pr-modal { max-width: 232mm; }
+.pr-modal .modal-body { padding: 0; background: #e9edf2; }
+.pr-tip { margin-right: auto; font-size: .82em; }
