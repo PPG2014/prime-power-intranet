@@ -166,7 +166,8 @@ function control(f, value) {
       /**
        * ตารางรายการที่เพิ่มบรรทัดได้ เช่นรายการซื้อของ
        * คอลัมน์กำหนดใน Options บรรทัดละคอลัมน์ รูปแบบ key|ชื่อ|ชนิด
-       * ชนิด: text, number, money · คอลัมน์ money จะถูกรวมเป็นยอดท้ายตาราง
+       * ชนิด: text, number, money, choice:ตัวเลือก1;ตัวเลือก2
+       * คอลัมน์ money จะถูกรวมเป็นยอดท้ายตาราง (คูณจำนวนถ้ามีคอลัมน์ qty)
        */
       const cols = String(f.Options || 'detail|รายละเอียด|text\nqty|จำนวน|number\nprice|ราคา|money')
         .split('\n').map((line) => {
@@ -293,17 +294,24 @@ export function bindForm(fields, folder) {
     const sumCell = box.querySelector('.li-sum');
     const initial = toLineRows(getDefault(fields, f));
 
-    const cell = (c, val) => c.type === 'text'
-      ? `<td><input data-k="${c.key}" value="${esc(val ?? '')}"></td>`
-      : `<td><input data-k="${c.key}" type="number" ${c.type === 'money' ? 'step="0.01"' : ''}
-           value="${esc(val ?? '')}" class="li-num"></td>`;
+    const cell = (c, val) => {
+      if (String(c.type).startsWith('choice:')) {
+        const opts = c.type.slice(7).split(';').map((x) => x.trim()).filter(Boolean);
+        return `<td><select data-k="${c.key}"><option value="">— เลือก —</option>${
+          opts.map((o) => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></td>`;
+      }
+      return c.type === 'text'
+        ? `<td><input data-k="${c.key}" value="${esc(val ?? '')}"></td>`
+        : `<td><input data-k="${c.key}" type="number" ${c.type === 'money' ? 'step="0.01"' : ''}
+             value="${esc(val ?? '')}" class="li-num"></td>`;
+    };
 
     const recalc = () => {
       if (!sumCell) return;
       let sum = 0;
       body.querySelectorAll('tr').forEach((tr) => {
         const money = cols.find((c) => c.type === 'money');
-        const qty = cols.find((c) => c.key === 'qty' || c.type === 'number');
+        const qty = cols.find((c) => c.key === 'qty');
         if (!money) return;
         const priceEl = tr.querySelector(`[data-k="${money.key}"]`);
         const price = +(priceEl && priceEl.value) || 0;
@@ -319,7 +327,7 @@ export function bindForm(fields, folder) {
       tr.innerHTML = cols.map((c) => cell(c, data[c.key])).join('')
         + '<td class="li-x"><button type="button" class="li-del">✕</button></td>';
       body.appendChild(tr);
-      tr.querySelectorAll('input').forEach((el) => { el.oninput = recalc; });
+      tr.querySelectorAll('input, select').forEach((el) => { el.oninput = recalc; el.onchange = recalc; });
       tr.querySelector('.li-del').onclick = () => { tr.remove(); recalc(); };
     };
 
@@ -429,8 +437,10 @@ export function summarizeForm(fields, values, opts = {}) {
     if (f.FieldType === 'lineitems') {
       const rows = Array.isArray(v) ? v : [];
       if (!rows.length) return '';
-      let cols = [];
-      try { cols = JSON.parse(f.Options || '[]'); } catch (e) { cols = []; }
+      const cols = String(f.Options || '').split(/\r?\n/).map((line) => {
+        const [key, label] = line.split('|').map((x) => (x || '').trim());
+        return { key, label: label || key };
+      }).filter((c) => c.key);
       const head = (k) => (cols.find((c) => c.key === k) || {}).label || k;
       return nl + rows.map((r, i) => '   ' + (i + 1) + ') '
         + Object.keys(r).filter((k) => String(r[k]).trim())
