@@ -105,6 +105,7 @@ export async function render(ctx) {
             ${s.icon} ${esc(s.title)}${s.groupBy && activeGroup
               ? ' · ' + esc(formLabel(activeGroup)) : ''} — ${rows.length} รายการ
 
+            ${key === 'directory' ? '<button class="head-btn" data-autosort="1" title="เรียงตามฝ่าย → ระดับในผัง → แผนก">⚡ เรียงตามระดับอัตโนมัติ</button>' : ''}
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           ${(() => {
             const off = rows.filter((r) => r.IsActive === false).length;
@@ -154,10 +155,11 @@ export async function render(ctx) {
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
               <th class="col-actions"></th></tr></thead>
-            <tbody id="admin-tbody">${rows.length ? rows.map((r, i) => `<tr data-search="${esc(
+            <tbody id="admin-tbody">${rows.length ? rows.map((r, i) => `<tr data-id="${r.id}" data-search="${esc(
               s.columns.concat(s.facets || []).map((c) => (r[c] == null ? '' : (typeof r[c] === 'object' ? '' : r[c]))).join(' ').toLowerCase())
             }"${(s.facets || []).map((f) => ` data-f-${f}="${esc(String(r[f] ?? '').trim())}"`).join('')}>
-              ${s.sortField ? `<td class="col-no">${i + 1}</td>` : ''}
+              ${s.sortField ? `<td class="col-no"><button class="no-edit" data-pos="${r.id}"
+                title="คลิกแล้วพิมพ์ลำดับใหม่ กด Enter">${i + 1}</button></td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img data-photo="${esc(r[c])}" alt="">` : '—'}</td>`
                 : `<td data-col="${c}">${esc(
@@ -401,28 +403,94 @@ export function mount(ctx) {
   onClick('prev', (id) => previewAnnouncement(rows.find((r) => String(r.id) === String(id))));
   onClick('edit', (id) => openEditor(key, rows.find((r) => String(r.id) === String(id))));
   /** สลับลำดับกับแถวข้างเคียง แล้วเขียนเลขลำดับใหม่ทั้งคู่ */
-  const move = async (id, step) => {
-    const i = rows.findIndex((r) => String(r.id) === String(id));
-    const j = i + step;
-    if (i < 0 || j < 0 || j >= rows.length) return;
-    const f = s.sortField;
-    // สลับตำแหน่งในลำดับทั้งหมด (รวมกลุ่มอื่นด้วยถ้ามีการจัดกลุ่ม) แล้วเขียนเลข 1..n ใหม่ทุกแถว
-    // เดิมเขียนแค่ 2 แถว แถวที่ยังไม่มีเลขลำดับทำให้หน้าอื่นเรียงไม่ตรงกับหน้านี้
-    const order = allRows.slice();
-    const a = order.indexOf(rows[i]);
-    const b = order.indexOf(rows[j]);
-    if (a < 0 || b < 0) return;
-    [order[a], order[b]] = [order[b], order[a]];
-    const writes = order
-      .map((r, k) => ({ r, n: k + 1 }))
-      .filter(({ r, n }) => +r[f] !== n)
-      .map(({ r, n }) => update(s.list, r.id, { [f]: n }));
-    await Promise.all(writes);
+  const f = s.sortField;
+
+  /** เขียนเลขลำดับใหม่เฉพาะแถวที่เปลี่ยน ทีละไม่เกิน 6 รายการพร้อมกัน กัน SharePoint ปฏิเสธ */
+  const saveOrder = async (order, onProgress = () => {}) => {
+    const changed = order.map((r, k) => ({ r, n: k + 1 })).filter(({ r, n }) => +r[f] !== n);
+    let done = 0;
+    for (let k = 0; k < changed.length; k += 6) {
+      await Promise.all(changed.slice(k, k + 6).map(({ r, n }) => update(s.list, r.id, { [f]: n })));
+      done = Math.min(changed.length, k + 6);
+      onProgress(done, changed.length);
+    }
     clearCaches();
     rerender();
   };
+
+  /** แถวที่มองเห็นอยู่บนจอ (หลังค้นหา/กรองฝ่าย) เรียงตามที่แสดง */
+  const visibleIds = () => [...$$('#admin-tbody tr[data-id]')]
+    .filter((tr) => tr.style.display !== 'none').map((tr) => tr.dataset.id);
+
+  /** ย้ายแถวไปอยู่ลำดับที่ n (นับจากแถวที่เห็นบนจอ) คนอื่นเลื่อนตามให้เอง */
+  const moveTo = async (id, n) => {
+    const vis = visibleIds();
+    const from = vis.indexOf(String(id));
+    const to = Math.max(0, Math.min(vis.length - 1, n - 1));
+    if (from < 0 || from === to) { rerender(); return; }
+
+    const order = allRows.slice();
+    const item = order.find((r) => String(r.id) === String(id));
+    order.splice(order.indexOf(item), 1);
+    let at = order.findIndex((r) => String(r.id) === vis[to]);
+    if (to > from) at += 1;                 // ย้ายลง: วางหลังแถวเป้าหมาย
+    order.splice(at, 0, item);
+    await saveOrder(order);
+  };
+
+  // ลูกศรเลื่อนทีละขั้น เทียบกับแถวถัดไปที่เห็นบนจอ (ไม่ข้ามไปสลับกับฝ่ายอื่นที่ถูกซ่อน)
+  const move = (id, step) => {
+    const pos = visibleIds().indexOf(String(id));
+    if (pos >= 0) moveTo(id, pos + 1 + step);
+  };
   onClick('up', (id) => move(id, -1));
   onClick('down', (id) => move(id, 1));
+
+  // คลิกเลขลำดับ → พิมพ์ตำแหน่งใหม่
+  onClick('pos', (id, el) => {
+    const cur = visibleIds().indexOf(String(id)) + 1;
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = 1; input.value = cur;
+    input.className = 'no-input';
+    el.replaceWith(input);
+    input.focus(); input.select();
+    let finished = false;
+    const commit = () => {
+      if (finished) return; finished = true;
+      const n = parseInt(input.value, 10);
+      if (!n || n === cur) { rerender(); return; }
+      input.disabled = true;
+      moveTo(id, n);
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') commit();
+      if (e.key === 'Escape') { finished = true; rerender(); }
+    };
+    input.onblur = commit;
+  });
+
+  // เรียงบุคลากรอัตโนมัติ: ฝ่าย → ระดับในผัง → แผนก → ลำดับเดิม → ชื่อ
+  onClick('autosort', async (_, btn) => {
+    if (!confirm('เรียงบุคลากรทั้งหมดใหม่ตามฝ่าย → ระดับในผัง → แผนก ?\n'
+      + 'ลำดับที่จัดมือไว้จะถูกแทนที่ (คนระดับเดียวกันในแผนกเดียวกันยังคงลำดับเดิม)')) return;
+    const { levelOf } = await import('./directory.page.js');
+    const [deps, secs] = await Promise.all([list('departments').catch(() => []), list('sections').catch(() => [])]);
+    const rank = (arr) => {
+      const m = new Map();
+      arr.slice().sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0))
+        .forEach((x, i) => m.set(String(x.Title).trim(), i));
+      return (v) => (m.has(String(v || '').trim()) ? m.get(String(v || '').trim()) : 9999);
+    };
+    const dRank = rank(deps); const sRank = rank(secs);
+    const order = allRows.slice().sort((a, b) =>
+      (dRank(a.Department) - dRank(b.Department))
+      || (levelOf(a) - levelOf(b))
+      || (sRank(a.Section) - sRank(b.Section))
+      || ((+a[f] || 0) - (+b[f] || 0))
+      || String(a.Title || '').localeCompare(String(b.Title || ''), 'th'));
+    btn.disabled = true;
+    await saveOrder(order, (d, t) => { btn.textContent = `กำลังบันทึก ${d}/${t}…`; });
+  });
 
   onClick('del', async (id) => {
     const r = rows.find((x) => String(x.id) === String(id));

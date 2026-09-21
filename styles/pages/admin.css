@@ -173,3 +173,11 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 /* ทางลัดไปหน้าตรวจสุขภาพระบบ */
 .admin-quick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
 .admin-quick .dim { font-size: .85em; }
+
+/* เลขลำดับ: คลิกเพื่อพิมพ์ตำแหน่งใหม่ */
+.no-edit {
+  border: 1px dashed transparent; background: none; font: inherit; color: inherit;
+  min-width: 34px; padding: 2px 4px; border-radius: 6px; cursor: text;
+}
+.no-edit:hover { border-color: var(--line); background: #f3f6fa; }
+.no-input { width: 56px; padding: 3px 6px; border: 1px solid var(--blue, #1d4ed8); border-radius: 6px; font: inherit; }

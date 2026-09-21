@@ -34,7 +34,7 @@ const STAFF_TIER = 5;             // ชั้นที่เรียงเป�
  * รับได้ทั้งค่าที่ขึ้นต้นด้วยเลข (ข้อมูลเก่า) และค่าที่เป็นข้อความล้วน
  * ถ้ายังไม่ได้ระบุ จะเดาจากชื่อตำแหน่งให้ก่อน
  */
-function levelOf(p) {
+export function levelOf(p) {
   const raw = String(p.Level || '').trim();
 
   const n = parseInt(raw, 10);
