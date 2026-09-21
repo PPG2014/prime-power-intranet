@@ -7,7 +7,7 @@ import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
 import { thaiDateShort } from '../utils/format.js';
 import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
-import { showAnnouncements } from '../components/announcement-popup.js';
+import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
@@ -104,7 +104,7 @@ export async function render(ctx) {
               >${state.adminNavHidden ? '☰' : '⟨'}</button>
             ${s.icon} ${esc(s.title)}${s.groupBy && activeGroup
               ? ' · ' + esc(formLabel(activeGroup)) : ''} — ${rows.length} รายการ
-            ${key === 'announcements' ? '<button class="head-btn" data-preview="1">👁 ดูตัวอย่าง</button>' : ''}
+
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           ${(() => {
             const off = rows.filter((r) => r.IsActive === false).length;
@@ -174,6 +174,7 @@ export async function render(ctx) {
                   <button class="btn-move" data-down="${r.id}" title="เลื่อนลง"
                     ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
                 </span>` : ''}
+                ${key === 'announcements' ? `<button class="btn-mini" data-prev="${r.id}" title="ดูว่าประกาศนี้เด้งออกมาหน้าตาแบบไหน">👁 ดูตัวอย่าง</button>` : ''}
                 ${s.readOnly ? '' : `<button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>
                 <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
               </td></tr>`).join('')
@@ -397,7 +398,7 @@ export function mount(ctx) {
 
     onClick('new', () => openEditor(key, null));
   onClick('group', () => {}); // select ใช้ onchange แยกด้านล่าง
-  onClick('preview', () => showAnnouncements({ force: true }));
+  onClick('prev', (id) => previewAnnouncement(rows.find((r) => String(r.id) === String(id))));
   onClick('edit', (id) => openEditor(key, rows.find((r) => String(r.id) === String(id))));
   /** สลับลำดับกับแถวข้างเคียง แล้วเขียนเลขลำดับใหม่ทั้งคู่ */
   const move = async (id, step) => {

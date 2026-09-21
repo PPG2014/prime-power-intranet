@@ -16,6 +16,7 @@ const SEEN_KEY = 'ppg-announce-seen';
 let items = [];
 let index = 0;
 let timer = null;
+let previewNote = '';   // ข้อความเตือนตอนแอดมินกดดูตัวอย่าง (ไม่ใช่การเด้งจริง)
 
 /** แปลงวันที่จาก SharePoint เป็นวันเริ่มต้นของวัน เพื่อเทียบช่วงได้ตรง */
 const day = (v) => {
@@ -73,7 +74,8 @@ function slideHtml(a, interval) {
 
 function draw(interval) {
   const root = $('#overlay-root');
-  root.innerHTML = `<div class="pop-mask" id="pop-mask">${slideHtml(items[index], interval)}</div>`;
+  root.innerHTML = `<div class="pop-mask" id="pop-mask">${previewNote
+    ? `<div class="pop-preview-note">${esc(previewNote)}</div>` : ''}${slideHtml(items[index], interval)}</div>`;
   // รูปจาก SharePoint ต้องแนบ token จึงจะโหลดได้ทุกบัญชี ไม่ใช่เฉพาะคนที่เปิด SharePoint ค้างไว้
   hydratePhotos(root);
 
@@ -81,6 +83,7 @@ function draw(interval) {
   const close = () => {
     stop();
     root.innerHTML = '';
+    if (previewNote) { previewNote = ''; return; }   // แค่ดูตัวอย่าง ไม่นับว่าเห็นประกาศแล้ว
     try { sessionStorage.setItem(SEEN_KEY, '1'); } catch (e) { /* โหมดส่วนตัวอาจเขียนไม่ได้ */ }
   };
   const goTo = (k) => { stop(); index = (k + items.length) % items.length; draw(interval); };
@@ -127,4 +130,31 @@ export async function showAnnouncements({ force = false } = {}) {
     // ประกาศเด้งไม่ใช่งานหลัก ถ้าดึงไม่ได้ให้เข้าเว็บต่อได้ตามปกติ
     console.warn('แสดงประกาศไม่สำเร็จ:', err.message);
   }
+}
+
+
+/**
+ * ดูตัวอย่างประกาศทีละรายการจากหน้าจัดการข้อมูล
+ * แสดงเสมอแม้ยังไม่ถึงวันแสดง หมดช่วงแล้ว หรือปิดใช้งานอยู่ พร้อมบอกว่าตอนนี้จะเด้งจริงไหม
+ */
+export async function previewAnnouncement(item) {
+  if (!item) return;
+  let cfg = {};
+  try { cfg = await settings(); } catch (e) { /* ใช้ค่าเริ่มต้น */ }
+
+  const why = [];
+  if (item.IsActive === false) why.push('ปิดใช้งานอยู่');
+  const today = day(new Date());
+  const from = day(item.StartDate);
+  const to = day(item.EndDate);
+  if (from && today < from) why.push(`ยังไม่ถึงวันเริ่มแสดง (${thaiDateShort(item.StartDate)})`);
+  if (to && today > to) why.push(`หมดช่วงแสดงแล้ว (${thaiDateShort(item.EndDate)})`);
+
+  previewNote = why.length
+    ? `ตัวอย่าง · ประกาศนี้ยังไม่เด้งบนหน้าแรกตอนนี้ เพราะ${why.join(' และ ')}`
+    : 'ตัวอย่าง · ประกาศนี้กำลังเด้งบนหน้าแรกอยู่';
+  clearTimeout(timer); timer = null;
+  items = [item];
+  index = 0;
+  draw(Number(cfg.PopupInterval ?? 5) || 0);
 }
