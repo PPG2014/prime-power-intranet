@@ -189,7 +189,7 @@ string(union(json(if(empty(outputs('latest')?['body/ApprovalLog']), '[]', output
 ```
 
 ## กล่อง 12 — เขียนผลกลับ (สาขา True)
-**+** → **Switch** → Rename `byResult` · On (fx) `variables('varCode')`
+**+** → **Switch** → Rename `byResult` · On (fx) `int(variables('varCode'))` ⚠️ ต้องครอบ int() เพราะช่อง Case ที่พิมพ์ 1/2/3 จะถูกแปลงเป็นตัวเลข ถ้าไม่ครอบจะพังหลังผู้อนุมัติกด
 
 ### Case `1` (Equals พิมพ์ `1`) — อนุมัติ
 **Condition** → Rename `hasNext` · ซ้าย (fx) `length(body('nextSteps'))` · **is greater than** · ขวา (พิมพ์) `0`

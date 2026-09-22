@@ -197,6 +197,12 @@ async function runChecks() {
       });
       ['ApprovalLog', 'Route', 'CurrentApprovers', 'SummaryText'].forEach((col) => {
         const c = cols.get(col);
+        // Rich text จะห่อข้อมูลด้วยแท็ก HTML → โฟลว์อ่าน JSON ไม่ได้ และพังหลังผู้อนุมัติกดในอีเมล/Teams
+        if (c && c.text && c.text.allowMultipleLines && c.text.textType && c.text.textType !== 'plain') {
+          add('stop', 'คอลัมน์ SharePoint', `คอลัมน์ ${col} เป็น Rich text`,
+            'ข้อมูลจะถูกห่อด้วยแท็ก HTML ทำให้โฟลว์อนุมัติอ่านไม่ได้ และพังหลังผู้อนุมัติกดในอีเมล/Teams',
+            'เปิดคอลัมน์ใน List Requests → Edit → More options → ปิด "Use enhanced rich text" / เลือก Plain text');
+        }
         if (c && c.text && c.text.allowMultipleLines === false) {
           add('warn', 'คอลัมน์ SharePoint', `คอลัมน์ ${col} เป็นข้อความบรรทัดเดียว`,
             'ข้อมูลยาวเกิน 255 อักขระจะบันทึกไม่ได้',

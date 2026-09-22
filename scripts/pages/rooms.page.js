@@ -42,7 +42,7 @@ export async function render(ctx) {
   <section class="page page-rooms">
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
-      <p class="page-lead">ตารางการใช้ห้องดึงสดจากปฏิทินห้องใน Outlook — กดจองแล้วระบบจะเปิดปฏิทินของคุณพร้อมกรอกชื่อห้องไว้ให้</p>
+      <p class="page-lead">ดูตารางการใช้ห้อง แล้วจองจากหน้าเว็บได้เลย — ระบบสร้างนัดหมายในปฏิทิน Outlook ของคุณและจองห้องให้อัตโนมัติ หรือจะกดจองผ่าน Outlook แบบเดิมก็ได้</p>
 
       <div class="room-tabs">
         ${rooms.map((x, k) => `<button data-room="${k}" aria-current="${k === i ? 'page' : 'false'}">
@@ -56,40 +56,12 @@ export async function render(ctx) {
             <div class="room-meta">${esc(r.Location)} · ${r.Capacity} ที่นั่ง${
               r.Equipment ? ' · ' + esc(r.Equipment) : ''}</div>
           </div>
-          <div class="book-form">
-          <div class="book-title">จองห้องนี้จากหน้าเว็บ</div>
-          <div class="book-grid">
-            <label>หัวข้อการประชุม
-              <input id="bk-subject" type="text" placeholder="เช่น ประชุมติดตามงานโครงการ">
-            </label>
-            <label>วันที่
-              <input id="bk-date" type="date" value="${todayStr()}" min="${todayStr()}">
-            </label>
-            <label>เริ่ม
-              <select id="bk-start">${TIMES.map((t) => `<option${t === '09:00' ? ' selected' : ''}>${t}</option>`).join('')}</select>
-            </label>
-            <label>ถึง
-              <select id="bk-end">${TIMES.map((t) => `<option${t === '10:00' ? ' selected' : ''}>${t}</option>`).join('')}</select>
-            </label>
-            <label class="wide">ผู้เข้าร่วม (อีเมล คั่นด้วยเครื่องหมายจุลภาค)
-              <input id="bk-att" type="text" placeholder="somchai.w@primepower.co.th, wanna.t@primepower.co.th">
-            </label>
-            <label class="wide">รายละเอียดเพิ่มเติม
-              <input id="bk-note" type="text" placeholder="ไม่บังคับ">
-            </label>
-          </div>
-          <div class="book-msg" id="bk-msg" hidden></div>
-          <div class="book-actions">
-            <button class="btn btn-primary" id="bk-go">📅 จองห้อง</button>
-          </div>
-          <div class="panel-note">ระบบจะสร้างนัดหมายในปฏิทิน Outlook ของคุณและเชิญห้องให้อัตโนมัติ
-            — เห็นได้ทั้งใน Outlook และ Teams เหมือนจองจาก Outlook โดยตรง</div>
-        </div>
-
+          <div class="room-actions">
         ${r.PublishedCalendarUrl ? `<a class="btn-mini" href="${esc(r.PublishedCalendarUrl)}"
             target="_blank" rel="noopener">↗ เปิดปฏิทินเต็มจอ</a>` : ''}
           <a class="btn-mini book-btn" href="${composeBookingUrl(r)}"
              target="_blank" rel="noopener">↗ จองผ่าน Outlook</a>
+          </div>
         </div>
         <div class="book-form">
           <div class="book-title">จองห้องนี้จากหน้าเว็บ</div>

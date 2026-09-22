@@ -464,7 +464,8 @@ function actionBox(req, role) {
         <div class="rq-slip-upload">
           <label class="btn-mini upload-btn" for="rq-slip">แนบสลิปการโอน</label>
           <input type="file" id="rq-slip" accept="image/*,application/pdf" hidden>
-          <span id="rq-slip-name" class="dim">ยังไม่ได้แนบ</span>
+          <span id="rq-slip-name" class="dim">ยังไม่ได้แนบ · หรือกด <kbd>Ctrl</kbd>+<kbd>V</kbd> เพื่อวางรูปสลิป</span>
+          <div class="rq-slip-preview" id="rq-slip-preview" hidden></div>
         </div>` : ''}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
@@ -485,15 +486,46 @@ function bindActions(req, steps, role) {
   const fail = (m) => { err.textContent = m; err.hidden = false; };
 
   const slipInput = $('#rq-slip');
-  if (slipInput) slipInput.onchange = async (ev) => {
-    const f = ev.target.files[0];
+
+  /** อัปโหลดสลิป พร้อมแสดงตัวอย่างรูป — ใช้ทั้งการเลือกไฟล์และการวาง Ctrl+V */
+  const takeSlip = async (f) => {
     if (!f) return;
-    $('#rq-slip-name').textContent = 'กำลังอัปโหลด…';
+    const label = $('#rq-slip-name');
+    const prev = $('#rq-slip-preview');
+    label.textContent = 'กำลังอัปโหลด…';
+    if (prev) {
+      prev.innerHTML = f.type.startsWith('image/')
+        ? `<img src="${URL.createObjectURL(f)}" alt="ตัวอย่างสลิป">` : '';
+      prev.hidden = !f.type.startsWith('image/');
+    }
     try {
-      pendingSlip = await uploadFile(f, `Requests/${req.FormCode}/slips`);
-      $('#rq-slip-name').textContent = `${pendingSlip.name} · ${pendingSlip.sizeText}`;
-    } catch (e) { $('#rq-slip-name').textContent = e.message; }
+      pendingSlip = await uploadFile(f, `Requests/${req.FormCode}/slips`, (pct) => {
+        label.textContent = `กำลังอัปโหลด ${pct}%`;
+      });
+      label.textContent = `✓ ${pendingSlip.name} · ${pendingSlip.sizeText}`;
+    } catch (e) { pendingSlip = null; label.textContent = e.message; }
   };
+
+  if (slipInput) {
+    slipInput.onchange = (ev) => takeSlip(ev.target.files[0]);
+
+    // วางรูปสลิปจากคลิปบอร์ดได้ทันที (แคปหน้าจอแอปธนาคาร แล้วกด Ctrl+V)
+    const onPaste = (ev) => {
+      if (!document.body.contains(slipInput)) {       // ปิดหน้าต่างแล้ว เลิกฟัง
+        document.removeEventListener('paste', onPaste);
+        return;
+      }
+      const items = [...(ev.clipboardData?.items || [])];
+      const img = items.find((it) => it.kind === 'file' && it.type.startsWith('image/'));
+      if (!img) return;                                // วางข้อความตามปกติ ไม่ขวาง
+      ev.preventDefault();
+      const blob = img.getAsFile();
+      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+      takeSlip(new File([blob], `slip-${stamp}.${ext}`, { type: blob.type }));
+    };
+    document.addEventListener('paste', onPaste);
+  }
 
   const note = () => $('#rq-note').value.trim();
   const busy = (on) => $$('.rq-buttons button').forEach((b) => { b.disabled = on; });

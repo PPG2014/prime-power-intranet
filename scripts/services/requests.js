@@ -155,9 +155,18 @@ export function roleOnRequest(req, steps, userName) {
     isInvolved,
     canActNow,
     waiting: isInvolved && !canActNow && !done && Math.min(...myStepNums) > cur,
-    isFinalStep: canActNow && cur === lastStep,
+    // ขั้นสุดท้ายแบบแนบสลิป + ปิดงาน ใช้เฉพาะฟอร์มเบิกจ่ายเงิน
+    // ฟอร์มอื่นขั้นสุดท้ายเป็นการอนุมัติปกติ แล้วสถานะเป็น "อนุมัติแล้ว"
+    isFinalStep: canActNow && cur === lastStep && needsSlip(req.FormCode),
   };
 }
+
+/**
+ * ฟอร์มที่ขั้นสุดท้ายต้องแนบสลิปการโอนก่อนปิดงาน (ฟอร์มเบิกจ่ายเงินเท่านั้น)
+ * FM-ACC-002 เบิกเงินทดรองจ่าย · FM-ACC-003 เบิกเงินสำรองโครงการ
+ */
+export const SLIP_FORMS = ['FM-ACC-002', 'FM-ACC-003'];
+export const needsSlip = (code) => SLIP_FORMS.includes(String(code || '').trim().toUpperCase());
 
 /** บันทึกการตัดสินใจของผู้อนุมัติ แล้วเลื่อนสถานะคำขอ */
 
