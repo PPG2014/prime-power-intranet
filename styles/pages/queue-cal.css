@@ -1,6 +1,7 @@
 /* ปฏิทินคิวรายเดือน ข้างฟอร์มจอง */
-.form-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .form-layout { grid-template-columns: 1fr; } }
+.form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(400px, 480px); gap: 16px; align-items: start; }
+@media (min-width: 1500px) { .form-layout { grid-template-columns: minmax(0, 1fr) 560px; } }
+@media (max-width: 1100px) { .form-layout { grid-template-columns: 1fr; } }
 
 .qc-panel { padding: 12px 14px; position: sticky; top: 12px; }
 .qc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -9,29 +10,57 @@
 .qc-dow, .qc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
 .qc-dow span { text-align: center; font-size: .76em; color: var(--muted, #6b7280); padding-bottom: 3px; }
 .qc-cell {
-  position: relative; aspect-ratio: 1; border: 1px solid transparent; border-radius: 8px;
-  background: #f5f7fa; font: inherit; font-size: .84em; cursor: pointer; padding: 0;
-  display: flex; align-items: center; justify-content: center;
+  position: relative; min-height: 78px; border: 1px solid transparent; border-radius: 8px;
+  background: #f5f7fa; font: inherit; font-size: .84em; cursor: pointer;
+  padding: 3px 4px 4px; text-align: left;
+  display: flex; flex-direction: column; gap: 2px; overflow: hidden;
 }
+.qc-d { font-weight: 600; line-height: 1.1; }
+.qc-ev {
+  display: block; width: 100%; font-size: .74em; line-height: 1.25;
+  padding: 1px 4px; border-radius: 4px; background: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 3px solid #1e7f4f;
+}
+.qc-ev.wait { border-left-color: #d69e2e; }
+.qc-ev b { font-weight: 700; }
+.qc-more { font-size: .72em; color: var(--muted, #6b7280); }
 .qc-cell.qc-blank { background: none; cursor: default; }
 .qc-cell:hover:not(.qc-blank) { border-color: var(--line); }
 .qc-cell.has { background: #e6f0ff; font-weight: 600; }
 .qc-cell.today { outline: 2px solid #9ec5ff; outline-offset: -2px; }
-.qc-cell.on { background: var(--blue, #1d4ed8); color: #fff; }
+.qc-cell.on { background: #dbe8ff; border-color: var(--blue, #1d4ed8); }
+.qc-cell.on .qc-d { color: var(--blue, #1d4ed8); }
 .qc-dot {
-  position: absolute; top: 2px; right: 3px; min-width: 15px; height: 15px; line-height: 15px;
-  border-radius: 999px; background: var(--blue, #1d4ed8); color: #fff; font-size: .62em; font-weight: 700;
+  position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; line-height: 15px;
+  border-radius: 999px; background: var(--blue, #1d4ed8); color: #fff;
+  font-size: .62em; font-weight: 700; text-align: center;
 }
-.qc-cell.on .qc-dot { background: #fff; color: var(--blue, #1d4ed8); }
 
 .qc-day { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
 .qc-daytitle { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; font-size: .9em; }
 .qc-free { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .9em; color: #1e7f4f; }
 .qc-hint { font-size: .88em; color: var(--muted, #6b7280); }
-.qc-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.qc-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; max-height: 300px; overflow-y: auto; }
 .qc-list li { display: grid; gap: 1px; padding: 6px 8px; background: #f7f9fc; border-radius: 8px; font-size: .84em; }
 .qc-time { font-weight: 600; }
 .qc-place { color: var(--muted, #6b7280); }
 .qc-st { font-size: .9em; }
 .qc-st.wait { color: #b7791f; }
 .qc-st.ok { color: #1e7f4f; }
+
+/* รายการคิวทั้งเดือน (เห็นชื่อและช่วงเวลาเต็ม) */
+.qc-ev { text-align: center; font-weight: 600; }
+.qc-month { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.qc-monthtitle { font-weight: 600; font-size: .9em; margin-bottom: 6px; }
+.qc-mlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 340px; overflow-y: auto; }
+.qc-mday {
+  border: 0; background: none; font: inherit; font-weight: 600; font-size: .86em;
+  color: var(--blue, #1d4ed8); padding: 0 0 3px; cursor: pointer;
+}
+.qc-mday.on { text-decoration: underline; }
+.qc-mrow {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: baseline;
+  padding: 5px 8px; background: #f7f9fc; border-radius: 8px; font-size: .84em; margin-bottom: 4px;
+}
+.qc-mrow .qc-place { grid-column: 1 / -1; font-size: .92em; }

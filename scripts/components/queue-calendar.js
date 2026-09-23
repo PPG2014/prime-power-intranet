@@ -58,16 +58,22 @@ function grid() {
   for (let i = 0; i < first; i += 1) cells.push('<div class="qc-cell qc-blank"></div>');
   for (let d = 1; d <= days; d += 1) {
     const k = key(y, m, d);
-    const n = (byDay[k] || []).length;
+    const items = byDay[k] || [];
     const cls = [
       'qc-cell',
-      n ? 'has' : '',
+      items.length ? 'has' : '',
       k === todayKey() ? 'today' : '',
       k === picked ? 'on' : '',
     ].filter(Boolean).join(' ');
+
+    // แสดงคิวในช่องวันเลย สูงสุด 3 รายการ ที่เหลือบอกเป็นจำนวน
+    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}"
+        title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}`)}">${esc(b.from)}</span>`).join('');
+
     cells.push(`<button class="${cls}" data-qcday="${k}">
       <span class="qc-d">${d}</span>
-      ${n ? `<span class="qc-dot">${n}</span>` : ''}
+      ${shown}
+      ${items.length > 3 ? `<span class="qc-more">+${items.length - 3} คิว</span>` : ''}
     </button>`);
   }
   return cells.join('');
@@ -90,6 +96,27 @@ function dayList() {
     </li>`).join('')}</ul>`;
 }
 
+/** รายการคิวทั้งเดือน จัดกลุ่มตามวัน เห็นชื่อผู้จองและช่วงเวลาเต็ม */
+function monthList() {
+  const { y, m } = ym;
+  const prefix = `${y}-${String(m + 1).padStart(2, '0')}`;
+  const rows = bookings.filter((b) => b.day.startsWith(prefix));
+  if (!rows.length) return '<div class="qc-hint">เดือนนี้ยังไม่มีคิว</div>';
+
+  const byDay = {};
+  rows.forEach((b) => { (byDay[b.day] = byDay[b.day] || []).push(b); });
+
+  return `<ul class="qc-mlist">${Object.keys(byDay).sort().map((d) => `<li>
+      <button class="qc-mday${d === picked ? ' on' : ''}" data-qcday="${d}">${esc(thaiDay(d))}</button>
+      ${byDay[d].map((b) => `<div class="qc-mrow">
+        <span class="qc-time">${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</span>
+        <span class="qc-by">${esc(b.by)}</span>
+        ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
+        <span class="qc-st ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}">${esc(b.status)}</span>
+      </div>`).join('')}
+    </li>`).join('')}</ul>`;
+}
+
 const thaiDay = (k) => {
   const [y, m, d] = k.split('-').map(Number);
   return `${d} ${TH_MONTH[m - 1]} ${y + 543}`;
@@ -109,6 +136,10 @@ function html() {
       <div class="qc-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qc-grid">${grid()}</div>
       <div class="qc-day">${dayList()}</div>
+      <div class="qc-month">
+        <div class="qc-monthtitle">คิวทั้งเดือน ${TH_MONTH[m]}</div>
+        ${monthList()}
+      </div>
       <div class="panel-note">ข้อมูลจากคำขอในระบบ ไม่รวมใบที่ยกเลิกหรือไม่อนุมัติ</div>
     </div>`;
 }
