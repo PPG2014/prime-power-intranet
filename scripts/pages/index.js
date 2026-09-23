@@ -15,7 +15,8 @@ import * as directory from './directory.page.js';
 import * as contact   from './contact.page.js';
 import * as admin     from './admin.page.js';
 import * as health    from './health.page.js';
+import * as appraisal from './appraisal.page.js';
 
-export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, admin, health];
+export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, admin, health, appraisal];
 
 export const pageByRoute = (route) => pages.find((p) => p.meta.route === route);

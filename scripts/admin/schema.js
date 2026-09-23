@@ -358,6 +358,53 @@ export const SCHEMA = {
     ],
   },
 
+  appraisalCycles: {
+    title: 'รอบประเมินผล', icon: '🗓', list: 'appraisalCycles', spName: 'AppraisalCycles',
+    sortField: 'SortOrder', unique: ['Title'],
+    hint: 'เปิดได้ครั้งละ 1 รอบ · ช่อง "ขั้นตอนที่เปิด" เป็นตัวคุมว่าตอนนี้ใครกรอกได้',
+    columns: ['Title', 'Status', 'Stage', 'StartDate', 'EndDate'],
+    labels: { Title: 'ชื่อรอบ', Status: 'สถานะรอบ', Stage: 'ขั้นตอนที่เปิด',
+              StartDate: 'เริ่ม', EndDate: 'สิ้นสุด' },
+    fields: [
+      { key: 'Title', label: 'ชื่อรอบประเมิน', type: 'text', required: true,
+        help: 'เช่น ปี 2569 ครึ่งปีแรก' },
+      { key: 'Status', label: 'สถานะรอบ', type: 'choice', options: ['เปิด', 'ปิด'], required: true },
+      { key: 'Stage', label: 'ขั้นตอนที่เปิดให้ทำได้', type: 'choice', required: true,
+        options: ['ประเมินตนเอง', 'หัวหน้าประเมิน', 'ผู้บริหารอนุมัติ', 'พนักงานรับทราบ'],
+        help: 'ระบบจะให้ทำได้เฉพาะขั้นตอนนี้เท่านั้น' },
+      { key: 'StartDate', label: 'วันเริ่ม', type: 'date' },
+      { key: 'EndDate', label: 'วันสิ้นสุด', type: 'date' },
+      { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
+    ],
+  },
+
+  appraisalCriteria: {
+    title: 'หัวข้อประเมิน', icon: '📝', list: 'appraisalCriteria', spName: 'AppraisalCriteria',
+    sortField: 'SortOrder', groupBy: 'Section', search: true, facets: ['Section'],
+    hint: 'น้ำหนักรวมทุกข้อควรเท่ากับ 100 · ให้คะแนนข้อละ 1–5 ระบบถ่วงน้ำหนักให้เอง',
+    columns: ['Section', 'Title', 'Weight'],
+    labels: { Section: 'หมวด', Title: 'หัวข้อ', Weight: 'น้ำหนัก (%)', SectionWeight: 'น้ำหนักหมวด (%)' },
+    fields: [
+      { key: 'Section', label: 'หมวด', type: 'text', required: true,
+        help: 'เช่น KPI ผลงานตามเป้าหมาย · Competency สมรรถนะ · Core Value ค่านิยมองค์กร' },
+      { key: 'Title', label: 'หัวข้อประเมิน', type: 'text', required: true },
+      { key: 'Weight', label: 'น้ำหนักของหัวข้อ (%)', type: 'number', step: '0.1', min: 0, max: 100, required: true },
+      { key: 'SectionWeight', label: 'น้ำหนักรวมของหมวด (%)', type: 'number', step: '0.1', min: 0, max: 100,
+        help: 'ใส่เฉพาะแถวแรกของหมวดก็พอ ใช้แสดงผลเท่านั้น' },
+      { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
+    ],
+  },
+
+  appraisals: {
+    title: 'ใบประเมินรายบุคคล', icon: '📊', list: 'appraisals', spName: 'Appraisals',
+    readOnly: true, search: true, facets: ['CycleName', 'Department', 'Status'],
+    hint: 'ดูอย่างเดียว · การให้คะแนนทำที่หน้าประเมินผลบุคลากร',
+    columns: ['CycleName', 'EmployeeName', 'Department', 'EvaluatorName', 'Status', 'FinalScore', 'Grade'],
+    labels: { CycleName: 'รอบ', EmployeeName: 'ผู้ถูกประเมิน', Department: 'ฝ่าย',
+              EvaluatorName: 'ผู้ประเมิน', Status: 'สถานะ', FinalScore: 'คะแนนสรุป', Grade: 'เกรด' },
+    fields: [],
+  },
+
   settings: {
     title: 'ตั้งค่าระบบ', icon: '🛟', list: 'settings', spName: 'Settings',
     hint: 'ค่าที่ระบบรู้จัก · Admins = อีเมลผู้ดูแล (คั่นด้วยจุลภาค) · SupportEmail = อีเมลติดต่อผู้ดูแลที่แสดงหน้าติดต่อ · PopupInterval = วินาทีที่ประกาศเลื่อนอัตโนมัติ · FeedbackRecipients = อีเมลผู้รับแจ้งเตือนความคิดเห็นใหม่ (คั่นด้วยจุลภาค)',

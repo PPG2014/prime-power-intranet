@@ -1,0 +1,39 @@
+/* ระบบประเมินผลบุคลากร */
+.ap-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.ap-stats > div { flex: 1 1 150px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; text-align: center; background: #fff; }
+.ap-stats b { display: block; font-size: 1.35em; }
+.ap-stats span { font-size: .82em; color: var(--muted, #6b7280); }
+.ap-stats.small > div { flex-basis: 110px; padding: 6px; }
+.ap-stats.small b { font-size: 1.05em; }
+
+.ap-pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: .82em; background: #eef2f7; }
+.ap-pill.wait { background: #eef2f7; color: #475569; }
+.ap-pill.mgr  { background: #fef6e7; color: #b7791f; }
+.ap-pill.head { background: #ede9fe; color: #6d28d9; }
+.ap-pill.ack  { background: #e0f2fe; color: #0369a1; }
+.ap-pill.done { background: #e9f7ef; color: #1e7f4f; }
+
+.ap-table { width: 100%; border-collapse: collapse; font-size: .9em; }
+.ap-table th, .ap-table td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: middle; }
+.ap-table th { background: #f7f9fc; font-weight: 600; }
+.ap-table .num { text-align: right; white-space: nowrap; }
+
+.ap-sec { margin: 14px 0 6px; font-size: 1em; }
+.ap-score td { border-bottom: 1px dashed var(--line); }
+.ap-scale { display: flex; gap: 10px; justify-content: flex-end; white-space: nowrap; }
+.ap-scale label { display: inline-flex; align-items: center; gap: 3px; font-size: .92em; }
+.ap-comment { display: block; margin-top: 14px; font-size: .92em; }
+.ap-comment textarea, .ap-head-box textarea, .ap-head-box input {
+  width: 100%; box-sizing: border-box; margin-top: 4px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit;
+}
+.ap-total { margin-top: 12px; padding: 10px 12px; background: #f1f6ff; border-radius: 8px; }
+.ap-total .dim { margin-left: 8px; font-size: .88em; }
+.ap-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.ap-note { margin-bottom: 10px; }
+.ap-head-box { display: grid; gap: 10px; margin: 12px 0; }
+.ap-ack { border-left: 4px solid #0369a1; }
+.ap-ack textarea { width: 100%; box-sizing: border-box; margin: 6px 0 10px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
+.ap-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: .88em; }
+.ap-log li { padding: 7px 10px; background: #f7f9fc; border-radius: 8px; }
+@media (max-width: 700px) { .ap-scale { justify-content: flex-start; flex-wrap: wrap; } }
