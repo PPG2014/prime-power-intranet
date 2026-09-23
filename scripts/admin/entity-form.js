@@ -154,6 +154,35 @@ export async function formBody(schema, record = {}) {
           <span>${esc(o.label)}</span></label>`).join('')
           : `<div class="check-empty">${esc(f.emptyHint || '— ไม่มีตัวเลือก —')}</div>`}
       </div>`;
+    } else if (f.type === 'people') {
+      // เลือกบุคลากรจากทะเบียน กรองตามฝ่ายและค้นหาชื่อได้ เก็บเป็นอีเมลบรรทัดละคน
+      const staff = (await list('directory').catch(() => []))
+        .filter((x) => x.IsActive !== false)
+        .sort((a, b) => String(a.Department || '').localeCompare(String(b.Department || ''), 'th')
+          || String(a.Title || '').localeCompare(String(b.Title || ''), 'th'));
+      const picked = new Set(String(v || '').split(/\r?\n/).map((x) => x.trim().toLowerCase()).filter(Boolean));
+      const on = (p) => picked.has(String(p.Email || '').trim().toLowerCase())
+        || picked.has(String(p.Title || '').trim().toLowerCase());
+      const depts = [...new Set(staff.map((p) => String(p.Department || '').trim()).filter(Boolean))];
+
+      input = `<div class="people-pick" id="${id}">
+        <div class="people-tools">
+          <select class="people-dept"><option value="">ทุกฝ่าย</option>
+            ${depts.map((d) => `<option>${esc(d)}</option>`).join('')}</select>
+          <input class="people-q" placeholder="พิมพ์ชื่อเพื่อค้นหา" autocomplete="off">
+          <span class="people-count"></span>
+        </div>
+        <div class="check-list people-list">
+          ${staff.map((p) => `<label class="check-item" data-dept="${esc(String(p.Department || '').trim())}">
+            <input type="checkbox" value="${esc(p.Email || p.Title)}" ${on(p) ? 'checked' : ''}>
+            <span>${esc(p.Title)}<span class="dim"> · ${esc(p.Position || '')}${
+              p.Section ? ` · ${esc(p.Section)}` : ''}</span></span></label>`).join('')}
+        </div>
+        <div class="people-actions">
+          <button type="button" class="btn-mini" data-people-all>เลือกทั้งหมดที่เห็น</button>
+          <button type="button" class="btn-mini" data-people-none>ล้างการเลือก</button>
+        </div>
+      </div>`;
     } else if (f.type === 'textarea') {
       input = `<textarea id="${id}" rows="4">${esc(v)}</textarea>`;
     } else if (f.type === 'date') {
@@ -200,6 +229,10 @@ export function collect(schema) {
     if (!el) continue;
     if (f.type === 'photo') { out[f.key] = draftPhotos[f.key] || ''; continue; }
     if (f.type === 'files') { out[f.key] = JSON.stringify(draftFiles); continue; }
+    if (f.type === 'people') {
+      out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value).join('\n');
+      continue;
+    }
     if (f.type === 'multilookup') {
       out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value);
       continue;
@@ -353,6 +386,38 @@ export function bindFilters(schema) {
   });
 }
 
+/** ตัวกรองของช่องเลือกบุคลากร */
+export function bindPeoplePickers() {
+  $$('.people-pick').forEach((box) => {
+    const dept = box.querySelector('.people-dept');
+    const q = box.querySelector('.people-q');
+    const items = [...box.querySelectorAll('.check-item')];
+    const count = box.querySelector('.people-count');
+
+    const apply = () => {
+      const d = dept.value.trim();
+      const text = q.value.trim().toLowerCase();
+      items.forEach((it) => {
+        it.hidden = (d && it.dataset.dept !== d) || (text && !it.textContent.toLowerCase().includes(text));
+      });
+      const chosen = items.filter((it) => it.querySelector('input').checked).length;
+      count.textContent = `เลือกแล้ว ${chosen} คน · แสดง ${items.filter((it) => !it.hidden).length} รายการ`;
+    };
+    dept.onchange = apply;
+    q.oninput = apply;
+    box.querySelectorAll('input[type=checkbox]').forEach((c) => { c.onchange = apply; });
+    box.querySelector('[data-people-all]').onclick = () => {
+      items.filter((it) => !it.hidden).forEach((it) => { it.querySelector('input').checked = true; });
+      apply();
+    };
+    box.querySelector('[data-people-none]').onclick = () => {
+      items.forEach((it) => { it.querySelector('input').checked = false; });
+      apply();
+    };
+    apply();
+  });
+}
+
 export function bindDependents(schema) {
   // จับกลุ่มตามช่องแม่ก่อน เพราะช่องแม่หนึ่งช่องอาจมีลูกหลายช่อง
   // ถ้าผูก onchange ทีละช่อง ตัวหลังจะทับตัวแรกและลูกช่องแรกจะหยุดทำงาน
@@ -372,7 +437,11 @@ export function bindDependents(schema) {
         const child = $('#f_' + f.key);
         if (!child) continue;
 
-        if (f.type === 'multilookup') {
+        if (f.type === 'people') {
+      out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value).join('\n');
+      continue;
+    }
+    if (f.type === 'multilookup') {
           const opts = await optionsFor({ ...f, type: 'lookup', allowEmpty: false }, parent.value);
           child.innerHTML = opts.length
             ? opts.map((o) => `<label class="check-item">

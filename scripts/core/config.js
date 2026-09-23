@@ -7,7 +7,7 @@ export const CONFIG = {
   appName: 'Prime Power Group',
 
   /** เลขรุ่นโค้ด — เปิด Console (F12) จะเห็นบรรทัดนี้ ใช้ตรวจว่าเบราว์เซอร์รันโค้ดล่าสุดแล้ว */
-  build: '2026-09-23-guid',
+  build: '2026-09-23-people',
 
   /**
    * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
