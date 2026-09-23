@@ -14,9 +14,19 @@ export const STAGES = ['ประเมินตนเอง', 'หัวหน�
 export const DONE = 'เสร็จสมบูรณ์';
 
 /** เกรดตามคะแนนถ่วงน้ำหนัก 0–100 */
-export const GRADES = [[90, 'A', 'ดีเยี่ยม'], [80, 'B+', 'ดีมาก'], [70, 'B', 'ดี'],
-  [60, 'C', 'พอใช้'], [0, 'D', 'ต้องปรับปรุง']];
-export const gradeOf = (score) => GRADES.find((g) => score >= g[0]) || GRADES[GRADES.length - 1];
+export const GRADE_SCHEMES = {
+  // เกณฑ์ทั่วไป
+  'มาตรฐาน': [[90, 'A', 'ดีเยี่ยม'], [80, 'B+', 'ดีมาก'], [70, 'B', 'ดี'],
+    [60, 'C', 'พอใช้'], [0, 'D', 'ต้องปรับปรุง']],
+  // ตาม FM-HRM-004 Rev.02 แบบประเมินผลระหว่างทดลองงาน
+  'ทดลองงาน': [[91, 'A', 'ดีเยี่ยม'], [86, 'B+', 'ดีมาก'], [81, 'B', 'ดี'],
+    [70, 'C', 'พอใช้'], [0, 'F', 'ไม่ผ่านเกณฑ์']],
+};
+export const GRADES = GRADE_SCHEMES['มาตรฐาน'];
+export const gradeOf = (score, scheme = 'มาตรฐาน') => {
+  const t = GRADE_SCHEMES[clean(scheme)] || GRADES;
+  return t.find((g) => score >= g[0]) || t[t.length - 1];
+};
 
 export const clean = (v) => (v && typeof v === 'object'
   ? String(v.LookupValue ?? v.Title ?? '') : String(v ?? '')).trim();
@@ -31,9 +41,10 @@ export async function activeCycle() {
 }
 
 /** หัวข้อประเมิน จัดกลุ่มตามหมวด พร้อมน้ำหนัก */
-export async function criteria() {
+export async function criteria(formSet = '') {
   const rows = (await list('appraisalCriteria').catch(() => []))
     .filter((c) => c.IsActive !== false)
+    .filter((c) => !formSet || clean(c.FormSet) === clean(formSet))
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
   const secs = [];
@@ -42,7 +53,11 @@ export async function criteria() {
     let sec = secs.find((s) => s.name === name);
     if (!sec) { sec = { name, weight: num(r.SectionWeight), items: [] }; secs.push(sec); }
     if (num(r.SectionWeight)) sec.weight = num(r.SectionWeight);
-    sec.items.push({ id: String(r.id), title: clean(r.Title), weight: num(r.Weight) });
+    sec.items.push({
+      id: String(r.id), title: clean(r.Title), weight: num(r.Weight),
+      scale: num(r.Scale) === 10 ? 10 : 5,          // สเกลให้คะแนน 1–5 หรือ 1–10
+      hint: clean(r.Hint),
+    });
   });
   return secs;
 }
@@ -55,10 +70,11 @@ export function scoreOf(secs, answers = {}) {
   let got = 0; let total = 0;
   secs.forEach((s) => s.items.forEach((it) => {
     const w = it.weight || 0;
+    const max = it.scale || 5;
     const v = +answers[it.id];
     if (!w) return;
     total += w;
-    if (v >= 1 && v <= 5) got += (v / 5) * w;
+    if (v >= 1 && v <= max) got += (v / max) * w;
   }));
   const answeredW = secs.reduce((t, s) => t + s.items
     .filter((it) => +answers[it.id] >= 1).reduce((x, it) => x + (it.weight || 0), 0), 0);
@@ -71,6 +87,7 @@ export function scoreOf(secs, answers = {}) {
 
 const parse = (v) => { try { const x = JSON.parse(v || '{}'); return x && typeof x === 'object' ? x : {}; } catch (e) { return {}; } };
 export const answersOf = (row, who) => parse(who === 'self' ? row.SelfData : row.MgrData);
+export const extraOf = (row) => parse(row.Extra);
 export const logOf = (row) => { const x = parse(row.Log); return Array.isArray(x.items) ? x.items : []; };
 
 /** ใบประเมินทั้งหมดของรอบที่ระบุ */
@@ -108,8 +125,15 @@ export async function generateSheets(cycle, onProgress = () => {}) {
     sheets(clean(cycle.Title)),
   ]);
   const have = new Set(existing.map((r) => clean(r.EmployeeEmail).toLowerCase()));
+
+  // รอบที่ระบุรายชื่อ (เช่น ประเมินทดลองงาน) จะสร้างเฉพาะคนในรายการเท่านั้น
+  const onlyList = clean(cycle.Scope) === 'เฉพาะรายชื่อที่ระบุ';
+  const wanted = new Set(String(cycle.Members || '').split(/\r?\n/)
+    .map((x) => x.trim().toLowerCase()).filter(Boolean));
+
   const staff = dir.filter((p) => p.IsActive !== false && clean(p.Email)
-    && !have.has(clean(p.Email).toLowerCase()));
+    && !have.has(clean(p.Email).toLowerCase())
+    && (!onlyList || wanted.has(clean(p.Email).toLowerCase()) || wanted.has(clean(p.Title).toLowerCase())));
 
   const byName = new Map(dir.map((p) => [clean(p.Title), p]));
   let done = 0;
@@ -119,7 +143,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
     // eslint-disable-next-line no-await-in-loop
     const row = await create('appraisals', {
       Title: `${clean(cycle.Title)} · ${clean(p.Title)}`,
-      CycleName: clean(cycle.Title),
+      CycleName: clean(cycle.Title), FormSet: clean(cycle.FormSet),
       EmployeeName: clean(p.Title), EmployeeEmail: clean(p.Email),
       Department: clean(p.Department), Section: clean(p.Section),
       EvaluatorName: clean(p.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
@@ -142,13 +166,16 @@ export async function submitSelf(row, answers, comment, score, by) {
   });
 }
 
-/** บันทึกผลการประเมินของหัวหน้า */
-export async function submitManager(row, answers, comment, score, by) {
-  return update('appraisals', row.id, {
+/** บันทึกผลการประเมินของหัวหน้า (extra = ส่วนที่ 3–4 ของแบบทดลองงาน) */
+export async function submitManager(row, answers, comment, score, by, extra = null) {
+  const patch = {
     MgrData: JSON.stringify(answers), MgrComment: comment,
     MgrScore: score, Status: STAGES[2],
     Log: addLog(row, 'หัวหน้าประเมินแล้ว', by),
-  });
+  };
+  if (extra) patch.Extra = JSON.stringify(extra);
+  return patch.Extra === undefined
+    ? update('appraisals', row.id, patch) : update('appraisals', row.id, patch);
 }
 
 /** ผู้บริหารอนุมัติผล (ปรับคะแนนสุดท้ายได้) */

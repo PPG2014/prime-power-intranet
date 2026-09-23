@@ -37,3 +37,14 @@
 .ap-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: .88em; }
 .ap-log li { padding: 7px 10px; background: #f7f9fc; border-radius: 8px; }
 @media (max-width: 700px) { .ap-scale { justify-content: flex-start; flex-wrap: wrap; } }
+
+/* ส่วนที่ 3–4 ของแบบประเมินทดลองงาน */
+.ap-pb .panel-head { margin-top: 10px; }
+.ap-att { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.ap-att label, .ap-sum2 label { display: flex; flex-direction: column; gap: 4px; font-size: .88em; }
+.ap-att input, .ap-sum2 input {
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit;
+}
+.ap-sum { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0; font-size: .92em; }
+.ap-sum label { display: inline-flex; align-items: center; gap: 5px; }
+.ap-sum2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }

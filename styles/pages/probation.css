@@ -1,0 +1,72 @@
+/* แบบประเมินผลระหว่างทดลองงาน FM-HRM-004 — จัดหน้าแบบ A4 */
+.pb-doc { font-family: 'TH SarabunPSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif;
+  color: #000; background: #e9edf2; padding: 8mm 0; }
+.pb-page {
+  width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; position: relative;
+  padding: 8mm 12mm 14mm; box-sizing: border-box; box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  font-size: 13pt; line-height: 1.25;
+}
+.pb-page * { box-sizing: border-box; }
+
+.pb-head { display: flex; align-items: center; gap: 10mm; margin-bottom: 4mm; }
+.pb-logo { width: 38mm; }
+.pb-title { font-size: 15pt; font-weight: 700; }
+
+.pb-tb { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pb-tb td { border: 0.3mm solid #000; padding: 0.8mm 1.5mm; vertical-align: top; }
+.pb-band { background: #d9d9d9; font-weight: 600; padding: 1mm 1.5mm; }
+.pb-band.green { background: #cfe8d5; }
+.pb-center { text-align: center; }
+.pb-right { text-align: right; }
+
+/* ส่วนที่ 1 */
+.pb-s1l { width: 43%; }
+.pb-row { display: flex; align-items: flex-end; gap: 2mm; margin: 1.2mm 0; white-space: nowrap; }
+.pb-k { min-width: 22mm; }
+.pb-k2 { min-width: 34mm; }
+.pb-k3 { min-width: 10mm; }
+.pb-fill { display: inline-block; border-bottom: 0.25mm solid #000; padding: 0 1mm; text-align: center; }
+
+/* ส่วนที่ 2 ตารางให้คะแนน */
+.pb-scoretb td { height: 5.4mm; }
+.pb-topic { width: 72mm; }
+.pb-item { padding-left: 4mm; }
+.pb-group td { font-weight: 600; text-decoration: underline; }
+.pb-scoretb .pb-sc { width: 6.87mm; text-align: center; font-weight: 700; }
+.pb-note { width: 29mm; }
+.pb-h1 td, .pb-h2 td, .pb-h3 td { text-align: center; font-weight: 600; }
+.pb-arrow { display: table-cell; }
+.pb-arrow span { font-size: 11pt; font-weight: 400; }
+.pb-arrow i { display: inline-block; width: 42mm; border-top: 0.3mm solid #000; vertical-align: middle; margin: 0 2mm; position: relative; }
+.pb-arrow i::after { content: '▶'; position: absolute; right: -2mm; top: -2.2mm; font-size: 8pt; }
+.pb-total td { font-weight: 600; }
+.pb-grade { font-size: 12pt; }
+
+/* ส่วนที่ 3 */
+.pb-att-h td { text-align: center; font-weight: 600; }
+.pb-att-v td { height: 8mm; text-align: center; }
+
+/* ส่วนที่ 4 */
+.pb-sum { padding: 2mm 3mm; }
+.pb-sumrow { display: flex; gap: 8mm; margin: 1.5mm 0; }
+.pb-sumrow span { flex: 1; white-space: nowrap; }
+.pb-sumrow.indent { padding-left: 6mm; }
+.pb-tick { display: inline-block; min-width: 3mm; text-align: center; font-weight: 700; }
+.pb-sig-h td { background: #d9d9d9; text-align: center; font-weight: 600; }
+.pb-sig td { height: 30mm; text-align: center; padding-top: 3mm; position: relative; }
+.pb-approve { margin-bottom: 1mm; }
+.pb-sigline { border-bottom: 0.25mm dotted #000; height: 6mm; margin: 0 4mm; position: relative; }
+.pb-sigline img { position: absolute; left: 50%; transform: translateX(-50%); bottom: 0.5mm; height: 11mm; }
+.pb-signame { margin-top: 1.5mm; }
+.pb-sigdate { margin-top: 1.5mm; text-align: left; padding-left: 3mm; }
+
+.pb-foot-l { position: absolute; left: 12mm; bottom: 6mm; font-size: 12pt; }
+.pb-foot-r { position: absolute; right: 12mm; bottom: 6mm; font-size: 12pt; }
+
+/* พิมพ์ */
+.pb-page { page: pbform; }
+@page pbform { size: A4 portrait; margin: 0; }
+@media print {
+  body.printing-pr .pb-doc { background: none; padding: 0; }
+  body.printing-pr .pb-page { margin: 0; box-shadow: none; }
+}

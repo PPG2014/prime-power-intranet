@@ -38,6 +38,7 @@
 @import url('pages/pr-form.css');
 @import url('pages/queue-cal.css');
 @import url('pages/appraisal.css');
+@import url('pages/probation.css');
 
 /* แถบโหลดบางด้านบน ตอบสนองทันทีที่กดเปลี่ยนเมนู */
 body.is-loading::before {

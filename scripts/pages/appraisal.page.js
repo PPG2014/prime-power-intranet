@@ -4,9 +4,11 @@ import { list } from '../services/data.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 import {
   STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
-  answersOf, logOf, stageOpen, gradeOf, clean, generateSheets,
+  answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets,
   submitSelf, submitManager, approveSheet, sendBack, acknowledge,
 } from '../services/appraisal.js';
+import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
+import { openPRWindow } from '../templates/pr-fm-pur-004.js';
 
 export const meta = { route: 'appraisal', title: 'ประเมินผลบุคลากร', nav: true, order: 7, adminOnly: false };
 
@@ -15,6 +17,7 @@ let secs = [];
 let rows = [];
 let me = null;          // แถวบุคลากรของผู้ใช้
 let myEmail = '';
+let scheme = 'มาตรฐาน';   // เกณฑ์เกรดของรอบนี้
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'head',
@@ -36,7 +39,8 @@ export async function render(ctx) {
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
   cycle = await activeCycle();
-  secs = await criteria();
+  secs = await criteria(clean(cycle?.FormSet));
+  scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
   rows = cycle ? await sheets(clean(cycle.Title)) : [];
 
   const mine = mineOf(rows, myEmail);
@@ -62,7 +66,8 @@ export async function render(ctx) {
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
       <p class="page-lead">${cycle
-        ? `รอบ <b>${esc(clean(cycle.Title))}</b> · ขั้นตอนที่เปิดอยู่: ${esc(clean(cycle.Stage) || STAGES[0])}
+        ? `รอบ <b>${esc(clean(cycle.Title))}</b>${cycle.FormSet ? ` · แบบประเมิน: ${esc(clean(cycle.FormSet))}` : ''}
+           · ขั้นตอนที่เปิดอยู่: ${esc(clean(cycle.Stage) || STAGES[0])}
            · สถานะรอบ: ${esc(clean(cycle.Status) || '—')}`
         : 'ยังไม่ได้เปิดรอบประเมิน'}</p>
 
@@ -163,7 +168,7 @@ function paneApprove() {
       ${wait.length ? `<table class="ap-table">
         <thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th class="num">ตนเอง</th><th class="num">หัวหน้า</th><th class="num">เกรด</th><th></th></tr></thead>
         <tbody>${wait.map((r) => {
-          const gr = gradeOf(+r.MgrScore || 0);
+          const gr = gradeOf(+r.MgrScore || 0, scheme);
           return `<tr>
             <td>${esc(clean(r.EmployeeName))}</td>
             <td>${esc(clean(r.Department))}</td>
@@ -228,7 +233,8 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
   return `
     <div class="panel ap-form" data-who="${who}">
       <div class="panel-head">แบบประเมิน${who === 'self' ? 'ตนเอง' : 'โดยหัวหน้า'}
-        <span class="panel-meta">ให้คะแนน 1–5 (1 = ต้องปรับปรุง, 5 = ดีเยี่ยม)</span></div>
+        <span class="panel-meta">ให้คะแนน 1–${secs[0]?.items[0]?.scale || 5}
+          (${secs[0]?.items[0]?.scale === 10 ? '10 = ดีมาก, 1 = ไม่ดี' : '5 = ดีเยี่ยม, 1 = ต้องปรับปรุง'})</span></div>
 
       ${secs.map((sec) => `
         <h4 class="ap-sec">${esc(sec.name)}${sec.weight ? ` <span class="dim">น้ำหนัก ${sec.weight}%</span>` : ''}</h4>
@@ -236,7 +242,7 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
           <tbody>${sec.items.map((it) => `<tr>
             <td>${esc(it.title)}<br><span class="dim">น้ำหนัก ${it.weight}%</span></td>
             ${otherAnswers ? `<td class="num dim">${otherAnswers[it.id] ? `หัวหน้า ${otherAnswers[it.id]}` : ''}</td>` : ''}
-            <td class="ap-scale">${[1, 2, 3, 4, 5].map((v) => `
+            <td class="ap-scale">${Array.from({ length: it.scale || 5 }, (_, i) => (it.scale || 5) - i).map((v) => `
               <label><input type="radio" name="q_${it.id}" value="${v}"
                 ${+answers[it.id] === v ? 'checked' : ''} ${editable ? '' : 'disabled'}> ${v}</label>`).join('')}</td>
           </tr>`).join('')}</tbody>
@@ -247,7 +253,7 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
   esc(who === 'self' ? (row.SelfComment || '') : (row.MgrComment || ''))}</textarea></label>
 
       <div class="ap-total">คะแนนรวมถ่วงน้ำหนัก <b id="ap-score">${fix(s.score)}</b> / 100
-        · เกรด <b id="ap-grade">${esc(gradeOf(s.score)[1])}</b>
+        · เกรด <b id="ap-grade">${esc(gradeOf(s.score, scheme)[1])}</b>
         <span class="dim" id="ap-left">${s.complete ? 'ให้คะแนนครบแล้ว' : 'ยังให้คะแนนไม่ครบทุกข้อ'}</span></div>
 
       ${editable ? `<div class="ap-actions">
@@ -266,6 +272,85 @@ function logBox(row) {
       <span class="dim">${esc(new Date(l.at).toLocaleString('th-TH'))}</span>
       ${l.note ? `<div class="dim">${esc(l.note)}</div>` : ''}
     </li>`).join('')}</ul></div>`;
+}
+
+/* ───────── ส่วนที่ 3–4 ของแบบทดลองงาน ───────── */
+function probationBox(row, editable) {
+  const x = extraOf(row);
+  const a = x.attendance || {};
+  const sm = x.summary || {};
+  const dis = editable ? '' : 'disabled';
+  const opt = (v, label) => `<label><input type="radio" name="pb-result" value="${v}"
+    ${sm.result === v ? 'checked' : ''} ${dis}> ${label}</label>`;
+
+  return `
+    <div class="panel ap-pb">
+      <div class="panel-head">ส่วนที่ 3 : บันทึกการมาปฏิบัติงาน</div>
+      <div class="ap-att">
+        ${[['late', 'มาสาย (ครั้ง)'], ['absent', 'ขาดงาน (วัน)'], ['personal', 'ลากิจ (วัน)'],
+    ['sick', 'ลาป่วย (วัน)'], ['other', 'ลาอื่นๆ (วัน)']].map(([k, label]) => `
+          <label>${label}<input type="number" min="0" step="1" id="pb-${k}"
+            value="${esc(a[k] ?? '')}" ${dis}></label>`).join('')}
+      </div>
+
+      <div class="panel-head">ส่วนที่ 4 : สรุปผลการประเมิน</div>
+      <div class="ap-sum">
+        ${opt('บรรจุ', 'เห็นควรบรรจุ')}
+        ${opt('ต่อทดลองงาน', 'ทดลองงานต่อ 30 วัน')}
+        ${opt('ไม่ผ่าน', 'ไม่ผ่านทดลองงาน')}
+        ${opt('อื่นๆ', 'อื่นๆ')}
+      </div>
+      <div class="ap-sum2">
+        <label>บรรจุตั้งแต่วันที่<input type="date" id="pb-confirm" value="${esc(sm.confirmDate || '')}" ${dis}></label>
+        <label>วันปฏิบัติงานวันสุดท้าย<input type="date" id="pb-last" value="${esc(sm.lastDate || '')}" ${dis}></label>
+        <label>อื่นๆ (ระบุ)<input type="text" id="pb-other" value="${esc(sm.other || '')}" ${dis}></label>
+      </div>
+    </div>`;
+}
+
+const readProbation = () => ({
+  attendance: Object.fromEntries(['late', 'absent', 'personal', 'sick', 'other']
+    .map((k) => [k, $('#pb-' + k) ? $('#pb-' + k).value : ''])),
+  summary: {
+    result: ($$('input[name=pb-result]:checked')[0] || {}).value || '',
+    confirmDate: $('#pb-confirm') ? $('#pb-confirm').value : '',
+    lastDate: $('#pb-last') ? $('#pb-last').value : '',
+    other: $('#pb-other') ? $('#pb-other').value : '',
+  },
+});
+
+/** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 */
+async function exportProbation(row) {
+  const dir = await list('directory').catch(() => []);
+  const person = dir.find((d) => clean(d.Email).toLowerCase() === clean(row.EmployeeEmail).toLowerCase()) || {};
+  const sigOf = (name) => (dir.find((d) => clean(d.Title) === clean(name)) || {}).SignatureUrl || '';
+  const x = extraOf(row);
+  const ans = Object.keys(answersOf(row, 'mgr')).length ? answersOf(row, 'mgr') : answersOf(row, 'self');
+  const total = +row.FinalScore || +row.MgrScore || +row.SelfScore || 0;
+  const hist = logOf(row);
+  const at = (act) => (hist.filter((l) => l.action.includes(act)).slice(-1)[0] || {}).at || '';
+
+  const html = renderProbation({
+    employee: {
+      name: clean(row.EmployeeName), position: clean(person.Position),
+      section: clean(row.Section), department: clean(row.Department),
+      startDate: person.StartDate || '',
+    },
+    rounds: (x.rounds && x.rounds.length ? x.rounds : [
+      { label: 'ประเมินครั้งที่ 1', date: '' }, { label: 'ประเมินครั้งที่ 2', date: '' },
+      { label: 'ประเมินครั้งที่ 3', date: '' }, { label: 'ประเมินครั้งที่ 4', date: '' },
+      { label: 'ครบทดลองงาน 119 วัน', date: '' }]),
+    sections: secs, answers: ans, notes: x.notes || {},
+    total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
+    attendance: x.attendance || {}, summary: x.summary || {},
+    sign: {
+      evaluator: { name: clean(row.EvaluatorName), date: at('หัวหน้าประเมิน'), sig: sigOf(row.EvaluatorName) },
+      hr: { name: '', date: '' },
+      approver: { name: '', date: at('อนุมัติ'),
+        approved: clean(row.Status) === STAGES[3] || clean(row.Status) === DONE ? true : undefined },
+    },
+  });
+  openPRWindow(html, `แบบประเมินผลระหว่างทดลองงาน — ${clean(row.EmployeeName)}`);
 }
 
 /* ───────── เหตุการณ์ ───────── */
@@ -287,7 +372,7 @@ export function mount(ctx) {
     });
     const s = scoreOf(secs, ans);
     $('#ap-score').textContent = fix(s.score);
-    $('#ap-grade').textContent = gradeOf(s.score)[1];
+    $('#ap-grade').textContent = gradeOf(s.score, scheme)[1];
     $('#ap-left').textContent = s.complete ? 'ให้คะแนนครบแล้ว' : 'ยังให้คะแนนไม่ครบทุกข้อ';
     return { ans, s };
   };
@@ -378,6 +463,7 @@ async function openSheet(row, rerender) {
       </div>
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
+      ${isProbation(cycle?.FormSet) ? probationBox(row, editable) : ''}
       ${isHeadTurn ? `<div class="ap-head-box">
         <label>คะแนนสรุป (ปรับได้)
           <input type="number" id="ap-final" min="0" max="100" step="0.1" value="${fix(row.MgrScore)}"></label>
@@ -387,6 +473,7 @@ async function openSheet(row, rerender) {
       ${logBox(row)}`,
     footer: `${isMgrTurn || isHeadTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
+      ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกแบบฟอร์ม FM-HRM-004</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
       ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกผลประเมิน</button>' : ''}
       ${isHeadTurn ? '<button class="btn btn-primary" id="ap-approve">✓ อนุมัติผล</button>' : ''}`,
@@ -397,7 +484,7 @@ async function openSheet(row, rerender) {
     $$('.ap-form input[type=radio]:checked').forEach((el) => { ans[el.name.replace('q_', '')] = +el.value; });
     const sc = scoreOf(secs, ans);
     $('#ap-score').textContent = fix(sc.score);
-    $('#ap-grade').textContent = gradeOf(sc.score)[1];
+    $('#ap-grade').textContent = gradeOf(sc.score, scheme)[1];
     const fin = $('#ap-final');
     if (fin && !fin.dataset.touched) fin.value = fix(sc.score);
     return { ans, sc };
@@ -419,6 +506,9 @@ async function openSheet(row, rerender) {
     };
   }
 
+  const ex = $('#ap-export');
+  if (ex) ex.onclick = () => exportProbation(row);
+
   const saveMgr = $('#ap-mgr-save');
   if (saveMgr) {
     saveMgr.onclick = async () => {
@@ -426,7 +516,8 @@ async function openSheet(row, rerender) {
       if (!sc.complete && !confirm('ยังให้คะแนนไม่ครบทุกข้อ ต้องการบันทึกเลยหรือไม่?')) return;
       saveMgr.disabled = true;
       try {
-        await submitManager(row, ans, $('#ap-comment').value.trim(), sc.score, state.user?.name || '');
+        await submitManager(row, ans, $('#ap-comment').value.trim(), sc.score, state.user?.name || '',
+          isProbation(cycle?.FormSet) ? { ...extraOf(row), ...readProbation() } : null);
         close(); await rerender();
       } catch (e) { saveMgr.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
     };
