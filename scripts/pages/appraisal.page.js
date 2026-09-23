@@ -275,16 +275,27 @@ function logBox(row) {
 }
 
 /* ───────── ส่วนที่ 3–4 ของแบบทดลองงาน ───────── */
-function probationBox(row, editable) {
+function probationBox(row, editable, person = {}) {
   const x = extraOf(row);
   const a = x.attendance || {};
   const sm = x.summary || {};
+  const rd = Object.fromEntries((x.rounds || []).map((r) => [r.key, r.date]));
+  const start = x.startDate || person.StartDate || '';
   const dis = editable ? '' : 'disabled';
   const opt = (v, label) => `<label><input type="radio" name="pb-result" value="${v}"
     ${sm.result === v ? 'checked' : ''} ${dis}> ${label}</label>`;
 
   return `
     <div class="panel ap-pb">
+      <div class="panel-head">ส่วนที่ 1 : ข้อมูลการทดลองงาน
+        <span class="panel-meta">${editable ? 'ใส่วันเริ่มงานแล้วกดคำนวณ ระบบเติมวันครบกำหนดให้' : ''}</span></div>
+      <div class="ap-sum2">
+        <label>วันเริ่มงาน<input type="date" id="pb-start" value="${esc(start)}" ${dis}></label>
+        ${ROUND_DEFS.map((r) => `<label>${r.label}
+          <input type="date" id="pb-${r.key}" value="${esc(rd[r.key] || '')}" ${dis}></label>`).join('')}
+      </div>
+      ${editable ? '<button class="btn-mini" id="pb-calc">⟳ คำนวณวันครบกำหนดจากวันเริ่มงาน</button>' : ''}
+
       <div class="panel-head">ส่วนที่ 3 : บันทึกการมาปฏิบัติงาน</div>
       <div class="ap-att">
         ${[['late', 'มาสาย (ครั้ง)'], ['absent', 'ขาดงาน (วัน)'], ['personal', 'ลากิจ (วัน)'],
@@ -308,7 +319,25 @@ function probationBox(row, editable) {
     </div>`;
 }
 
+/** กำหนดประเมินทดลองงาน นับจากวันเริ่มงาน */
+const ROUND_DEFS = [
+  { key: 'r1', label: 'ประเมินครั้งที่ 1 (30 วัน)', days: 30 },
+  { key: 'r2', label: 'ประเมินครั้งที่ 2 (60 วัน)', days: 60 },
+  { key: 'r3', label: 'ประเมินครั้งที่ 3 (90 วัน)', days: 90 },
+  { key: 'r4', label: 'ครบทดลองงาน 120 วัน', days: 120 },
+];
+const addDays = (iso, n) => {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString('sv-SE');
+};
+
 const readProbation = () => ({
+  startDate: $('#pb-start') ? $('#pb-start').value : '',
+  rounds: ROUND_DEFS.map((r) => ({
+    key: r.key, label: r.label, date: $('#pb-' + r.key) ? $('#pb-' + r.key).value : '',
+  })),
   attendance: Object.fromEntries(['late', 'absent', 'personal', 'sick', 'other']
     .map((k) => [k, $('#pb-' + k) ? $('#pb-' + k).value : ''])),
   summary: {
@@ -334,12 +363,10 @@ async function exportProbation(row) {
     employee: {
       name: clean(row.EmployeeName), position: clean(person.Position),
       section: clean(row.Section), department: clean(row.Department),
-      startDate: person.StartDate || '',
+      startDate: x.startDate || person.StartDate || '',
     },
-    rounds: (x.rounds && x.rounds.length ? x.rounds : [
-      { label: 'ประเมินครั้งที่ 1', date: '' }, { label: 'ประเมินครั้งที่ 2', date: '' },
-      { label: 'ประเมินครั้งที่ 3', date: '' }, { label: 'ประเมินครั้งที่ 4', date: '' },
-      { label: 'ครบทดลองงาน 119 วัน', date: '' }]),
+    rounds: (x.rounds && x.rounds.length ? x.rounds
+      : ROUND_DEFS.map((r) => ({ label: r.label, date: '' }))),
     sections: secs, answers: ans, notes: x.notes || {},
     total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
     attendance: x.attendance || {}, summary: x.summary || {},
@@ -439,6 +466,9 @@ export function mount(ctx) {
 /* ───────── หน้าต่างประเมินลูกทีม / อนุมัติผล ───────── */
 async function openSheet(row, rerender) {
   if (!row) return;
+  const dirAll = await list('directory').catch(() => []);
+  const person = dirAll.find((d) => clean(d.Email).toLowerCase()
+    === clean(row.EmployeeEmail).toLowerCase()) || {};
   const { openModal } = await import('../components/modal.js');
   const st = clean(row.Status);
   const isMgrTurn = st === STAGES[1] && stageOpen(cycle, STAGES[1]).ok
@@ -463,7 +493,7 @@ async function openSheet(row, rerender) {
       </div>
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
-      ${isProbation(cycle?.FormSet) ? probationBox(row, editable) : ''}
+      ${isProbation(cycle?.FormSet) ? probationBox(row, editable, person) : ''}
       ${isHeadTurn ? `<div class="ap-head-box">
         <label>คะแนนสรุป (ปรับได้)
           <input type="number" id="ap-final" min="0" max="100" step="0.1" value="${fix(row.MgrScore)}"></label>
@@ -503,6 +533,15 @@ async function openSheet(row, rerender) {
       if (note === null) return;
       await sendBack(row, isHeadTurn ? STAGES[1] : STAGES[0], note, state.user?.name || '');
       close(); await rerender();
+    };
+  }
+
+  const calc = $('#pb-calc');
+  if (calc) {
+    calc.onclick = () => {
+      const st = $('#pb-start').value;
+      if (!st) { alert('กรุณาใส่วันเริ่มงานก่อน'); return; }
+      ROUND_DEFS.forEach((r) => { const el = $('#pb-' + r.key); if (el) el.value = addDays(st, r.days); });
     };
   }
 

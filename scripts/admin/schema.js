@@ -15,6 +15,8 @@ export const SCHEMA = {
     labels:  { Title: 'ชื่อหน่วยงาน', Extension: 'เบอร์ต่อ' },
     fields: [
       { key: 'Title', label: 'ชื่อหน่วยงาน', type: 'text', required: true },
+      { key: 'StartDate', label: 'วันเริ่มงาน', type: 'date',
+        help: 'ใช้คำนวณกำหนดประเมินทดลองงาน 30 / 60 / 90 / 120 วัน' },
       { key: 'Extension', label: 'เบอร์ต่อ', type: 'text', help: 'เว้นว่างได้หากยังไม่มีเบอร์' },
       { key: 'IsActive', label: 'เปิดใช้งาน', type: 'yesno' },
     ],
