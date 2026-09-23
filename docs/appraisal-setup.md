@@ -39,7 +39,7 @@
 | Section | Single line of text (หมวด) |
 | Weight | Number (น้ำหนักข้อ %) |
 | SectionWeight | Number (น้ำหนักหมวด % ใส่แถวแรกของหมวดพอ) |
-| SortOrder | Number · IsActive | Yes/No |
+| Scale | Number (5 หรือ 10) · SortOrder | Number · IsActive | Yes/No |
 
 ### 3. Appraisals (ใบประเมินรายบุคคล)
 | คอลัมน์ | ชนิด |
@@ -49,7 +49,8 @@
 | EvaluatorName, EvaluatorEmail, Status, Grade | Single line of text |
 | SelfScore, MgrScore, FinalScore | Number (ทศนิยม 2 ตำแหน่ง) |
 | SelfComment, MgrComment, HeadComment | Multiple lines of text (**Plain text**) |
-| SelfData, MgrData, Log | Multiple lines of text (**Plain text**) — เก็บ JSON |
+| SelfData, MgrData, Log, **Extra** | Multiple lines of text (**Plain text**) — เก็บ JSON |
+| **FormSet** | Single line of text (ชุดแบบประเมินที่ใช้) |
 | AckDate | Date |
 
 > ทุกคอลัมน์แบบหลายบรรทัดต้องเป็น **Plain text** เท่านั้น ถ้าเป็น Rich text ระบบจะอ่านคะแนนกลับมาไม่ได้
@@ -74,3 +75,11 @@
 - มอบหมายผู้ประเมินแทน (Delegate) — ปัจจุบันใช้ผู้บังคับบัญชาจากทะเบียนบุคลากรเท่านั้น
 - ล็อกรายขั้นตอนแยกจากรอบ (Master Switch) — ใช้การตั้ง "ขั้นตอนที่เปิด" และสถานะรอบแทน
 - ปลดล็อกรายบุคคล (unlock) และการขยายเวลาเฉพาะราย
+
+
+## แบบประเมินทดลองงาน (FM-HRM-004)
+
+- ตั้ง **ชุดแบบประเมิน** เป็นชุดที่มีคำว่า "ทดลองงาน" หรือ "ผ่านงาน" ระบบจะสลับเป็นโหมดทดลองงานให้เอง
+  (สเกล 1–10 · เกณฑ์เกรด A 91-100 / B+ 86-90 / B 81-85 / C 70-80 / F <70 · มีส่วนที่ 1, 3, 4 · ส่งออกเอกสารตามฟอร์ม)
+- เพิ่มคอลัมน์ **StartDate** (Date) ในทะเบียนบุคลากร สำหรับคำนวณกำหนดประเมิน 30 / 60 / 90 / 120 วัน
+- ตั้งรอบเป็น **เฉพาะรายชื่อที่ระบุ** แล้วใส่รายชื่อพนักงานใหม่ในรอบนั้น
