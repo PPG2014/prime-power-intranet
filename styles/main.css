@@ -36,6 +36,7 @@
 @import url('pages/health.css');
 @import url('pages/reports.css');
 @import url('pages/pr-form.css');
+@import url('pages/queue-cal.css');
 
 /* แถบโหลดบางด้านบน ตอบสนองทันทีที่กดเปลี่ยนเมนู */
 body.is-loading::before {

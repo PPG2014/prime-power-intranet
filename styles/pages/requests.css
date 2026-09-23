@@ -73,7 +73,7 @@
 .rq-action h4 { font-size: 14px; margin-bottom: 10px; }
 .rq-action textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; font-family: inherit;
   border: 1px solid var(--line); border-radius: var(--radius-sm); resize: vertical; }
-.rq-slip-upload { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.rq-slip-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
 .rq-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 
 @media (max-width: 1000px) {
@@ -173,3 +173,11 @@
 
 /* ระยะเวลารออนุมัติของลำดับปัจจุบัน */
 .tl-waiting { font-size: .82em; color: #b7791f; margin-top: 2px; }
+
+/* ตัวอย่างรูปสลิป + ปุ่มคีย์ลัด */
+.rq-slip-preview { flex-basis: 100%; margin-top: 8px; }
+.rq-slip-preview img { max-height: 180px; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.rq-slip-upload kbd {
+  font: inherit; font-size: .82em; padding: 0 5px; border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 4px; background: #fff;
+}

@@ -31,3 +31,6 @@
 .book-msg { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #eef2f7; font-size: .92em; }
 .book-msg.ok { background: #e9f7ef; color: #1e7f4f; }
 .book-msg.bad { background: #fdf3f2; color: var(--danger); }
+
+/* ปุ่มส่วนหัวห้อง ชิดขวา */
+.room-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
