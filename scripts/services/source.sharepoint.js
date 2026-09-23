@@ -7,7 +7,38 @@ import { getToken } from './auth.js';
 import { LOOKUPS } from './lookups.js';
 
 const base = () => `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}`;
-const listId = (name) => CONFIG.sharepoint.lists[name] || name;
+/**
+ * หา ID ของ List
+ * ใส่ใน config ได้ทั้ง GUID หรือ "ชื่อลิสต์" ก็ได้ ถ้าไม่ใช่ GUID ระบบจะไปถาม SharePoint
+ * ว่าลิสต์ชื่อนี้มี ID อะไร แล้วจำไว้ ไม่ต้องคัดลอก GUID มาใส่เอง
+ */
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const idCache = {};
+let listIndex = null;
+
+async function listId(name) {
+  const want = String(CONFIG.sharepoint.lists[name] || name).trim();
+  if (GUID.test(want)) return want;
+  if (idCache[want]) return idCache[want];
+
+  if (!listIndex) {
+    const data = await call('/lists?$select=id,name,displayName&$top=200');
+    listIndex = new Map();
+    data.value.forEach((l) => {
+      listIndex.set(String(l.displayName).trim().toLowerCase(), l.id);
+      listIndex.set(String(l.name).trim().toLowerCase(), l.id);
+    });
+  }
+  const found = listIndex.get(want.toLowerCase());
+  if (!found) {
+    throw new Error(`ไม่พบ List ชื่อ "${want}" ในไซต์ — ตรวจชื่อลิสต์ใน SharePoint ให้ตรงกับที่ตั้งไว้ใน config.js`);
+  }
+  idCache[want] = found;
+  return found;
+}
+
+/** ล้างแคช ID ของลิสต์ (ใช้เมื่อเพิ่ง sร้างลิสต์ใหม่) */
+export function clearListIndex() { listIndex = null; for (const k of Object.keys(idCache)) delete idCache[k]; }
 
 async function call(path, options = {}) {
   const token = await getToken();
@@ -139,7 +170,7 @@ async function resolveOut(name, item) {
 /** อ่านข้อมูลดิบโดยยังไม่แปลงค่า Lookup ใช้ตอนสร้างตารางแปลง */
 async function fetchRows(name) {
   const rows = [];
-  let path = `/lists/${listId(name)}/items?expand=fields&$top=999`;
+  let path = `/lists/${await listId(name)}/items?expand=fields&$top=999`;
   while (path) {
     const data = await call(path);
     rows.push(...data.value.map((it) => ({ id: it.id, ...flatten(it.fields) })));
@@ -156,7 +187,7 @@ const columnCache = {};
 async function columnsOf(name) {
   if (!columnCache[name]) {
     const data = await call(
-      `/lists/${listId(name)}/columns` +
+      `/lists/${await listId(name)}/columns` +
       `?$select=name,text,boolean,number,dateTime,choice,hyperlinkOrPicture,lookup,thumbnail`);
     const map = new Map();
     data.value.forEach((c) => map.set(c.name, c));
@@ -243,7 +274,7 @@ export async function list(name) {
 }
 
 export async function get(name, id) {
-  const it = await call(`/lists/${listId(name)}/items/${id}?expand=fields`);
+  const it = await call(`/lists/${await listId(name)}/items/${id}?expand=fields`);
   return { id: it.id, ...flatten(it.fields) };
 }
 
@@ -294,22 +325,24 @@ async function send(name, fields, request) {
 
 export async function create(name, item) {
   clearLookupCache();   // ข้อมูลอ้างอิงอาจเพิ่งถูกเพิ่มไปในรอบเดียวกัน
+  const lid = await listId(name);
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
   const { res, dropped } = await send(name, fields, (f) =>
-    call(`/lists/${listId(name)}/items`, { method: 'POST', body: JSON.stringify({ fields: f }) }));
+    call(`/lists/${lid}/items`, { method: 'POST', body: JSON.stringify({ fields: f }) }));
   if (skipped.length || dropped.length)
     console.warn(`[create ${name}] SharePoint ไม่รับบางช่อง:`, { skipped, dropped });
   return { ...res, skipped, dropped };
 }
 
 export async function update(name, id, item) {
+  const lid = await listId(name);
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
   const { res, dropped } = await send(name, fields, (f) =>
-    call(`/lists/${listId(name)}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(f) }));
+    call(`/lists/${lid}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(f) }));
   if (skipped.length || dropped.length)
     console.warn(`[update ${name}] SharePoint ไม่รับบางช่อง:`, { skipped, dropped });
   return { ...res, skipped, dropped };
 }
 
 export const remove = (name, id) =>
-  call(`/lists/${listId(name)}/items/${id}`, { method: 'DELETE' });
+  (async () => call(`/lists/${await listId(name)}/items/${id}`, { method: 'DELETE' }))();

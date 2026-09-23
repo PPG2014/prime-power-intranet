@@ -7,7 +7,7 @@ export const CONFIG = {
   appName: 'Prime Power Group',
 
   /** เลขรุ่นโค้ด — เปิด Console (F12) จะเห็นบรรทัดนี้ ใช้ตรวจว่าเบราว์เซอร์รันโค้ดล่าสุดแล้ว */
-  build: '2026-09-23-probation2',
+  build: '2026-09-23-guid',
 
   /**
    * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
@@ -67,10 +67,11 @@ export const CONFIG = {
       news:           'affaf4c2-1334-4c6c-8b1d-715c52cea788',
       rooms:          '2ea30ef2-89dd-4064-b021-4f9c8c664d8d',
       settings:       '84daeac7-b49e-4ea4-99d2-1c7a1523aace',
-      appraisalCycles:   'ใส่ GUID ของ List AppraisalCycles',
-    appraisalCriteria: 'ใส่ GUID ของ List AppraisalCriteria',
-    appraisals:        'ใส่ GUID ของ List Appraisals',
-    feedback:       '61ff05c2-28d7-4d22-8059-af2943f02050',
+      feedback:       '61ff05c2-28d7-4d22-8059-af2943f02050',
+      // ใส่ GUID ก็ได้ หรือใส่ชื่อ List เฉย ๆ ระบบจะไปหา ID ให้เอง
+      appraisalCycles:   '715c7214-092b-486e-a3ed-379910eab13a',
+      appraisalCriteria: '51a79f50-9d59-465d-99fc-4ae517b409eb',
+      appraisals:        '9d803289-3936-4998-8185-970e7e5cc4cd',
     },
   },
 
