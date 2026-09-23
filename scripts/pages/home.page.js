@@ -18,11 +18,19 @@ export async function render(ctx) {
 
   // คำขอจองคิว Messenger ของวันนี้ ดึงวันที่ที่ขอใช้จากคำตอบในฟอร์ม
   const today = new Date().toISOString().slice(0, 10);
+  // หารหัสฟอร์มจองคิว Messenger จากทะเบียนแบบฟอร์มเอง เผื่อรหัส ISO เปลี่ยน
+  const msgCodes = new Set(forms
+    .filter((f) => /messenger|จองคิว/i.test(`${f.Title} ${f.Description || ''}`))
+    .map((f) => String(f.FormCode || '').trim()));
+  ['FM-ADM-006', 'FM-HR-003'].forEach((c) => msgCodes.add(c));
+
+  // แสดงคิวของวันนี้ทุกคำขอ ไม่ว่าใครเป็นคนจอง ยกเว้นใบที่ยกเลิก/ไม่อนุมัติ
   const messengerToday = requests
-    .filter((r) => r.FormCode === 'FM-HR-003')
+    .filter((r) => msgCodes.has(String(r.FormCode || '').trim())
+      && !['ยกเลิก', 'ไม่อนุมัติ'].includes(String(r.Status || '').trim()))
     .map((r) => { try { return { r, d: JSON.parse(r.FormData || '{}') }; } catch (e) { return null; } })
     .filter((x) => x && String(x.d.service_date || '').slice(0, 10) === today)
-    .sort((a, b) => String(a.d.time_slot).localeCompare(String(b.d.time_slot)));
+    .sort((a, b) => String(a.d.time_from || a.d.time_slot || '').localeCompare(String(b.d.time_from || b.d.time_slot || '')));
 
   newsRows = news.filter((n) => n.IsActive !== false);
 
@@ -85,12 +93,13 @@ export async function render(ctx) {
             <div class="panel-head">🏍 จองคิว Messenger วันนี้
               <a class="panel-link" href="#/requests?form=FM-HR-003">ดูทั้งหมด →</a></div>
             ${messengerToday.length ? `<ul class="side-list msg-list">
-              ${messengerToday.map(({ d }) => `<li>
+              ${messengerToday.map(({ r, d }) => `<li>
                 <div class="msg-row">
-                  <span class="msg-time">${esc(d.time_slot || '')}</span>
+                  <span class="msg-time">${esc(d.time_from ? `${d.time_from}–${d.time_to || ''}` : (d.time_slot || ''))}</span>
                   <span class="st">${esc(d.place || d.job_detail || 'ไม่ระบุสถานที่')}</span>
                 </div>
-                <div class="msg-by">${esc(d.requester || '')}</div>
+                <div class="msg-by">${esc(d.requester || r.RequesterName || '')}${
+                  r.Status ? ` · <span class="dim">${esc(r.Status)}</span>` : ''}</div>
               </li>`).join('')}</ul>`
               : '<div class="side-empty">วันนี้ยังไม่มีการจองคิว</div>'}
           </div>

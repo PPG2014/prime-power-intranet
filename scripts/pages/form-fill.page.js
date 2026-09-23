@@ -6,6 +6,8 @@ import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStan
 import { LETTERHEAD } from '../core/letterhead.js';
 import { buildRoute, flowFieldsFor } from '../services/requests.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
+import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
+import { mountQueueCalendar } from '../components/queue-calendar.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -146,8 +148,8 @@ export async function render(ctx) {
   }
 
   return `
-  <section class="page page-form">
-    <div class="wrap narrow">
+  <section class="page page-form${isQueueForm(fields) ? ' has-queue-cal' : ''}">
+    <div class="wrap${isQueueForm(fields) ? '' : ' narrow'}">
       <a class="back-link" href="#/forms">← แบบฟอร์มทั้งหมด</a>
 
       <div class="form-head">
@@ -159,6 +161,9 @@ export async function render(ctx) {
         </div>
       </div>
       ${templateButtons(form)}
+
+      <div class="${isQueueForm(fields) ? 'form-layout' : ''}">
+      <div>
 
       ${me ? '' : `<div class="mock-warning">
         <b>ไม่พบข้อมูลของคุณในทะเบียนบุคลากร</b>
@@ -179,6 +184,9 @@ export async function render(ctx) {
             <button class="btn btn-primary" id="q-send">ส่งคำขอ</button>
           </span>
         </div>
+      </div>
+      </div>
+      ${isQueueForm(fields) ? '<aside class="form-aside" id="queue-cal"></aside>' : ''}
       </div>
     </div>
   </section>`;
@@ -237,6 +245,34 @@ function templateButtons(form) {
       </div>`;
     }).join('')}
   </div>`;
+}
+
+/**
+ * ตรวจว่าช่วงเวลาที่ขอชนกับคิวเดิมไหม คืนข้อความเตือน (HTML) ถ้าชน
+ * ถ้าไม่ชนคืนค่าว่าง
+ */
+async function queueProblem(form, fields, values, excludeId) {
+  const date = values[QUEUE_FIELDS.date];
+  const from = values[QUEUE_FIELDS.from];
+  const to = values[QUEUE_FIELDS.to];
+  if (!date || !from || !to) return '';
+
+  if (String(to) <= String(from)) {
+    return 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม กรุณาเลือกใหม่';
+  }
+
+  const hit = await queueConflicts({ formCode: form.FormCode, date, from, to, excludeId });
+  if (!hit.length) return '';
+
+  const slotField = fields.find((f) => f.FieldKey === QUEUE_FIELDS.from) || {};
+  const slots = String(slotField.Options || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  const free = await freeSlots({ formCode: form.FormCode, date, slots });
+
+  return `⛔ ช่วงเวลานี้มีคิวอยู่แล้ว กรุณาเลือกวันหรือช่วงเวลาใหม่<br>`
+    + hit.map((c) => `• ${esc(c.from)}–${esc(c.to)} ${esc(c.by)}${c.title ? ` (${esc(c.title)})` : ''}`).join('<br>')
+    + (free.length
+      ? `<br><br>ช่วงเวลาที่ยังว่างของวันนี้: ${free.slice(0, 12).map(esc).join(' · ')}${free.length > 12 ? ' …' : ''}`
+      : '<br><br>วันนี้คิวเต็มแล้ว กรุณาเลือกวันอื่น');
 }
 
 /** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 พร้อมหัวกระดาษ กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
@@ -312,8 +348,30 @@ export function mount(ctx) {
 
   bindForm(fields, `Requests/${form.FormCode}`);
 
+  // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
+  if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
+
   const dl = $('#q-download');
   if (dl) dl.onclick = () => downloadBlankForm(form, fields);
+
+  // เตือนคิวชนทันทีที่เลือกวันหรือเวลา จะได้ไม่ต้องกรอกจนจบแล้วค่อยรู้
+  if (isQueueForm(fields)) {
+    const watch = [QUEUE_FIELDS.date, QUEUE_FIELDS.from, QUEUE_FIELDS.to]
+      .map((k) => $('#q_' + k)).filter(Boolean);
+    const box = $('#q-error');
+    let timer = null;
+    const check = async () => {
+      const vals = {};
+      watch.forEach((el) => { vals[el.id.replace('q_', '')] = el.value; });
+      if (!vals[QUEUE_FIELDS.date] || !vals[QUEUE_FIELDS.from] || !vals[QUEUE_FIELDS.to]) return;
+      const msg = await queueProblem(form, fields, vals, editId);
+      box.innerHTML = msg;
+      box.hidden = !msg;
+    };
+    watch.forEach((el) => {
+      el.onchange = () => { clearTimeout(timer); timer = setTimeout(check, 200); };
+    });
+  }
 
   send.onclick = async () => {
     const err = $('#q-error');
@@ -323,6 +381,13 @@ export function mount(ctx) {
       err.innerHTML = `กรอกข้อมูลให้ครบก่อนส่ง<br>ยังขาด: ${esc(res.errors.join(', '))}`;
       err.hidden = false;
       return;
+    }
+
+    // ฟอร์มที่จองเป็นช่วงเวลา (เช่น จองคิว Messenger) ต้องไม่ชนกับคิวที่มีอยู่
+    if (isQueueForm(fields)) {
+      const v = res.values;
+      const msg = await queueProblem(form, fields, v, editId);
+      if (msg) { err.innerHTML = msg; err.hidden = false; return; }
     }
 
     send.disabled = true;

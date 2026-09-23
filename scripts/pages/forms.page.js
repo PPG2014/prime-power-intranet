@@ -28,7 +28,9 @@ export async function render(ctx) {
   const q = (state.formQuery || '').trim().toLowerCase();
   const chip = state.formChip || 'ทั้งหมด';
 
-  const all = (await list('formCatalog')).filter((f) => f.IsActive !== false);
+  // เรียงตามลำดับที่จัดไว้ในหน้าจัดการข้อมูล (ฝ่ายเรียงตามทะเบียนหน่วยงาน)
+  const all = (await list('formCatalog')).filter((f) => f.IsActive !== false)
+    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   const rows = all.filter((f) =>
     (chip === 'ทั้งหมด' || f.Department === chip) &&
     (!q || (f.Title + f.Description + f.FormCode + f.Department).toLowerCase().includes(q)));

@@ -151,6 +151,7 @@ export const SCHEMA = {
 
   formCatalog: {
     title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', spName: 'FormCatalog', sortField: 'SortOrder',
+    search: true, facets: ['Department', 'Badge'],
     unique: ['Title', 'FormCode'],
     columns: ['Icon', 'FormCode', 'Title', 'Department', 'Badge'],
     labels: { Icon: 'ไอคอน', FormCode: 'รหัส', Title: 'ชื่อแบบฟอร์ม',
@@ -264,6 +265,7 @@ export const SCHEMA = {
 
   documents: {
     title: 'เอกสารและคู่มือ', icon: '📚', list: 'documents', spName: 'Documents', sortField: 'SortOrder',
+    search: true, facets: ['DocType', 'Department'],
     columns: ['Icon', 'Title', 'DocType', 'Department', 'FileSize', 'Files'],
     labels: { Icon: 'ไอคอน', Title: 'ชื่อเอกสาร', DocType: 'ประเภท',
               Department: 'ฝ่าย', FileSize: 'ขนาด', Files: 'ไฟล์แนบ' },
@@ -287,6 +289,7 @@ export const SCHEMA = {
 
   news: {
     title: 'ข่าวประกาศ', icon: '📢', list: 'news', spName: 'News',
+    search: true, facets: ['IsPinned'], dateDesc: 'PublishDate',
     columns: ['Title', 'PublishDate', 'IsPinned', 'Files'],
     labels: { Title: 'หัวข้อ', PublishDate: 'วันที่', IsPinned: 'ปักหมุด', Files: 'ไฟล์แนบ' },
     fields: [
@@ -302,6 +305,7 @@ export const SCHEMA = {
 
   announcements: {
     title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements', spName: 'Announcements', sortField: 'SortOrder',
+    search: true, facets: ['AnnounceType', 'Department'], dateDesc: 'PublishDate',
     columns: ['Title', 'AnnounceType', 'Department', 'PublishDate'],
     labels: { Title: 'หัวข้อ', AnnounceType: 'รูปแบบ', Department: 'ฝ่าย', PublishDate: 'วันที่' },
     fields: [

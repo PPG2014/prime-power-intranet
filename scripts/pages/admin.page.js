@@ -50,7 +50,15 @@ export async function render(ctx) {
   let loadError = null;
   try {
     rows = await list(s.list);
-    if (s.sortField) rows.sort((a, b) => (+a[s.sortField] || 0) - (+b[s.sortField] || 0));
+    if (s.dateDesc) {
+      // ประกาศ/ข่าว เรียงจากใหม่ไปเก่า ให้รายการล่าสุดอยู่บนสุด
+      const t = (x) => { const d = new Date(x[s.dateDesc]); return isNaN(d) ? null : d.getTime(); };
+      rows.sort((a, b) => ((t(b) ?? 0) - (t(a) ?? 0))
+        || ((+a[s.sortField] || 0) - (+b[s.sortField] || 0))
+        || ((+b.id || 0) - (+a.id || 0)));   // วันที่อ่านไม่ได้ ใช้รายการที่เพิ่มทีหลังขึ้นก่อน
+    } else if (s.sortField) {
+      rows.sort((a, b) => (+a[s.sortField] || 0) - (+b[s.sortField] || 0));
+    }
   } catch (err) {
     console.error(err);
     rows = [];

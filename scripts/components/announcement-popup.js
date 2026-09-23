@@ -83,8 +83,7 @@ function draw(interval) {
   const close = () => {
     stop();
     root.innerHTML = '';
-    if (previewNote) { previewNote = ''; return; }   // แค่ดูตัวอย่าง ไม่นับว่าเห็นประกาศแล้ว
-    try { sessionStorage.setItem(SEEN_KEY, '1'); } catch (e) { /* โหมดส่วนตัวอาจเขียนไม่ได้ */ }
+    previewNote = '';
   };
   const goTo = (k) => { stop(); index = (k + items.length) % items.length; draw(interval); };
 
@@ -114,14 +113,20 @@ function draw(interval) {
 /** เรียกหลังเข้าสู่ระบบสำเร็จ */
 export async function showAnnouncements({ force = false } = {}) {
   try {
-    if (!force && sessionStorage.getItem(SEEN_KEY)) return;
+    if (false && !force && sessionStorage.getItem(SEEN_KEY)) return;   // เด้งทุกครั้งที่เปิด/รีเฟรชหน้าแรก
   } catch (e) { /* ไม่มี sessionStorage ก็แสดงตามปกติ */ }
 
   try {
     const [rows, cfg] = await Promise.all([list('announcements'), settings()]);
     items = rows
       .filter((a) => a.IsActive !== false && withinRange(a))
-      .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+      // ประกาศล่าสุดขึ้นก่อน ถ้าวันที่เท่ากันใช้ลำดับที่ตั้งไว้
+      .sort((a, b) => {
+        const t = (x) => { const d = new Date(x.PublishDate); return isNaN(d) ? null : d.getTime(); };
+        return ((t(b) ?? 0) - (t(a) ?? 0))
+          || ((+a.SortOrder || 0) - (+b.SortOrder || 0))
+          || ((+b.id || 0) - (+a.id || 0));
+      });
 
     if (!items.length) return;
     index = 0;
