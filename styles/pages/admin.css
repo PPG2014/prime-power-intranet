@@ -181,3 +181,14 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 }
 .no-edit:hover { border-color: var(--line); background: #f3f6fa; }
 .no-input { width: 56px; padding: 3px 6px; border: 1px solid var(--blue, #1d4ed8); border-radius: 6px; font: inherit; }
+
+/* ช่องเลือกบุคลากร: กรองฝ่าย + ค้นหา + ติ๊ก */
+.people-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.people-dept, .people-q {
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit;
+}
+.people-q { flex: 1; min-width: 160px; }
+.people-count { font-size: .82em; color: var(--muted, #6b7280); margin-left: auto; }
+.people-list { max-height: 260px; overflow-y: auto; }
+.people-list .check-item span .dim { font-size: .88em; }
+.people-actions { display: flex; gap: 8px; margin-top: 6px; }
