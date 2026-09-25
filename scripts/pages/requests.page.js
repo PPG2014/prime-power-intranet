@@ -151,6 +151,9 @@ export async function render(ctx) {
   const activeTab = state.reviewTab || (groups[0] && groups[0].code) || '';
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
 
+  // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
+  const solo = !isAdmin && !toReview.length;
+
   const actableCount = toReview.filter((r) =>
     roleOnRequest(r, r._steps || [], meIds).canActNow).length;
 
@@ -159,8 +162,8 @@ export async function render(ctx) {
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
 
-      <div class="rq-layout">
-        <main class="rq-review">
+      <div class="rq-layout${solo ? ' solo' : ''}">
+        ${solo ? '' : `<main class="rq-review">
           <div class="rq-head-row">
             <h2>${isAdmin ? 'คำขอทั้งหมด' : 'คำขอที่ต้องดำเนินการ'}</h2>
             ${actableCount ? `<span class="rq-badge">${actableCount} รายการถึงคิวคุณ</span>` : ''}
@@ -181,7 +184,7 @@ export async function render(ctx) {
           : `<div class="panel"><div class="empty">
               ${isAdmin ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
             </div></div>`}
-        </main>
+        </main>`}
 
         <aside class="rq-mine">
           <div class="panel">

@@ -9,6 +9,7 @@ import { attachedFiles } from '../components/form-renderer.js';
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
 let newsRows = [];
+let msgCodeList = [];   // รหัสฟอร์มจองคิว Messenger ทุกตัว ใช้เปิดปฏิทินคิวทั้งหมด
 
 export async function render(ctx) {
   const [forms, news, docs, requests, dashboard] = await Promise.all([
@@ -23,6 +24,7 @@ export async function render(ctx) {
     .filter((f) => /messenger|จองคิว/i.test(`${f.Title} ${f.Description || ''}`))
     .map((f) => String(f.FormCode || '').trim()));
   ['FM-ADM-006', 'FM-HR-003'].forEach((c) => msgCodes.add(c));
+  msgCodeList = [...msgCodes].filter(Boolean);
 
   // แสดงคิวของวันนี้ทุกคำขอ ไม่ว่าใครเป็นคนจอง ยกเว้นใบที่ยกเลิก/ไม่อนุมัติ
   const messengerToday = requests
@@ -30,7 +32,9 @@ export async function render(ctx) {
       && !['ยกเลิก', 'ไม่อนุมัติ'].includes(String(r.Status || '').trim()))
     .map((r) => { try { return { r, d: JSON.parse(r.FormData || '{}') }; } catch (e) { return null; } })
     .filter((x) => x && String(x.d.service_date || '').slice(0, 10) === today)
-    .sort((a, b) => String(a.d.time_from || a.d.time_slot || '').localeCompare(String(b.d.time_from || b.d.time_slot || '')));
+    // เติม 0 หน้าเวลาก่อนเทียบ ไม่งั้น "10:00" จะมาก่อน "9:00"
+    .sort((a, b) => String(a.d.time_from || a.d.time_slot || '').padStart(5, '0')
+      .localeCompare(String(b.d.time_from || b.d.time_slot || '').padStart(5, '0')));
 
   newsRows = news.filter((n) => n.IsActive !== false);
 
@@ -91,7 +95,7 @@ export async function render(ctx) {
           </div>
           <div class="panel side-panel">
             <div class="panel-head">🏍 จองคิว Messenger วันนี้
-              <a class="panel-link" href="#/requests?form=FM-HR-003">ดูทั้งหมด →</a></div>
+              <button type="button" class="panel-link" data-msgall="1">ดูทั้งหมด →</button></div>
             ${messengerToday.length ? `<ul class="side-list msg-list">
               ${messengerToday.map(({ r, d }) => `<li>
                 <div class="msg-row">
@@ -113,6 +117,15 @@ export async function render(ctx) {
 
 export function mount(ctx) {
   mountDashboard();
+
+  // เดิมลิงก์ไป #/requests?form=… ซึ่งเราเตอร์ไม่รู้จัก เลยค้างอยู่หน้าแรก
+  // และหน้าติดตามสถานะก็ไม่แสดงคำขอของคนอื่นอยู่แล้ว จึงเปิดปฏิทินคิวทั้งหมดแทน
+  onClick('msgall', async () => {
+    openModal({ title: '🏍 คิว Messenger ทั้งหมด', wide: true, dismissable: true,
+      body: '<div id="queue-cal"></div>' });
+    const { mountQueueCalendar } = await import('../components/queue-calendar.js');
+    await mountQueueCalendar(msgCodeList);
+  });
 
   onClick('news', (id) => {
     const n = newsRows.find((r) => String(r.id) === String(id));

@@ -10,7 +10,18 @@ function renderNav() {
     .map((p) => `<a href="#/${p.meta.route}"
         ${state.route === p.meta.route ? 'aria-current="page"' : ''}>${esc(p.meta.title)}</a>`)
     .join('');
+  fitNav();
 }
+
+/** เมนูยาวเกินหัวเว็บ (จำนวนเมนูต่างกันตามสิทธิ์) → สลับเป็นปุ่ม ☰ ดู header.css */
+function fitNav() {
+  const head = document.querySelector('header');
+  const wrap = head && head.querySelector('.wrap');
+  if (!wrap) return;
+  head.classList.remove('nav-compact');
+  if (wrap.scrollWidth > wrap.clientWidth + 1) head.classList.add('nav-compact');
+}
+addEventListener('resize', () => requestAnimationFrame(fitNav));
 
 /** แถบความคืบหน้าบาง ๆ ด้านบน บอกว่ากำลังโหลดข้อมูลอยู่ */
 function busy(on) {

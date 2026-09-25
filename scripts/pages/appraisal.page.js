@@ -11,6 +11,8 @@ import {
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
+import { PROBATION_RUBRIC } from '../templates/probation-rubric.js';
+import { rubricDrawer, bindRubricDrawer } from '../components/rubric-drawer.js';
 
 export const meta = { route: 'appraisal', title: 'ประเมินผลบุคลากร', nav: true, order: 7, adminOnly: false };
 
@@ -99,6 +101,7 @@ export async function render(ctx) {
 
       ${body}
     </div>
+    ${isProbation(cycle?.FormSet) ? rubricDrawer(PROBATION_RUBRIC, 'เกณฑ์การให้คะแนนการประเมินทดลองงาน') : ''}
   </section>`;
 }
 
@@ -452,6 +455,7 @@ async function exportProbation(row) {
 /* ───────── เหตุการณ์ ───────── */
 export function mount(ctx) {
   onClick('aptab', (k) => setState({ apTab: k }));
+  bindRubricDrawer();
 
   const rerender = async () => {
     const { render: r } = await import('../core/render.js');
