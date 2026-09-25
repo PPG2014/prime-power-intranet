@@ -7,6 +7,7 @@ import {
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
   submitSelf, submitManager, hrReview, executiveDecide, sendBack, acknowledge,
   S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo,
+  canHrReview, canBossApprove, inApproveScope, rolesOf,
 } from '../services/appraisal.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
@@ -36,6 +37,8 @@ const fix = (n) => (Number(n) || 0).toFixed(1);
 function canApprove() {
   return state.isAdmin || isApproverLevel(me?.Level);
 }
+/** ตัวตนของผู้ใช้สำหรับเช็กสิทธิ์รายใบ (ผู้ตรวจ HR / ผู้อนุมัติที่กำหนดไว้ในใบ) */
+const who = () => ({ email: myEmail, person: me, isAdmin: state.isAdmin, isHR: state.isHR });
 
 export async function render(ctx) {
   myEmail = String(state.user?.email || '').toLowerCase();
@@ -69,7 +72,11 @@ export async function render(ctx) {
   const tabs = [
     ['me', 'การประเมินของฉัน', true],
     ['team', `ทีมของฉัน${team.length ? ` (${team.length})` : ''}`, team.length > 0],
-    ['approve', 'อนุมัติผล', canApprove()],
+    // เห็นแท็บเมื่อเป็นผู้บริหารตามระดับ หรือถูกกำหนดเป็นผู้ตรวจ/ผู้อนุมัติในใบใดใบหนึ่ง
+    ['approve', 'อนุมัติผล', canApprove() || rows.some((r) => {
+      const ro = rolesOf(r);
+      return [ro.hr, ro.approver].some((x) => x && clean(x.email).toLowerCase() === myEmail);
+    })],
     ['all', 'ภาพรวมทั้งองค์กร', state.isHR],
   ].filter(([, , show]) => show);
 
@@ -181,7 +188,8 @@ function paneTeam(team) {
 function paneApprove() {
   if (!cycle) return '';
   const g = stageOpen(cycle, S_BOSS);
-  const mine = (r) => state.isAdmin || clean(r.Department) === clean(me?.Department);
+  // ใบที่กำหนดผู้อนุมัติ/ผู้ตรวจไว้ เห็นเฉพาะคนนั้น · ไม่ได้กำหนด ใช้ผู้จัดการฝ่ายของฝ่ายนั้น
+  const mine = (r) => inApproveScope(r, who());
   const wait = rows.filter((r) => [S_HR, S_BOSS].includes(clean(r.Status))).filter(mine);
   const done = rows.filter((r) => [S_ACK, DONE].includes(clean(r.Status))).filter(mine);
 
@@ -542,8 +550,8 @@ async function openSheet(row, rerender) {
 
   const isMgrTurn = st === S_MGR && stageOpen(cycle, S_MGR).ok
     && clean(row.EvaluatorEmail).toLowerCase() === myEmail;
-  const isHrTurn = st === S_HR && state.isHR;
-  const isBossTurn = st === S_BOSS && canApprove();
+  const isHrTurn = st === S_HR && canHrReview(row, who());
+  const isBossTurn = st === S_BOSS && canBossApprove(row, who());
   const isEmpTurn = st === S_ACK && clean(row.EmployeeEmail).toLowerCase() === myEmail;
 
   const selfAns = answersOf(row, 'self');

@@ -185,3 +185,15 @@
   body.rb-open .page-appraisal { padding-left: calc(var(--rbw) + 48px); }
 }
 
+
+/* ผู้ประเมิน / ฝ่ายบุคคล / ผู้อนุมัติ ของแต่ละใบ (หน้าต่างสร้างแบบประเมิน) */
+.ap-rolegrid th { font-size: .9em; }
+.ap-rolegrid th .dim { font-weight: 400; font-size: .8em; }
+.ap-rolein {
+  width: 100%; min-width: 150px; box-sizing: border-box; padding: 5px 8px; font: inherit;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.ap-rolein:focus { border-color: var(--blue, #1d4ed8); outline: none; }
+.ap-rolein.bad { border-color: #e02424; background: #fff5f5; }
+.ap-roleall td { background: #f7f9fc; }
+.ap-roleall .ap-rolein { border-style: dashed; }

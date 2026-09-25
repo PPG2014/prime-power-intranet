@@ -158,32 +158,72 @@ export function stageOpen(cycle, stage) {
   return { ok: true };
 }
 
-/** ระดับที่อนุมัติผลประเมินได้: ผู้จัดการฝ่ายขึ้นไป */
+/**
+ * ระดับที่อนุมัติผลประเมินได้ (ใช้เมื่อใบนั้นไม่ได้กำหนดผู้อนุมัติไว้): ผู้จัดการฝ่ายขึ้นไป
+ * "รองผู้จัดการฝ่าย" มีคำว่า ผู้จัดการฝ่าย อยู่ด้วย จึงต้องกันไว้ไม่ให้ผ่าน
+ */
 export const isApproverLevel = (level) =>
-  /ผู้อำนวยการ|ผู้บริหารสูงสุด|ผู้จัดการฝ่าย|รองผู้บริหาร/.test(String(level || ''));
+  /ผู้อำนวยการ|ผู้บริหารสูงสุด|(?<!รอง)ผู้จัดการฝ่าย|รองผู้บริหาร/.test(String(level || ''));
+
+const lowEmail = (v) => clean(v).toLowerCase();
+
+/** ผู้ตรวจสอบฝ่ายบุคคล / ผู้บริหารที่กำหนดไว้ในใบนี้ { hr: {name,email}, approver: {name,email} } */
+export const rolesOf = (row) => extraOf(row || {}).roles || {};
+
+/**
+ * ใครตรวจสอบใบนี้ในขั้นฝ่ายบุคคลได้
+ * กำหนดตัวไว้ในใบ → คนนั้น (และผู้ดูแลระบบ) · ไม่ได้กำหนด → ทุกคนในรายชื่อฝ่ายบุคคล
+ */
+export function canHrReview(row, { email, isHR = false, isAdmin = false }) {
+  const hr = rolesOf(row).hr;
+  if (hr && hr.email) return isAdmin || lowEmail(hr.email) === lowEmail(email);
+  return isHR;
+}
+
+/**
+ * ใครอนุมัติใบนี้ในขั้นผู้บริหารได้
+ * กำหนดตัวไว้ในใบ → คนนั้น (และผู้ดูแลระบบ)
+ * ไม่ได้กำหนด → ผู้จัดการฝ่ายขึ้นไปของฝ่ายเดียวกัน ยกเว้นคนที่เป็นผู้ประเมินใบนั้นเอง
+ */
+export function canBossApprove(row, { email, person = null, isAdmin = false }) {
+  const ap = rolesOf(row).approver;
+  if (ap && ap.email) return isAdmin || lowEmail(ap.email) === lowEmail(email);
+  if (isAdmin) return true;
+  return isApproverLevel(person && person.Level)
+    && clean(row.Department) === clean(person && person.Department)
+    && lowEmail(row.EvaluatorEmail) !== lowEmail(email);
+}
+
+/** ใบที่ผู้ใช้คนนี้ควรเห็นในแท็บ "อนุมัติผล" (รออนุมัติ + ผ่านแล้ว) */
+export function inApproveScope(row, who) {
+  const r = rolesOf(row);
+  const me = lowEmail(who.email);
+  if ((r.hr && lowEmail(r.hr.email) === me) || (r.approver && lowEmail(r.approver.email) === me)) return true;
+  return canBossApprove(row, who);
+}
 
 /**
  * ใบที่รอผู้ใช้คนนี้ทำอยู่ตอนนี้ แยกตามแท็บของหน้าประเมิน — ใช้แสดงตัวเลขเตือน
  *   me      ใบของฉันที่ต้องประเมินตนเอง หรือรอลงนามรับทราบ
  *   team    ลูกทีมที่รอฉันให้คะแนน
- *   approve ใบในฝ่ายของฉันที่รอผู้บริหารอนุมัติ (ผู้ดูแลเห็นทุกฝ่าย)
- *   all     ใบที่รอฝ่ายบุคคลตรวจสอบ (เฉพาะฝ่ายบุคคล)
+ *   approve ใบที่รอฉันอนุมัติ หรือรอฉันตรวจสอบในฐานะฝ่ายบุคคลที่ถูกกำหนดตัวไว้
+ *   all     ใบที่รอฝ่ายบุคคลตรวจสอบและไม่ได้กำหนดผู้ตรวจไว้ (เฉพาะฝ่ายบุคคล)
  */
 export function appraisalTodo({ cycle, rows, email, person = null, isAdmin = false, isHR = false }) {
   const out = { me: 0, team: 0, approve: 0, all: 0, total: 0 };
   if (!cycle || clean(cycle.Status) !== 'เปิด') return out;
   const st = (r) => clean(r.Status);
+  const who = { email, person, isAdmin, isHR };
+  const me = lowEmail(email);
 
   const mine = mineOf(rows, email);
   if (mine && ((st(mine) === S_SELF && stageOpen(cycle, S_SELF).ok) || st(mine) === S_ACK)) out.me = 1;
 
   out.team = stageOpen(cycle, S_MGR).ok ? teamOf(rows, email).filter((r) => st(r) === S_MGR).length : 0;
 
-  if (isAdmin || isApproverLevel(person && person.Level)) {
-    const dept = clean(person && person.Department);
-    out.approve = rows.filter((r) => st(r) === S_BOSS && (isAdmin || clean(r.Department) === dept)).length;
-  }
-  if (isHR) out.all = rows.filter((r) => st(r) === S_HR).length;
+  out.approve = rows.filter((r) => (st(r) === S_BOSS && canBossApprove(r, who))
+    || (st(r) === S_HR && lowEmail((rolesOf(r).hr || {}).email) === me)).length;
+  out.all = isHR ? rows.filter((r) => st(r) === S_HR && !(rolesOf(r).hr || {}).email).length : 0;
 
   out.total = out.me + out.team + out.approve + out.all;
   return out;
