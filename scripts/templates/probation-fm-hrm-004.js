@@ -156,5 +156,22 @@ export function renderProbation(p = {}) {
 
     <div class="pb-foot-l">Form Page 1 / 4</div>
     <div class="pb-foot-r">FM-HRM-004 Rev.02 (14/9/2569)</div>
-  </div></div>`;
+  </div>
+
+  ${sg.employee && (sg.employee.name || sg.employee.sig) ? `<div class="pb-page">
+    <div class="pb-head">
+      <img class="pb-logo" src="${LOGO}" alt="Prime Power Construction">
+      <div class="pb-title">แบบประเมินผลระหว่างทดลองงาน</div>
+    </div>
+    <div class="pb-ack">
+      <div class="pb-acklabel">บุคลากรรับทราบ</div>
+      <div class="pb-sigline">${sg.employee.sig ? `<img data-photo="${esc(sg.employee.sig)}" alt="">` : ''}</div>
+      <div class="pb-signame">( ${esc(sg.employee.name || '')} )</div>
+      <div class="pb-ackdate">วันที่ ${esc(thDate(sg.employee.date))}</div>
+      ${sg.employee.note ? `<div class="pb-acknote">ความเห็น: ${esc(sg.employee.note)}</div>` : ''}
+    </div>
+    <div class="pb-foot-l">Form Page 2 / 4</div>
+    <div class="pb-foot-r">FM-HRM-004 Rev.02 (14/9/2569)</div>
+  </div>` : ''}
+  </div>`;
 }

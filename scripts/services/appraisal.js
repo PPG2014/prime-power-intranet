@@ -10,7 +10,8 @@
  */
 import { list, create, update } from './data.js';
 
-export const STAGES = ['ประเมินตนเอง', 'หัวหน้าประเมิน', 'ผู้บริหารอนุมัติ', 'พนักงานรับทราบ'];
+export const STAGES = ['ประเมินตนเอง', 'หัวหน้าประเมิน', 'ฝ่ายบุคคลตรวจสอบ', 'ผู้บริหารอนุมัติ', 'พนักงานรับทราบ'];
+export const [S_SELF, S_MGR, S_HR, S_BOSS, S_ACK] = STAGES;
 export const DONE = 'เสร็จสมบูรณ์';
 
 /** เกรดตามคะแนนถ่วงน้ำหนัก 0–100 */
@@ -143,10 +144,16 @@ export const teamOf = (rows, email) => rows.filter((r) =>
   clean(r.EvaluatorEmail).toLowerCase() === String(email || '').toLowerCase());
 
 /** ขั้นตอนที่รออยู่ตรงกับรอบหรือไม่ (รอบล็อกขั้นไหน ทำได้เฉพาะขั้นนั้น) */
+/**
+ * ขั้นตอนที่ตั้งในรอบใช้ควบคุมแค่ 2 ขั้นแรก (ประเมินตนเอง / หัวหน้าประเมิน)
+ * ขั้นฝ่ายบุคคล ผู้บริหาร และพนักงานรับทราบ ดูจากสถานะของใบนั้นโดยตรง
+ * เพราะแต่ละใบเดินไม่พร้อมกัน ไม่ต้องรอ HR เลื่อนขั้นทั้งรอบ
+ */
 export function stageOpen(cycle, stage) {
   if (!cycle) return { ok: false, why: 'ยังไม่ได้เปิดรอบประเมิน' };
   if (clean(cycle.Status) !== 'เปิด') return { ok: false, why: `รอบ ${clean(cycle.Title)} ปิดรับข้อมูลแล้ว` };
-  const cur = clean(cycle.Stage) || STAGES[0];
+  if (stage !== S_SELF && stage !== S_MGR) return { ok: true };
+  const cur = clean(cycle.Stage) || S_SELF;
   if (cur !== stage) return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
   return { ok: true };
 }
@@ -177,11 +184,42 @@ export function roundsFrom(startDate) {
   });
 }
 
+/** แปลงชื่อครั้งที่ในรอบประเมิน เป็นคีย์ของวันในเอกสาร */
+export const roundKey = (round) => {
+  const m = String(round || '').match(/([1-4])/);
+  return m ? `r${m[1]}` : '';
+};
+
+/**
+ * รวมวันที่ประเมินของครั้งก่อน ๆ เข้ากับครั้งนี้
+ * เอกสาร FM-HRM-004 มีช่องวันที่ของทั้ง 4 ครั้งในใบเดียว จึงต้องสะสมวันจากใบเก่าของคนเดิม
+ */
+export function mergeRounds(startDate, cycle, previousSheets = []) {
+  const out = roundsFrom(startDate);
+  previousSheets.forEach((r) => {
+    let x = {};
+    try { x = JSON.parse(r.Extra || '{}'); } catch (e) { x = {}; }
+    (x.rounds || []).forEach((old) => {
+      if (!old.date) return;
+      const hit = out.find((o) => o.key === old.key);
+      if (hit) hit.date = old.date;
+    });
+  });
+  const k = roundKey(cycle.Round);
+  const d = cycle.RoundDate ? String(cycle.RoundDate).slice(0, 10) : '';
+  if (k && d) {
+    const hit = out.find((o) => o.key === k);
+    if (hit) hit.date = d;
+  }
+  return out;
+}
+
 /** สร้างใบประเมินให้บุคลากรทุกคนที่ยังไม่มีในรอบนี้ (ผู้ดูแลระบบกดสร้าง) */
 export async function generateSheets(cycle, onProgress = () => {}) {
-  const [dir, existing] = await Promise.all([
+  const [dir, existing, allSheets] = await Promise.all([
     list('directory').catch(() => []),
     sheets(clean(cycle.Title)),
+    sheets(''),                       // ใบของรอบก่อน ๆ ไว้ดึงวันที่ประเมินครั้งก่อนมาต่อ
   ]);
   const have = new Set(existing.map((r) => clean(r.EmployeeEmail).toLowerCase()));
 
@@ -211,7 +249,8 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       // ดึงวันเริ่มงานจากทะเบียนบุคลากร แล้วคำนวณกำหนดประเมินให้เลย
       Extra: JSON.stringify({
         startDate: p.StartDate ? String(p.StartDate).slice(0, 10) : '',
-        rounds: roundsFrom(p.StartDate),
+        rounds: mergeRounds(p.StartDate, cycle,
+          allSheets.filter((r) => clean(r.EmployeeEmail).toLowerCase() === clean(p.Email).toLowerCase())),
       }),
     }).catch(() => null);
     if (row) made.push(row);
@@ -219,6 +258,55 @@ export async function generateSheets(cycle, onProgress = () => {}) {
     onProgress(done, staff.length);
   }
   return { created: made.length, skipped: existing.length, noManager: staff.filter((p) => !clean(p.Manager)).length };
+}
+
+/**
+ * สร้างใบประเมินที่ยังขาดให้อัตโนมัติเมื่อเปิดหน้าประเมิน
+ * ผู้ดูแลระบบ → สร้างให้ครบทุกคนในขอบเขตของรอบ
+ * ผู้ใช้ทั่วไป → สร้างเฉพาะใบของตัวเอง ถ้าอยู่ในขอบเขตของรอบ
+ * คืนจำนวนใบที่สร้าง (0 = ไม่มีอะไรต้องสร้าง)
+ */
+export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
+  if (!cycle || clean(cycle.Status) !== 'เปิด') return 0;
+
+  if (isAdmin) {
+    const res = await generateSheets(cycle);
+    return res.created;
+  }
+
+  const mine = (await sheets(clean(cycle.Title)))
+    .some((r) => clean(r.EmployeeEmail).toLowerCase() === String(email).toLowerCase());
+  if (mine || !email) return 0;
+
+  const dir = await list('directory').catch(() => []);
+  const me = dir.find((p) => clean(p.Email).toLowerCase() === String(email).toLowerCase());
+  if (!me) return 0;
+
+  // อยู่ในขอบเขตของรอบไหม
+  const onlyList = clean(cycle.Scope) === 'เฉพาะรายชื่อที่ระบุ';
+  const wanted = new Set(String(cycle.Members || '').split(/\r?\n/)
+    .map((x) => x.trim().toLowerCase()).filter(Boolean));
+  if (onlyList && !wanted.has(clean(me.Email).toLowerCase()) && !wanted.has(clean(me.Title).toLowerCase())) return 0;
+
+  const byName = new Map(dir.map((p) => [clean(p.Title), p]));
+  const mgr = byName.get(clean(me.Manager));
+  const prev = (await sheets('')).filter((r) =>
+    clean(r.EmployeeEmail).toLowerCase() === clean(me.Email).toLowerCase());
+
+  await create('appraisals', {
+    Title: `${clean(cycle.Title)} · ${clean(me.Title)}`,
+    CycleName: clean(cycle.Title), FormSet: clean(cycle.FormSet),
+    EmployeeName: clean(me.Title), EmployeeEmail: clean(me.Email),
+    Department: clean(me.Department), Section: clean(me.Section),
+    EvaluatorName: clean(me.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
+    Status: STAGES[0], SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
+    SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
+    Extra: JSON.stringify({
+      startDate: me.StartDate ? String(me.StartDate).slice(0, 10) : '',
+      rounds: mergeRounds(me.StartDate, cycle, prev),
+    }),
+  });
+  return 1;
 }
 
 /** บันทึกผลการประเมินตนเอง */
@@ -230,26 +318,51 @@ export async function submitSelf(row, answers, comment, score, by) {
   });
 }
 
-/** บันทึกผลการประเมินของหัวหน้า (extra = ส่วนที่ 3–4 ของแบบทดลองงาน) */
-export async function submitManager(row, answers, comment, score, by, extra = null) {
-  const patch = {
-    MgrData: JSON.stringify(answers), MgrComment: comment,
-    MgrScore: score, Status: STAGES[2],
-    Log: addLog(row, 'หัวหน้าประเมินแล้ว', by),
-  };
-  if (extra) patch.Extra = JSON.stringify(extra);
-  return patch.Extra === undefined
-    ? update('appraisals', row.id, patch) : update('appraisals', row.id, patch);
-}
-
-/** ผู้บริหารอนุมัติผล (ปรับคะแนนสุดท้ายได้) */
-export async function approveSheet(row, finalScore, note, by) {
-  const g = gradeOf(finalScore);
+/**
+ * ผู้ประเมินบันทึกผล + สรุปผล + ลงนาม แล้วส่งต่อให้ฝ่ายบุคคล
+ * sign = { name, note, date, url } ของผู้ประเมิน
+ */
+export async function submitManager(row, answers, comment, score, by, extra = null, sign = null) {
+  const x = { ...extraOf(row), ...(extra || {}) };
+  if (sign) x.sign = { ...(x.sign || {}), evaluator: { ...sign, at: new Date().toISOString() } };
   return update('appraisals', row.id, {
-    FinalScore: finalScore, Grade: g[1], HeadComment: note, Status: STAGES[3],
-    Log: addLog(row, 'ผู้บริหารอนุมัติผล', by, note),
+    MgrData: JSON.stringify(answers), MgrComment: comment,
+    MgrScore: score, Status: S_HR,
+    Extra: JSON.stringify(x),
+    Log: addLog(row, 'ผู้ประเมินสรุปผลและลงนาม ส่งให้ฝ่ายบุคคล', by, sign?.note || ''),
   });
 }
+
+/**
+ * ฝ่ายบุคคลตรวจสอบและลงนาม แล้วเลือกส่งต่อ
+ * to = ผู้บริหารอนุมัติ (ปกติ) หรือ พนักงานรับทราบ (ข้ามผู้บริหาร)
+ */
+export async function hrReview(row, { sign, to = S_BOSS, by, note = '' }) {
+  const x = { ...extraOf(row) };
+  if (sign) x.sign = { ...(x.sign || {}), hr: { ...sign, at: new Date().toISOString() } };
+  return update('appraisals', row.id, {
+    Status: to, Extra: JSON.stringify(x),
+    Log: addLog(row, to === S_ACK
+      ? 'ฝ่ายบุคคลตรวจสอบแล้ว ส่งให้พนักงานรับทราบ'
+      : 'ฝ่ายบุคคลตรวจสอบแล้ว ส่งให้ผู้บริหารอนุมัติ', by, note),
+  });
+}
+
+/** ผู้บริหารอนุมัติ / ไม่อนุมัติ พร้อมลงนาม */
+export async function executiveDecide(row, { approved, finalScore, sign, by, note = '', scheme = 'มาตรฐาน' }) {
+  const x = { ...extraOf(row) };
+  x.sign = { ...(x.sign || {}), approver: { ...sign, approved, at: new Date().toISOString() } };
+  const g = gradeOf(finalScore, scheme);
+  return update('appraisals', row.id, {
+    FinalScore: finalScore, Grade: g[1], HeadComment: note,
+    Status: approved ? S_ACK : S_MGR, Extra: JSON.stringify(x),
+    Log: addLog(row, approved ? 'ผู้บริหารอนุมัติผล' : 'ผู้บริหารไม่อนุมัติ ส่งกลับให้ทบทวน', by, note),
+  });
+}
+
+/** (เดิม) ผู้บริหารอนุมัติผลแบบไม่ลงนาม — คงไว้เพื่อความเข้ากันได้ */
+export const approveSheet = (row, finalScore, note, by) =>
+  executiveDecide(row, { approved: true, finalScore, sign: { name: by }, by, note });
 
 /** ส่งกลับให้แก้ไข ระบุขั้นที่ต้องการให้กลับไป */
 export async function sendBack(row, toStage, note, by) {
@@ -259,10 +372,12 @@ export async function sendBack(row, toStage, note, by) {
   });
 }
 
-/** พนักงานรับทราบผล */
-export async function acknowledge(row, note, by) {
+/** พนักงานรับทราบผล พร้อมลงลายเซ็น */
+export async function acknowledge(row, note, by, sigUrl = '') {
+  const x = { ...extraOf(row) };
+  x.sign = { ...(x.sign || {}), employee: { name: by, note, url: sigUrl, at: new Date().toISOString() } };
   return update('appraisals', row.id, {
-    Status: DONE, AckDate: new Date().toISOString(),
+    Status: DONE, AckDate: new Date().toISOString(), Extra: JSON.stringify(x),
     Log: addLog(row, 'พนักงานรับทราบผล', by, note),
   });
 }
