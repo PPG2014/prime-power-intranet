@@ -134,8 +134,9 @@
 
 /* ───── แถบเกณฑ์การให้คะแนน ซ่อนที่ขอบซ้าย (scripts/components/rubric-drawer.js) ─────
    z-index สูงกว่าหน้าต่างลอย (.mask = 60) เปิดดูระหว่างให้คะแนนได้ */
+/* ความกว้างแผง เหลือแถบกดไว้ที่ขอบเสมอ — ใช้ร่วมกับการเลื่อนหน้าต่างประเมินหลบ */
+:root { --rbw: min(620px, calc(100vw - 56px)); }
 .rb-drawer {
-  --rbw: min(620px, calc(100vw - 56px));   /* ความกว้างแผง เหลือแถบกดไว้ที่ขอบเสมอ */
   position: fixed; top: 90px; bottom: 16px; left: 0; z-index: 70;
   display: flex; align-items: flex-start;
   transform: translateX(calc(-1 * var(--rbw))); transition: transform .28s ease;
@@ -173,3 +174,14 @@
 .rb-topic th, .rb-topic td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
 .rb-topic th { width: 38px; text-align: center; background: #eef4fb; color: var(--navy, #0b3a75); }
 .rb-topic tr:hover td, .rb-topic tr:hover th { background: #fff7e0; }
+
+/*
+ * แผงเกณฑ์เปิดอยู่ (body.rb-open): เลื่อนหน้าต่างประเมินและเนื้อหาหน้าไปทางขวาให้พ้นแผง
+ * พับแผงแล้วกลับที่เดิม · จอแคบกว่า 1100px ไม่มีที่พอ ให้แผงลอยทับตามเดิม
+ */
+.mask, .page-appraisal { transition: padding-left .28s ease; }
+@media (min-width: 1100px) {
+  body.rb-open .mask { padding-left: calc(var(--rbw) + 48px); }
+  body.rb-open .page-appraisal { padding-left: calc(var(--rbw) + 48px); }
+}
+

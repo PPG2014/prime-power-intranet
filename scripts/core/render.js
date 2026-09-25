@@ -59,6 +59,7 @@ export async function render() {
 
   // เปลี่ยนแถบเมนูทันทีที่กด แล้วค่อยรอข้อมูล จะได้ไม่รู้สึกว่าไม่ตอบสนอง
   renderNav();
+  document.body.classList.remove('rb-open');   // ออกจากหน้าประเมิน แผงเกณฑ์ต้องไม่ดันหน้าอื่นค้าง
   busy(true);
   try {
     $('#app').innerHTML = await page.render(ctx);

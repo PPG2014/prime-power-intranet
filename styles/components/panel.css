@@ -5,7 +5,7 @@
 .panel-meta { font-weight: 400; font-size: 12.5px; color: #a9c8e6; }
 .panel-link { font-size: 12.5px; color: #9ecbf0; }
 .panel-link:hover { color: #fff; }
-button.panel-link { background: none; border: 0; padding: 0; cursor: pointer; }
+
 .panel-note { padding: 14px 20px; border-top: 1px solid var(--line-soft); background: #fafbfc;
   font-size: 12.5px; color: var(--muted); line-height: 1.7; }
 .section-title { font-size: 18px; margin-bottom: var(--gap); }
@@ -24,3 +24,9 @@ button.panel-link { background: none; border: 0; padding: 0; cursor: pointer; }
 .panel-head .btn-mini:hover,
 .panel-head button:hover { background: #eef3fb; }
 .panel-head .btn-mini[disabled] { opacity: .7; }
+
+/* ปุ่มที่หน้าตาเป็นลิงก์บนแถบหัว (เช่น "ดูทั้งหมด →") ไม่เอาพื้นขาวของปุ่มทั่วไปด้านบน */
+.panel-head button.panel-link,
+.panel-head button.panel-link:hover { background: none; border: 0; padding: 0; cursor: pointer; }
+.panel-head button.panel-link { color: #9ecbf0; }
+.panel-head button.panel-link:hover { color: #fff; }

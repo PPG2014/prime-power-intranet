@@ -30,6 +30,7 @@ export function rubricDrawer(rubric, title = 'เกณฑ์การให้�
 }
 
 export function bindRubricDrawer() {
+  document.body.classList.remove('rb-open');   // หน้าวาดใหม่ แผงเริ่มแบบพับเสมอ
   const box = $('#rb-drawer');
   if (!box) return;
   const tab = $('#rb-tab');
@@ -38,6 +39,8 @@ export function bindRubricDrawer() {
   const open = (on) => {
     clearTimeout(timer);
     box.classList.toggle('open', on);
+    // ให้หน้าต่างประเมินและเนื้อหาหน้าเลื่อนหลบแผง (ดู appraisal.css)
+    document.body.classList.toggle('rb-open', on);
     tab.setAttribute('aria-expanded', String(on));
   };
 
@@ -56,6 +59,7 @@ export function bindRubricDrawer() {
       const d = $('#rb-drawer');
       if (e.key === 'Escape' && d && d.classList.contains('open')) {
         d.classList.remove('open');
+        document.body.classList.remove('rb-open');
         e.stopPropagation();
       }
     }, true);
