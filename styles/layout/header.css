@@ -42,3 +42,11 @@ header.nav-compact nav.open { display: flex; flex-direction: column; position: a
 .signout-btn { border: 1px solid rgba(255,255,255,.6); border-radius: var(--radius-sm);
   padding: 4px 14px; color: #fff; font-size: 12.5px; margin-left: 12px; font-weight: 600; }
 .signout-btn:hover { background: #fff; color: var(--navy); text-decoration: none; }
+
+/* ตัวเลขเตือนบนเมนู (services/badges.js) */
+nav a { position: relative; }
+.nav-badge {
+  display: inline-block; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px;
+  border-radius: 9px; background: #e02424; color: #fff; font-size: 11px; font-weight: 700;
+  line-height: 18px; text-align: center; vertical-align: 1px;
+}

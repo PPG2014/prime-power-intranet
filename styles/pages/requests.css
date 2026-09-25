@@ -186,3 +186,12 @@
 .rq-layout.solo { grid-template-columns: 1fr; }
 .rq-layout.solo .rq-mine { position: static; }
 .rq-layout.solo .rq-mine-list { max-height: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+/* ตัวเลขเตือน: ใบที่ถึงคิวฉันในแต่ละฟอร์ม / คำขอของฉันที่ยังไม่ได้เปิดอ่าน */
+.tab-badge {
+  display: inline-block; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 6px;
+  border-radius: 9px; background: #e02424; color: #fff; font-size: 11px; font-weight: 700;
+  line-height: 18px; text-align: center;
+}
+.rq-row.unread { border-color: #f5a3a3; background: #fff7f7; }
+.rq-new-flag { color: #c81e1e; font-weight: 600; font-size: .92em; }

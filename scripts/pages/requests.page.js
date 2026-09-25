@@ -8,6 +8,7 @@ import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, build
 import { LETTERHEAD } from '../core/letterhead.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel } from '../components/form-renderer.js';
+import { isUnread, markSeen } from '../services/badges.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -72,7 +73,7 @@ function requestRow(req, opts = {}) {
   const cur = +req.CurrentStep || 1;
   const curName = (steps.find((s) => +s.StepOrder === cur) || {}).StepName || '';
   return `
-    <button class="rq-row" data-open="${req.id}">
+    <button class="rq-row${opts.unread ? ' unread' : ''}" data-open="${req.id}">
       <div class="rq-main">
         <span class="rq-no">${esc(req.Title)}</span>
         <span class="rq-form">${esc(req.FormName || req.FormCode)}</span>
@@ -84,6 +85,7 @@ function requestRow(req, opts = {}) {
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
+        ${opts.unread ? '<span class="rq-new-flag">● มีความเคลื่อนไหว</span>' : ''}
       </div>
     </button>`;
 }
@@ -123,6 +125,7 @@ export async function render(ctx) {
 
   const mine = allRequests.filter((r) => r.RequesterEmail
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
+  const unreadCount = mine.filter((r) => isUnread(r)).length;
 
   // ค้นหา + แบ่งหน้า กล่อง "คำขอของฉัน" (15 รายการต่อหน้า)
   const MINE_PER = 15;
@@ -141,14 +144,18 @@ export async function render(ctx) {
     return role.isInvolved;
   });
 
-  // จัดกลุ่มฝั่งซ้ายตามชื่อฟอร์ม
+  // จัดกลุ่มฝั่งซ้ายตามชื่อฟอร์ม พร้อมนับใบที่ถึงคิวฉันในแต่ละฟอร์ม (ตัวเลขเตือนบนแถบ)
   const groups = [];
   toReview.forEach((r) => {
     let g = groups.find((x) => x.code === r.FormCode);
-    if (!g) groups.push((g = { code: r.FormCode, name: r.FormName || r.FormCode, rows: [] }));
+    if (!g) groups.push((g = { code: r.FormCode, name: r.FormName || r.FormCode, rows: [], act: 0 }));
     g.rows.push(r);
+    if (roleOnRequest(r, r._steps || [], meIds).canActNow) g.act += 1;
   });
-  const activeTab = state.reviewTab || (groups[0] && groups[0].code) || '';
+  // ฟอร์มที่มีงานค้างขึ้นก่อน แล้วเปิดแถบแรกที่มีงานค้างให้เลย
+  groups.sort((a, b) => (b.act > 0) - (a.act > 0));
+  const activeTab = (groups.some((g) => g.code === state.reviewTab) && state.reviewTab)
+    || (groups[0] && groups[0].code) || '';
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
@@ -173,7 +180,8 @@ export async function render(ctx) {
             <div class="rq-tabs">
               ${groups.map((g) => `<button data-tab="${esc(g.code)}"
                 aria-current="${g.code === activeTab ? 'page' : 'false'}">
-                ${esc(g.name)} <b>${g.rows.length}</b></button>`).join('')}
+                ${esc(g.name)} <b>${g.rows.length}</b>${g.act
+                  ? `<span class="tab-badge" title="ถึงคิวคุณ ${g.act} ใบ">${g.act}</span>` : ''}</button>`).join('')}
             </div>
             <div class="rq-list">
               ${shownGroup.rows.map((r) => requestRow(r, {
@@ -189,13 +197,13 @@ export async function render(ctx) {
         <aside class="rq-mine">
           <div class="panel">
             <div class="panel-head">📄 คำขอของฉัน
-              <span class="panel-meta">${mineFiltered.length} รายการ</span></div>
+              <span class="panel-meta">${unreadCount ? `<span class="tab-badge">${unreadCount} ใหม่</span> ` : ''}${mineFiltered.length} รายการ</span></div>
             ${mine.length ? `<div class="rq-mine-tools">
               <input id="mine-q" type="search" data-keepfocus value="${esc(state.mineQuery || '')}"
                 placeholder="ค้นหาเลขที่ / ชื่อฟอร์ม…" autocomplete="off">
             </div>` : ''}
             ${mineFiltered.length ? `<div class="rq-list rq-mine-list">
-              ${mineRows.map((r) => requestRow(r)).join('')}</div>
+              ${mineRows.map((r) => requestRow(r, { unread: isUnread(r) })).join('')}</div>
               ${minePages > 1 ? `<div class="rq-pager">
                 <button class="btn-mini" data-minepage="${minePage - 1}" ${minePage <= 1 ? 'disabled' : ''}>‹ ก่อนหน้า</button>
                 <span class="rq-pager-info">หน้า ${minePage} / ${minePages}</span>
@@ -285,6 +293,14 @@ async function openRequest(req) {
     const fresh = await get('requests', req.id);
     if (fresh) req = { ...req, ...fresh, FormCode: formCodeOf({ ...req, ...fresh }) };
   } catch (e) { /* อ่านไม่ได้ ใช้ข้อมูลเดิม */ }
+  // เปิดคำขอของตัวเองแล้ว ถือว่าอ่านความเคลื่อนไหวล่าสุดแล้ว ตัวเลขเตือนลดลงทันที
+  if (String(req.RequesterEmail || '').toLowerCase() === String(state.user?.email || '').toLowerCase()) {
+    markSeen(req);
+    document.querySelectorAll(`.rq-row[data-open="${req.id}"]`).forEach((row) => {
+      row.classList.remove('unread');
+      row.querySelector('.rq-new-flag')?.remove();
+    });
+  }
   const steps = req._steps || stepCache[req.FormCode] || [];
   const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);

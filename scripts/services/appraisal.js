@@ -158,6 +158,37 @@ export function stageOpen(cycle, stage) {
   return { ok: true };
 }
 
+/** ระดับที่อนุมัติผลประเมินได้: ผู้จัดการฝ่ายขึ้นไป */
+export const isApproverLevel = (level) =>
+  /ผู้อำนวยการ|ผู้บริหารสูงสุด|ผู้จัดการฝ่าย|รองผู้บริหาร/.test(String(level || ''));
+
+/**
+ * ใบที่รอผู้ใช้คนนี้ทำอยู่ตอนนี้ แยกตามแท็บของหน้าประเมิน — ใช้แสดงตัวเลขเตือน
+ *   me      ใบของฉันที่ต้องประเมินตนเอง หรือรอลงนามรับทราบ
+ *   team    ลูกทีมที่รอฉันให้คะแนน
+ *   approve ใบในฝ่ายของฉันที่รอผู้บริหารอนุมัติ (ผู้ดูแลเห็นทุกฝ่าย)
+ *   all     ใบที่รอฝ่ายบุคคลตรวจสอบ (เฉพาะฝ่ายบุคคล)
+ */
+export function appraisalTodo({ cycle, rows, email, person = null, isAdmin = false, isHR = false }) {
+  const out = { me: 0, team: 0, approve: 0, all: 0, total: 0 };
+  if (!cycle || clean(cycle.Status) !== 'เปิด') return out;
+  const st = (r) => clean(r.Status);
+
+  const mine = mineOf(rows, email);
+  if (mine && ((st(mine) === S_SELF && stageOpen(cycle, S_SELF).ok) || st(mine) === S_ACK)) out.me = 1;
+
+  out.team = stageOpen(cycle, S_MGR).ok ? teamOf(rows, email).filter((r) => st(r) === S_MGR).length : 0;
+
+  if (isAdmin || isApproverLevel(person && person.Level)) {
+    const dept = clean(person && person.Department);
+    out.approve = rows.filter((r) => st(r) === S_BOSS && (isAdmin || clean(r.Department) === dept)).length;
+  }
+  if (isHR) out.all = rows.filter((r) => st(r) === S_HR).length;
+
+  out.total = out.me + out.team + out.approve + out.all;
+  return out;
+}
+
 /** บันทึกประวัติการดำเนินการลงใบประเมิน */
 export function addLog(row, action, by, note = '') {
   const items = logOf(row);

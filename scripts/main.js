@@ -56,6 +56,15 @@ async function enter(user) {
   startRendering();
   startRouter(render);
 
+  // ตัวเลขเตือนบนเมนู: นับทันทีที่เข้าระบบ แล้วนับซ้ำทุก 5 นาที เผื่อมีคำขอใหม่ระหว่างเปิดค้าง
+  import('./services/badges.js').then((m) => {
+    m.refreshBadges({ force: true });
+    setInterval(() => {
+      import('./services/data.js').then((d) => d.clearDataCache('requests'));
+      m.refreshBadges({ force: true });
+    }, 5 * 60 * 1000);
+  });
+
   // ประกาศเด้งขึ้นหลังหน้าแรกวาดเสร็จ เพื่อไม่ให้บังตอนหน้ายังโหลดไม่เสร็จ
   showAnnouncements();
 
