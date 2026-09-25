@@ -70,3 +70,9 @@
   body.printing-pr .pb-doc { background: none; padding: 0; }
   body.printing-pr .pb-page { margin: 0; box-shadow: none; }
 }
+
+/* หน้ารับทราบของบุคลากร (หน้า 2 ของแบบฟอร์ม) */
+.pb-ack { margin-top: 20mm; margin-left: auto; width: 90mm; text-align: center; }
+.pb-acklabel { text-align: right; margin-bottom: 14mm; font-weight: 600; }
+.pb-ackdate { margin-top: 3mm; }
+.pb-acknote { margin-top: 6mm; text-align: left; font-size: 12pt; }

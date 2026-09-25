@@ -12,3 +12,14 @@
 .error-panel { max-width: 620px; margin: var(--gap-xl) auto; }
 .error-body { padding: 22px; font-size: 14.5px; line-height: 1.8; }
 .error-body p { margin: 0 0 10px; }
+
+/* ปุ่มบนแถบหัวสีเข้ม: ตัวหนังสือสืบทอดสีขาวมาจากแถบ ทำให้อ่านไม่เห็น */
+.panel-head .btn-mini,
+.panel-head button {
+  color: var(--navy);
+  background: #fff;
+  border-color: rgba(255, 255, 255, .6);
+}
+.panel-head .btn-mini:hover,
+.panel-head button:hover { background: #eef3fb; }
+.panel-head .btn-mini[disabled] { opacity: .7; }

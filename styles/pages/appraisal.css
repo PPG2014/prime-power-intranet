@@ -56,3 +56,61 @@
   border: 1px solid var(--line); border-radius: 8px; background: #fbfcfe;
 }
 .ap-itemnote:disabled { background: #f3f5f8; color: var(--muted, #6b7280); }
+
+.ap-auto { background: #e9f7ef; color: #1e7f4f; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+
+/* ตารางกรอกวันลารวดเดียว */
+.ap-attgrid th .dim { font-weight: 400; font-size: .82em; }
+.ap-attin {
+  width: 62px; padding: 4px 6px; text-align: right; font: inherit;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.ap-attin:focus { border-color: var(--blue, #1d4ed8); outline: none; }
+
+/* แถบสรุปวันลาในหน้าต่างประเมิน */
+.ap-attbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 12px; }
+.ap-attbar span {
+  padding: 5px 12px; border-radius: 999px; background: #eef4ff; font-size: .9em;
+}
+.ap-attbar b { font-size: 1.05em; }
+.ap-attbar i { font-style: normal; color: var(--muted, #6b7280); font-size: .9em; }
+
+/* แถบสถานะทุกขั้นตอน */
+.ap-track { display: grid; gap: 0; margin: 10px 0 14px; }
+.ap-step { display: flex; gap: 10px; align-items: flex-start; position: relative; padding-bottom: 12px; }
+.ap-step:not(:last-child)::before {
+  content: ''; position: absolute; left: 11px; top: 22px; bottom: 0; width: 2px; background: var(--line);
+}
+.ap-step-dot {
+  width: 24px; height: 24px; border-radius: 50%; flex: 0 0 24px; z-index: 1;
+  border: 2px solid var(--line); background: #fff; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: .78em;
+}
+.ap-step.ok .ap-step-dot { background: #1e7f4f; border-color: #1e7f4f; }
+.ap-step.now .ap-step-dot { border-color: var(--blue, #1d4ed8); box-shadow: 0 0 0 3px #dbe8ff; }
+.ap-step-body b { display: block; font-size: .92em; }
+.ap-step-body span { font-size: .84em; color: var(--muted, #6b7280); }
+.ap-pill.hr { background: #e0e7ff; color: #3730a3; }
+
+/* บล็อกลงนาม */
+.ap-signs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.ap-signbox { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+.ap-signhead { font-weight: 600; margin-bottom: 8px; }
+.ap-signbox label { display: block; font-size: .86em; margin-bottom: 8px; }
+.ap-signbox input[type=text], .ap-signbox input[type=number], .ap-signbox textarea {
+  width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 9px;
+  border: 1px solid var(--line); border-radius: 8px; font: inherit;
+}
+.ap-empack { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* ช่องลายเซ็น */
+.sig-head { font-size: .86em; font-weight: 600; margin-bottom: 4px; }
+.sig-head .dim { font-weight: 400; font-size: .92em; }
+.sig-current img { max-height: 60px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.sig-canvas {
+  width: 100%; height: 110px; border: 1px dashed var(--line); border-radius: 8px;
+  background: #fcfdff; touch-action: none; cursor: crosshair; display: block; margin: 4px 0;
+}
+.sig-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sig-upload { cursor: pointer; }
+.sig-status { font-size: .82em; }
