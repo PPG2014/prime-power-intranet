@@ -11,6 +11,8 @@ import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
+import { sheets, clean } from '../services/appraisal.js';
+import { attendanceGrid, saveAttendance } from '../components/attendance-grid.js';
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true };
 
@@ -263,6 +265,9 @@ function bindImport(s) {
 async function openEditor(key, record) {
   const s = SCHEMA[key];
   const isNew = !record;
+  // แก้ไขรอบประเมิน: ให้กรอกวันขาด ลา มาสาย ของทุกใบในรอบได้ในหน้าต่างเดียวกัน
+  const apRows = key === 'appraisalCycles' && !isNew
+    ? await sheets(clean(record.Title)).catch(() => []) : null;
   openModal({
     title: `${s.icon} ${isNew ? 'เพิ่ม' : 'แก้ไข'}${s.title}`,
     wide: true,
@@ -273,6 +278,11 @@ async function openEditor(key, record) {
           <label class="btn-mini" for="csv-in">⭱ นำเข้าจากไฟล์ CSV</label>
           <input type="file" id="csv-in" accept=".csv,text/csv" hidden>
           <button class="btn-mini" id="csv-template">⭳ ดาวน์โหลดไฟล์ตัวอย่าง</button>
+        </div>` : '')
+      + (apRows ? `
+        <div class="panel ap-attpanel">
+          <div class="panel-head">ใบประเมินทั้งหมดในรอบนี้ · กรอกวันขาด ลา มาสาย ได้เลย</div>
+          ${attendanceGrid(apRows)}
         </div>` : ''),
     footer: `<button class="btn-mini" id="cancel">ยกเลิก</button>
              <button class="btn btn-primary" id="save">${isNew ? 'เพิ่มรายการ' : 'บันทึกการแก้ไข'}</button>`,
@@ -343,6 +353,9 @@ async function openEditor(key, record) {
 
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);
+      if (apRows) {
+        await saveAttendance(apRows, (d, n) => { btn.textContent = `กำลังบันทึกวันลา ${d}/${n}…`; });
+      }
       clearCaches();
       closeModal();
       rerender();
