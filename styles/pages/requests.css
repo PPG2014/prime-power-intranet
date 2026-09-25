@@ -181,3 +181,8 @@
   font: inherit; font-size: .82em; padding: 0 5px; border: 1px solid var(--line);
   border-bottom-width: 2px; border-radius: 4px; background: #fff;
 }
+
+/* ผู้ที่ไม่มีหน้าที่อนุมัติ เห็นแค่คำขอของฉันเต็มความกว้าง */
+.rq-layout.solo { grid-template-columns: 1fr; }
+.rq-layout.solo .rq-mine { position: static; }
+.rq-layout.solo .rq-mine-list { max-height: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
