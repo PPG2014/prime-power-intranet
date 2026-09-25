@@ -48,3 +48,11 @@
 .ap-sum { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0; font-size: .92em; }
 .ap-sum label { display: inline-flex; align-items: center; gap: 5px; }
 .ap-sum2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+
+/* ความคิดเห็นรายหัวข้อ */
+.ap-noterow td { border-bottom: 1px solid var(--line); padding-top: 0; padding-bottom: 8px; }
+.ap-itemnote {
+  width: 100%; box-sizing: border-box; padding: 5px 9px; font: inherit; font-size: .88em;
+  border: 1px solid var(--line); border-radius: 8px; background: #fbfcfe;
+}
+.ap-itemnote:disabled { background: #f3f5f8; color: var(--muted, #6b7280); }
