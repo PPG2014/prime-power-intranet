@@ -11,7 +11,7 @@ export const CONFIG = {
    * ⚠ เปลี่ยนค่านี้ทุกครั้งที่อัปโหลดโค้ดใหม่ เบราว์เซอร์ของผู้ใช้จะโหลดรุ่นใหม่ให้เอง
    *   (ดู scripts/core/version-check.js) ถ้าไม่เปลี่ยน ผู้ใช้อาจได้ไฟล์เก่าค้างอยู่ราว 10 นาที
    */
-  build: '2026-09-25-logo-queue',
+  build: '2026-09-25-rubric',
 
   /**
    * 'sharepoint' = ข้อมูลจริงจาก SharePoint List  |  'mock' = ไฟล์ตัวอย่างใน data/mock
