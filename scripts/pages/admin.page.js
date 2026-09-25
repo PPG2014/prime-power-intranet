@@ -11,8 +11,8 @@ import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
-import { sheets, clean } from '../services/appraisal.js';
-import { attendanceGrid, saveAttendance } from '../components/attendance-grid.js';
+import { sheets, clean, generateSheets } from '../services/appraisal.js';
+import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid } from '../components/attendance-grid.js';
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true };
 
@@ -265,38 +265,38 @@ function bindImport(s) {
 async function openEditor(key, record) {
   const s = SCHEMA[key];
   const isNew = !record;
-  // แก้ไขรอบประเมิน: ให้กรอกวันขาด ลา มาสาย ของทุกใบในรอบได้ในหน้าต่างเดียวกัน
-  const apRows = key === 'appraisalCycles' && !isNew
-    ? await sheets(clean(record.Title)).catch(() => []) : null;
+  // รอบประเมิน: เลือกรายชื่อแล้วกรอกข้อมูลทดลองงานและวันลาของแต่ละคนได้ในหน้าต่างเดียวกัน
+  const isCycle = key === 'appraisalCycles';
   openModal({
-    title: `${s.icon} ${isNew ? 'เพิ่ม' : 'แก้ไข'}${s.title}`,
+    title: `${s.icon} ${isCycle ? (isNew ? 'สร้างแบบประเมิน' : 'แก้ไขแบบประเมิน')
+      : `${isNew ? 'เพิ่ม' : 'แก้ไข'}${s.title}`}`,
     wide: true,
     body: await formBody(s, record || {})
-      + (isNew && !s.readOnly ? `
+      + (isCycle ? cycleGridHost() : '')
+      + (isNew && !s.readOnly && !isCycle ? `
         <div class="import-row">
           <span>หรือนำเข้าหลายรายการพร้อมกัน</span>
           <label class="btn-mini" for="csv-in">⭱ นำเข้าจากไฟล์ CSV</label>
           <input type="file" id="csv-in" accept=".csv,text/csv" hidden>
           <button class="btn-mini" id="csv-template">⭳ ดาวน์โหลดไฟล์ตัวอย่าง</button>
         </div>` : '')
-      + (apRows ? `
-        <div class="panel ap-attpanel">
-          <div class="panel-head">ใบประเมินทั้งหมดในรอบนี้ · กรอกวันขาด ลา มาสาย ได้เลย</div>
-          ${attendanceGrid(apRows)}
-        </div>` : ''),
+,
     footer: `<button class="btn-mini" id="cancel">ยกเลิก</button>
-             <button class="btn btn-primary" id="save">${isNew ? 'เพิ่มรายการ' : 'บันทึกการแก้ไข'}</button>`,
+             <button class="btn btn-primary" id="save">${isCycle && isNew ? 'สร้างแบบประเมิน'
+               : isNew ? 'เพิ่มรายการ' : 'บันทึกการแก้ไข'}</button>`,
   });
-  if (isNew && !s.readOnly) bindImport(s);
+  if (isNew && !s.readOnly && !isCycle) bindImport(s);
   bindDependents(s);
   bindPhoto(s);
   bindFiles(s);
   bindFilters(s);
   bindPeoplePickers();
+  if (isCycle) bindCycleGrid(record || {});
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async (ev) => {
     const data = collect(s);
     if (!data) return;
+    const grid = isCycle ? readCycleGrid() : null;
 
     const btn = ev.currentTarget;
     const err = $('#form-error');
@@ -353,9 +353,7 @@ async function openEditor(key, record) {
 
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);
-      if (apRows) {
-        await saveAttendance(apRows, (d, n) => { btn.textContent = `กำลังบันทึกวันลา ${d}/${n}…`; });
-      }
+      if (isCycle) await saveCycleSheets(record, data, grid, btn);
       clearCaches();
       closeModal();
       rerender();
@@ -384,6 +382,30 @@ async function openEditor(key, record) {
       btn.textContent = label;
     }
   };
+}
+
+/**
+ * หลังบันทึกรอบประเมิน: สร้างใบประเมินให้ทุกคนในรายชื่อ แล้วเขียนข้อมูลที่กรอกในตารางลงแต่ละใบ
+ * ถ้าเปลี่ยนชื่อรอบ ย้ายใบเดิมไปชื่อใหม่ก่อน ไม่ให้เกิดใบซ้ำ
+ */
+async function saveCycleSheets(record, data, grid, btn) {
+  const title = clean(data.Title);
+  const oldTitle = record ? clean(record.Title) : '';
+  if (oldTitle && oldTitle !== title) {
+    for (const r of await sheets(oldTitle)) {
+      // eslint-disable-next-line no-await-in-loop
+      await update('appraisals', r.id, {
+        CycleName: title, Title: `${title} · ${clean(r.EmployeeName)}`,
+      });
+    }
+  }
+  const cycle = { ...(record || {}), ...data };
+  // สร้างใบเฉพาะรอบที่เปิดอยู่ เหมือนการสร้างอัตโนมัติในหน้าประเมิน
+  if (clean(cycle.Status) === 'เปิด') await generateSheets(cycle, (d, n) => { btn.textContent = `กำลังสร้างใบประเมิน ${d}/${n}…`; });
+  if (grid) {
+    await saveCycleGrid(await sheets(title), grid,
+      (d, n) => { btn.textContent = `กำลังบันทึกข้อมูลผู้ถูกประเมิน ${d}/${n}…`; });
+  }
 }
 
 function formLabel(code) {

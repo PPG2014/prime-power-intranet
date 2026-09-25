@@ -266,7 +266,7 @@ function paneAll() {
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
         </tr>`).join('')}</tbody></table>
-        <div class="panel-note">กรอกวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → รอบประเมินผล → ✎ แก้ไข</div>`
+        <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → รอบประเมินผล → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
     </div>`;
 }
@@ -372,49 +372,36 @@ function logBox(row) {
     </li>`).join('')}</ul></div>`;
 }
 
-/** แถบสรุปวันขาด ลา มาสาย ให้ผู้ประเมินเห็นทันทีที่เปิดใบ */
+/** แถบสรุปข้อมูลที่ฝ่ายบุคคลกรอก (วันเริ่มงาน กำหนดประเมิน วันขาด ลา มาสาย) ให้ผู้ประเมินเห็นทันทีที่เปิดใบ */
 function attendanceBar(row) {
-  const a = extraOf(row).attendance || {};
+  const x = extraOf(row);
+  const a = x.attendance || {};
+  const dmy = (v) => (v ? new Date(v).toLocaleDateString('th-TH', { dateStyle: 'medium' }) : '—');
+  const dates = x.startDate || (x.rounds || []).some((r) => r.date)
+    ? `<div class="ap-attbar">
+        <span><i>วันเริ่มงาน</i> <b>${esc(dmy(x.startDate))}</b></span>
+        ${(x.rounds || []).map((r) => `<span><i>${esc(r.label)}</i> <b>${esc(dmy(r.date))}</b></span>`).join('')}
+      </div>` : '';
   const has = ['late', 'absent', 'personal', 'sick', 'other'].some((k) => String(a[k] ?? '').trim());
-  if (!has) return '<div class="panel-note">ฝ่ายทรัพยากรบุคคลยังไม่ได้กรอกข้อมูลขาด ลา มาสาย</div>';
-  return `<div class="ap-attbar">
+  if (!has) return `${dates}<div class="panel-note">ฝ่ายทรัพยากรบุคคลยังไม่ได้กรอกข้อมูลขาด ลา มาสาย</div>`;
+  return `${dates}<div class="ap-attbar">
     ${[['late', 'มาสาย', 'ครั้ง'], ['absent', 'ขาดงาน', 'วัน'], ['personal', 'ลากิจ', 'วัน'],
     ['sick', 'ลาป่วย', 'วัน'], ['other', 'ลาอื่นๆ', 'วัน']].map(([k, label, unit]) => `
-      <span><b>${esc(String(a[k] ?? 0))}</b> ${esc(label)} <i>${esc(unit)}</i></span>`).join('')}
+      <span><b>${esc(String(a[k] || 0))}</b> ${esc(label)} <i>${esc(unit)}</i></span>`).join('')}
   </div>`;
 }
 
-/* ───────── ส่วนที่ 3–4 ของแบบทดลองงาน ───────── */
-function probationBox(row, editable, person = {}) {
-  const x = extraOf(row);
-  const a = x.attendance || {};
-  const sm = x.summary || {};
-  const rd = Object.fromEntries((x.rounds || []).map((r) => [r.key, r.date]));
-  const start = x.startDate || person.StartDate || '';
+/* ───────── สรุปผลของแบบทดลองงาน (ผู้ประเมินกรอก) ─────────
+ * ข้อมูลการทดลองงานและวันลา ฝ่ายบุคคลกรอกที่ จัดการข้อมูล → รอบประเมินผล */
+function probationBox(row, editable) {
+  const sm = extraOf(row).summary || {};
   const dis = editable ? '' : 'disabled';
   const opt = (v, label) => `<label><input type="radio" name="pb-result" value="${v}"
     ${sm.result === v ? 'checked' : ''} ${dis}> ${label}</label>`;
 
   return `
     <div class="panel ap-pb">
-      <div class="panel-head">ส่วนที่ 1 : ข้อมูลการทดลองงาน
-        <span class="panel-meta">${editable ? 'ใส่วันเริ่มงานแล้วกดคำนวณ ระบบเติมวันครบกำหนดให้' : ''}</span></div>
-      <div class="ap-sum2">
-        <label>วันเริ่มงาน<input type="date" id="pb-start" value="${esc(start)}" ${dis}></label>
-        ${ROUND_DEFS.map((r) => `<label>${r.label}
-          <input type="date" id="pb-${r.key}" value="${esc(rd[r.key] || '')}" ${dis}></label>`).join('')}
-      </div>
-      ${editable ? '<button class="btn-mini" id="pb-calc">⟳ คำนวณวันครบกำหนดจากวันเริ่มงาน</button>' : ''}
-
-      <div class="panel-head">ส่วนที่ 3 : บันทึกการมาปฏิบัติงาน</div>
-      <div class="ap-att">
-        ${[['late', 'มาสาย (ครั้ง)'], ['absent', 'ขาดงาน (วัน)'], ['personal', 'ลากิจ (วัน)'],
-    ['sick', 'ลาป่วย (วัน)'], ['other', 'ลาอื่นๆ (วัน)']].map(([k, label]) => `
-          <label>${label}<input type="number" min="0" step="1" id="pb-${k}"
-            value="${esc(a[k] ?? '')}" ${dis}></label>`).join('')}
-      </div>
-
-      <div class="panel-head">ส่วนที่ 4 : สรุปผลการประเมิน</div>
+      <div class="panel-head">สรุปผลการประเมิน</div>
       <div class="ap-sum">
         ${opt('บรรจุ', 'เห็นควรบรรจุ')}
         ${opt('ต่อทดลองงาน', 'ทดลองงานต่อ 30 วัน')}
@@ -430,20 +417,8 @@ function probationBox(row, editable, person = {}) {
 }
 
 const ROUND_DEFS = ROUND_DAYS;
-const addDays = (iso, n) => {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  d.setDate(d.getDate() + n);
-  return d.toLocaleDateString('sv-SE');
-};
 
 const readProbation = () => ({
-  startDate: $('#pb-start') ? $('#pb-start').value : '',
-  rounds: ROUND_DEFS.map((r) => ({
-    key: r.key, label: r.label, date: $('#pb-' + r.key) ? $('#pb-' + r.key).value : '',
-  })),
-  attendance: Object.fromEntries(['late', 'absent', 'personal', 'sick', 'other']
-    .map((k) => [k, $('#pb-' + k) ? $('#pb-' + k).value : ''])),
   summary: {
     result: ($$('input[name=pb-result]:checked')[0] || {}).value || '',
     confirmDate: $('#pb-confirm') ? $('#pb-confirm').value : '',
@@ -581,9 +556,6 @@ export function mount(ctx) {
 /* ───────── หน้าต่างประเมินลูกทีม / อนุมัติผล ───────── */
 async function openSheet(row, rerender) {
   if (!row) return;
-  const dirAll = await list('directory').catch(() => []);
-  const person = dirAll.find((d) => clean(d.Email).toLowerCase()
-    === clean(row.EmployeeEmail).toLowerCase()) || {};
   const { openModal } = await import('../components/modal.js');
   const st = clean(row.Status);
   const x = extraOf(row);
@@ -620,10 +592,10 @@ async function openSheet(row, rerender) {
       ${isProbation(cycle?.FormSet) ? attendanceBar(row) : ''}
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
-      ${isProbation(cycle?.FormSet) ? probationBox(row, editable || state.isAdmin, person) : ''}
+      ${isProbation(cycle?.FormSet) ? probationBox(row, editable || state.isAdmin) : ''}
 
       <div class="panel ap-summary">
-        <div class="panel-head">ส่วนที่ 4 : สรุปผลการประเมินและลงนาม</div>
+        <div class="panel-head">สรุปผลการประเมินและลงนาม</div>
         <div class="ap-sum">
           ${resultOpt('บรรจุ', 'เห็นควรบรรจุ')}
           ${resultOpt('ต่อทดลองงาน', 'ทดลองงานต่อ 30 วัน')}
@@ -715,15 +687,6 @@ async function openSheet(row, rerender) {
       if (note === null) return;
       await sendBack(row, isBossTurn || isHrTurn ? S_MGR : S_SELF, note, state.user?.name || '');
       close(); await rerender();
-    };
-  }
-
-  const calc = $('#pb-calc');
-  if (calc) {
-    calc.onclick = () => {
-      const st = $('#pb-start').value;
-      if (!st) { alert('กรุณาใส่วันเริ่มงานก่อน'); return; }
-      ROUND_DEFS.forEach((r) => { const el = $('#pb-' + r.key); if (el) el.value = addDays(st, r.days); });
     };
   }
 
