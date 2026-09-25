@@ -33,3 +33,24 @@
 .doc-img { margin: 0 0 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .doc-img img { width: 100%; display: block; }
 .doc-img figcaption { font-size: 12px; color: var(--muted); padding: 8px 12px; background: #fafbfc; }
+
+/* สรุปข้อมูลก่อนส่งแบบฟอร์ม (components/submit-confirm.js) */
+.sc-lead { margin: 0 0 12px; }
+.sc-table { width: 100%; border-collapse: collapse; font-size: .93em; }
+.sc-table th, .sc-table td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+.sc-table th { width: 34%; background: #f4f7fb; font-weight: 600; color: var(--navy); }
+.sc-files { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: .92em; }
+.sc-files b { width: 100%; }
+
+/* ข้อความแจ้ง พ.ร.บ.ธุรกรรมทางอิเล็กทรอนิกส์ ก่อนพิมพ์ (components/eta-notice.js) — อยู่เหนือหน้าต่างเอกสาร */
+.eta-mask { position: fixed; inset: 0; z-index: 90; background: rgba(0, 20, 40, .55);
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+.eta-box { background: var(--surface, #fff); border-radius: var(--radius-lg, 12px); width: 100%; max-width: 620px;
+  max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-lg); }
+.eta-head { background: var(--navy); color: #fff; padding: 14px 20px; font-weight: 700; }
+.eta-body { padding: 16px 20px; overflow-y: auto; line-height: 1.65; }
+.eta-body ul { margin: 8px 0; padding-left: 20px; }
+.eta-body li { margin-bottom: 6px; }
+.eta-src { font-size: .9em; color: var(--dim, #6b7280); margin: 8px 0 0; }
+.eta-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
+@media print { .eta-mask { display: none !important; } }

@@ -7,6 +7,7 @@ import { toArray } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
 import { hydratePhotos } from '../services/photos.js';
 import { toCsv, downloadText } from '../utils/csv.js';
+import { printWithNotice } from '../components/eta-notice.js';
 
 export const meta = { route: 'projects', title: 'ความคืบหน้าโครงการ', nav: false, order: 5, adminOnly: false };
 
@@ -380,11 +381,7 @@ function exportAll(rows, label) {
   });
 
   $('#rpa-close').onclick = () => $('#overlay-root').replaceChildren();
-  $('#rpa-print').onclick = () => {
-    document.body.classList.add('printing-report');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-report'), 500);
-  };
+  $('#rpa-print').onclick = () => printWithNotice('printing-report');   // แจ้งผลทางกฎหมายก่อนพิมพ์
   $('#rpa-csv').onclick = () => {
     const keys = ['รหัส', 'ชื่อโครงการ', 'สถานะ', 'kWp', 'แผน %', 'จริง %', 'ต่าง %', 'เบิกจ่าย %',
       'ผู้รับผิดชอบ', 'เริ่มโครงการ', 'สิ้นสุดสัญญา', 'การดำเนินงานปัจจุบัน', 'อัปเดตล่าสุด'];
@@ -444,11 +441,7 @@ function exportProject(p) {
   });
 
   $('#rp-close').onclick = () => $('#overlay-root').replaceChildren();
-  $('#rp-print').onclick = () => {
-    document.body.classList.add('printing-report');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-report'), 500);
-  };
+  $('#rp-print').onclick = () => printWithNotice('printing-report');   // แจ้งผลทางกฎหมายก่อนพิมพ์
 }
 
 async function showHistory(p) {

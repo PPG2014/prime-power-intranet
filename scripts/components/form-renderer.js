@@ -411,6 +411,7 @@ export function bindForm(fields, folder) {
 
 /**
  * สรุปคำตอบทั้งใบเป็นข้อความอ่านง่าย สำหรับแสดงในการ์ด Teams และอีเมล
+ * opts.html = ใช้ <br> และ escape ข้อความ · opts.pairs = คืนเป็นรายการ [หัวข้อ, คำตอบ] แทนข้อความ
  * ผู้อนุมัติจะเห็นข้อมูลครบโดยไม่ต้องเปิดเว็บ
  * ใช้ชื่อหัวข้อภาษาไทยจาก FormFields และรองรับตารางรายการ/ตัวเลือกหลายค่า
  */
@@ -456,11 +457,13 @@ export function summarizeForm(fields, values, opts = {}) {
   };
 
   const lines = [];
+  const pairs = [];    // [หัวข้อ, คำตอบ] ใช้ทำตารางสรุปก่อนส่ง (opts.pairs)
   for (const f of fields) {
     if (f.FieldType === 'section') continue;
     const text = one(f, values[f.FieldKey]);
     if (!String(text).trim()) continue;
     lines.push(`${esc(f.Title)}: ${text}`);
+    pairs.push([esc(f.Title), String(text).replace(/^(<br>|\n)/, '')]);
   }
-  return lines.join(nl);
+  return opts.pairs ? pairs : lines.join(nl);
 }

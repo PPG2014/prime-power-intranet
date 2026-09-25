@@ -8,6 +8,8 @@ import { buildRoute, flowFieldsFor } from '../services/requests.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
 import { mountQueueCalendar } from '../components/queue-calendar.js';
+import { confirmSubmit } from '../components/submit-confirm.js';
+import { printWithNotice } from '../components/eta-notice.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -332,11 +334,8 @@ function downloadBlankForm(form, fields) {
   document.getElementById('dl-close').onclick = close;
   document.getElementById('dl-cancel').onclick = close;
   document.getElementById('dl-mask').onclick = (e) => { if (e.target.id === 'dl-mask') close(); };
-  document.getElementById('dl-print').onclick = () => {
-    document.body.classList.add('printing-doc');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-doc'), 500);
-  };
+  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
+  document.getElementById('dl-print').onclick = () => printWithNotice('printing-doc');
 }
 
 export function mount(ctx) {
@@ -389,6 +388,16 @@ export function mount(ctx) {
       const msg = await queueProblem(form, fields, v, editId);
       if (msg) { err.innerHTML = msg; err.hidden = false; return; }
     }
+    err.hidden = true;
+
+    // สรุปข้อมูลทั้งใบให้ตรวจทาน แล้วกดยืนยันก่อนส่งจริง
+    const ok = await confirmSubmit({
+      formName: form.Title,
+      pairs: summarizeForm(fields, res.values, { html: true, pairs: true }),
+      files: attachedFiles(),
+      isEdit: !!editId,
+    });
+    if (!ok) return;
 
     send.disabled = true;
     send.textContent = 'กำลังส่ง…';
