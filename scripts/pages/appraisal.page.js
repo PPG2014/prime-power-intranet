@@ -6,7 +6,7 @@ import {
   STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
   submitSelf, submitManager, hrReview, executiveDecide, sendBack, acknowledge,
-  S_SELF, S_MGR, S_HR, S_BOSS, S_ACK,
+  S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo,
 } from '../services/appraisal.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
@@ -34,9 +34,7 @@ const fix = (n) => (Number(n) || 0).toFixed(1);
 
 /** ผู้บริหารที่อนุมัติผลได้: ผู้ดูแลระบบ หรือระดับผู้จัดการฝ่ายขึ้นไป */
 function canApprove() {
-  if (state.isAdmin) return true;
-  const lv = String(me?.Level || '');
-  return /ผู้อำนวยการ|ผู้บริหารสูงสุด|ผู้จัดการฝ่าย|รองผู้บริหาร/.test(lv);
+  return state.isAdmin || isApproverLevel(me?.Level);
 }
 
 export async function render(ctx) {
@@ -62,6 +60,11 @@ export async function render(ctx) {
   const mine = mineOf(rows, myEmail);
   const team = teamOf(rows, myEmail);
   const tab = state.apTab || 'me';
+
+  // ตัวเลขเตือนบนแถบ: ใบที่รอฉันทำในแต่ละแถบ (นับแบบเดียวกับตัวเลขบนเมนู)
+  const todo = appraisalTodo({
+    cycle, rows, email: myEmail, person: me, isAdmin: state.isAdmin, isHR: state.isHR,
+  });
 
   const tabs = [
     ['me', 'การประเมินของฉัน', true],
@@ -89,7 +92,8 @@ export async function render(ctx) {
 
       <div class="chips">
         ${tabs.map(([k, label]) => `<button class="chip" data-aptab="${k}"
-          aria-pressed="${tab === k}">${esc(label)}</button>`).join('')}
+          aria-pressed="${tab === k}">${esc(label)}${todo[k]
+            ? `<span class="nav-badge" title="รอคุณดำเนินการ ${todo[k]} ใบ">${todo[k]}</span>` : ''}</button>`).join('')}
       </div>
 
       ${autoMade ? `<div class="panel-note ap-auto">✓ ระบบสร้างใบประเมินให้อัตโนมัติ ${autoMade} ใบ</div>` : ''}
