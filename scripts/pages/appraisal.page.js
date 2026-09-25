@@ -50,7 +50,9 @@ export async function render(ctx) {
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
   if (cycle) {
     try {
-      const made = await autoCreate(cycle, { isAdmin: state.isAdmin, email: myEmail });
+      // สร้างเฉพาะใบของตัวเอง — ใบของคนอื่นสร้างตอนบันทึกแบบประเมิน หรือกดปุ่มในแท็บภาพรวม
+      // (เดิมผู้ดูแลเปิดหน้านี้ทีไรระบบไล่สร้างให้ทุกคน ทำให้ช้าและเสี่ยงได้ใบซ้ำเมื่อเปิดพร้อมกัน)
+      const made = await autoCreate(cycle, { isAdmin: false, email: myEmail });
       if (made) { autoMade = made; rows = await sheets(clean(cycle.Title)); }
     } catch (e) { /* สร้างไม่ได้ก็ใช้งานส่วนอื่นต่อได้ */ }
   }
@@ -63,7 +65,7 @@ export async function render(ctx) {
     ['me', 'การประเมินของฉัน', true],
     ['team', `ทีมของฉัน${team.length ? ` (${team.length})` : ''}`, team.length > 0],
     ['approve', 'อนุมัติผล', canApprove()],
-    ['all', 'ภาพรวมทั้งองค์กร', state.isAdmin],
+    ['all', 'ภาพรวมทั้งองค์กร', state.isHR],
   ].filter(([, , show]) => show);
 
   const body = {
@@ -91,7 +93,7 @@ export async function render(ctx) {
       ${autoMade ? `<div class="panel-note ap-auto">✓ ระบบสร้างใบประเมินให้อัตโนมัติ ${autoMade} ใบ</div>` : ''}
 
       ${cycle ? '' : `<div class="panel"><div class="empty">
-        ยังไม่มีรอบประเมินที่เปิดใช้งาน${state.isAdmin
+        ยังไม่มีรอบประเมินที่เปิดใช้งาน${state.isHR
           ? '<br><span class="dim">เปิดรอบใหม่ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน</span>' : ''}
       </div></div>`}
 
@@ -105,7 +107,7 @@ function paneMe(mine) {
   if (!cycle) return '';
   if (!mine) {
     return `<div class="panel"><div class="empty">ยังไม่มีใบประเมินของคุณในรอบนี้
-      ${state.isAdmin ? '<br><span class="dim">กดสร้างใบประเมินได้ที่แท็บ ภาพรวมทั้งองค์กร</span>'
+      ${state.isHR ? '<br><span class="dim">กดสร้างใบประเมินได้ที่แท็บ ภาพรวมทั้งองค์กร</span>'
         : '<br><span class="dim">แจ้งฝ่ายทรัพยากรบุคคลเพื่อสร้างใบประเมิน</span>'}</div></div>`;
   }
 
@@ -277,7 +279,7 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
     // บอกให้ชัดว่าหาไม่เจอเพราะชุดไหน จะได้ไม่ต้องเดา
     return `<div class="panel"><div class="empty">
       ยังไม่มีหัวข้อประเมินของชุด <b>${esc(clean(cycle?.FormSet) || '(ไม่ได้ระบุชุด)')}</b>
-      ${state.isAdmin ? `<br><span class="dim">ไปที่ จัดการข้อมูล → หัวข้อประเมิน
+      ${state.isHR ? `<br><span class="dim">ไปที่ จัดการข้อมูล → หัวข้อประเมิน
         แล้วเพิ่มหัวข้อที่ช่อง "ชุดแบบประเมิน" ตรงกับชื่อนี้เป๊ะ</span>` : ''}</div></div>`;
   }
   const s = scoreOf(secs, answers);
@@ -391,41 +393,8 @@ function attendanceBar(row) {
   </div>`;
 }
 
-/* ───────── สรุปผลของแบบทดลองงาน (ผู้ประเมินกรอก) ─────────
- * ข้อมูลการทดลองงานและวันลา ฝ่ายบุคคลกรอกที่ จัดการข้อมูล → สร้างแบบประเมิน */
-function probationBox(row, editable) {
-  const sm = extraOf(row).summary || {};
-  const dis = editable ? '' : 'disabled';
-  const opt = (v, label) => `<label><input type="radio" name="pb-result" value="${v}"
-    ${sm.result === v ? 'checked' : ''} ${dis}> ${label}</label>`;
-
-  return `
-    <div class="panel ap-pb">
-      <div class="panel-head">สรุปผลการประเมิน</div>
-      <div class="ap-sum">
-        ${opt('บรรจุ', 'เห็นควรบรรจุ')}
-        ${opt('ต่อทดลองงาน', 'ทดลองงานต่อ 30 วัน')}
-        ${opt('ไม่ผ่าน', 'ไม่ผ่านทดลองงาน')}
-        ${opt('อื่นๆ', 'อื่นๆ')}
-      </div>
-      <div class="ap-sum2">
-        <label>บรรจุตั้งแต่วันที่<input type="date" id="pb-confirm" value="${esc(sm.confirmDate || '')}" ${dis}></label>
-        <label>วันปฏิบัติงานวันสุดท้าย<input type="date" id="pb-last" value="${esc(sm.lastDate || '')}" ${dis}></label>
-        <label>อื่นๆ (ระบุ)<input type="text" id="pb-other" value="${esc(sm.other || '')}" ${dis}></label>
-      </div>
-    </div>`;
-}
-
 const ROUND_DEFS = ROUND_DAYS;
 
-const readProbation = () => ({
-  summary: {
-    result: ($$('input[name=pb-result]:checked')[0] || {}).value || '',
-    confirmDate: $('#pb-confirm') ? $('#pb-confirm').value : '',
-    lastDate: $('#pb-last') ? $('#pb-last').value : '',
-    other: $('#pb-other') ? $('#pb-other').value : '',
-  },
-});
 
 /** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 */
 async function exportProbation(row) {
@@ -535,7 +504,8 @@ export function mount(ctx) {
       gen.disabled = true;
       const res = await generateSheets(cycle, (d, t) => { gen.textContent = `กำลังสร้าง ${d}/${t}…`; });
       alert(`สร้างแล้ว ${res.created} ใบ · มีอยู่เดิม ${res.skipped} ใบ`
-        + (res.noManager ? `\nมี ${res.noManager} คนที่ยังไม่ได้กำหนดผู้บังคับบัญชา จะไม่มีผู้ประเมิน` : ''));
+        + (res.noManager ? `\nมี ${res.noManager} คนที่ยังไม่ได้กำหนดผู้บังคับบัญชา จะไม่มีผู้ประเมิน` : '')
+        + (res.failed.length ? `\n\nสร้างไม่สำเร็จ ${res.failed.length} ใบ\n${res.failed.slice(0, 10).join('\n')}` : ''));
       await rerender();
     };
   }
@@ -564,7 +534,7 @@ async function openSheet(row, rerender) {
 
   const isMgrTurn = st === S_MGR && stageOpen(cycle, S_MGR).ok
     && clean(row.EvaluatorEmail).toLowerCase() === myEmail;
-  const isHrTurn = st === S_HR && state.isAdmin;
+  const isHrTurn = st === S_HR && state.isHR;
   const isBossTurn = st === S_BOSS && canApprove();
   const isEmpTurn = st === S_ACK && clean(row.EmployeeEmail).toLowerCase() === myEmail;
 
@@ -574,8 +544,10 @@ async function openSheet(row, rerender) {
   const answers = editable ? mgrAns : (Object.keys(mgrAns).length ? mgrAns : selfAns);
   const score = scoreOf(secs, answers);
 
+  // ผลสรุปมีชุดเดียว ผู้ประเมินกรอกในขั้นของตน ฝ่ายบุคคลแก้ไขได้ทุกขั้น
+  const sumEdit = isMgrTurn || state.isHR;
   const resultOpt = (v, label) => `<label><input type="radio" name="sum-result" value="${v}"
-    ${sum.result === v ? 'checked' : ''} ${isMgrTurn ? '' : 'disabled'}> ${label}</label>`;
+    ${sum.result === v ? 'checked' : ''} ${sumEdit ? '' : 'disabled'}> ${label}</label>`;
 
   openModal({
     title: `${clean(row.EmployeeName)} · ${clean(row.Department)}`,
@@ -592,7 +564,6 @@ async function openSheet(row, rerender) {
       ${isProbation(cycle?.FormSet) ? attendanceBar(row) : ''}
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
-      ${isProbation(cycle?.FormSet) ? probationBox(row, editable || state.isAdmin) : ''}
 
       <div class="panel ap-summary">
         <div class="panel-head">สรุปผลการประเมินและลงนาม</div>
@@ -605,9 +576,9 @@ async function openSheet(row, rerender) {
         <div class="ap-sum2">
           <label>วันที่มีผล (กรณีบรรจุหรือไม่ผ่าน)
             <input type="date" id="sum-date" value="${esc(sum.confirmDate || sum.lastDate || '')}"
-              ${isMgrTurn ? '' : 'disabled'}></label>
+              ${sumEdit ? '' : 'disabled'}></label>
           <label>รายละเอียดอื่นๆ
-            <input type="text" id="sum-other" value="${esc(sum.other || '')}" ${isMgrTurn ? '' : 'disabled'}></label>
+            <input type="text" id="sum-other" value="${esc(sum.other || '')}" ${sumEdit ? '' : 'disabled'}></label>
         </div>
 
         <div class="ap-signs">
@@ -637,7 +608,7 @@ async function openSheet(row, rerender) {
     footer: `${isMgrTurn || isHrTurn || isBossTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
-      ${state.isAdmin && !isHrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกข้อมูล HR</button>' : ''}
+      ${state.isHR && !isMgrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
       ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้ฝ่ายบุคคล</button>' : ''}
       ${isHrTurn ? `<button class="btn-mini" id="ap-hr-toemp">ส่งให้พนักงานรับทราบ (ข้ามผู้บริหาร)</button>
@@ -696,7 +667,7 @@ async function openSheet(row, rerender) {
       hrSave.disabled = true;
       try {
         const { update } = await import('../services/data.js');
-        await update('appraisals', row.id, { Extra: JSON.stringify({ ...extraOf(row), ...readProbation() }) });
+        await update('appraisals', row.id, { Extra: JSON.stringify({ ...extraOf(row), summary: readSummary() }) });
         close(); await rerender();
       } catch (e) { hrSave.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
     };
@@ -712,9 +683,7 @@ async function openSheet(row, rerender) {
       if (!sc.complete && !confirm('ยังให้คะแนนไม่ครบทุกข้อ ต้องการบันทึกเลยหรือไม่?')) return;
       saveMgr.disabled = true;
       try {
-        const extra = isProbation(cycle?.FormSet)
-          ? { ...extraOf(row), ...readProbation(), summary: readSummary() }
-          : { ...extraOf(row), summary: readSummary() };
+        const extra = { ...extraOf(row), summary: readSummary() };
         await submitManager(row, ans, $('#ap-comment').value.trim(), sc.score,
           state.user?.name || '', extra, await signOf('evaluator'));
         close(); await rerender();

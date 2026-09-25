@@ -6,6 +6,7 @@ export const state = {
   params: {},
   user: null,        // { name, email, isAdmin }
   isAdmin: false,
+  isHR: false,       // ฝ่ายบุคคล (รวมผู้ดูแลระบบ) — Settings → HR
   overlay: null,     // { type:'form'|'reader'|'popup', ... }
 };
 

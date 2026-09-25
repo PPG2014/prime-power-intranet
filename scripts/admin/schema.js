@@ -361,6 +361,7 @@ export const SCHEMA = {
   },
 
   appraisalCycles: {
+    hr: true,
     title: 'สร้างแบบประเมิน', icon: '🗓', list: 'appraisalCycles', spName: 'AppraisalCycles',
     sortField: 'SortOrder', unique: ['Title'],
     hint: 'เปิดใช้ได้ครั้งละ 1 แบบประเมิน · ช่อง "ขั้นตอนที่เปิด" เป็นตัวคุมว่าตอนนี้ใครกรอกได้',
@@ -394,6 +395,7 @@ export const SCHEMA = {
   },
 
   appraisalCriteria: {
+    hr: true,
     title: 'หัวข้อประเมิน', icon: '📝', list: 'appraisalCriteria', spName: 'AppraisalCriteria',
     sortField: 'SortOrder', groupBy: 'FormSet', search: true, facets: ['FormSet', 'Section'],
     hint: 'แยกหัวข้อตามชุดแบบประเมิน · น้ำหนักรวมของแต่ละชุดควรเท่ากับ 100 · ให้คะแนนข้อละ 1–5',
@@ -417,6 +419,7 @@ export const SCHEMA = {
   },
 
   appraisals: {
+    hr: true,
     title: 'ใบประเมินรายบุคคล', icon: '📊', list: 'appraisals', spName: 'Appraisals',
     readOnly: true, search: true, facets: ['CycleName', 'FormSet', 'Department', 'Status'],
     hint: 'ดูอย่างเดียว · การให้คะแนนทำที่หน้าประเมินผลบุคลากร',

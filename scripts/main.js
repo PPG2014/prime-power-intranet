@@ -9,8 +9,10 @@ import { showAnnouncements } from './components/announcement-popup.js';
 import { CONFIG } from './core/config.js';
 import { resolveAdmin } from './utils/admin.js';
 import { esc, $ } from './core/dom.js';
+import { watchVersion } from './core/version-check.js';
 
 console.info('[Prime Power] build', CONFIG.build);
+watchVersion();
 
 /** แสดงหน้าเข้าสู่ระบบ พร้อมข้อความผิดพลาดถ้ามี */
 function showLogin(error) {
@@ -34,10 +36,10 @@ async function enter(user) {
 
   // โหมดข้อมูลตัวอย่างให้เป็นผู้ดูแลเสมอ จะได้ทดสอบหน้าจัดการข้อมูลได้
   const role = CONFIG.dataSource === 'mock'
-    ? { isAdmin: true, unconfigured: false }
+    ? { isAdmin: true, isHR: true, unconfigured: false }
     : await resolveAdmin(user.email);
 
-  setState({ user, isAdmin: role.isAdmin, adminUnconfigured: role.unconfigured }, { silent: true });
+  setState({ user, isAdmin: role.isAdmin, isHR: role.isHR, adminUnconfigured: role.unconfigured }, { silent: true });
 
   $('#topbar-actions').innerHTML = `
     ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}

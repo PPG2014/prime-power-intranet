@@ -16,6 +16,7 @@ export const meta = {
   nav: false,              // true = ขึ้นบนเมนูหลัก
   order: 99,               // ลำดับบนเมนู
   adminOnly: false,        // true = เห็นเฉพาะผู้ดูแลระบบ
+  // hrAllowed: true,       // ใช้คู่กับ adminOnly — ให้ฝ่ายบุคคล (Settings → HR) เห็นด้วย
 };
 
 /** คืนค่าเป็นสตริง HTML — ห้ามแตะ DOM ในฟังก์ชันนี้ */

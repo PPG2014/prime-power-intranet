@@ -240,6 +240,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
   const byName = new Map(dir.map((p) => [clean(p.Title), p]));
   let done = 0;
   const made = [];
+  const failed = [];      // สร้างไม่สำเร็จ: "ชื่อ — สาเหตุ" แจ้งผู้ใช้ ไม่เก็บเงียบ
   for (const p of staff) {
     const mgr = byName.get(clean(p.Manager));
     // eslint-disable-next-line no-await-in-loop
@@ -257,12 +258,13 @@ export async function generateSheets(cycle, onProgress = () => {}) {
         rounds: mergeRounds(p.StartDate, cycle,
           allSheets.filter((r) => clean(r.EmployeeEmail).toLowerCase() === clean(p.Email).toLowerCase())),
       }),
-    }).catch(() => null);
+    }).catch((e) => { failed.push(`${clean(p.Title)} — ${e.message}`); return null; });
     if (row) made.push(row);
     done += 1;
     onProgress(done, staff.length);
   }
-  return { created: made.length, skipped: existing.length, noManager: staff.filter((p) => !clean(p.Manager)).length };
+  return { created: made.length, skipped: existing.length, failed,
+    noManager: staff.filter((p) => !clean(p.Manager)).length };
 }
 
 /**
