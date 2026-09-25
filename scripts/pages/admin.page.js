@@ -1,7 +1,7 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
-import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, bindPeoplePickers, toFiles } from '../admin/entity-form.js';
+import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, bindPeoplePickers, bindCustomChoices, toFiles } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
@@ -291,6 +291,7 @@ async function openEditor(key, record) {
   bindFiles(s);
   bindFilters(s);
   bindPeoplePickers();
+  bindCustomChoices();
   if (isCycle) bindCycleGrid(record || {});
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async (ev) => {

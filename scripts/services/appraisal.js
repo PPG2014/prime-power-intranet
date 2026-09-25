@@ -186,7 +186,8 @@ export function roundsFrom(startDate) {
 
 /** แปลงชื่อครั้งที่ในรอบประเมิน เป็นคีย์ของวันในเอกสาร */
 export const roundKey = (round) => {
-  const m = String(round || '').match(/([1-4])/);
+  // จับเฉพาะ "ครั้งที่ 1–4" ของแบบผ่านงาน ค่าที่กำหนดเอง เช่น "ไตรมาส 1" ไม่ผูกกับช่องวันใด
+  const m = String(round || '').match(/ครั้งที่\s*([1-4])/);
   return m ? `r${m[1]}` : '';
 };
 

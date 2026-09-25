@@ -192,3 +192,4 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .people-list { max-height: 260px; overflow-y: auto; }
 .people-list .check-item span .dim { font-size: .88em; }
 .people-actions { display: flex; gap: 8px; margin-top: 6px; }
+.field .custom-input { margin-top: 6px; }
