@@ -255,33 +255,18 @@ function paneAll() {
     </div>
 
     <div class="panel">
-      <div class="panel-head">ใบประเมินทั้งหมดในรอบนี้ · กรอกวันขาด ลา มาสาย ได้เลย
-        <span class="panel-meta"><button class="btn-mini" id="ap-att-save">💾 บันทึกวันลาทั้งหมด</button></span></div>
-      ${rows.length ? `<table class="ap-table ap-attgrid">
-        <thead><tr>
-          <th>ชื่อ</th><th>ฝ่าย</th><th>ผู้ประเมิน</th><th>สถานะ</th>
-          <th class="num">มาสาย<br><span class="dim">ครั้ง</span></th>
-          <th class="num">ขาดงาน<br><span class="dim">วัน</span></th>
-          <th class="num">ลากิจ<br><span class="dim">วัน</span></th>
-          <th class="num">ลาป่วย<br><span class="dim">วัน</span></th>
-          <th class="num">ลาอื่นๆ<br><span class="dim">วัน</span></th>
-          <th class="num">สรุป</th><th></th>
-        </tr></thead>
-        <tbody>${rows.map((r) => {
-          const a = (extraOf(r).attendance) || {};
-          const cell = (k) => `<td class="num"><input type="number" min="0" step="1" class="ap-attin"
-            data-row="${r.id}" data-k="${k}" value="${esc(a[k] ?? '')}"></td>`;
-          return `<tr>
-            <td>${esc(clean(r.EmployeeName))}</td>
-            <td>${esc(clean(r.Department))}</td>
-            <td>${esc(clean(r.EvaluatorName))}</td>
-            <td>${pill(r.Status)}</td>
-            ${cell('late')}${cell('absent')}${cell('personal')}${cell('sick')}${cell('other')}
-            <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
-            <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
-          </tr>`;
-        }).join('')}</tbody></table>
-        <div class="panel-note">ฝ่ายทรัพยากรบุคคลกรอกได้ทุกขั้นตอน · ผู้ประเมินจะเห็นตัวเลขนี้ในแบบประเมินทันที</div>`
+      <div class="panel-head">ใบประเมินทั้งหมดในรอบนี้</div>
+      ${rows.length ? `<table class="ap-table">
+        <thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th>ผู้ประเมิน</th><th>สถานะ</th><th class="num">สรุป</th><th></th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <td>${esc(clean(r.EmployeeName))}</td>
+          <td>${esc(clean(r.Department))}</td>
+          <td>${esc(clean(r.EvaluatorName))}</td>
+          <td>${pill(r.Status)}</td>
+          <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
+          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
+        </tr>`).join('')}</tbody></table>
+        <div class="panel-note">กรอกวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → รอบประเมินผล → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
     </div>`;
 }
@@ -579,34 +564,6 @@ export function mount(ctx) {
       await rerender();
     };
   }
-  const attSave = $('#ap-att-save');
-  if (attSave) {
-    attSave.onclick = async () => {
-      const { update } = await import('../services/data.js');
-      const byRow = {};
-      $$('.ap-attin').forEach((el) => {
-        byRow[el.dataset.row] = byRow[el.dataset.row] || {};
-        byRow[el.dataset.row][el.dataset.k] = el.value.trim();
-      });
-      const jobs = Object.entries(byRow).filter(([id, att]) => {
-        const cur = (extraOf(rows.find((r) => String(r.id) === String(id)) || {}).attendance) || {};
-        return Object.keys(att).some((k) => String(cur[k] ?? '') !== att[k]);
-      });
-      if (!jobs.length) { alert('ไม่มีข้อมูลที่เปลี่ยนแปลง'); return; }
-
-      attSave.disabled = true;
-      let done = 0;
-      for (const [id, att] of jobs) {
-        const row = rows.find((r) => String(r.id) === String(id));
-        // eslint-disable-next-line no-await-in-loop
-        await update('appraisals', id, { Extra: JSON.stringify({ ...extraOf(row), attendance: att }) });
-        done += 1;
-        attSave.textContent = `กำลังบันทึก ${done}/${jobs.length}…`;
-      }
-      await rerender();
-    };
-  }
-
   const csv = $('#ap-csv');
   if (csv) {
     csv.onclick = () => {

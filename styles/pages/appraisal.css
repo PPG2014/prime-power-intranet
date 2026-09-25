@@ -114,3 +114,4 @@
 .sig-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sig-upload { cursor: pointer; }
 .sig-status { font-size: .82em; }
+.ap-attpanel { margin-top: 16px; overflow-x: auto; }
