@@ -1,0 +1,17 @@
+[
+ {
+  "id": 1,
+  "Title": "ทดลองงาน รอบที่ 1/2569",
+  "FormSet": "ประเมินบุคลากรผ่านงาน (FM-HRM-004)",
+  "Round": "ครั้งที่ 2 (60 วัน)",
+  "RoundDate": "2026-09-25T00:00:00Z",
+  "Status": "เปิด",
+  "Stage": "หัวหน้าประเมิน",
+  "Scope": "เฉพาะรายชื่อที่ระบุ",
+  "Members": "wichai.t@primepower.co.th\nkamonchanok.s@primepower.co.th",
+  "StartDate": "2026-09-01T00:00:00Z",
+  "EndDate": "2026-10-15T00:00:00Z",
+  "SortOrder": 1,
+  "IsActive": true
+ }
+]

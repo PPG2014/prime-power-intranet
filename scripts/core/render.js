@@ -5,7 +5,7 @@ import { CONFIG } from './config.js';
 
 function renderNav() {
   $('#nav').innerHTML = pages
-    .filter((p) => p.meta.nav && (!p.meta.adminOnly || state.isAdmin))
+    .filter((p) => p.meta.nav && (!p.meta.adminOnly || state.isAdmin || (p.meta.hrAllowed && state.isHR)))
     .sort((a, b) => a.meta.order - b.meta.order)
     .map((p) => `<a href="#/${p.meta.route}"
         ${state.route === p.meta.route ? 'aria-current="page"' : ''}>${esc(p.meta.title)}</a>`)

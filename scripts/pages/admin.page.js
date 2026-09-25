@@ -14,7 +14,7 @@ import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets } from '../services/appraisal.js';
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid } from '../components/attendance-grid.js';
 
-export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true };
+export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
 let rows = [];
 let key = '';
@@ -22,6 +22,12 @@ let s = null;
 let allRows = [];
 let activeGroup = '';
 let formNames = {};
+
+/** ชุดข้อมูลที่ผู้ใช้นี้แก้ได้ — ผู้ดูแลได้ทุกชุด ฝ่ายบุคคลได้เฉพาะชุดที่ตั้ง hr: true */
+function allowedSets() {
+  const all = Object.keys(SCHEMA);
+  return state.isAdmin ? all : all.filter((k) => SCHEMA[k].hr);
+}
 
 /** ค่ากลุ่มอาจมาเป็นออบเจ็กต์ (ถ้าคอลัมน์เป็น Choice/Lookup) แปลงเป็นข้อความเสมอ */
 function groupVal(r, kBy) {
@@ -31,7 +37,7 @@ function groupVal(r, kBy) {
 }
 
 export async function render(ctx) {
-  if (!state.isAdmin) return `<section class="page"><div class="wrap">
+  if (!state.isAdmin && !state.isHR) return `<section class="page"><div class="wrap">
     <h1 class="page-title">${esc(meta.title)}</h1>
     <div class="panel"><div class="empty">
       หน้านี้เปิดให้เฉพาะผู้ดูแลระบบ<br>
@@ -39,7 +45,9 @@ export async function render(ctx) {
       <span class="dim">เพิ่มอีเมลได้ที่ SharePoint List ชื่อ Settings รายการ Admins</span>
     </div></div></div></section>`;
 
-  key = state.adminSet || 'departments';
+  // ฝ่ายบุคคลที่ไม่ใช่ผู้ดูแล เห็นเฉพาะชุดข้อมูลระบบประเมิน
+  const sets = allowedSets();
+  key = sets.includes(state.adminSet) ? state.adminSet : sets[0];
   s = SCHEMA[key];
 
   // โหลดชื่อฟอร์มไว้แสดงในตัวเลือกกลุ่ม (เฉพาะชุดที่จัดกลุ่มตาม FormCode)
@@ -84,10 +92,10 @@ export async function render(ctx) {
       <h1 class="page-title">${esc(meta.title)}</h1>
       <p class="page-lead">เพิ่ม แก้ไข หรือลบข้อมูลทุกชุดที่แสดงบนเว็บ โดยไม่ต้องแก้ไขโค้ด</p>
 
-      <div class="admin-quick">
+      ${state.isAdmin ? `<div class="admin-quick">
         <a class="btn-mini" href="#/health">🩺 ตรวจสุขภาพระบบ</a>
         <span class="dim">ตรวจว่าข้อมูลตั้งต้นครบไหม เช่น อีเมล ผู้บังคับบัญชา เส้นทางอนุมัติ คอลัมน์ใน SharePoint</span>
-      </div>
+      </div>` : ''}
       ${state.adminUnconfigured ? `<div class="mock-warning">
         <b>⚠ ยังไม่ได้กำหนดว่าใครเป็นผู้ดูแลระบบ</b>
         ตอนนี้ทุกคนที่ล็อกอินเข้ามาแก้ข้อมูลได้ทั้งหมด
@@ -102,7 +110,7 @@ export async function render(ctx) {
 
       <div class="admin-layout${state.adminNavHidden ? ' nav-hidden' : ''}">
         <nav class="set-nav">
-          ${Object.entries(SCHEMA).map(([k, v]) => `
+          ${sets.map((k) => [k, SCHEMA[k]]).map(([k, v]) => `
             <button data-set="${k}" aria-current="${key === k ? 'page' : 'false'}">
               <span>${v.icon}</span> ${esc(v.title)}</button>`).join('')}
         </nav>
@@ -354,7 +362,7 @@ async function openEditor(key, record) {
 
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);
-      if (isCycle) await saveCycleSheets(record, data, grid, btn);
+      const sheetFails = isCycle ? await saveCycleSheets(record, data, grid, btn) : [];
       clearCaches();
       closeModal();
       rerender();
@@ -373,6 +381,11 @@ async function openEditor(key, record) {
         notes.push('SharePoint ปฏิเสธการบันทึกช่องที่เลือกได้หลายค่า\n  '
           + res.dropped.join('\n  ')
           + '\n  ข้อมูลอื่นบันทึกแล้ว ส่วนช่องเหล่านี้ต้องแก้ใน SharePoint โดยตรง');
+      }
+      if (sheetFails.length) {
+        notes.push(`สร้างใบประเมินไม่สำเร็จ ${sheetFails.length} ใบ — ข้อมูลในตารางของคนเหล่านี้ยังไม่ถูกบันทึก\n  `
+          + sheetFails.slice(0, 10).join('\n  ')
+          + '\n  กดบันทึกอีกครั้งเพื่อลองใหม่ หรือกด ↻ ตรวจและสร้างใบที่ยังขาด ในหน้าประเมินผล');
       }
       if (notes.length) alert('บันทึกแล้ว แต่มีข้อสังเกต\n\n' + notes.join('\n\n'));
     } catch (e) {
@@ -402,11 +415,14 @@ async function saveCycleSheets(record, data, grid, btn) {
   }
   const cycle = { ...(record || {}), ...data };
   // สร้างใบเฉพาะรอบที่เปิดอยู่ เหมือนการสร้างอัตโนมัติในหน้าประเมิน
-  if (clean(cycle.Status) === 'เปิด') await generateSheets(cycle, (d, n) => { btn.textContent = `กำลังสร้างใบประเมิน ${d}/${n}…`; });
+  const res = clean(cycle.Status) === 'เปิด'
+    ? await generateSheets(cycle, (d, n) => { btn.textContent = `กำลังสร้างใบประเมิน ${d}/${n}…`; })
+    : { failed: [] };
   if (grid) {
     await saveCycleGrid(await sheets(title), grid,
       (d, n) => { btn.textContent = `กำลังบันทึกข้อมูลผู้ถูกประเมิน ${d}/${n}…`; });
   }
+  return res.failed;
 }
 
 function formLabel(code) {
