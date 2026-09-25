@@ -12,7 +12,7 @@ import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets } from '../services/appraisal.js';
-import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid } from '../components/attendance-grid.js';
+import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -305,6 +305,8 @@ async function openEditor(key, record) {
   $('#save').onclick = async (ev) => {
     const data = collect(s);
     if (!data) return;
+    // ชื่อผู้ประเมิน/ผู้ตรวจ/ผู้อนุมัติต้องตรงกับทะเบียนบุคลากร ไม่งั้นจะไม่มีใครเปิดใบนั้นได้
+    if (isCycle && gridProblems().length) return;
     const grid = isCycle ? readCycleGrid() : null;
 
     const btn = ev.currentTarget;
