@@ -40,12 +40,52 @@ export async function activeCycle() {
   return open.find((c) => clean(c.Status) === 'เปิด') || open[0] || null;
 }
 
+
+/**
+ * แบบประเมินทดลองงาน FM-HRM-004 Rev.02 — ติดมากับระบบถาวร ไม่ต้องเพิ่มหัวข้อเอง
+ * ถ้าอยากแก้หัวข้อหรือน้ำหนัก ให้เพิ่มแถวใน "หัวข้อประเมิน" โดยตั้งชุดให้ตรงกับรอบ
+ * ระบบจะใช้หัวข้อที่เพิ่มเองแทนชุดมาตรฐานนี้ทันที
+ */
+export const PROBATION_FORM = [
+  { name: 'ผลลัพธ์ของงาน', weight: 50, items: [
+    'ความรู้และทักษะในงาน (Technical / Job Knowledge)',
+    'คุณภาพและความถูกต้องของงาน',
+    'การวิเคราะห์และแก้ไขปัญหา (Problem Solving)',
+    'การวางแผนและจัดลำดับความสำคัญ',
+    'การใช้ระบบ เครื่องมือ และการจัดทำข้อมูล/เอกสาร',
+    'การเรียนรู้และพัฒนางานอย่างต่อเนื่อง'] },
+  { name: 'ผลพฤติกรรม', weight: 50, items: [
+    'การปฏิบัติตามกฎ ระเบียบ และวินัยในการทำงาน',
+    'ความมีประสิทธิภาพและประสิทธิผลในการทำงาน',
+    'ความรู้ความสามารถในการเรียนรู้งานและพัฒนาตนเอง',
+    'ภาวะผู้นำในตนเองและการบริหารงาน',
+    'การสร้างความสัมพันธ์ที่ดีกับเพื่อนร่วมงานและการติดต่อสื่อสาร',
+    'การมีส่วนร่วมกับองค์กร (ความมุ่งมั่นและตั้งใจ)'] },
+];
+
+/** ชุดหัวข้อมาตรฐานของแบบทดลองงาน (id คงที่ เพื่อให้คะแนนเก่าอ่านได้เสมอ) */
+export function builtinProbation() {
+  let n = 0;
+  return PROBATION_FORM.map((sec) => ({
+    name: sec.name, weight: sec.weight,
+    items: sec.items.map((title) => {
+      n += 1;
+      return { id: `pb${n}`, title, weight: n <= 11 ? 8.33 : 8.37, scale: 10, hint: '' };
+    }),
+  }));
+}
+
+export const isProbationSet = (formSet) => /ทดลองงาน|ผ่านงาน/.test(String(formSet || ''));
+
 /** หัวข้อประเมิน จัดกลุ่มตามหมวด พร้อมน้ำหนัก */
 export async function criteria(formSet = '') {
   const rows = (await list('appraisalCriteria').catch(() => []))
     .filter((c) => c.IsActive !== false)
     .filter((c) => !formSet || clean(c.FormSet) === clean(formSet))
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+
+  // ไม่มีหัวข้อที่ตั้งเอง และเป็นแบบทดลองงาน → ใช้ชุดมาตรฐานที่ติดมากับระบบ
+  if (!rows.length && isProbationSet(formSet)) return builtinProbation();
 
   const secs = [];
   rows.forEach((r) => {
@@ -118,6 +158,25 @@ export function addLog(row, action, by, note = '') {
   return JSON.stringify({ items });
 }
 
+/** กำหนดประเมินทดลองงาน นับจากวันเริ่มงาน */
+export const ROUND_DAYS = [
+  { key: 'r1', label: 'ประเมินครั้งที่ 1 (30 วัน)', days: 30 },
+  { key: 'r2', label: 'ประเมินครั้งที่ 2 (60 วัน)', days: 60 },
+  { key: 'r3', label: 'ประเมินครั้งที่ 3 (90 วัน)', days: 90 },
+  { key: 'r4', label: 'ครบทดลองงาน 120 วัน', days: 120 },
+];
+
+/** กำหนดวันประเมินทุกครั้งจากวันเริ่มงาน (คืนค่าว่างถ้าไม่มีวันเริ่มงาน) */
+export function roundsFrom(startDate) {
+  const base = startDate ? new Date(startDate) : null;
+  return ROUND_DAYS.map((r) => {
+    if (!base || isNaN(base)) return { key: r.key, label: r.label, date: '' };
+    const d = new Date(base);
+    d.setDate(d.getDate() + r.days);
+    return { key: r.key, label: r.label, date: d.toLocaleDateString('sv-SE') };
+  });
+}
+
 /** สร้างใบประเมินให้บุคลากรทุกคนที่ยังไม่มีในรอบนี้ (ผู้ดูแลระบบกดสร้าง) */
 export async function generateSheets(cycle, onProgress = () => {}) {
   const [dir, existing] = await Promise.all([
@@ -149,6 +208,11 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       EvaluatorName: clean(p.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
       Status: STAGES[0], SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
       SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
+      // ดึงวันเริ่มงานจากทะเบียนบุคลากร แล้วคำนวณกำหนดประเมินให้เลย
+      Extra: JSON.stringify({
+        startDate: p.StartDate ? String(p.StartDate).slice(0, 10) : '',
+        rounds: roundsFrom(p.StartDate),
+      }),
     }).catch(() => null);
     if (row) made.push(row);
     done += 1;

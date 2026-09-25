@@ -4,7 +4,7 @@ import { list } from '../services/data.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 import {
   STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
-  answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets,
+  answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, ROUND_DAYS,
   submitSelf, submitManager, approveSheet, sendBack, acknowledge,
 } from '../services/appraisal.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
@@ -220,14 +220,32 @@ function paneAll() {
           <td class="num">${v.scored ? (v.sum / v.scored).toFixed(1) : '—'}</td>
         </tr>`).join('')}</tbody>
       </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">ใบประเมินทั้งหมดในรอบนี้
+        <span class="panel-meta">กดเปิดเพื่อกรอกวันลา วันที่ประเมิน หรือดูคะแนน</span></div>
+      ${rows.length ? `<table class="ap-table">
+        <thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th>ผู้ประเมิน</th><th>สถานะ</th><th class="num">สรุป</th><th></th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <td>${esc(clean(r.EmployeeName))}</td>
+          <td>${esc(clean(r.Department))}</td>
+          <td>${esc(clean(r.EvaluatorName))}</td>
+          <td>${pill(r.Status)}</td>
+          <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
+          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
+        </tr>`).join('')}</tbody></table>` : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
     </div>`;
 }
 
 /* ───────── ตารางให้คะแนน ───────── */
 function formTable(who, answers, editable, row, otherAnswers = null) {
   if (!secs.length) {
-    return `<div class="panel"><div class="empty">ยังไม่ได้ตั้งหัวข้อประเมิน
-      ${state.isAdmin ? '<br><span class="dim">ตั้งได้ที่ จัดการข้อมูล → หัวข้อประเมิน</span>' : ''}</div></div>`;
+    // บอกให้ชัดว่าหาไม่เจอเพราะชุดไหน จะได้ไม่ต้องเดา
+    return `<div class="panel"><div class="empty">
+      ยังไม่มีหัวข้อประเมินของชุด <b>${esc(clean(cycle?.FormSet) || '(ไม่ได้ระบุชุด)')}</b>
+      ${state.isAdmin ? `<br><span class="dim">ไปที่ จัดการข้อมูล → หัวข้อประเมิน
+        แล้วเพิ่มหัวข้อที่ช่อง "ชุดแบบประเมิน" ตรงกับชื่อนี้เป๊ะ</span>` : ''}</div></div>`;
   }
   const s = scoreOf(secs, answers);
   return `
@@ -245,7 +263,11 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
             <td class="ap-scale">${Array.from({ length: it.scale || 5 }, (_, i) => (it.scale || 5) - i).map((v) => `
               <label><input type="radio" name="q_${it.id}" value="${v}"
                 ${+answers[it.id] === v ? 'checked' : ''} ${editable ? '' : 'disabled'}> ${v}</label>`).join('')}</td>
-          </tr>`).join('')}</tbody>
+          </tr>
+          <tr class="ap-noterow"><td colspan="${otherAnswers ? 3 : 2}">
+            <input class="ap-itemnote" data-note="${it.id}" placeholder="ความคิดเห็นเพิ่มเติมของหัวข้อนี้ (ไม่บังคับ)"
+              value="${esc(answers[it.id + '__note'] || '')}" ${editable ? '' : 'disabled'}>
+          </td></tr>`).join('')}</tbody>
         </table>`).join('')}
 
       <label class="ap-comment">ความเห็นเพิ่มเติม / ผลงานเด่น
@@ -319,13 +341,7 @@ function probationBox(row, editable, person = {}) {
     </div>`;
 }
 
-/** กำหนดประเมินทดลองงาน นับจากวันเริ่มงาน */
-const ROUND_DEFS = [
-  { key: 'r1', label: 'ประเมินครั้งที่ 1 (30 วัน)', days: 30 },
-  { key: 'r2', label: 'ประเมินครั้งที่ 2 (60 วัน)', days: 60 },
-  { key: 'r3', label: 'ประเมินครั้งที่ 3 (90 วัน)', days: 90 },
-  { key: 'r4', label: 'ครบทดลองงาน 120 วัน', days: 120 },
-];
+const ROUND_DEFS = ROUND_DAYS;
 const addDays = (iso, n) => {
   const d = new Date(iso);
   if (isNaN(d)) return '';
@@ -367,7 +383,9 @@ async function exportProbation(row) {
     },
     rounds: (x.rounds && x.rounds.length ? x.rounds
       : ROUND_DEFS.map((r) => ({ label: r.label, date: '' }))),
-    sections: secs, answers: ans, notes: x.notes || {},
+    sections: secs, answers: ans,
+    notes: Object.fromEntries(Object.entries(ans)
+      .filter(([k]) => k.endsWith('__note')).map(([k, v]) => [k.replace('__note', ''), v])),
     total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
     attendance: x.attendance || {}, summary: x.summary || {},
     sign: {
@@ -396,6 +414,9 @@ export function mount(ctx) {
     const ans = {};
     $$('input[type=radio]:checked', box).forEach((el) => {
       ans[el.name.replace('q_', '')] = +el.value;
+    });
+    $$('[data-note]', box).forEach((el) => {
+      if (el.value.trim()) ans[el.dataset.note + '__note'] = el.value.trim();
     });
     const s = scoreOf(secs, ans);
     $('#ap-score').textContent = fix(s.score);
@@ -493,7 +514,7 @@ async function openSheet(row, rerender) {
       </div>
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
-      ${isProbation(cycle?.FormSet) ? probationBox(row, editable, person) : ''}
+      ${isProbation(cycle?.FormSet) ? probationBox(row, editable || state.isAdmin, person) : ''}
       ${isHeadTurn ? `<div class="ap-head-box">
         <label>คะแนนสรุป (ปรับได้)
           <input type="number" id="ap-final" min="0" max="100" step="0.1" value="${fix(row.MgrScore)}"></label>
@@ -503,6 +524,8 @@ async function openSheet(row, rerender) {
       ${logBox(row)}`,
     footer: `${isMgrTurn || isHeadTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
+      ${isProbation(cycle?.FormSet) && state.isAdmin && !isMgrTurn
+        ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกข้อมูลวันลา / วันที่ประเมิน</button>' : ''}
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกแบบฟอร์ม FM-HRM-004</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
       ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกผลประเมิน</button>' : ''}
@@ -512,6 +535,9 @@ async function openSheet(row, rerender) {
   const recalc = () => {
     const ans = {};
     $$('.ap-form input[type=radio]:checked').forEach((el) => { ans[el.name.replace('q_', '')] = +el.value; });
+    $$('.ap-form [data-note]').forEach((el) => {
+      if (el.value.trim()) ans[el.dataset.note + '__note'] = el.value.trim();
+    });
     const sc = scoreOf(secs, ans);
     $('#ap-score').textContent = fix(sc.score);
     $('#ap-grade').textContent = gradeOf(sc.score, scheme)[1];
@@ -542,6 +568,18 @@ async function openSheet(row, rerender) {
       const st = $('#pb-start').value;
       if (!st) { alert('กรุณาใส่วันเริ่มงานก่อน'); return; }
       ROUND_DEFS.forEach((r) => { const el = $('#pb-' + r.key); if (el) el.value = addDays(st, r.days); });
+    };
+  }
+
+  const hrSave = $('#ap-hr-save');
+  if (hrSave) {
+    hrSave.onclick = async () => {
+      hrSave.disabled = true;
+      try {
+        const { update } = await import('../services/data.js');
+        await update('appraisals', row.id, { Extra: JSON.stringify({ ...extraOf(row), ...readProbation() }) });
+        close(); await rerender();
+      } catch (e) { hrSave.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
     };
   }
 
