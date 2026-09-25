@@ -205,6 +205,16 @@ export async function formBody(schema, record = {}) {
           ${opts.filter((o) => o.value).map((o) =>
             `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}
         </datalist>`;
+    } else if (f.type === 'choice' && f.custom) {
+      // ตัวเลือกสำเร็จรูป + "อื่นๆ / กำหนดเอง" ให้พิมพ์ค่าเองได้ ค่าที่ไม่อยู่ในรายการถือเป็นค่าที่กำหนดเอง
+      const own = v && !f.options.includes(v);
+      input = `<select id="${id}" data-custom-for="${id}_custom">
+          <option value=""></option>
+          ${f.options.map((o) => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+          <option value="__custom" ${own ? 'selected' : ''}>${esc(f.custom)}</option>
+        </select>
+        <input id="${id}_custom" class="custom-input" value="${esc(own ? v : '')}"
+          placeholder="${esc(f.customHint || 'พิมพ์ค่าที่ต้องการ')}" ${own ? '' : 'hidden'}>`;
     } else if (f.type === 'choice' || f.type === 'lookup') {
       const opts = await optionsFor(f, f.dependsOn ? record[f.dependsOn] : undefined);
       input = `<select id="${id}">${optionHtml(opts, v, f.emptyHint)}</select>`;
@@ -235,6 +245,10 @@ export function collect(schema) {
     }
     if (f.type === 'multilookup') {
       out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value);
+      continue;
+    }
+    if (f.custom && el.value === '__custom') {
+      out[f.key] = ($('#f_' + f.key + '_custom') || {}).value?.trim() || '';
       continue;
     }
     out[f.key] = f.type === 'yesno' ? el.checked
@@ -383,6 +397,17 @@ export function bindFilters(schema) {
         item.hidden = q ? !item.textContent.toLowerCase().includes(q) : false;
       });
     };
+  });
+}
+
+/** ช่องเลือกที่มี "อื่นๆ / กำหนดเอง": แสดงช่องพิมพ์เมื่อเลือกตัวเลือกนั้น */
+export function bindCustomChoices() {
+  $$('select[data-custom-for]').forEach((sel) => {
+    const box = $('#' + sel.dataset.customFor);
+    sel.addEventListener('change', () => {
+      box.hidden = sel.value !== '__custom';
+      if (!box.hidden) box.focus();
+    });
   });
 }
 
