@@ -115,3 +115,10 @@
 .sig-upload { cursor: pointer; }
 .sig-status { font-size: .82em; }
 .ap-attpanel { margin-top: 16px; overflow-x: auto; }
+.ap-attpanel .panel-head { margin-top: 12px; }
+.ap-attpanel td:first-child { white-space: nowrap; }
+.ap-attpanel td .dim { font-size: .82em; }
+.ap-datein {
+  width: 132px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit;
+}
+.ap-datein:focus { border-color: var(--blue, #1d4ed8); outline: none; }
