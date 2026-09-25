@@ -191,18 +191,22 @@ export const roundKey = (round) => {
 };
 
 /**
- * รวมวันที่ประเมินของครั้งก่อน ๆ เข้ากับครั้งนี้
- * เอกสาร FM-HRM-004 มีช่องวันที่ของทั้ง 4 ครั้งในใบเดียว จึงต้องสะสมวันจากใบเก่าของคนเดิม
+ * วันที่ประเมินแต่ละครั้งของใบใหม่ — ไม่คำนวณจากวันเริ่มงาน ฝ่ายบุคคลเป็นผู้กำหนดเอง
+ *   ครั้งนี้   → ใช้ "วันที่ประเมินครั้งนี้" ของรอบ
+ *   ครั้งก่อน → ดึงจากใบเก่าของคนเดิม (เอกสาร FM-HRM-004 มีช่องวันที่ทั้ง 4 ครั้งในใบเดียว)
+ *   ครั้งถัดไป → เว้นว่าง
+ * startDate ไม่ได้ใช้แล้ว เก็บไว้ให้ผู้เรียกเดิมใช้ได้เหมือนเดิม
  */
 export function mergeRounds(startDate, cycle, previousSheets = []) {
-  const out = roundsFrom(startDate);
+  const out = roundsFrom('');
+  const now = ROUND_DAYS.findIndex((r) => r.key === roundKey(cycle.Round));
   previousSheets.forEach((r) => {
     let x = {};
     try { x = JSON.parse(r.Extra || '{}'); } catch (e) { x = {}; }
     (x.rounds || []).forEach((old) => {
       if (!old.date) return;
-      const hit = out.find((o) => o.key === old.key);
-      if (hit) hit.date = old.date;
+      const i = out.findIndex((o) => o.key === old.key);
+      if (i > -1 && i < now) out[i].date = old.date;
     });
   });
   const k = roundKey(cycle.Round);
@@ -246,7 +250,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       EvaluatorName: clean(p.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
       Status: STAGES[0], SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
       SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
-      // ดึงวันเริ่มงานจากทะเบียนบุคลากร แล้วคำนวณกำหนดประเมินให้เลย
+      // ดึงวันเริ่มงานจากทะเบียนบุคลากร · วันประเมินแต่ละครั้งฝ่ายบุคคลกำหนดเอง
       Extra: JSON.stringify({
         startDate: p.StartDate ? String(p.StartDate).slice(0, 10) : '',
         rounds: mergeRounds(p.StartDate, cycle,

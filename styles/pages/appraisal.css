@@ -122,3 +122,12 @@
   width: 132px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit;
 }
 .ap-datein:focus { border-color: var(--blue, #1d4ed8); outline: none; }
+/* ส่วนที่ 1 ในหน้าต่างสร้างแบบประเมิน: คนละแถว ช่องวันที่ขึ้นบรรทัดใหม่เองเมื่อจอแคบ */
+.ap-pbgrid { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
+.ap-pbrow { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.ap-pbname { font-weight: 600; margin-bottom: 8px; }
+.ap-pbname .dim { font-weight: 400; font-size: .88em; }
+.ap-pbdates { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; }
+.ap-pbdates label { display: flex; flex-direction: column; gap: 4px; font-size: .82em; color: var(--muted, #6b7280); }
+.ap-pbdates label.now { color: var(--blue, #1d4ed8); font-weight: 600; }
+.ap-pbdates .ap-datein { width: 100%; min-width: 0; box-sizing: border-box; }

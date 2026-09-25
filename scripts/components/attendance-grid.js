@@ -6,19 +6,18 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, update } from '../services/data.js';
-import { extraOf, clean, ROUND_DAYS, mergeRounds, isProbationSet } from '../services/appraisal.js';
+import { extraOf, clean, ROUND_DAYS, mergeRounds, roundKey, isProbationSet } from '../services/appraisal.js';
 
 const ATT = [
   ['late', 'มาสาย', 'ครั้ง'], ['absent', 'ขาดงาน', 'วัน'], ['personal', 'ลากิจ', 'วัน'],
   ['sick', 'ลาป่วย', 'วัน'], ['other', 'ลาอื่นๆ', 'วัน'],
 ];
 const low = (v) => clean(v).toLowerCase();
-const addDays = (iso, n) => {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  d.setDate(d.getDate() + n);
-  return d.toLocaleDateString('sv-SE');
-};
+/** ครั้งที่ประเมินและ "วันที่ประเมินครั้งนี้" ที่เลือกในฟอร์มตอนนี้ */
+const current = () => ({
+  key: roundKey(($('#f_Round') || {}).value),
+  date: String(($('#f_RoundDate') || {}).value || '').slice(0, 10),
+});
 
 let dir = [];
 let allSheets = [];
@@ -55,6 +54,9 @@ function valuesOf(p, title) {
     : mergeRounds(start, { Round: ($('#f_Round') || {}).value, RoundDate: ($('#f_RoundDate') || {}).value },
       mine.filter((r) => r !== sheet));
   const base = { start, ...Object.fromEntries(rounds.map((r) => [r.key, r.date || ''])) };
+  // วันของครั้งนี้อ้างอิง "วันที่ประเมินครั้งนี้" ในฟอร์มเสมอ
+  const cur = current();
+  if (cur.key && cur.date) base[cur.key] = cur.date;
   ATT.forEach(([k]) => { base[k] = String((x.attendance || {})[k] ?? ''); });
   return { ...base, ...(draft[em] || {}) };
 }
@@ -75,19 +77,21 @@ function paint(title) {
     data-em="${esc(em)}" data-k="${k}" value="${esc(v ?? '')}"></td>`;
   const name = (p) => `<td>${esc(clean(p.Title))}<div class="dim">${esc(clean(p.Department))}</div></td>`;
   const vals = new Map(rows.map((p) => [low(p.Email), valuesOf(p, title)]));
+  const cur = current();
 
   host.innerHTML = `
     ${probation ? `<div class="panel-head">ส่วนที่ 1 : ข้อมูลการทดลองงาน
-      <span class="panel-meta">ใส่วันเริ่มงาน ระบบเติมวันครบกำหนดให้</span></div>
-    <table class="ap-table ap-attgrid">
-      <thead><tr><th>ชื่อ</th><th>วันเริ่มงาน</th>
-        ${ROUND_DAYS.map((r) => `<th>${esc(r.label)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((p) => {
-        const em = low(p.Email); const v = vals.get(em);
-        return `<tr>${name(p)}${cell(em, 'start', v.start, 'date')}
-          ${ROUND_DAYS.map((r) => cell(em, r.key, v[r.key], 'date')).join('')}</tr>`;
-      }).join('')}</tbody>
-    </table>` : ''}
+      <span class="panel-meta">ครั้งที่ประเมินรอบนี้ใช้ "วันที่ประเมินครั้งนี้" ด้านบน · ครั้งอื่นกรอกเอง</span></div>
+    <div class="ap-pbgrid">${rows.map((p) => {
+      const em = low(p.Email); const v = vals.get(em);
+      const date = (k, label) => `<label${k === cur.key ? ' class="now"' : ''}>${esc(label)}
+        <input type="date" class="ap-datein" data-em="${esc(em)}" data-k="${k}" value="${esc(v[k] || '')}"></label>`;
+      return `<div class="ap-pbrow">
+        <div class="ap-pbname">${esc(clean(p.Title))} <span class="dim">· ${esc(clean(p.Department))}</span></div>
+        <div class="ap-pbdates">${date('start', 'วันเริ่มงาน')}
+          ${ROUND_DAYS.map((r) => date(r.key, r.label + (r.key === cur.key ? ' · ครั้งนี้' : ''))).join('')}</div>
+      </div>`;
+    }).join('')}</div>` : ''}
 
     <div class="panel-head">${probation ? 'ส่วนที่ 2 : ' : ''}บันทึกการมาปฏิบัติงาน</div>
     <table class="ap-table ap-attgrid">
@@ -100,17 +104,6 @@ function paint(title) {
       }).join('')}</tbody>
     </table>
     <div class="panel-note">ระบบสร้างใบประเมินให้ทุกคนในรายชื่อเมื่อกดบันทึก · ผู้ประเมินจะเห็นตัวเลขนี้ในแบบประเมินทันที</div>`;
-
-  // ใส่วันเริ่มงานแล้วเติมกำหนดประเมินให้
-  $$('#ap-cyclegrid [data-k=start]').forEach((el) => {
-    el.onchange = () => {
-      if (!el.value) return;
-      ROUND_DAYS.forEach((r) => {
-        const t = $(`#ap-cyclegrid [data-em="${el.dataset.em}"][data-k="${r.key}"]`);
-        if (t) t.value = addDays(el.value, r.days);
-      });
-    };
-  });
 }
 
 /** เปิดตารางในฟอร์ม และวาดใหม่ทุกครั้งที่เปลี่ยนรายชื่อ ขอบเขต หรือชุดแบบประเมิน */
@@ -124,7 +117,25 @@ export async function bindCycleGrid(record = {}) {
   const later = () => { clearTimeout(t); t = setTimeout(() => paint(title), 0); };
   const box = $('#f_Members');
   if (box) { box.addEventListener('change', later); box.addEventListener('click', later); }
-  ['#f_Scope', '#f_FormSet', '#f_Round', '#f_RoundDate'].forEach((s) => {
+
+  // เปลี่ยนครั้งที่หรือวันที่ประเมินครั้งนี้ → ใส่วันนั้นลงช่องของครั้งนี้ให้ทุกคน
+  let prev = current();
+  const sync = () => {
+    const cur = current();
+    $$('#ap-cyclegrid .ap-datein').forEach((el) => {
+      const k = el.dataset.k;
+      if (prev.key && prev.key !== cur.key && k === prev.key && el.value === prev.date) el.value = '';
+      if (cur.key && cur.date && k === cur.key) el.value = cur.date;
+    });
+    keep();
+    prev = cur;
+    later();
+  };
+  ['#f_Round', '#f_RoundDate'].forEach((s) => {
+    const el = $(s);
+    if (el) el.addEventListener('change', sync);
+  });
+  ['#f_Scope', '#f_FormSet'].forEach((s) => {
     const el = $(s);
     if (el) el.addEventListener('change', later);
   });
