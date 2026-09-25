@@ -9,6 +9,7 @@ import { LETTERHEAD } from '../core/letterhead.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel } from '../components/form-renderer.js';
 import { isUnread, markSeen } from '../services/badges.js';
+import { printWithNotice } from '../components/eta-notice.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -677,11 +678,8 @@ async function exportRequest(req, steps, answerRows) {
   document.getElementById('ex-close').onclick = close;
   document.getElementById('ex-cancel').onclick = close;
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
-  document.getElementById('ex-print').onclick = () => {
-    document.body.classList.add('printing-doc');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-doc'), 500);
-  };
+  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
+  document.getElementById('ex-print').onclick = () => printWithNotice('printing-doc');
 }
 
 export function mount(ctx) {

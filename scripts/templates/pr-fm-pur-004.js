@@ -212,9 +212,9 @@ export async function openPRWindow(html, title) {
   const close = () => { win.innerHTML = ''; };
   document.getElementById('pr-close').onclick = close;
   document.getElementById('pr-cancel').onclick = close;
-  document.getElementById('pr-print').onclick = () => {
-    document.body.classList.add('printing-pr');
-    window.print();
-    setTimeout(() => document.body.classList.remove('printing-pr'), 500);
+  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
+  document.getElementById('pr-print').onclick = async () => {
+    const { printWithNotice } = await import('../components/eta-notice.js');
+    printWithNotice('printing-pr');
   };
 }
