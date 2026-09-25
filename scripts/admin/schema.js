@@ -361,7 +361,7 @@ export const SCHEMA = {
   },
 
   appraisalCycles: {
-    title: 'รอบประเมินผล', icon: '🗓', list: 'appraisalCycles', spName: 'AppraisalCycles',
+    title: 'สร้างแบบประเมิน', icon: '🗓', list: 'appraisalCycles', spName: 'AppraisalCycles',
     sortField: 'SortOrder', unique: ['Title'],
     hint: 'เปิดได้ครั้งละ 1 รอบ · ช่อง "ขั้นตอนที่เปิด" เป็นตัวคุมว่าตอนนี้ใครกรอกได้',
     columns: ['Title', 'FormSet', 'Round', 'RoundDate', 'Status', 'Stage', 'Scope', 'StartDate', 'EndDate'],

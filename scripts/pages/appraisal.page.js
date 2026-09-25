@@ -92,7 +92,7 @@ export async function render(ctx) {
 
       ${cycle ? '' : `<div class="panel"><div class="empty">
         ยังไม่มีรอบประเมินที่เปิดใช้งาน${state.isAdmin
-          ? '<br><span class="dim">เปิดรอบใหม่ได้ที่ จัดการข้อมูล → รอบประเมิน</span>' : ''}
+          ? '<br><span class="dim">เปิดรอบใหม่ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน</span>' : ''}
       </div></div>`}
 
       ${body}
@@ -266,7 +266,7 @@ function paneAll() {
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
         </tr>`).join('')}</tbody></table>
-        <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → รอบประเมินผล → ✎ แก้ไข</div>`
+        <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
     </div>`;
 }
@@ -392,7 +392,7 @@ function attendanceBar(row) {
 }
 
 /* ───────── สรุปผลของแบบทดลองงาน (ผู้ประเมินกรอก) ─────────
- * ข้อมูลการทดลองงานและวันลา ฝ่ายบุคคลกรอกที่ จัดการข้อมูล → รอบประเมินผล */
+ * ข้อมูลการทดลองงานและวันลา ฝ่ายบุคคลกรอกที่ จัดการข้อมูล → สร้างแบบประเมิน */
 function probationBox(row, editable) {
   const sm = extraOf(row).summary || {};
   const dis = editable ? '' : 'disabled';
