@@ -3,6 +3,11 @@ import { list, create } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { state, setState } from '../core/state.js';
 import { companySocial } from '../components/company-social.js';
+import { copyButton, bindCopyButtons } from '../utils/clipboard.js';
+
+/** อีเมลของหน่วยงาน — เก็บบรรทัดละอีเมล หรือคั่นด้วยจุลภาค/เว้นวรรค ตัดค่าที่ไม่ใช่อีเมลทิ้ง */
+const emailsOf = (v) => [...new Set(String(v || '').split(/[\s,;]+/)
+  .map((x) => x.trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))];
 
 export const meta = { route: 'contact', title: 'ติดต่อ', nav: true, order: 10, adminOnly: false };
 
@@ -28,6 +33,9 @@ export async function render(ctx) {
               <span class="ext-dots"></span>
               <span class="ext-num${d.Extension ? '' : ' none'}">${
                 d.Extension ? 'ต่อ ' + esc(d.Extension) : 'ยังไม่มีเบอร์ต่อ'}</span>
+              ${emailsOf(d.Emails).length ? `<div class="ext-mails">${emailsOf(d.Emails).map((m) => `
+                <span class="ext-mail"><a href="mailto:${esc(m)}">✉ ${esc(m)}</a>${copyButton(m, '')}</span>`).join('')}
+              </div>` : ''}
             </li>`).join('')}
           </ul>
           <div class="panel-note">
@@ -109,6 +117,7 @@ export async function render(ctx) {
 }
 
 export function mount(ctx) {
+  bindCopyButtons($('#app'));
   const again = $('#fb-again');
   if (again) again.onclick = () => setState({ feedbackSent: false });
 

@@ -140,12 +140,6 @@
 .mail-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 9px; }
 .mail-line .staff-mail, .mail-line .pv-mail { display: inline; margin-top: 0; }
 .pv-mailline { margin-top: var(--gap); }
-.copy-btn {
-  position: relative; z-index: 1; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px;
-  background: var(--surface, #fff); color: var(--navy); font-size: 12px; font-weight: 600; white-space: nowrap;
-}
-.copy-btn:hover { border-color: var(--blue); background: #eef4fb; }
-.copy-btn.done { border-color: var(--green, #1e7f4f); color: var(--green, #1e7f4f); background: #e9f7ef; }
 
 /* รูปขยายเมื่อชี้ที่รูปในหน้าต่างข้อมูลบุคคล (bindPhotoZoom) — ไม่รับเมาส์ รูปเล็กจึงยังถูกชี้อยู่ */
 .pv-photo.zoomable { cursor: zoom-in; }
