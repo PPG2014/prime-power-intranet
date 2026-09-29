@@ -443,4 +443,14 @@ export const SCHEMA = {
       { key: 'Description', label: 'ความหมาย', type: 'text' },
     ],
   },
+
+  auditLog: {
+    title: 'บันทึกการใช้งาน', icon: '🔍', list: 'auditLog', spName: 'AuditLog',
+    readOnly: true, search: true, facets: ['Action', 'ListName'], dateDesc: 'At',
+    hint: 'ดูอย่างเดียว · ระบบบันทึกให้เองทุกครั้งที่มีการเพิ่ม แก้ไข หรือลบข้อมูล (ยกเว้นการยื่นคำขอประจำวัน) · ใช้ตรวจย้อนหลังว่าใครทำอะไร เมื่อไร',
+    columns: ['At', 'Action', 'ListName', 'ItemTitle', 'ByName', 'ByEmail'],
+    labels: { At: 'เวลา', Action: 'การกระทำ', ListName: 'ชุดข้อมูล', ItemTitle: 'รายการ',
+              ByName: 'ผู้ทำ', ByEmail: 'อีเมล' },
+    fields: [],
+  },
 };

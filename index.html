@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Content Security Policy — อนุญาตให้โหลดสคริปต์ได้เฉพาะจากเว็บนี้ และส่งข้อมูลได้เฉพาะ Microsoft (Graph/ล็อกอิน/SharePoint)
+  ถ้ามีโค้ดแปลกปลอมหลุดเข้ามา จะรันหรือส่งข้อมูลออกไปที่อื่นไม่ได้
+  เพิ่มบริการภายนอกใหม่ (เช่นฝังปฏิทินหรือวิดีโอ) ต้องเพิ่มโดเมนในบรรทัดนี้ ไม่งั้นเบราว์เซอร์จะบล็อก — ดูข้อความใน Console (F12)
+  frame-ancestors / HSTS ตั้งผ่าน meta ไม่ได้ (GitHub Pages ไม่ให้ตั้ง header เอง)
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://login.microsoft.com https://*.sharepoint.com https://*.svc.ms; frame-src 'self' https://login.microsoftonline.com https://*.sharepoint.com https://outlook.office365.com https://outlook.office.com https://docs.google.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Prime Power Group — ระบบภายในองค์กร</title>
 <link rel="icon" href="assets/img/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">

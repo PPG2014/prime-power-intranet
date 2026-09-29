@@ -72,3 +72,15 @@
   border: 0; border-radius: 6px; padding: 6px 12px; font: inherit; font-weight: 600;
   background: #fff; color: #0b3a75; cursor: pointer;
 }
+
+/* แถบเตือนก่อนออกจากระบบอัตโนมัติ (services/idle-logout.js) */
+.idle-bar {
+  position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 10001;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 10px;
+  background: #b45309; color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); font-size: .92em;
+}
+.idle-bar button {
+  border: 0; border-radius: 6px; padding: 6px 12px; font: inherit; font-weight: 700;
+  background: #fff; color: #b45309; cursor: pointer;
+}

@@ -10,6 +10,7 @@ import { CONFIG } from './core/config.js';
 import { resolveAdmin } from './utils/admin.js';
 import { esc, $ } from './core/dom.js';
 import { watchVersion } from './core/version-check.js';
+import { startIdleLogout, IDLE_FLAG } from './services/idle-logout.js';
 
 console.info('[Prime Power] build', CONFIG.build);
 watchVersion();
@@ -55,6 +56,7 @@ async function enter(user) {
 
   startRendering();
   startRouter(render);
+  startIdleLogout();
 
   // ตัวเลขเตือนบนเมนู: นับทันทีที่เข้าระบบ แล้วนับซ้ำทุก 5 นาที เผื่อมีคำขอใหม่ระหว่างเปิดค้าง
   import('./services/badges.js').then((m) => {
@@ -107,7 +109,13 @@ async function boot() {
   try {
     const user = await currentUser();
     if (user) await enter(user);
-    else showLogin();
+    else {
+      // กลับมาจากการออกจากระบบอัตโนมัติ บอกเหตุผลบนหน้าเข้าสู่ระบบ
+      let idle = false;
+      try { idle = sessionStorage.getItem(IDLE_FLAG) === '1'; sessionStorage.removeItem(IDLE_FLAG); } catch (e) { /* ข้าม */ }
+      showLogin(idle ? `ออกจากระบบอัตโนมัติ เพราะไม่มีการใช้งานนานเกิน ${Number(CONFIG.idleMinutes) || 60} นาที
+        เพื่อความปลอดภัยของข้อมูล · กดเข้าสู่ระบบอีกครั้งเพื่อใช้งานต่อ` : undefined);
+    }
   } catch (err) {
     console.error(err);
     showLogin(explain(err));
