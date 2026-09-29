@@ -7,7 +7,7 @@ import { toArray } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
 import { hydratePhotos } from '../services/photos.js';
 import { toCsv, downloadText } from '../utils/csv.js';
-import { printWithNotice } from '../components/eta-notice.js';
+import { printWithNotice, notice } from '../components/eta-notice.js';
 
 export const meta = { route: 'projects', title: 'ความคืบหน้าโครงการ', nav: false, order: 5, adminOnly: false };
 
@@ -491,7 +491,35 @@ function exportAll(rows, label) {
     body: `<div class="pj-report rpx" id="pj-report-all">${summary}${projectPages}</div>`,
     footer: `<button class="btn-mini" id="rpa-close">ปิด</button>
              <button class="btn-mini" id="rpa-csv">⭳ ดาวน์โหลด CSV</button>
+             <button class="btn-mini" data-rpaimg="png" title="ทุกหน้า หน้าละ 1 ไฟล์ · 1920×1080 พิกเซล">🖼 รูป PNG (Full HD)</button>
+             <button class="btn-mini" data-rpaimg="jpg" title="ทุกหน้า หน้าละ 1 ไฟล์ · 1920×1080 พิกเซล · ไฟล์เล็กกว่า PNG">🖼 รูป JPG (Full HD)</button>
              <button class="btn btn-primary" id="rpa-print">พิมพ์ / บันทึกเป็น PDF</button>`,
+  });
+
+  // บันทึกเป็นรูป Full HD หน้าละไฟล์ — แจ้งข้อความตามกฎหมายก่อนเหมือนการพิมพ์
+  $$('[data-rpaimg]').forEach((btn) => {
+    btn.onclick = async () => {
+      const fmt = btn.dataset.rpaimg;
+      if (!(await notice(`รับทราบ · บันทึกเป็นรูป ${fmt.toUpperCase()}`))) return;
+      const all = $$('[data-rpaimg]');
+      const label = btn.textContent;
+      all.forEach((b) => { b.disabled = true; });
+      try {
+        const { exportPagesAsImages } = await import('../utils/page-image.js');
+        await exportPagesAsImages($$('#pj-report-all .rpx-page'), {
+          stageClass: 'pj-report rpx rpx-img', fmt,
+          fonts: ['400 16px "Report Sarabun"', '700 16px "Report Sarabun"'],
+          // ชื่อไฟล์ภาษาอังกฤษ — บางเบราว์เซอร์/ระบบปฏิบัติการตั้งชื่อไฟล์ภาษาไทยเป็น "download"
+          baseName: `project-summary-${new Date().toISOString().slice(0, 10)}`,
+          onProgress: (d, n) => { btn.textContent = `กำลังสร้างรูป ${d}/${n}…`; },
+        });
+      } catch (e) {
+        alert('สร้างรูปไม่สำเร็จ — ' + e.message);
+      } finally {
+        all.forEach((b) => { b.disabled = false; });
+        btn.textContent = label;
+      }
+    };
   });
 
   $('#rpa-close').onclick = () => $('#overlay-root').replaceChildren();
