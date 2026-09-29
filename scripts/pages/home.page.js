@@ -118,8 +118,30 @@ export async function render(ctx) {
   </section>`;
 }
 
+/**
+ * แถบข้างขวาติดจอตอนเลื่อน (sticky) แต่ถ้าสูงกว่าจอ ส่วนล่าง (เช่นกล่องติดต่อบริษัท)
+ * จะไม่โผล่จนกว่าจะเลื่อนหน้าจนสุด — จึงตั้งจุดติดให้เป็น "ขอบล่างชนขอบจอ" แทน
+ * แถบจะเลื่อนตามหน้าไปจนเห็นกล่องสุดท้าย แล้วค่อยติดอยู่ตรงนั้น
+ */
+const SIDE_TOP = 82;      // ตรงกับ top ใน home.css (ใต้หัวเว็บ)
+function fitSidebar() {
+  const side = $('.home-side');
+  if (!side) return;
+  const fit = () => {
+    if (!document.body.contains(side)) { removeEventListener('resize', fit); ro.disconnect(); return; }
+    const room = innerHeight - SIDE_TOP - 16;
+    side.style.top = side.offsetHeight > room
+      ? `${innerHeight - side.offsetHeight - 16}px` : `${SIDE_TOP}px`;
+  };
+  const ro = new ResizeObserver(fit);   // กล่องข้างในโหลดข้อมูลเสร็จแล้วสูงขึ้น ต้องคำนวณใหม่
+  ro.observe(side);
+  addEventListener('resize', fit);
+  fit();
+}
+
 export function mount(ctx) {
   mountDashboard();
+  fitSidebar();
 
   // เดิมลิงก์ไป #/requests?form=… ซึ่งเราเตอร์ไม่รู้จัก เลยค้างอยู่หน้าแรก
   // และหน้าติดตามสถานะก็ไม่แสดงคำขอของคนอื่นอยู่แล้ว จึงเปิดปฏิทินคิวทั้งหมดแทน
