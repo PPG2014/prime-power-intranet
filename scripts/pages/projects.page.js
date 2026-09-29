@@ -335,7 +335,7 @@ const thDate = (v) => (v ? thaiDateShort(v) : '—');
 
 /** แท่งแนวนอนหนึ่งเส้นในการ์ดโครงการ */
 const rpxBar = (label, value, cls) => `
-  <div class="rpx-bar" title="${esc(label)} ${pct(value)}%">
+  <div class="rpx-bar v-${cls}" title="${esc(label)} ${pct(value)}%">
     <span class="rpx-bl">${esc(label)}</span>
     <span class="rpx-track"><span class="rpx-fill ${cls}" style="width:${num(value)}%"></span></span>
     <b>${pct(value)}%</b>
@@ -355,10 +355,10 @@ function projectRow(p) {
   const h = health(p);
   const od = overdueDays(p);
   return `
-  <article class="rpx-proj${od ? ' overdue' : ''}">
+  <article class="rpx-proj h-${h.cls}${od ? ' overdue' : ''}">
     ${od ? `<div class="rpx-ribbon">⚠ เกินกำหนดสัญญา ${od.toLocaleString('th-TH')} วัน</div>` : ''}
     <div class="rpx-id">
-      <div class="rpx-code">${esc(p.ProjectCode || '—')}<span class="rpx-st">${esc(p.Status || '—')}</span></div>
+      <div class="rpx-code"><span class="rpx-chip">${esc(p.ProjectCode || '—')}</span><span class="rpx-st st${stIdx(p.Status) + 1}">${esc(p.Status || '—')}</span></div>
       <div class="rpx-name">${esc(p.Title)}</div>
       <div class="rpx-meta">👤 ${esc(p.Owner || '—')} · ${p.Capacity ? `${Number(p.Capacity).toLocaleString('th-TH')} kWp` : '— kWp'}</div>
       <div class="rpx-meta">${esc(thDate(p.StartDate))} – <b class="${od ? 'rpx-red' : ''}">${esc(thDate(p.EndDate))}</b></div>
@@ -367,7 +367,7 @@ function projectRow(p) {
       ${rpxBar('แผน', p.PlanProgress, 'plan')}
       ${rpxBar('จริง', p.ActualProgress, 'actual')}
       ${rpxBar('เบิกจ่าย', p.ActualPayment, 'pay')}
-      <div class="rpx-health ${h.cls}"><span aria-hidden="true">${h.icon}</span> ${esc(h.text)}</div>
+      <div class="rpx-badge ${h.cls}"><span aria-hidden="true">${h.icon}</span> ${esc(h.text)}</div>
     </div>
     <div class="rpx-detail">
       <div class="rpx-dh">การดำเนินงานปัจจุบัน</div>
@@ -420,10 +420,10 @@ function exportAll(rows, label) {
       </div>
 
       <div class="rpx-kpis">
-        <div><b>${n}</b><span>โครงการ</span></div>
-        <div><b>${kwp.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</b><span>kWp รวม</span></div>
-        <div><b>${pct(avg('ActualProgress'))}%</b><span>ผลงานจริงเฉลี่ย · แผน ${pct(avg('PlanProgress'))}%</span></div>
-        <div><b>${pct(avg('ActualPayment'))}%</b><span>เบิกจ่ายเฉลี่ย</span></div>
+        <div class="k1"><b>${n}</b><span>โครงการ</span></div>
+        <div class="k2"><b>${kwp.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</b><span>kWp รวม</span></div>
+        <div class="k3"><b>${pct(avg('ActualProgress'))}%</b><span>ผลงานจริงเฉลี่ย · แผน ${pct(avg('PlanProgress'))}%</span></div>
+        <div class="k4"><b>${pct(avg('ActualPayment'))}%</b><span>เบิกจ่ายเฉลี่ย</span></div>
         <div class="${late.length ? 'warn' : ''}"><b>${late.length}</b><span>ช้ากว่าแผน</span></div>
         <div class="${over.length ? 'crit' : ''}"><b>${over.length ? '⚠ ' : ''}${over.length}</b><span>เกินกำหนดสัญญา</span></div>
       </div>
