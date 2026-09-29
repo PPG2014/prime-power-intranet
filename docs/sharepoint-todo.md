@@ -239,3 +239,31 @@
 |---|---|---|
 | Emails | Multiple lines of text (**Plain text**) | ใส่ได้หลายอีเมล บรรทัดละ 1 อีเมล · แก้ได้ที่ จัดการข้อมูล → หน่วยงานและเบอร์ต่อ · แสดงในสมุดโทรศัพท์หน้าติดต่อ |
 
+
+---
+
+## List ใหม่ `AuditLog` — บันทึกการใช้งาน
+
+ระบบเขียนให้เองทุกครั้งที่มีการเพิ่ม แก้ไข หรือลบข้อมูล ดูได้ที่ จัดการข้อมูล → 🔍 บันทึกการใช้งาน (เฉพาะผู้ดูแลระบบ)
+ถ้ายังไม่สร้าง List นี้ ระบบยังทำงานได้ปกติ แค่ไม่มีบันทึก (มีคำเตือนใน Console)
+
+| คอลัมน์ | ชนิด | หมายเหตุ |
+|---|---|---|
+| Title | Single line of text | สรุป เช่น `ลบ · departments · ฝ่ายเขียนแบบ` |
+| Action | Single line of text | เพิ่ม / แก้ไข / ลบ |
+| ListName | Single line of text | ชุดข้อมูลที่ถูกแก้ |
+| ItemId | Single line of text | |
+| ItemTitle | Single line of text | ชื่อรายการ |
+| ByName | Single line of text | ผู้ทำ |
+| ByEmail | Single line of text | |
+| At | Date and Time (**รวมเวลา**) | |
+| Details | Multiple lines of text (**Plain text**) | ค่าที่บันทึก (ย่อค่าที่ยาวเกิน) |
+
+**สิทธิ์ที่แนะนำ** (Stop inheriting permissions ที่ List นี้) — ให้เขียนได้แต่แก้หรือลบบันทึกไม่ได้
+1. Site settings → Site permissions → Permission Levels → **Add a Permission Level** ชื่อ `Add only`
+   ติ๊กเฉพาะ **Add Items**, **View Items**, **Open** (ไม่ติ๊ก Edit Items / Delete Items)
+   (วิธีง่ายสุด: เปิดระดับ **Read** → Copy Permission Level → ติ๊ก **Add Items** เพิ่ม · ต้องคง **Use Remote Interfaces** ไว้ ไม่งั้นเว็บเขียนไม่ได้)
+2. ที่ List AuditLog → Permissions for this list → **Stop Inheriting Permissions**
+   → ลบกลุ่ม Members / Visitors ที่ติดมา → Grant ให้พนักงานทุกคน = `Add only` · ผู้ดูแลระบบอยู่ในกลุ่ม Owners (Full Control)
+3. (แนะนำ) List settings → Advanced settings → Item-level Permissions → Read access = **Read items that were created by the user**
+   พนักงานจะเห็นแค่บันทึกของตัวเอง ส่วน Owners / Full Control ยังเห็นทั้งหมด (สิทธิ์ Read อย่างเดียวจะเห็นแค่ของตัวเอง)

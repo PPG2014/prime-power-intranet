@@ -5,7 +5,7 @@ import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, b
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
-import { thaiDateShort } from '../utils/format.js';
+import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
 import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
@@ -184,6 +184,7 @@ export async function render(ctx) {
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
                 : c === 'Files' ? (toFiles(r[c]).length ? '📎 ' + toFiles(r[c]).length : '—')
+                : c === 'At' ? (thaiDateTime(r[c]) || '—')   // บันทึกการใช้งาน ต้องเห็นเวลาด้วย
                 : /Date|Updated/.test(c) ? (thaiDateShort(r[c]) || '—')
                 : (r[c] ?? '—'))}</td>`).join('')}
               <td class="col-actions">

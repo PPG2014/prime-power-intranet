@@ -312,69 +312,183 @@ async function editProject(p) {
 }
 
 
-/** สรุปภาพรวมทุกโครงการ (ตามตัวกรองที่เลือกอยู่) — พิมพ์เป็น PDF หรือดาวน์โหลด CSV */
-function exportAll(rows, label) {
-  const late = rows.filter((p) => variance(p).diff < 0);
-  const kwp = rows.reduce((t, p) => t + (Number(p.Capacity) || 0), 0);
-  const avg = (k) => rows.length
-    ? num(rows.reduce((t, p) => t + num(p[k]), 0) / rows.length) : 0;
+/**
+ * เลยวันสิ้นสุดสัญญาแล้วแต่งานยังไม่เสร็จ
+ * ไม่นับโครงการที่ส่งมอบ/ปิดแล้ว หรืออยู่ระหว่างประกันผลงาน · คืนจำนวนวันที่เลย หรือ 0
+ */
+function overdueDays(p) {
+  const st = String(p.Status || '').trim();
+  if (/^ปิดโครงการ/.test(st) || st === 'ส่งมอบแล้ว') return 0;
+  if (p.InWarranty === true || p.InWarranty === 'Yes') return 0;
+  if (num(p.ActualProgress) >= 100) return 0;
+  const left = daysLeft(p.EndDate);
+  return left !== null && left < 0 ? -left : 0;
+}
 
-  const row = (p) => {
-    const v = variance(p);
-    return `<tr>
-      <td>${esc(p.ProjectCode || '—')}</td>
-      <td>${esc(p.Title)}</td>
-      <td>${esc(p.Status || '—')}</td>
-      <td class="num">${p.Capacity ? Number(p.Capacity).toLocaleString('th-TH') : '—'}</td>
-      <td class="num">${pct(p.PlanProgress)}</td>
-      <td class="num">${pct(p.ActualProgress)}</td>
-      <td class="num ${v.tone}">${v.diff > 0 ? '+' : ''}${v.diff.toFixed(2)}</td>
-      <td class="num">${pct(p.ActualPayment)}</td>
-      <td>${esc(p.Owner || '—')}</td>
-      <td>${esc(thaiDateShort(p.UpdatedDate))}</td>
-    </tr>`;
-  };
+/** โครงการที่ต้องติดตามขึ้นก่อน: เกินกำหนด (มาก→น้อย) → ช้ากว่าแผน (มาก→น้อย) → ที่เหลือตามรหัส */
+const priority = (a, b) => (overdueDays(b) - overdueDays(a))
+  || (variance(a).diff - variance(b).diff)
+  || String(a.ProjectCode || '').localeCompare(String(b.ProjectCode || ''));
+
+const PER_PAGE = 5;        // โครงการต่อหน้า A4 แนวนอน
+const thDate = (v) => (v ? thaiDateShort(v) : '—');
+
+/** แท่งแนวนอนหนึ่งเส้นในการ์ดโครงการ */
+const rpxBar = (label, value, cls) => `
+  <div class="rpx-bar" title="${esc(label)} ${pct(value)}%">
+    <span class="rpx-bl">${esc(label)}</span>
+    <span class="rpx-track"><span class="rpx-fill ${cls}" style="width:${num(value)}%"></span></span>
+    <b>${pct(value)}%</b>
+  </div>`;
+
+/** ป้ายสถานะความคืบหน้า — สี + ไอคอน + ข้อความเสมอ (ไม่ใช้สีอย่างเดียว) */
+function health(p) {
+  const od = overdueDays(p);
+  const v = variance(p);
+  if (od) return { cls: 'crit', icon: '⚠', text: `เกินกำหนด ${od.toLocaleString('th-TH')} วัน` };
+  if (v.tone === 'bad') return { cls: 'crit', icon: '▼', text: v.text };
+  if (v.tone === 'warn') return { cls: 'warn', icon: '▼', text: v.text };
+  return { cls: 'good', icon: '✓', text: v.text };
+}
+
+function projectRow(p) {
+  const h = health(p);
+  const od = overdueDays(p);
+  return `
+  <article class="rpx-proj${od ? ' overdue' : ''}">
+    ${od ? `<div class="rpx-ribbon">⚠ เกินกำหนดสัญญา ${od.toLocaleString('th-TH')} วัน</div>` : ''}
+    <div class="rpx-id">
+      <div class="rpx-code">${esc(p.ProjectCode || '—')}<span class="rpx-st">${esc(p.Status || '—')}</span></div>
+      <div class="rpx-name">${esc(p.Title)}</div>
+      <div class="rpx-meta">👤 ${esc(p.Owner || '—')} · ${p.Capacity ? `${Number(p.Capacity).toLocaleString('th-TH')} kWp` : '— kWp'}</div>
+      <div class="rpx-meta">${esc(thDate(p.StartDate))} – <b class="${od ? 'rpx-red' : ''}">${esc(thDate(p.EndDate))}</b></div>
+    </div>
+    <div class="rpx-bars">
+      ${rpxBar('แผน', p.PlanProgress, 'plan')}
+      ${rpxBar('จริง', p.ActualProgress, 'actual')}
+      ${rpxBar('เบิกจ่าย', p.ActualPayment, 'pay')}
+      <div class="rpx-health ${h.cls}"><span aria-hidden="true">${h.icon}</span> ${esc(h.text)}</div>
+    </div>
+    <div class="rpx-detail">
+      <div class="rpx-dh">การดำเนินงานปัจจุบัน</div>
+      <div class="rpx-dt">${esc(p.Detail || '—')}</div>
+      <div class="rpx-upd">อัปเดต ${esc(thDate(p.UpdatedDate))}</div>
+    </div>
+  </article>`;
+}
+
+/** สรุปภาพรวมทุกโครงการ (ตามตัวกรองที่เลือกอยู่) — หน้าแรกเป็นกราฟสรุป ตามด้วยหน้าละ 5 โครงการ · A4 แนวนอน */
+function exportAll(rows, label) {
+  const sorted = [...rows].sort(priority);
+  const n = rows.length;
+  const late = rows.filter((p) => variance(p).diff < 0);
+  const over = rows.filter((p) => overdueDays(p));
+  const kwp = rows.reduce((t, p) => t + (Number(p.Capacity) || 0), 0);
+  const avg = (k) => (n ? num(rows.reduce((t, p) => t + num(p[k]), 0) / n) : 0);
+  const today = thaiDateShort(new Date().toISOString());
+
+  // กราฟ 1: สถานะโครงการ (แท่งเดียวแบ่งส่วน) — สีตามลำดับสถานะคงที่ ไม่สลับตามจำนวน
+  const stCount = STATUSES.map((s, i) => ({ s, i, c: rows.filter((p) => stIdx(p.Status) === i).length }));
+  const stOther = n - stCount.reduce((t, x) => t + x.c, 0);
+  const segs = stCount.filter((x) => x.c);
+  // กราฟ 2: สุขภาพตามกำหนดการ
+  const buckets = [
+    { k: 'good', icon: '✓', label: 'ตามแผน / เร็วกว่าแผน', c: rows.filter((p) => variance(p).diff >= 0 && !overdueDays(p)).length },
+    { k: 'warn', icon: '▼', label: 'ช้ากว่าแผนไม่เกิน 5%', c: rows.filter((p) => variance(p).tone === 'warn' && !overdueDays(p)).length },
+    { k: 'crit', icon: '▼', label: 'ช้ากว่าแผนเกิน 5%', c: rows.filter((p) => variance(p).tone === 'bad' && !overdueDays(p)).length },
+    { k: 'crit', icon: '⚠', label: 'เกินกำหนดสัญญา', c: over.length },
+  ];
+  const needWatch = sorted.filter((p) => overdueDays(p) || variance(p).tone === 'bad');
+  const watch = needWatch.slice(0, 6);      // ให้หน้าสรุปจบในกระดาษแผ่นเดียว ที่เหลืออยู่หน้ารายโครงการ (เรียงขึ้นก่อน)
+
+  const pages = [];
+  for (let i = 0; i < sorted.length; i += PER_PAGE) pages.push(sorted.slice(i, i + PER_PAGE));
+  const total = pages.length + 1;
+  const pageHead = (no, sub) => `<div class="rpx-phead">
+      <span><b>Prime Power Group</b> · สรุปความคืบหน้าโครงการ · ${esc(label)}</span>
+      <span>${esc(sub)} · หน้า ${no}/${total}</span></div>`;
+
+  const summary = `
+    <section class="rpx-page">
+      <div class="rpx-head">
+        <div>
+          <div class="rp-brand">Prime Power Group</div>
+          <div class="rp-title">สรุปภาพรวมความคืบหน้าโครงการ</div>
+          <div class="rp-sub">ตัวกรอง: ${esc(label)} · ${n} โครงการ · ข้อมูล ณ ${esc(today)}</div>
+        </div>
+        <div class="rpx-pno">หน้า 1/${total}</div>
+      </div>
+
+      <div class="rpx-kpis">
+        <div><b>${n}</b><span>โครงการ</span></div>
+        <div><b>${kwp.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</b><span>kWp รวม</span></div>
+        <div><b>${pct(avg('ActualProgress'))}%</b><span>ผลงานจริงเฉลี่ย · แผน ${pct(avg('PlanProgress'))}%</span></div>
+        <div><b>${pct(avg('ActualPayment'))}%</b><span>เบิกจ่ายเฉลี่ย</span></div>
+        <div class="${late.length ? 'warn' : ''}"><b>${late.length}</b><span>ช้ากว่าแผน</span></div>
+        <div class="${over.length ? 'crit' : ''}"><b>${over.length ? '⚠ ' : ''}${over.length}</b><span>เกินกำหนดสัญญา</span></div>
+      </div>
+
+      <div class="rpx-cols">
+        <div class="rpx-charts">
+          <div class="rpx-chart">
+            <h4>สถานะโครงการ</h4>
+            <div class="rpx-stack" role="img" aria-label="สถานะโครงการ ${segs.map((x) => `${x.s} ${x.c}`).join(', ')}">
+              ${segs.map((x) => `<span class="s${x.i + 1}" style="flex:${x.c}" title="${esc(x.s)} ${x.c} โครงการ">${
+                x.c / n >= 0.08 ? x.c : ''}</span>`).join('')}
+              ${stOther ? `<span class="s0" style="flex:${stOther}" title="อื่น ๆ ${stOther}"></span>` : ''}
+            </div>
+            <div class="rpx-legend">${stCount.map((x) => `<span><i class="s${x.i + 1}"></i>${esc(x.s)} <b>${x.c}</b></span>`).join('')}${
+              stOther ? `<span><i class="s0"></i>อื่น ๆ <b>${stOther}</b></span>` : ''}</div>
+          </div>
+
+          <div class="rpx-chart">
+            <h4>ความคืบหน้าเทียบแผนและสัญญา <small>(จำนวนโครงการ)</small></h4>
+            ${buckets.map((b) => `<div class="rpx-hb" title="${esc(b.label)} ${b.c} โครงการ">
+              <span class="rpx-hl"><span class="rpx-ic ${b.k}" aria-hidden="true">${b.icon}</span>${esc(b.label)}</span>
+              <span class="rpx-track"><span class="rpx-fill ${b.k}" style="width:${n ? (b.c / n) * 100 : 0}%"></span></span>
+              <b>${b.c}</b></div>`).join('')}
+          </div>
+
+          <div class="rpx-chart">
+            <h4>ผลงานจริงเฉลี่ยเทียบแผน</h4>
+            ${rpxBar('แผน', avg('PlanProgress'), 'plan')}
+            ${rpxBar('จริง', avg('ActualProgress'), 'actual')}
+            ${rpxBar('เบิกจ่าย', avg('ActualPayment'), 'pay')}
+          </div>
+        </div>
+
+        <div class="rpx-watch">
+          <h4>⚠ โครงการที่ต้องติดตาม ${needWatch.length ? `<small>(${needWatch.length} โครงการ${
+            needWatch.length > watch.length ? ` · แสดง ${watch.length} อันดับแรก` : ''})</small>` : ''}</h4>
+          ${watch.length ? `<ol>${watch.map((p) => {
+            const h = health(p);
+            return `<li class="${overdueDays(p) ? 'overdue' : ''}">
+              <div><b>${esc(p.ProjectCode || '')}</b> ${esc(p.Title)}</div>
+              <div class="rpx-health ${h.cls}"><span aria-hidden="true">${h.icon}</span> ${esc(h.text)}${
+                overdueDays(p) && variance(p).diff < 0 ? ` · ช้ากว่าแผน ${(-variance(p).diff).toFixed(2)}%` : ''}
+                <span class="rpx-meta">· 👤 ${esc(p.Owner || '—')}</span></div>
+            </li>`;
+          }).join('')}</ol>`
+            : '<div class="rpx-allgood">✓ ไม่มีโครงการที่เกินกำหนดหรือช้ากว่าแผนเกิน 5%</div>'}
+          <div class="rpx-note">รายละเอียดรายโครงการอยู่หน้าถัดไป หน้าละ ${PER_PAGE} โครงการ
+            เรียงโครงการที่ต้องติดตามขึ้นก่อน</div>
+        </div>
+      </div>
+    </section>`;
+
+  const projectPages = pages.map((chunk, i) => `
+    <section class="rpx-page">
+      ${pageHead(i + 2, `โครงการที่ ${i * PER_PAGE + 1}–${i * PER_PAGE + chunk.length} จาก ${n}`)}
+      <div class="rpx-list">${chunk.map(projectRow).join('')}</div>
+      <div class="rpx-legend small"><span><i class="plan"></i>แผน</span><span><i class="actual"></i>ผลงานจริง</span>
+        <span><i class="pay"></i>เบิกจ่าย</span><span class="rpx-red">⚠ กรอบแดง = เกินกำหนดสัญญา</span>
+        <span>พิมพ์เมื่อ ${esc(today)}</span></div>
+    </section>`).join('');
 
   openModal({
     title: 'ส่งออกสรุปทุกโครงการ',
     wide: true,
-    body: `
-      <div class="pj-report" id="pj-report-all">
-        <div class="rp-runhead">Prime Power Group · สรุปภาพรวมความคืบหน้าโครงการ
-          <span>${esc(label)} · ${rows.length} โครงการ</span></div>
-
-        <div class="rp-head">
-          <div class="rp-brand">Prime Power Group</div>
-          <div class="rp-title">สรุปภาพรวมความคืบหน้าโครงการ</div>
-          <div class="rp-sub">ตัวกรอง: ${esc(label)} · ${rows.length} โครงการ</div>
-        </div>
-
-        <div class="rp-kpis">
-          <div><b>${rows.length}</b><span>โครงการ</span></div>
-          <div><b>${kwp.toLocaleString('th-TH')}</b><span>kWp รวม</span></div>
-          <div><b>${pct(avg('PlanProgress'))}%</b><span>ตามแผนเฉลี่ย</span></div>
-          <div><b>${pct(avg('ActualProgress'))}%</b><span>ผลงานจริงเฉลี่ย</span></div>
-          <div class="${late.length ? 'bad' : ''}"><b>${late.length}</b><span>ช้ากว่าแผน</span></div>
-        </div>
-
-        <table class="rp-grid">
-          <thead><tr>
-            <th>รหัส</th><th>ชื่อโครงการ</th><th>สถานะ</th><th>kWp</th>
-            <th>แผน %</th><th>จริง %</th><th>ต่าง</th><th>เบิกจ่าย %</th>
-            <th>ผู้รับผิดชอบ</th><th>อัปเดต</th>
-          </tr></thead>
-          <tbody>${rows.map(row).join('')}</tbody>
-        </table>
-
-        ${late.length ? `<div class="rp-late">
-          <b>โครงการที่ช้ากว่าแผน (${late.length})</b>
-          <ul>${late.sort((a, b) => variance(a).diff - variance(b).diff).map((p) =>
-            `<li>${esc(p.ProjectCode || '')} ${esc(p.Title)} — ช้ากว่าแผน ${(-variance(p).diff).toFixed(2)}%${
-              p.Detail ? ` · ${esc(p.Detail)}` : ''}</li>`).join('')}</ul>
-        </div>` : ''}
-
-        <div class="rp-foot">พิมพ์เมื่อ ${esc(thaiDateShort(new Date().toISOString()))}</div>
-      </div>`,
+    body: `<div class="pj-report rpx" id="pj-report-all">${summary}${projectPages}</div>`,
     footer: `<button class="btn-mini" id="rpa-close">ปิด</button>
              <button class="btn-mini" id="rpa-csv">⭳ ดาวน์โหลด CSV</button>
              <button class="btn btn-primary" id="rpa-print">พิมพ์ / บันทึกเป็น PDF</button>`,
