@@ -7,7 +7,7 @@ import { toArray } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
 import { hydratePhotos } from '../services/photos.js';
 import { toCsv, downloadText } from '../utils/csv.js';
-import { printWithNotice } from '../components/eta-notice.js';
+import { printWithNotice, notice } from '../components/eta-notice.js';
 
 export const meta = { route: 'projects', title: 'ความคืบหน้าโครงการ', nav: false, order: 5, adminOnly: false };
 
@@ -169,6 +169,8 @@ export async function renderDashboard() {
 
     <div class="pj-tools">
       <button class="btn-mini" id="pj-export-all">⭳ ส่งออกสรุปทุกโครงการ</button>
+      ${state.isAdmin ? `<button class="btn-mini" id="pj-reorder"
+        title="เปิดหน้าจัดการข้อมูล → โครงการ แล้วลาก ⠿ เพื่อจัดลำดับ · ลำดับที่นี่จะเปลี่ยนตามทันที">⇅ จัดลำดับโครงการ</button>` : ''}
     </div>
 
     <div class="chips">
@@ -409,7 +411,7 @@ function exportAll(rows, label) {
       <span>${esc(sub)} · หน้า ${no}/${total}</span></div>`;
 
   const summary = `
-    <section class="rpx-page">
+    <section class="rpx-page" data-label="สรุปภาพรวม (กราฟ + โครงการที่ต้องติดตาม)" data-name="สรุปภาพรวม">
       <div class="rpx-head">
         <div>
           <div class="rp-brand">Prime Power Group</div>
@@ -477,7 +479,9 @@ function exportAll(rows, label) {
     </section>`;
 
   const projectPages = pages.map((chunk, i) => `
-    <section class="rpx-page">
+    <section class="rpx-page"
+      data-label="${esc(`โครงการที่ ${i * PER_PAGE + 1}–${i * PER_PAGE + chunk.length}: ${chunk.map((p) => p.ProjectCode || p.Title).join(', ')}`)}"
+      data-name="โครงการ${i * PER_PAGE + 1}-${i * PER_PAGE + chunk.length}">
       ${pageHead(i + 2, `โครงการที่ ${i * PER_PAGE + 1}–${i * PER_PAGE + chunk.length} จาก ${n}`)}
       <div class="rpx-list">${chunk.map(projectRow).join('')}</div>
       <div class="rpx-legend small"><span><i class="plan"></i>แผน</span><span><i class="actual"></i>ผลงานจริง</span>
@@ -491,7 +495,50 @@ function exportAll(rows, label) {
     body: `<div class="pj-report rpx" id="pj-report-all">${summary}${projectPages}</div>`,
     footer: `<button class="btn-mini" id="rpa-close">ปิด</button>
              <button class="btn-mini" id="rpa-csv">⭳ ดาวน์โหลด CSV</button>
+             <button class="btn-mini" data-rpaimg="png" title="เลือกหน้าได้ · 1920×1080 พิกเซล · หลายหน้ารวมเป็น ZIP">🖼 รูป PNG (Full HD)</button>
+             <button class="btn-mini" data-rpaimg="jpg" title="เลือกหน้าได้ · 1920×1080 พิกเซล · ไฟล์เล็กกว่า PNG · หลายหน้ารวมเป็น ZIP">🖼 รูป JPG (Full HD)</button>
              <button class="btn btn-primary" id="rpa-print">พิมพ์ / บันทึกเป็น PDF</button>`,
+  });
+
+  // บันทึกเป็นรูป Full HD — เลือกหน้าได้ · 1 หน้า = รูปเดียว · หลายหน้า = ZIP ชื่อ "สรุปโครงการ_ปปปป-ดด-วว"
+  $$('[data-rpaimg]').forEach((btn) => {
+    btn.onclick = async () => {
+      const fmt = btn.dataset.rpaimg;
+      const els = $$('#pj-report-all .rpx-page');
+      const { pickPages } = await import('../components/page-picker.js');
+      const idx = await pickPages(els.map((el) => el.dataset.label || ''), { fmt: fmt.toUpperCase() });
+      if (!idx.length) return;
+      if (!(await notice(`รับทราบ · บันทึกเป็นรูป ${fmt.toUpperCase()}`))) return;
+
+      const d = new Date();
+      const iso = d.toISOString().slice(0, 10);
+      const be = `${d.getFullYear() + 543}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const pad = String(els.length).length;
+      const all = $$('[data-rpaimg]');
+      const label = btn.textContent;
+      all.forEach((b) => { b.disabled = true; });
+      try {
+        const { exportPagesAsImages } = await import('../utils/page-image.js');
+        await exportPagesAsImages(idx.map((i) => ({
+          el: els[i],
+          name: `หน้า${String(i + 1).padStart(pad, '0')}-${els[i].dataset.name || ''}`,
+        })), {
+          stageClass: 'pj-report rpx rpx-img', fmt,
+          fonts: ['400 16px "Report Sarabun"', '700 16px "Report Sarabun"'],
+          // รูปเดียวใช้ชื่ออังกฤษ (บางเบราว์เซอร์ตั้งชื่อไฟล์ภาษาไทยเป็น "download") · ZIP ตั้งชื่อตามที่ขอ
+          single: `project-summary-${iso}-p${String(idx[0] + 1).padStart(pad, '0')}`,
+          zipName: `สรุปโครงการ_${be}`,
+          onProgress: (n, total, phase) => {
+            btn.textContent = phase === 'zip' ? 'กำลังรวมเป็น ZIP…' : `กำลังสร้างรูป ${n}/${total}…`;
+          },
+        });
+      } catch (e) {
+        alert('สร้างรูปไม่สำเร็จ — ' + e.message);
+      } finally {
+        all.forEach((b) => { b.disabled = false; });
+        btn.textContent = label;
+      }
+    };
   });
 
   $('#rpa-close').onclick = () => $('#overlay-root').replaceChildren();
@@ -586,6 +633,14 @@ async function showHistory(p) {
 
 export function mountDashboard() {
   onClick('status', (x) => setState({ projectStatus: x }));
+
+  const reorder = $('#pj-reorder');
+  if (reorder) {
+    reorder.onclick = () => {
+      setState({ adminSet: 'projects', adminGroup: '' }, { silent: true });
+      location.hash = '#/admin';
+    };
+  }
 
   const exAll = $('#pj-export-all');
   if (exAll) exAll.onclick = () => exportAll(shownRows, state.projectStatus || 'ทั้งหมด');

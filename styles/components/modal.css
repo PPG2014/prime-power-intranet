@@ -57,3 +57,12 @@
 .eta-src { font-size: .9em; color: var(--dim, #6b7280); margin: 8px 0 0; }
 .eta-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
 @media print { .eta-mask { display: none !important; } }
+
+/* เลือกหน้าที่จะบันทึกเป็นรูป (components/page-picker.js) — ใช้กรอบเดียวกับ eta-notice */
+.pp-box { max-width: 560px; }
+.pp-all { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #eef4fb; border-radius: 8px; }
+.pp-list { display: grid; gap: 4px; margin-top: 8px; max-height: 46vh; overflow-y: auto; }
+.pp-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: 13.5px; }
+.pp-item:hover { background: #f5f8fc; }
+.pp-item input, .pp-all input { margin-top: 3px; width: 16px; height: 16px; }
+.pp-hint { margin: 10px 0 0; font-size: 12px; color: var(--dim, #6b7280); }

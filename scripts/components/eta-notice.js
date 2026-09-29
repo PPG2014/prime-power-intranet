@@ -7,7 +7,8 @@
  */
 const ETDA_URL = 'https://www.etda.or.th';
 
-function notice() {
+/** แสดงข้อความแจ้ง คืน true เมื่อกดรับทราบ · okLabel = ข้อความบนปุ่มยืนยัน */
+export function notice(okLabel = 'รับทราบ · พิมพ์ / บันทึกเป็น PDF') {
   return new Promise((resolve) => {
     const layer = document.createElement('div');
     layer.className = 'eta-mask';
@@ -30,7 +31,7 @@ function notice() {
         </div>
         <div class="eta-foot">
           <button type="button" class="btn-mini" data-eta="0">ยกเลิก</button>
-          <button type="button" class="btn btn-primary" data-eta="1">รับทราบ · พิมพ์ / บันทึกเป็น PDF</button>
+          <button type="button" class="btn btn-primary" data-eta="1">${okLabel}</button>
         </div>
       </div>`;
     const done = (ok) => {
