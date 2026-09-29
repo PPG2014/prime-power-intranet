@@ -274,7 +274,39 @@ export function openPerson(p, back) {
 
   hydratePhotos($('#overlay-root'));
   bindCopyButtons($('#overlay-root'));
+  bindPhotoZoom($('#overlay-root .pv-photo'));
   if (back) $('#pv-back').onclick = back;
+}
+
+/**
+ * ชี้เมาส์ที่รูปในหน้าต่างข้อมูลบุคคล → แสดงรูปขยายใหญ่กลางจอ เอาเมาส์ออกแล้วหายไป
+ * บนมือถือ/แท็บเล็ต (ไม่มีเมาส์) แตะรูปเพื่อเปิด แตะอีกครั้งเพื่อปิด
+ * วางไว้ที่ body เพราะในหน้าต่างมีกรอบที่ตัดส่วนเกิน รูปขยายในกรอบจะถูกตัด
+ */
+function bindPhotoZoom(box) {
+  const img = box && box.querySelector('img');
+  if (!img) return;
+  const show = () => {
+    if (!img.currentSrc || document.getElementById('photo-zoom')) return;
+    const z = document.createElement('div');
+    z.id = 'photo-zoom';
+    z.className = 'photo-zoom';
+    z.innerHTML = `<img src="${esc(img.currentSrc)}" alt="${esc(img.alt)}">`;
+    z.onclick = hide;
+    document.body.appendChild(z);
+  };
+  const hide = () => { const z = document.getElementById('photo-zoom'); if (z) z.remove(); };
+  box.classList.add('zoomable');
+  box.addEventListener('mouseenter', show);
+  box.addEventListener('mouseleave', hide);
+  // จอสัมผัสไม่มีการชี้ ใช้แตะแทน (จอที่มีเมาส์ไม่ผูก ไม่งั้นคลิกแล้วรูปที่ขยายอยู่จะหาย)
+  if (matchMedia('(hover: none)').matches) {
+    box.addEventListener('click', () => (document.getElementById('photo-zoom') ? hide() : show()));
+  }
+  // ปิดหน้าต่างข้อมูลแล้ว รูปขยายต้องไม่ค้าง
+  new MutationObserver((_, obs) => {
+    if (!document.body.contains(box)) { hide(); obs.disconnect(); }
+  }).observe(document.getElementById('overlay-root'), { childList: true });
 }
 
 export function mount(ctx) {

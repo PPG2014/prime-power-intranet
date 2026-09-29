@@ -30,3 +30,30 @@
 .panel-head button.panel-link:hover { background: none; border: 0; padding: 0; cursor: pointer; }
 .panel-head button.panel-link { color: #9ecbf0; }
 .panel-head button.panel-link:hover { color: #fff; }
+
+/* ข้อมูลติดต่อและโซเชียลของบริษัท (components/company-social.js) — หน้าติดต่อ + แถบข้างหน้าแรก */
+.contact-side { display: flex; flex-direction: column; gap: var(--gap); }
+.contact-side > .panel { margin: 0; }
+.cs-body { padding: 14px 16px 16px; }
+.cs-name { font-weight: 700; color: var(--navy); font-size: 15.5px; line-height: 1.4; }
+.cs-en { font-size: 12px; font-weight: 700; color: var(--navy); letter-spacing: .02em; margin-bottom: 10px; }
+.cs-links { display: grid; gap: 8px; margin-top: 8px; }
+.cs-item {
+  display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px;
+  border-radius: 999px; background: #f4f6f8; color: var(--navy); text-decoration: none;
+  transition: background .15s, transform .15s;
+}
+a.cs-item:hover { background: #e3eaf2; transform: translateX(2px); }
+.cs-item span:last-child { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.cs-item b { font-size: 13px; }
+.cs-item small { font-size: 12px; color: #4a5b6e; overflow-wrap: anywhere; }
+.cs-ico {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, #1fae5b 0%, #0b6ab0 100%);
+}
+.cs-ico svg { width: 20px; height: 20px; fill: #fff; }
+.cs-addr { border-radius: 14px; align-items: flex-start; }
+.cs-compact .cs-body { padding: 12px; }
+.cs-compact .cs-name { font-size: 14px; }
+.cs-compact .cs-ico { width: 32px; height: 32px; }
+.cs-compact .cs-ico svg { width: 17px; height: 17px; }

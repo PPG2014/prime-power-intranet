@@ -5,6 +5,7 @@ import { openModal } from '../components/modal.js';
 import { toFiles } from '../admin/entity-form.js';
 import { renderDashboard, mountDashboard } from './projects.page.js';
 import { attachedFiles } from '../components/form-renderer.js';
+import { companySocial } from '../components/company-social.js';
 
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
@@ -107,6 +108,8 @@ export async function render(ctx) {
               </li>`).join('')}</ul>`
               : '<div class="side-empty">วันนี้ยังไม่มีการจองคิว</div>'}
           </div>
+
+          ${companySocial({ compact: true })}
 
         </aside>
 

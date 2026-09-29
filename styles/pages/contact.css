@@ -35,3 +35,10 @@
   font-size: 14px; line-height: 1.8; color: var(--muted); }
 .feedback-done b { display: block; color: var(--green-dark); font-size: 15px; margin-bottom: 4px; }
 .feedback-done .btn-mini { margin-top: 12px; }
+
+/* อีเมลของหน่วยงาน (Departments.Emails) — บรรทัดใต้ชื่อฝ่าย */
+.ext-list li { flex-wrap: wrap; }
+.ext-mails { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 32px; margin-top: 2px; }
+.ext-mail { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.ext-mail a { color: var(--blue); overflow-wrap: anywhere; }
+.ext-mail a:hover { text-decoration: underline; }
