@@ -146,3 +146,16 @@
 }
 .copy-btn:hover { border-color: var(--blue); background: #eef4fb; }
 .copy-btn.done { border-color: var(--green, #1e7f4f); color: var(--green, #1e7f4f); background: #e9f7ef; }
+
+/* รูปขยายเมื่อชี้ที่รูปในหน้าต่างข้อมูลบุคคล (bindPhotoZoom) — ไม่รับเมาส์ รูปเล็กจึงยังถูกชี้อยู่ */
+.pv-photo.zoomable { cursor: zoom-in; }
+.photo-zoom {
+  position: fixed; inset: 0; z-index: 95; display: grid; place-items: center;
+  background: rgba(0, 20, 40, .45); pointer-events: none; animation: pz-in .15s ease-out;
+}
+.photo-zoom img {
+  max-width: min(92vw, 720px); max-height: 88vh; width: auto; height: auto; object-fit: contain;
+  border-radius: 14px; background: #fff; box-shadow: 0 16px 50px rgba(0, 0, 0, .45);
+}
+@media (hover: none) { .photo-zoom { pointer-events: auto; } }
+@keyframes pz-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
