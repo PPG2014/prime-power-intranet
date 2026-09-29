@@ -1,5 +1,6 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { openModal } from '../components/modal.js';
+import { copyButton, bindCopyButtons } from '../utils/clipboard.js';
 import { hydratePhotos } from '../services/photos.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
@@ -72,7 +73,8 @@ const card = (p, cls = '') => `
       ${toArray(p.Oversees).length > 1
         ? `<div class="oversee-tag" title="${esc(toArray(p.Oversees).join(' · '))}"
             >ดูแล ${toArray(p.Oversees).length} ฝ่าย</div>` : ''}
-      ${p.Email ? `<a class="staff-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>` : ''}
+      ${p.Email ? `<div class="mail-line"><a class="staff-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
+        ${copyButton(p.Email, '')}</div>` : ''}
       <div class="staff-ext">โทรภายใน <b>${p.Extension ? esc(p.Extension) : '—'}</b></div>
     </div>
   </article>`;
@@ -257,7 +259,8 @@ export function openPerson(p, back) {
             ${row('โทรภายใน', p.Extension)}
           </div>
 
-          ${p.Email ? `<a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>` : ''}
+          ${p.Email ? `<div class="mail-line pv-mailline"><a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
+            ${copyButton(p.Email, 'คัดลอกอีเมล')}</div>` : ''}
 
           ${oversees.length ? `<div class="pv-block"><h4>ดูแลฝ่าย</h4>
             <ul>${oversees.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
@@ -270,11 +273,13 @@ export function openPerson(p, back) {
   });
 
   hydratePhotos($('#overlay-root'));
+  bindCopyButtons($('#overlay-root'));
   if (back) $('#pv-back').onclick = back;
 }
 
 export function mount(ctx) {
   hydratePhotos($('#app'));
+  bindCopyButtons($('#app'));
   const show = (id) => {
     const p = people.find((x) => String(x.id) === String(id));
     if (p) openPerson(p);
@@ -283,7 +288,7 @@ export function mount(ctx) {
   $$('[data-person]').forEach((el) => {
     el.onclick = (ev) => {
       // กดที่ลิงก์อีเมลให้เปิดโปรแกรมส่งเมลตามปกติ ไม่ต้องเปิดหน้าต่างข้อมูล
-      if (ev.target.closest('a')) return;
+      if (ev.target.closest('a, [data-copy]')) return;
       show(el.dataset.person);
     };
     el.onkeydown = (ev) => {

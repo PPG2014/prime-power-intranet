@@ -6,6 +6,9 @@
   overflow: hidden; box-shadow: var(--shadow-lg); box-sizing: border-box; }
 .modal * { box-sizing: border-box; }
 .modal-wide { max-width: 860px; }
+/* จัดหน้าต่างไว้กลางจอทั้งแนวตั้งและแนวนอน — margin auto ใน flex จัดกลางเมื่อที่พอ
+   และไม่ตัดหัวหน้าต่างทิ้งเมื่อหน้าต่างสูงกว่าจอ (ต่างจาก align-items: center) */
+.mask > .modal { margin: auto 0; }
 /* ฟอร์มที่ช่องเยอะต้องเลื่อนในตัวเอง ไม่ใช่ให้เนื้อหาล้นออกนอกกรอบ */
 .modal-body { max-height: calc(100vh - 220px); overflow-y: auto; }
 .modal-head { background: var(--navy); color: #fff; padding: 16px 22px; font-weight: 600; font-size: 16px;
