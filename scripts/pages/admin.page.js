@@ -173,11 +173,13 @@ export async function render(ctx) {
             <thead><tr>${s.sortField ? '<th class="col-no">ลำดับ</th>' : ''}
               ${s.columns.map((c) => `<th data-col="${c}">${esc(s.labels[c] || c)}</th>`).join('')}
               <th class="col-actions"></th></tr></thead>
-            <tbody id="admin-tbody">${rows.length ? rows.map((r, i) => `<tr data-id="${r.id}" data-search="${esc(
+            <tbody id="admin-tbody">${rows.length ? rows.map((r, i) => `<tr data-id="${r.id}"${r.IsActive === false ? ' class="row-off"' : ''} data-search="${esc(
               s.columns.concat(s.facets || []).map((c) => (r[c] == null ? '' : (typeof r[c] === 'object' ? '' : r[c]))).join(' ').toLowerCase())
             }"${(s.facets || []).map((f) => ` data-f-${f}="${esc(String(r[f] ?? '').trim())}"`).join('')}>
-              ${s.sortField ? `<td class="col-no"><button class="no-edit" data-pos="${r.id}"
-                title="คลิกแล้วพิมพ์ลำดับใหม่ กด Enter">${i + 1}</button></td>` : ''}
+              ${s.sortField ? `<td class="col-no"><span class="drag-handle" draggable="true" data-drag="${r.id}"
+                title="กดค้างแล้วลากขึ้น-ลงเพื่อย้ายลำดับ" aria-label="ลากเพื่อย้าย">⠿</span><button class="no-edit" data-pos="${r.id}"
+                title="คลิกแล้วพิมพ์ลำดับใหม่ กด Enter">${i + 1}</button>${r.IsActive === false
+                  ? '<div class="off-tag" title="ปิดใช้งานอยู่ ไม่แสดงบนหน้าเว็บ">ซ่อนอยู่</div>' : ''}</td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img data-photo="${esc(r[c])}" alt="">` : '—'}</td>`
                 : `<td data-col="${c}">${esc(
@@ -205,7 +207,7 @@ export async function render(ctx) {
           </table></div>
           <div class="panel-note">
             ${s.hint ? esc(s.hint) + '<br>' : ''}
-            ${s.sortField ? 'กดปุ่ม ↑ ↓ เพื่อจัดลำดับใหม่ ผลจะเปลี่ยนทันทีทุกหน้าที่แสดงข้อมูลชุดนี้<br>' : ''}
+            ${s.sortField ? 'จัดลำดับ: <b>ลาก ⠿</b> ขึ้น-ลง · กด ↑ ↓ · หรือคลิกเลขลำดับแล้วพิมพ์ — ผลเปลี่ยนทันทีทุกหน้าที่แสดงข้อมูลชุดนี้ (รายการที่ "ซ่อนอยู่" จะไม่แสดงบนหน้าเว็บ)<br>' : ''}
             ข้อมูลชุดนี้เก็บใน SharePoint List <b>${esc(s.spName || s.list)}</b> ·
             แก้ที่นี่หรือแก้ใน SharePoint โดยตรงก็ได้ ผลลัพธ์เหมือนกัน
           </div>
@@ -509,6 +511,47 @@ export function mount(ctx) {
   };
   onClick('up', (id) => move(id, -1));
   onClick('down', (id) => move(id, 1));
+
+  /* ลากจับ ⠿ ขึ้น-ลงเพื่อย้ายลำดับ — ปล่อยแล้วบันทึกลำดับใหม่ทันที (ใช้ moveTo ตัวเดียวกับปุ่ม ↑ ↓) */
+  const tbody = $('#admin-tbody');
+  if (f && tbody) {
+    let dragId = null;
+    const clearMarks = () => $$('#admin-tbody tr.drop-before, #admin-tbody tr.drop-after')
+      .forEach((tr) => tr.classList.remove('drop-before', 'drop-after'));
+    $$('[data-drag]').forEach((h) => {
+      h.ondragstart = (e) => {
+        dragId = h.dataset.drag;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragId);
+        const tr = h.closest('tr');
+        tr.classList.add('dragging');
+        try { e.dataTransfer.setDragImage(tr, 20, 20); } catch (err) { /* บางเบราว์เซอร์ไม่รองรับ */ }
+      };
+      h.ondragend = () => { dragId = null; clearMarks(); $$('#admin-tbody tr.dragging').forEach((tr) => tr.classList.remove('dragging')); };
+    });
+    tbody.ondragover = (e) => {
+      const tr = e.target.closest('tr[data-id]');
+      if (!dragId || !tr) return;
+      e.preventDefault();
+      const r = tr.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      clearMarks();
+      if (tr.dataset.id !== dragId) tr.classList.add(after ? 'drop-after' : 'drop-before');
+    };
+    tbody.ondragleave = (e) => { if (!tbody.contains(e.relatedTarget)) clearMarks(); };
+    tbody.ondrop = (e) => {
+      e.preventDefault();
+      const tr = e.target.closest('tr[data-id]');
+      const id = dragId;
+      clearMarks();
+      if (!id || !tr || tr.dataset.id === id) return;
+      const vis = visibleIds().filter((x) => x !== id);          // ลำดับบนจอโดยไม่นับแถวที่ลาก
+      const r = tr.getBoundingClientRect();
+      let at = vis.indexOf(tr.dataset.id) + (e.clientY > r.top + r.height / 2 ? 1 : 0);
+      tr.closest('tbody').style.opacity = '.6';                  // บอกว่ากำลังบันทึก
+      moveTo(id, at + 1);
+    };
+  }
 
   // คลิกเลขลำดับ → พิมพ์ตำแหน่งใหม่
   onClick('pos', (id, el) => {

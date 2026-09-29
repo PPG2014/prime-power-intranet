@@ -3,26 +3,29 @@
  *
  * ใช้ html2canvas (เก็บไว้ใน assets/vendor ไม่ดึงจาก CDN เพราะ CSP อนุญาตสคริปต์จากเว็บนี้เท่านั้น)
  * วิธี: คัดลอกหน้าไปวางในกรอบขนาด 1280×720 (สัดส่วน 16:9) แล้ววาดด้วย scale 1.5 → ได้ 1920×1080 พอดี
- * อัปเดตไลบรารี: npm pack html2canvas แล้วคัดลอก dist/html2canvas.min.js มาทับ
+ * เลือก 1 หน้า = ดาวน์โหลดรูปเดียว · หลายหน้า = รวมเป็น ZIP (JSZip) มีโฟลเดอร์ชื่อ zipName อยู่ข้างใน
+ * อัปเดตไลบรารี: npm pack html2canvas / jszip แล้วคัดลอกไฟล์ใน dist/ มาทับใน assets/vendor
  */
 const LIB = 'assets/vendor/html2canvas.min.js';
+const ZIP_LIB = 'assets/vendor/jszip.min.js';
 export const IMG_W = 1920;
 export const IMG_H = 1080;
 const SCALE = 1.5;                     // 1280×720 × 1.5 = 1920×1080
 
-let loading = null;
-function loadLib() {
-  if (window.html2canvas) return Promise.resolve(window.html2canvas);
-  if (!loading) {
-    loading = new Promise((ok, fail) => {
+const loading = {};
+/** โหลดสคริปต์จาก assets/vendor ครั้งเดียว แล้วคืนตัวแปร global ที่สคริปต์สร้าง */
+function loadScript(src, globalName) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  if (!loading[src]) {
+    loading[src] = new Promise((ok, fail) => {
       const s = document.createElement('script');
-      s.src = LIB;
-      s.onload = () => (window.html2canvas ? ok(window.html2canvas) : fail(new Error('โหลดตัวสร้างรูปไม่สำเร็จ')));
-      s.onerror = () => { loading = null; fail(new Error('โหลดไฟล์ ' + LIB + ' ไม่สำเร็จ')); };
+      s.src = src;
+      s.onload = () => (window[globalName] ? ok(window[globalName]) : fail(new Error('โหลด ' + src + ' แล้วใช้งานไม่ได้')));
+      s.onerror = () => { delete loading[src]; fail(new Error('โหลดไฟล์ ' + src + ' ไม่สำเร็จ')); };
       document.head.appendChild(s);
     });
   }
-  return loading;
+  return loading[src];
 }
 
 function save(blob, name) {
@@ -37,16 +40,20 @@ function save(blob, name) {
 }
 
 /**
- * pages     = element ของแต่ละหน้า (คัดลอกไปวาด ไม่แตะของเดิม)
+ * pages      = [{ el, name }] หน้าที่จะวาด — el คือ element ของหน้า (คัดลอกไปวาด ไม่แตะของเดิม)
+ *              name คือชื่อไฟล์ของหน้านั้นใน ZIP (ไม่รวมนามสกุล)
  * stageClass = คลาสของกรอบวาด ใช้จัดหน้าตาเฉพาะตอนเป็นรูป (ตัวแปรสี/ฟอนต์ของรายงานต้องอยู่ในนี้)
- * fmt       = 'png' | 'jpg' · baseName = ชื่อไฟล์ (ไม่รวมเลขหน้าและนามสกุล)
- * fonts     = ฟอนต์ที่ต้องโหลดก่อนวาด เช่น ['400 16px "Report Sarabun"']
- * onProgress(done, total)
+ * fmt        = 'png' | 'jpg'
+ * single     = ชื่อไฟล์เมื่อได้รูปเดียว (ไม่รวมนามสกุล)
+ * zipName    = ชื่อไฟล์ ZIP และชื่อโฟลเดอร์ข้างใน เมื่อได้หลายรูป
+ * fonts      = ฟอนต์ที่ต้องโหลดก่อนวาด เช่น ['400 16px "Report Sarabun"']
+ * onProgress(done, total, phase) — phase: 'draw' | 'zip'
  */
 export async function exportPagesAsImages(pages, {
-  stageClass, fmt = 'png', baseName = 'report', fonts = [], onProgress = () => {},
+  stageClass, fmt = 'png', single = 'report', zipName = 'report', fonts = [], onProgress = () => {},
 }) {
-  const html2canvas = await loadLib();
+  const html2canvas = await loadScript(LIB, 'html2canvas');
+  const JSZip = pages.length > 1 ? await loadScript(ZIP_LIB, 'JSZip') : null;
   // ฟอนต์ไทยต้องโหลดครบก่อนวาด ไม่งั้นรูปจะใช้ฟอนต์สำรองและตำแหน่งข้อความเพี้ยน
   if (document.fonts) {
     await Promise.all(fonts.map((f) => document.fonts.load(f).catch(() => null)));
@@ -69,10 +76,10 @@ export async function exportPagesAsImages(pages, {
   document.head.appendChild(fix);
 
   const type = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
-  const pad = String(pages.length).length;
+  const blobs = [];
   try {
     for (let i = 0; i < pages.length; i += 1) {
-      stage.replaceChildren(pages[i].cloneNode(true));
+      stage.replaceChildren(pages[i].el.cloneNode(true));
       // eslint-disable-next-line no-await-in-loop
       const canvas = await html2canvas(stage, {
         scale: SCALE, width: IMG_W / SCALE, height: IMG_H / SCALE,
@@ -81,14 +88,22 @@ export async function exportPagesAsImages(pages, {
         backgroundColor: '#ffffff', logging: false, useCORS: true,
       });
       // eslint-disable-next-line no-await-in-loop
-      const blob = await new Promise((ok) => canvas.toBlob(ok, type, 0.95));
-      save(blob, `${baseName}-p${String(i + 1).padStart(pad, '0')}.${fmt}`);
-      onProgress(i + 1, pages.length);
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, 350));   // เว้นจังหวะ เบราว์เซอร์จะได้ไม่ตัดการดาวน์โหลดทิ้ง
+      blobs.push(await new Promise((ok) => canvas.toBlob(ok, type, 0.95)));
+      onProgress(i + 1, pages.length, 'draw');
     }
   } finally {
     stage.remove();
     fix.remove();
   }
+
+  if (blobs.length === 1) {
+    save(blobs[0], `${single}.${fmt}`);
+    return;
+  }
+  // หลายรูป: รวมเป็น ZIP ไฟล์เดียว มีโฟลเดอร์ชื่อเดียวกับไฟล์อยู่ข้างใน (แตกไฟล์แล้วได้โฟลเดอร์พร้อมใช้)
+  onProgress(blobs.length, blobs.length, 'zip');
+  const zip = new JSZip();
+  const dir = zip.folder(zipName);
+  blobs.forEach((b, i) => dir.file(`${pages[i].name}.${fmt}`, b));
+  save(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${zipName}.zip`);
 }
