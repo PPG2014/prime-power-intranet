@@ -2,6 +2,7 @@ import { esc, $ } from '../core/dom.js';
 import { list, create } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { state, setState } from '../core/state.js';
+import { companySocial } from '../components/company-social.js';
 
 export const meta = { route: 'contact', title: 'ติดต่อ', nav: true, order: 10, adminOnly: false };
 
@@ -35,6 +36,7 @@ export async function render(ctx) {
           </div>
         </div>
 
+        <div class="contact-side">
         <div class="panel panel-support">
           <div class="panel-head">🛟 ผู้ดูแลระบบ</div>
           <div class="support-body">
@@ -45,6 +47,8 @@ export async function render(ctx) {
             <div class="support-line">เวลาให้บริการ ${esc(cfg.SupportHours)}</div>
             <div class="support-note">${esc(cfg.SupportNote)}</div>
           </div>
+        </div>
+        ${companySocial()}
         </div>
       </div>
 
