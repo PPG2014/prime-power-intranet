@@ -229,3 +229,121 @@
   .rp-kpis > div { padding: 5px 8px; }
   .rp-kpis b { font-size: 1.1em; }
 }
+
+/* ═════════ รายงานสรุปทุกโครงการ (exportAll) — A4 แนวนอน: หน้าสรุปกราฟ + หน้าละ 5 โครงการ ═════════
+   สีตาม dataviz: สถานะโครงการ = ลำดับสีคงที่ (ฟ้า ส้ม เขียวน้ำทะเล เหลือง) มีตัวเลขกำกับทุกส่วน
+   ความคืบหน้า = สีสถานะ (ดี/เตือน/วิกฤต) มาพร้อมไอคอนและข้อความเสมอ ไม่ใช้สีอย่างเดียว */
+.rpx {
+  --c-plan: #9aa4b1; --c-actual: #2a78d6; --c-pay: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s0: #c9ced6;
+  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --crit-bg: #fdecec;
+  --ink: #1b2430; --ink2: #52606f; --grid: #e3e8ee;
+  color: var(--ink);
+}
+.rpx-page { border: 1px solid var(--grid); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; background: #fff; }
+.rpx-head { display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 2px solid var(--navy); padding-bottom: 10px; margin-bottom: 12px; }
+.rpx-pno { font-size: 12px; color: var(--ink2); }
+.rpx-phead { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink2);
+  border-bottom: 1px solid var(--grid); padding-bottom: 6px; margin-bottom: 10px; }
+.rpx-phead b { color: var(--navy); }
+
+.rpx-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 14px; }
+.rpx-kpis > div { border: 1px solid var(--grid); border-radius: 8px; padding: 8px 10px; }
+.rpx-kpis b { display: block; font-size: 20px; line-height: 1.2; color: var(--navy); }
+.rpx-kpis span { font-size: 11.5px; color: var(--ink2); }
+.rpx-kpis .warn { border-color: var(--warn); }
+.rpx-kpis .crit { border-color: var(--crit); background: var(--crit-bg); }
+.rpx-kpis .crit b { color: var(--crit); }
+
+.rpx-cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; align-items: start; }
+.rpx-charts { display: grid; gap: 12px; }
+.rpx-chart h4, .rpx-watch h4 { margin: 0 0 8px; font-size: 13.5px; color: var(--navy); }
+.rpx-chart h4 small, .rpx-watch h4 small { font-weight: 400; color: var(--ink2); }
+.rpx-chart { border: 1px solid var(--grid); border-radius: 8px; padding: 10px 12px; }
+
+/* แท่งเดียวแบ่งส่วน: ช่องว่าง 2px ระหว่างส่วน ปลายโค้ง 4px */
+.rpx-stack { display: flex; gap: 2px; height: 26px; border-radius: 4px; overflow: hidden; }
+.rpx-stack span { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; min-width: 3px; }
+.s1 { background: var(--s1); } .s2 { background: var(--s2); } .s3 { background: var(--s3); }
+.s4 { background: var(--s4); } .s0 { background: var(--s0); }
+.rpx-stack .s3, .rpx-stack .s4, .rpx-stack .s0 { color: #1b2430; }
+.rpx-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px; font-size: 12px; color: var(--ink2); }
+.rpx-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.rpx-legend b { color: var(--ink); }
+.rpx-legend.small { margin-top: 8px; font-size: 11px; }
+.rpx-legend i.plan { background: var(--c-plan); } .rpx-legend i.actual { background: var(--c-actual); }
+.rpx-legend i.pay { background: var(--c-pay); }
+
+/* แท่งแนวนอน: ป้าย | ราง | ค่า */
+.rpx-hb, .rpx-bar { display: grid; align-items: center; gap: 8px; margin: 5px 0; font-size: 12px; }
+.rpx-hb { grid-template-columns: 170px 1fr 34px; }
+.rpx-bar { grid-template-columns: 52px 1fr 54px; }
+.rpx-hb b, .rpx-bar b { text-align: right; font-variant-numeric: tabular-nums; }
+.rpx-track { height: 10px; background: #eef1f5; border-radius: 4px; overflow: hidden; }
+.rpx-fill { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.rpx-fill.plan { background: var(--c-plan); } .rpx-fill.actual { background: var(--c-actual); }
+.rpx-fill.pay { background: var(--c-pay); }
+.rpx-fill.good { background: var(--good); } .rpx-fill.warn { background: var(--warn); } .rpx-fill.crit { background: var(--crit); }
+.rpx-hl { display: flex; align-items: center; gap: 6px; }
+.rpx-ic { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  font-size: 10px; color: #fff; flex: none; }
+.rpx-ic.good { background: var(--good); } .rpx-ic.warn { background: var(--warn); color: #1b2430; } .rpx-ic.crit { background: var(--crit); }
+
+.rpx-health { font-size: 12px; font-weight: 700; margin-top: 3px; }
+.rpx-health.good { color: #0a7a0a; } .rpx-health.warn { color: #9a6700; } .rpx-health.crit { color: var(--crit); }
+.rpx-red { color: var(--crit) !important; font-weight: 700; }
+
+.rpx-watch { border: 1px solid var(--grid); border-radius: 8px; padding: 10px 12px; }
+.rpx-watch ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.rpx-watch li { font-size: 12.5px; padding: 5px 8px; border-radius: 6px; background: #f7f9fb; }
+.rpx-watch li.overdue { background: var(--crit-bg); border-left: 4px solid var(--crit); }
+.rpx-allgood { color: #0a7a0a; font-weight: 600; font-size: 13px; padding: 10px 0; }
+.rpx-note { margin-top: 10px; font-size: 11px; color: var(--ink2); }
+.rpx-meta { font-size: 11.5px; color: var(--ink2); }
+
+/* หน้าโครงการ: 5 แถวต่อหน้า */
+.rpx-list { display: grid; gap: 8px; }
+.rpx-proj { position: relative; display: grid; grid-template-columns: 1.1fr 1.2fr 1fr; gap: 14px;
+  border: 1px solid var(--grid); border-left: 4px solid var(--c-actual); border-radius: 8px; padding: 9px 12px; }
+.rpx-proj.overdue { border: 2px solid var(--crit); border-left-width: 6px; background: var(--crit-bg); }
+.rpx-ribbon { position: absolute; top: -1px; right: -1px; background: var(--crit); color: #fff;
+  font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 0 7px 0 8px; }
+.rpx-code { font-size: 11.5px; font-weight: 700; color: var(--ink2); display: flex; gap: 8px; align-items: center; }
+.rpx-st { font-weight: 600; font-size: 10.5px; padding: 1px 8px; border-radius: 999px; background: #eef2f7; color: var(--navy); }
+.rpx-name { font-size: 15px; font-weight: 700; color: var(--navy); margin: 1px 0 3px; line-height: 1.3; }
+.rpx-detail { font-size: 12px; border-left: 1px dashed var(--grid); padding-left: 12px; min-width: 0; }
+.rpx-dh { font-size: 11px; font-weight: 700; color: var(--ink2); }
+.rpx-dt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+.rpx-upd { font-size: 10.5px; color: var(--ink2); margin-top: 3px; }
+.rpx-proj.overdue .rpx-detail { padding-right: 4px; padding-top: 18px; }   /* เว้นที่ให้ป้ายแดงมุมขวาบน */
+
+@media (max-width: 720px) {
+  .rpx-kpis { grid-template-columns: repeat(3, 1fr); }
+  .rpx-cols, .rpx-proj { grid-template-columns: 1fr; }
+}
+
+/* หน้ากระดาษตั้งชื่อเฉพาะ — สไตล์พิมพ์ของหน้าอื่น (เช่น requests.css ตั้ง A4 แนวตั้ง) จะมาทับไม่ได้ */
+@page rpxland { size: A4 landscape; margin: 10mm; }
+@media print {
+  /* ทั้งงานพิมพ์ใช้หน้ากระดาษเดียวกัน ไม่งั้นส่วนท้ายเอกสารจะกลายเป็นหน้าเปล่าแนวตั้งอีกแผ่น
+     (ใช้กับรายงานโครงการเดี่ยวด้วย ซึ่งเดิมก็โดน A4 แนวตั้งของ requests.css ทับเช่นกัน) */
+  body.printing-report { page: rpxland; }
+  body.printing-report .rpx { padding-top: 0 !important; font-size: 9pt; }
+  .rpx, .rpx * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rpx-page { border: 0; border-radius: 0; padding: 0; margin: 0; break-after: page; page-break-after: always; }
+  .rpx-page:last-child { break-after: auto; page-break-after: auto; }
+  .rpx-proj { height: 31mm; overflow: hidden; padding: 2.2mm 3mm; break-inside: avoid; }
+  .rpx-list { gap: 2mm; }
+  .rpx-kpis b { font-size: 15pt; }
+  .rpx-name { font-size: 11.5pt; }
+}
+@media print {
+  .rpx-watch li { padding: 1.4mm 2.5mm; font-size: 9pt; }
+  .rpx-watch ol { gap: 1.5mm; }
+  .rpx-chart { padding: 2.5mm 3mm; }
+  .rpx-charts { gap: 3mm; }
+  .rpx-kpis { margin-bottom: 4mm; }
+  .rpx-head { padding-bottom: 2.5mm; margin-bottom: 3.5mm; }
+}
+@media print { .rpx-proj.overdue .rpx-detail { padding-top: 4.5mm; } .rpx-proj.overdue .rpx-dt { -webkit-line-clamp: 2; } }

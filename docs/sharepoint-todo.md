@@ -262,4 +262,8 @@
 **สิทธิ์ที่แนะนำ** (Stop inheriting permissions ที่ List นี้) — ให้เขียนได้แต่แก้หรือลบบันทึกไม่ได้
 1. Site settings → Site permissions → Permission Levels → **Add a Permission Level** ชื่อ `Add only`
    ติ๊กเฉพาะ **Add Items**, **View Items**, **Open** (ไม่ติ๊ก Edit Items / Delete Items)
-2. ที่ List AuditLog ให้พนักงานทุกคน = `Add only` · ผู้ดูแลระบบ = Read (หรือ Full Control เฉพาะคนที่ต้องล้างบันทึก)
+   (วิธีง่ายสุด: เปิดระดับ **Read** → Copy Permission Level → ติ๊ก **Add Items** เพิ่ม · ต้องคง **Use Remote Interfaces** ไว้ ไม่งั้นเว็บเขียนไม่ได้)
+2. ที่ List AuditLog → Permissions for this list → **Stop Inheriting Permissions**
+   → ลบกลุ่ม Members / Visitors ที่ติดมา → Grant ให้พนักงานทุกคน = `Add only` · ผู้ดูแลระบบอยู่ในกลุ่ม Owners (Full Control)
+3. (แนะนำ) List settings → Advanced settings → Item-level Permissions → Read access = **Read items that were created by the user**
+   พนักงานจะเห็นแค่บันทึกของตัวเอง ส่วน Owners / Full Control ยังเห็นทั้งหมด (สิทธิ์ Read อย่างเดียวจะเห็นแค่ของตัวเอง)
