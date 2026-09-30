@@ -310,7 +310,7 @@ export const SCHEMA = {
   },
 
   announcements: {
-    title: 'ประกาศเด้งหน้าแรก', icon: '🔔', list: 'announcements', spName: 'Announcements', sortField: 'SortOrder',
+    title: 'ประกาศ Popup หน้าแรก', icon: '🔔', list: 'announcements', spName: 'Announcements', sortField: 'SortOrder',
     search: true, facets: ['AnnounceType', 'Department'], dateDesc: 'PublishDate',
     columns: ['Title', 'AnnounceType', 'Department', 'PublishDate'],
     labels: { Title: 'หัวข้อ', AnnounceType: 'รูปแบบ', Department: 'ฝ่าย', PublishDate: 'วันที่' },
