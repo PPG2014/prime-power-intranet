@@ -305,6 +305,7 @@ async function downloadBlankForm(form, fields) {
   const html = renderFormDoc({
     form, fields, values,
     requester: { name: (me && me.Title) || state.user?.name || '', sig },
+    empCode: (me && me.EmployeeCode) || values.std_emp_code || '',
     approvals: steps.map((st) => ({ role: st.StepName || `ผู้อนุมัติลำดับ ${st.StepOrder}` })),
   });
 

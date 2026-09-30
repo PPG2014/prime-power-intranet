@@ -654,6 +654,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   const docHtml = () => renderFormDoc({
     form: { ...formRow, Title: formRow.Title || req.FormName }, fields, values: data,
     docNo: req.Title, submitted: req.SubmittedDate, requester: requester(), approvals,
+    empCode: who.EmployeeCode || data.std_emp_code || '',
   });
 
   const win = document.getElementById('overlay-root');
