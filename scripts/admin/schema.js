@@ -368,7 +368,7 @@ export const SCHEMA = {
     hr: true,
     title: 'สร้างแบบประเมิน', icon: '🗓', list: 'appraisalCycles', spName: 'AppraisalCycles',
     sortField: 'SortOrder', unique: ['Title'],
-    hint: 'เปิดใช้ได้ครั้งละ 1 แบบประเมิน · ช่อง "ขั้นตอนที่เปิด" เป็นตัวคุมว่าตอนนี้ใครกรอกได้',
+    hint: 'เปิดพร้อมกันได้หลายแบบประเมิน (เช่น ทดลองงานครั้งที่ 1 และ 2 ของคนละคน) · ผู้ประเมินเห็นทุกรอบที่เปิดอยู่ · ช่อง "ขั้นตอนที่เปิด" คุมว่าแต่ละรอบตอนนี้ใครกรอกได้',
     columns: ['Title', 'FormSet', 'Round', 'RoundDate', 'Status', 'Stage', 'Scope', 'StartDate', 'EndDate'],
     labels: { Title: 'ชื่อแบบประเมิน', FormSet: 'ชุดแบบประเมิน', Round: 'ครั้งที่', RoundDate: 'วันที่ประเมิน', Status: 'สถานะ', Stage: 'ขั้นตอนที่เปิด',
               Scope: 'ผู้ถูกประเมิน', StartDate: 'เริ่ม', EndDate: 'สิ้นสุด' },
