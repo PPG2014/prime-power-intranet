@@ -230,3 +230,18 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .ar-auto { margin-top: 8px; font-size: 12.5px; }
 .ar-none { padding: 14px; color: var(--dim); font-size: 13px; }
 @media (max-width: 720px) { .ar-row { grid-template-columns: 1fr; } }
+
+/* เลือกหลายรายการแบบพิมพ์ค้นหา (multilookup chips) */
+.chip-pick { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #fff; }
+.chip-sel { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chip-pick .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: #e6f0fb; color: var(--navy); font-size: 13px; font-weight: 600; }
+.chip-pick .chip button { width: 20px; height: 20px; border-radius: 50%; line-height: 1; font-size: 15px; color: var(--navy); }
+.chip-pick .chip button:hover { background: #cfe0f5; }
+.chip-none { font-size: 12.5px; color: var(--dim); }
+.chip-q { width: 100%; box-sizing: border-box; }
+
+/* คำแนะนำผู้บังคับบัญชา (components/manager-suggest.js) */
+.mgr-hint { margin-top: 6px; font-size: 12.5px; color: var(--navy); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mgr-hint:empty { display: none; }
+.check-list[hidden] { display: none !important; }   /* ช่องติ๊กจริงของ chips ซ่อนไว้ใช้บันทึกอย่างเดียว */

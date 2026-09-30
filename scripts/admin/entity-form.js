@@ -144,10 +144,17 @@ export async function formBody(schema, record = {}) {
       const opts = await optionsFor({ ...f, type: 'lookup', allowEmpty: false },
         f.dependsOn ? record[f.dependsOn] : undefined);
       const chosen = toArray(v);
-      input = `${f.searchable
+      // chips: ช่องพิมพ์ค้นหา + ป้ายรายการที่เลือก แทนรายการติ๊กยาว ๆ
+      // ช่องติ๊กจริงยังอยู่แต่ซ่อนไว้ การบันทึก (collect) จึงทำงานเหมือนเดิมทุกอย่าง
+      const chipUi = f.chips ? `<div class="chip-pick" data-chips="${id}">
+          <div class="chip-sel"></div>
+          <input class="chip-q" list="${id}_dl" placeholder="${esc(f.placeholder || 'พิมพ์ค้นหาแล้วเลือก (เลือกได้หลายรายการ)')}" autocomplete="off">
+          <datalist id="${id}_dl">${opts.map((o) => `<option value="${esc(o.label)}"></option>`).join('')}</datalist>
+        </div>` : '';
+      input = `${chipUi}${f.searchable && !f.chips
         ? `<input class="check-filter" data-filter="${id}"
              placeholder="พิมพ์เพื่อกรองรายชื่อ" autocomplete="off">` : ''}
-        <div class="check-list" id="${id}">
+        <div class="check-list" id="${id}"${f.chips ? ' hidden' : ''}>
         ${opts.length ? opts.map((o) => `<label class="check-item">
           <input type="checkbox" value="${esc(o.value)}"
             ${chosen.includes(o.value) ? 'checked' : ''}>
@@ -397,6 +404,43 @@ export function bindFilters(schema) {
         item.hidden = q ? !item.textContent.toLowerCase().includes(q) : false;
       });
     };
+  });
+}
+
+/** ช่องเลือกหลายรายการแบบพิมพ์ค้นหา (multilookup ที่ตั้ง chips: true) */
+export function bindChipPickers() {
+  $$('[data-chips]').forEach((box) => {
+    const listEl = $('#' + box.dataset.chips);
+    if (!listEl) return;
+    const sel = box.querySelector('.chip-sel');
+    const q = box.querySelector('.chip-q');
+    const items = () => [...listEl.querySelectorAll('.check-item')];
+    const labelOf = (it) => it.querySelector('span').textContent.trim();
+    const paint = () => {
+      const on = items().filter((it) => it.querySelector('input').checked);
+      sel.innerHTML = on.length ? on.map((it) => `<span class="chip">${esc(labelOf(it))}
+          <button type="button" data-unchip="${esc(it.querySelector('input').value)}" aria-label="เอาออก">×</button></span>`).join('')
+        : '<span class="chip-none">ยังไม่ได้เลือก</span>';
+      sel.querySelectorAll('[data-unchip]').forEach((b) => {
+        b.onclick = () => {
+          const c = items().map((it) => it.querySelector('input')).find((x) => x.value === b.dataset.unchip);
+          if (c) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }
+          paint();
+        };
+      });
+    };
+    const pick = () => {
+      const v = q.value.trim();
+      const it = items().find((x) => labelOf(x) === v || x.querySelector('input').value === v);
+      if (!it) return;
+      const c = it.querySelector('input');
+      if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }
+      q.value = '';
+      paint();
+    };
+    q.addEventListener('change', pick);
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); pick(); } });
+    paint();
   });
 }
 
