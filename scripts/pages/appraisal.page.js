@@ -613,6 +613,18 @@ async function openSheet(row, rerender) {
       </div>
 
       ${statusTrack(row)}
+      ${isEmpTurn ? `<div class="panel ap-empack" id="ap-empack">
+        <div class="panel-head">✍ ลงนามรับทราบผลการประเมิน</div>
+        <p>คะแนน <b>${fix(row.FinalScore || row.MgrScore)}</b> · เกรด <b>${esc(row.Grade
+          || gradeOf(+row.FinalScore || +row.MgrScore || 0, scheme)[1])}</b>
+          ${row.HeadComment ? `<br>ความเห็นผู้บริหาร: ${esc(row.HeadComment)}` : ''}</p>
+        <p class="dim">อ่านผลการประเมินด้านล่างได้ แล้วลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"
+          ${me && me.SignatureUrl ? '· ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นในทะเบียนบุคลากร' : ''}</p>
+        <label>ชื่อผู้ลงนาม<input type="text" id="sg-employee-name" value="${esc((me && me.Title) || state.user?.name || '')}"></label>
+        <label>ความเห็นของฉัน (ถ้ามี)<textarea id="emp-note" rows="2"></textarea></label>
+        ${signaturePad('employee', (me && me.SignatureUrl) || '', true)}
+        <div class="ap-actions"><button class="btn btn-primary" id="ap-emp-ack2">✓ ลงนามรับทราบ</button></div>
+      </div>` : ''}
       ${isProbation(cycle?.FormSet) ? attendanceBar(row) : ''}
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
@@ -635,8 +647,10 @@ async function openSheet(row, rerender) {
 
         <div class="ap-signs">
           ${signBlock('4.1 ผู้ประเมิน', sg.evaluator, 'evaluator', isMgrTurn)}
-          ${signBlock('ผู้ถูกประเมินรับทราบ', sg.employee, 'employee', isEmpTurn,
-    sg.employee && sg.employee.at ? `<div class="dim">ลงนามรับทราบแล้ว</div>` : '')}
+          ${isEmpTurn ? `<div class="ap-signbox"><div class="ap-signhead">ผู้ถูกประเมินรับทราบ</div>
+            <div class="dim">ลงนามได้ที่กล่อง "ลงนามรับทราบผลการประเมิน" ด้านบน</div></div>`
+    : signBlock('ผู้ถูกประเมินรับทราบ', sg.employee, 'employee', false,
+      sg.employee && sg.employee.at ? `<div class="dim">ลงนามรับทราบแล้ว</div>` : '')}
           ${signBlock('4.2 ฝ่ายทรัพยากรมนุษย์', sg.hr, 'hr', isHrTurn)}
           ${signBlock('4.3 ผู้บริหาร (ลงนามหรือไม่ก็ได้)', sg.approver, 'approver', isBossTurn, isBossTurn
     ? `<div class="ap-sum"><label><input type="radio" name="boss-ok" value="1" checked> อนุมัติ</label>
@@ -647,13 +661,6 @@ async function openSheet(row, rerender) {
       ? `<div class="dim">ผล: ${sg.approver.approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}</div>` : ''))}
         </div>
 
-        ${isEmpTurn ? `<div class="ap-empack">
-          <div class="panel-head">พนักงานรับทราบผลการประเมิน</div>
-          <p>คะแนนสรุป <b>${fix(row.FinalScore || row.MgrScore)}</b> · เกรด <b>${esc(row.Grade || '')}</b>
-            ${row.HeadComment ? `<br>ความเห็นผู้บริหาร: ${esc(row.HeadComment)}` : ''}</p>
-          <label>ความเห็นของฉัน<textarea id="emp-note" rows="2"></textarea></label>
-          <div class="dim">ลงลายเซ็นได้ที่ช่อง "ผู้ถูกประเมินรับทราบ" ด้านบน</div>
-        </div>` : ''}
       </div>
 
       ${logBox(row)}`,
@@ -786,15 +793,26 @@ async function openSheet(row, rerender) {
     };
   }
 
-  const empAck = $('#ap-emp-ack');
-  if (empAck) {
-    empAck.onclick = async () => {
-      empAck.disabled = true;
-      try {
-        await acknowledge(row, $('#emp-note') ? $('#emp-note').value.trim() : '',
-          state.user?.name || '', await readSignature('employee'));
-        close(); await rerender();
-      } catch (e) { empAck.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
-    };
-  }
+  // ลงนามรับทราบ: ต้องมีลายเซ็น (วาด/อัปโหลดใหม่ หรือลายเซ็นในทะเบียน) · ปุ่มท้ายหน้าต่างกับปุ่มในกล่องทำงานเหมือนกัน
+  const ackBtns = ['#ap-emp-ack', '#ap-emp-ack2'].map((id) => $(id)).filter(Boolean);
+  const doAck = async () => {
+    ackBtns.forEach((b) => { b.disabled = true; });
+    try {
+      const sig = await readSignature('employee') || (me && me.SignatureUrl) || '';
+      if (!sig) {
+        ackBtns.forEach((b) => { b.disabled = false; });
+        const box = $('#ap-empack');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        alert('กรุณาลงลายเซ็นก่อนกดรับทราบ — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"');
+        return;
+      }
+      const name = ($('#sg-employee-name') && $('#sg-employee-name').value.trim()) || state.user?.name || '';
+      await acknowledge(row, $('#emp-note') ? $('#emp-note').value.trim() : '', name, sig);
+      close(); await rerender();
+    } catch (e) { ackBtns.forEach((b) => { b.disabled = false; }); alert('บันทึกไม่สำเร็จ — ' + e.message); }
+  };
+  ackBtns.forEach((b) => { b.onclick = doAck; });
+  // เปิดมาเพื่อลงนาม: เลื่อนไปที่กล่องลงนามให้เห็นทันที
+  const ackBox = $('#ap-empack');
+  if (ackBox) setTimeout(() => ackBox.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
 }
