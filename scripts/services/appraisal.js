@@ -6,7 +6,10 @@
  *   - เก็บข้อมูลใน SharePoint 3 ลิสต์: AppraisalCycles / AppraisalCriteria / Appraisals
  *   - สิทธิ์อิงจากข้อมูลจริง ไม่มีการเลือกบทบาทเอง
  *
- * ขั้นตอน: ประเมินตนเอง → หัวหน้าประเมิน → ผู้บริหารอนุมัติ → พนักงานรับทราบ
+ * ขั้นตอน: (ประเมินตนเอง) → หัวหน้าประเมินและลงนาม
+ *        → พนักงานรับทราบและลงนาม + ฝ่ายบุคคลตรวจสอบและลงนาม (ทำพร้อมกันได้ · สถานะ "ฝ่ายบุคคลตรวจสอบ")
+ *        → ฝ่ายบุคคลส่งให้ผู้บริหาร (เมื่อครบ 3 ลายเซ็น) → ผู้บริหารรับทราบ/อนุมัติ (ลงนามหรือไม่ก็ได้) → เสร็จสมบูรณ์
+ * สถานะ "พนักงานรับทราบ" เหลือไว้สำหรับใบเก่าที่ผู้บริหารอนุมัติไปก่อนพนักงานเซ็น
  */
 import { list, create, update } from './data.js';
 
@@ -173,6 +176,18 @@ const lowEmail = (v) => clean(v).toLowerCase();
 /** ผู้ตรวจสอบฝ่ายบุคคล / ผู้บริหารที่กำหนดไว้ในใบนี้ { hr: {name,email}, approver: {name,email} } */
 export const rolesOf = (row) => extraOf(row || {}).roles || {};
 
+/** ลายเซ็นในใบ { evaluator, employee, hr, approver } — แต่ละอันมี at เมื่อลงนามแล้ว */
+export const signsOf = (row) => extraOf(row || {}).sign || {};
+const signed = (x) => !!(x && x.at);
+export const empSigned = (row) => signed(signsOf(row).employee);
+export const hrSigned = (row) => signed(signsOf(row).hr);
+
+/** รอพนักงานลงนามรับทราบอยู่หรือไม่ (ทำได้ตั้งแต่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล) */
+export const needsEmpSign = (row) => {
+  const st = clean(row && row.Status);
+  return st === S_ACK || (st === S_HR && !empSigned(row));
+};
+
 /**
  * ใครตรวจสอบใบนี้ในขั้นฝ่ายบุคคลได้
  * กำหนดตัวไว้ในใบ → คนนั้น (และผู้ดูแลระบบ) · ไม่ได้กำหนด → ทุกคนในรายชื่อฝ่ายบุคคล
@@ -220,7 +235,7 @@ export function appraisalTodo({ cycle, rows, email, person = null, isAdmin = fal
   const me = lowEmail(email);
 
   const mine = mineOf(rows, email);
-  if (mine && ((st(mine) === S_SELF && stageOpen(cycle, S_SELF).ok) || st(mine) === S_ACK)) out.me = 1;
+  if (mine && ((st(mine) === S_SELF && !noSelf(mine) && stageOpen(cycle, S_SELF).ok) || needsEmpSign(mine))) out.me = 1;
 
   out.team = stageOpen(cycle, S_MGR).ok ? teamOf(rows, email).filter((r) => st(r) === S_MGR).length : 0;
 
@@ -447,33 +462,48 @@ export async function submitManager(row, answers, comment, score, by, extra = nu
     MgrData: JSON.stringify(answers), MgrComment: comment,
     MgrScore: score, Status: S_HR,
     Extra: JSON.stringify(x),
-    Log: addLog(row, 'ผู้ประเมินสรุปผลและลงนาม ส่งให้ฝ่ายบุคคล', by, sign?.note || ''),
+    Log: addLog(row, 'ผู้ประเมินสรุปผลและลงนาม ส่งให้พนักงานรับทราบและฝ่ายบุคคลตรวจสอบ', by, sign?.note || ''),
+  });
+}
+
+/** ฝ่ายบุคคลตรวจสอบและลงนาม (ยังไม่ส่งต่อ ใช้ตอนรอพนักงานลงนาม) */
+export async function hrSign(row, { sign, by, note = '', summary = null }) {
+  const x = { ...extraOf(row), ...(summary ? { summary } : {}) };
+  x.sign = { ...(x.sign || {}), hr: { ...sign, at: new Date().toISOString() } };
+  return update('appraisals', row.id, {
+    Extra: JSON.stringify(x),
+    Log: addLog(row, 'ฝ่ายบุคคลตรวจสอบและลงนาม', by, note),
   });
 }
 
 /**
- * ฝ่ายบุคคลตรวจสอบและลงนาม แล้วเลือกส่งต่อ
- * to = ผู้บริหารอนุมัติ (ปกติ) หรือ พนักงานรับทราบ (ข้ามผู้บริหาร)
+ * ฝ่ายบุคคลส่งให้ผู้บริหาร — ต้องมีลายเซ็นผู้ประเมิน พนักงาน และฝ่ายบุคคลครบ
+ * sign = ลายเซ็นฝ่ายบุคคลที่เพิ่งลง (ถ้าลงไว้แล้วไม่ต้องส่ง)
  */
-export async function hrReview(row, { sign, to = S_BOSS, by, note = '' }) {
-  const x = { ...extraOf(row) };
+export async function hrReview(row, { sign = null, by, note = '', summary = null }) {
+  const x = { ...extraOf(row), ...(summary ? { summary } : {}) };
   if (sign) x.sign = { ...(x.sign || {}), hr: { ...sign, at: new Date().toISOString() } };
+  const sg = x.sign || {};
+  const missing = [!signed(sg.evaluator) && 'ผู้ประเมิน', !signed(sg.employee) && 'พนักงาน',
+    !signed(sg.hr) && 'ฝ่ายบุคคล'].filter(Boolean);
+  if (missing.length) throw new Error(`ยังขาดลายเซ็น: ${missing.join(', ')}`);
   return update('appraisals', row.id, {
-    Status: to, Extra: JSON.stringify(x),
-    Log: addLog(row, to === S_ACK
-      ? 'ฝ่ายบุคคลตรวจสอบแล้ว ส่งให้พนักงานรับทราบ'
-      : 'ฝ่ายบุคคลตรวจสอบแล้ว ส่งให้ผู้บริหารอนุมัติ', by, note),
+    Status: S_BOSS, Extra: JSON.stringify(x),
+    Log: addLog(row, 'ฝ่ายบุคคลตรวจสอบแล้ว ส่งให้ผู้บริหาร', by, note),
   });
 }
 
 /** ผู้บริหารอนุมัติ / ไม่อนุมัติ พร้อมลงนาม */
 export async function executiveDecide(row, { approved, finalScore, sign, by, note = '', scheme = 'มาตรฐาน' }) {
   const x = { ...extraOf(row) };
-  x.sign = { ...(x.sign || {}), approver: { ...sign, approved, at: new Date().toISOString() } };
+  // ลายเซ็นผู้บริหารไม่บังคับ — ไม่ได้เซ็นก็บันทึกชื่อผู้กดและเวลาไว้
+  x.sign = { ...(x.sign || {}), approver: { ...(sign || {}), name: (sign && sign.name) || by, approved, at: new Date().toISOString() } };
   const g = gradeOf(finalScore, scheme);
+  // ใบเก่าที่พนักงานยังไม่ได้เซ็น ส่งต่อให้พนักงานรับทราบ · ใบตามขั้นตอนใหม่พนักงานเซ็นไว้แล้ว จบเลย
+  const next = !approved ? S_MGR : (signed((x.sign || {}).employee) ? DONE : S_ACK);
   return update('appraisals', row.id, {
     FinalScore: finalScore, Grade: g[1], HeadComment: note,
-    Status: approved ? S_ACK : S_MGR, Extra: JSON.stringify(x),
+    Status: next, Extra: JSON.stringify(x),
     Log: addLog(row, approved ? 'ผู้บริหารอนุมัติผล' : 'ผู้บริหารไม่อนุมัติ ส่งกลับให้ทบทวน', by, note),
   });
 }
@@ -484,8 +514,14 @@ export const approveSheet = (row, finalScore, note, by) =>
 
 /** ส่งกลับให้แก้ไข ระบุขั้นที่ต้องการให้กลับไป */
 export async function sendBack(row, toStage, note, by) {
+  // กลับไปให้หัวหน้าแก้ ผลอาจเปลี่ยน → ลายเซ็นพนักงาน ฝ่ายบุคคล ผู้บริหารต้องลงใหม่
+  const x = { ...extraOf(row) };
+  if (toStage === S_MGR || toStage === S_SELF) {
+    const { evaluator } = x.sign || {};
+    x.sign = toStage === S_MGR && evaluator ? { evaluator } : {};
+  }
   return update('appraisals', row.id, {
-    Status: toStage,
+    Status: toStage, Extra: JSON.stringify(x),
     Log: addLog(row, `ส่งกลับขั้น "${toStage}"`, by, note),
   });
 }
@@ -495,7 +531,9 @@ export async function acknowledge(row, note, by, sigUrl = '') {
   const x = { ...extraOf(row) };
   x.sign = { ...(x.sign || {}), employee: { name: by, note, url: sigUrl, at: new Date().toISOString() } };
   return update('appraisals', row.id, {
-    Status: DONE, AckDate: new Date().toISOString(), Extra: JSON.stringify(x),
-    Log: addLog(row, 'พนักงานรับทราบผล', by, note),
+    // ใบเก่า (ผู้บริหารอนุมัติแล้ว) จบที่นี่ · ขั้นตอนใหม่ยังอยู่ขั้นฝ่ายบุคคล รอฝ่ายบุคคลส่งผู้บริหาร
+    Status: clean(row.Status) === S_ACK ? DONE : clean(row.Status),
+    AckDate: new Date().toISOString(), Extra: JSON.stringify(x),
+    Log: addLog(row, 'พนักงานรับทราบผลและลงนาม', by, note),
   });
 }
