@@ -7,7 +7,7 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, update } from '../services/data.js';
-import { extraOf, clean, ROUND_DAYS, mergeRounds, roundKey, isProbationSet, rolesOf } from '../services/appraisal.js';
+import { extraOf, clean, ROUND_DAYS, roundKey, isProbationSet, rolesOf } from '../services/appraisal.js';
 
 /** ผู้รับผิดชอบแต่ละขั้นของใบ — คีย์ในตาราง, หัวคอลัมน์, คำอธิบายเมื่อเว้นว่าง */
 const ROLES = [
@@ -29,6 +29,7 @@ const current = () => ({
 
 let dir = [];
 let allSheets = [];
+let cycles = [];
 let draft = {};       // ค่าที่พิมพ์ค้างไว้ เก็บไว้ตอนตารางวาดใหม่เมื่อเปลี่ยนรายชื่อ
 
 /** กล่องว่างที่จะเติมตารางลงไป (ใส่ท้ายฟอร์ม) */
@@ -46,24 +47,49 @@ function people() {
 /** เก็บค่าที่กรอกอยู่ในตารางตอนนี้ไว้ใน draft */
 function keep() {
   $$('#ap-cyclegrid [data-em]').forEach((el) => {
+    // พิมพ์แก้วันที่เอง → ไม่ใช่ค่าที่ระบบเติมแล้ว
+    if (el.dataset.auto && el.dataset.k && el.value !== current().date) delete el.dataset.auto;
     const d = (draft[el.dataset.em] = draft[el.dataset.em] || {});
     d[el.dataset.k] = el.value.trim();
   });
 }
 
-/** ค่าเริ่มต้นของแต่ละคน: ค่าที่พิมพ์ค้าง > ใบประเมินเดิมของรอบนี้ > ทะเบียนบุคลากร */
+/**
+ * วันที่จากใบประเมินรอบก่อน ๆ ของคนเดิม { start, r1…r4 } — ใบใหม่กว่าทับใบเก่ากว่า
+ * รวมวันที่ประเมินของรอบนั้น (RoundDate) เผื่อใบเก่ายังไม่ได้บันทึกวันลงใบ
+ */
+function historyOf(older) {
+  const out = {};
+  [...older].sort((a, b) => (+a.id || 0) - (+b.id || 0)).forEach((r) => {
+    const x = extraOf(r);
+    if (x.startDate) out.start = x.startDate;
+    const cyc = cycles.find((c) => clean(c.Title) === clean(r.CycleName));
+    const k = cyc && roundKey(cyc.Round);
+    if (k && cyc.RoundDate) out[k] = String(cyc.RoundDate).slice(0, 10);
+    (x.rounds || []).forEach((o) => { if (o.date) out[o.key] = o.date; });
+  });
+  return out;
+}
+
+/**
+ * ค่าเริ่มต้นของแต่ละคน: ค่าที่พิมพ์ค้าง > ใบประเมินเดิมของรอบนี้ > ใบรอบก่อน ๆ > ทะเบียนบุคลากร
+ * วันเริ่มงาน: ทะเบียนบุคลากร (ไม่มีก็ใช้จากใบเก่า หรือกรอกเอง)
+ * วันประเมินครั้งก่อน: ดึงจากใบรอบก่อนของคนเดิม (จับจากอีเมล หรือชื่อผู้ถูกประเมิน)
+ */
 function valuesOf(p, title) {
   const em = low(p.Email);
-  const mine = allSheets.filter((r) => low(r.EmployeeEmail) === em);
+  const mine = allSheets.filter((r) => low(r.EmployeeEmail) === em
+    || (clean(r.EmployeeName) && clean(r.EmployeeName) === clean(p.Title)));
   const sheet = mine.find((r) => clean(r.CycleName) === title);
   const x = sheet ? extraOf(sheet) : {};
-  const start = x.startDate || (p.StartDate ? String(p.StartDate).slice(0, 10) : '');
-  const rounds = x.rounds && x.rounds.length ? x.rounds
-    : mergeRounds(start, { Round: ($('#f_Round') || {}).value, RoundDate: ($('#f_RoundDate') || {}).value },
-      mine.filter((r) => r !== sheet));
-  const base = { start, ...Object.fromEntries(rounds.map((r) => [r.key, r.date || ''])) };
-  // วันของครั้งนี้อ้างอิง "วันที่ประเมินครั้งนี้" ในฟอร์มเสมอ
+  const hist = historyOf(mine.filter((r) => r !== sheet));
+  const start = x.startDate || (p.StartDate ? String(p.StartDate).slice(0, 10) : '') || hist.start || '';
   const cur = current();
+  const rounds = x.rounds && x.rounds.length ? x.rounds
+    : ROUND_DAYS.map((r) => ({ key: r.key, date: r.key === cur.key ? '' : (hist[r.key] || '') }));
+  const base = { start, ...Object.fromEntries(rounds.map((r) => [r.key, r.date || ''])) };
+  base.hist = hist;
+  // วันของครั้งนี้อ้างอิง "วันที่ประเมินครั้งนี้" ในฟอร์มเสมอ
   if (cur.key && cur.date) base[cur.key] = cur.date;
   ATT.forEach(([k]) => { base[k] = String((x.attendance || {})[k] ?? ''); });
   // ผู้ประเมิน: ใบเดิม > ผู้บังคับบัญชาในทะเบียน · ฝ่ายบุคคล/ผู้อนุมัติ: ที่กำหนดไว้ในใบเดิม
@@ -119,8 +145,10 @@ function paint(title) {
       <span class="panel-meta">ครั้งที่ประเมินรอบนี้ใช้ "วันที่ประเมินครั้งนี้" ด้านบน · ครั้งอื่นกรอกเอง</span></div>
     <div class="ap-pbgrid">${rows.map((p) => {
       const em = low(p.Email); const v = vals.get(em);
+      // data-hist = วันจากใบรอบก่อน ใช้คืนค่าเมื่อเปลี่ยนครั้งที่ประเมิน · data-auto = ระบบเติมจากวันที่ครั้งนี้
       const date = (k, label) => `<label${k === cur.key ? ' class="now"' : ''}>${esc(label)}
-        <input type="date" class="ap-datein" data-em="${esc(em)}" data-k="${k}" value="${esc(v[k] || '')}"></label>`;
+        <input type="date" class="ap-datein" data-em="${esc(em)}" data-k="${k}" value="${esc(v[k] || '')}"
+          data-hist="${esc((v.hist || {})[k] || '')}"${k === cur.key && cur.date && v[k] === cur.date ? ' data-auto="1"' : ''}></label>`;
       return `<div class="ap-pbrow">
         <div class="ap-pbname">${esc(clean(p.Title))} <span class="dim">· ${esc(clean(p.Department))}</span></div>
         <div class="ap-pbdates">${date('start', 'วันเริ่มงาน')}
@@ -190,8 +218,9 @@ export function gridProblems() {
 /** เปิดตารางในฟอร์ม และวาดใหม่ทุกครั้งที่เปลี่ยนรายชื่อ ขอบเขต หรือชุดแบบประเมิน */
 export async function bindCycleGrid(record = {}) {
   draft = {};
-  [dir, allSheets] = await Promise.all([
+  [dir, allSheets, cycles] = await Promise.all([
     list('directory').catch(() => []), list('appraisals').catch(() => []),
+    list('appraisalCycles').catch(() => []),
   ]);
   const title = clean(record.Title);
   let t = 0;
@@ -205,8 +234,12 @@ export async function bindCycleGrid(record = {}) {
     const cur = current();
     $$('#ap-cyclegrid .ap-datein').forEach((el) => {
       const k = el.dataset.k;
-      if (prev.key && prev.key !== cur.key && k === prev.key && el.value === prev.date) el.value = '';
-      if (cur.key && cur.date && k === cur.key) el.value = cur.date;
+      // ช่องที่ระบบเติมให้ตอนเป็น "ครั้งนี้" → คืนเป็นวันจากใบรอบก่อน (ถ้ามี) ไม่ลบวันที่ของจริงทิ้ง
+      if (prev.key && prev.key !== cur.key && k === prev.key && el.dataset.auto === '1') {
+        el.value = el.dataset.hist || '';
+        delete el.dataset.auto;
+      }
+      if (cur.key && cur.date && k === cur.key) { el.value = cur.date; el.dataset.auto = '1'; }
     });
     keep();
     prev = cur;
