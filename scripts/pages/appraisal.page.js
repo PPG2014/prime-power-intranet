@@ -6,7 +6,7 @@ import {
   STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
   submitSelf, submitManager, hrReview, executiveDecide, sendBack, acknowledge,
-  S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo,
+  S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo, noSelf,
   canHrReview, canBossApprove, inApproveScope, rolesOf,
 } from '../services/appraisal.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
@@ -32,6 +32,8 @@ const TONE = {
 const dt = (v) => (v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(clean(s) || '—')}</span>`;
 const fix = (n) => (Number(n) || 0).toFixed(1);
+/** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
+const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
 
 /** ผู้บริหารที่อนุมัติผลได้: ผู้ดูแลระบบ หรือระดับผู้จัดการฝ่ายขึ้นไป */
 function canApprove() {
@@ -129,12 +131,13 @@ function paneMe(mine) {
   const self = answersOf(mine, 'self');
   const mgr = answersOf(mine, 'mgr');
   const g = stageOpen(cycle, S_SELF);
-  const editable = st === S_SELF && g.ok;
+  const skip = noSelf(mine);     // รอบที่หัวหน้าประเมินอย่างเดียว ไม่มีแบบประเมินตนเอง
+  const editable = !skip && st === S_SELF && g.ok;
 
   return `
     <div class="ap-stats">
       <div><b>${pill(st)}</b><span>สถานะของฉัน</span></div>
-      <div><b>${fix(mine.SelfScore)}</b><span>คะแนนประเมินตนเอง</span></div>
+      ${skip ? '' : `<div><b>${fix(mine.SelfScore)}</b><span>คะแนนประเมินตนเอง</span></div>`}
       <div><b>${fix(mine.MgrScore)}</b><span>คะแนนจากหัวหน้า</span></div>
       <div><b>${mine.Grade ? esc(mine.Grade) : '—'}</b><span>เกรดสรุป</span></div>
     </div>
@@ -149,11 +152,13 @@ function paneMe(mine) {
 
     ${statusTrack(mine)}
 
-    ${editable ? '' : `<div class="panel-note ap-note">${st === S_SELF
-      ? esc(g.why || 'ยังไม่เปิดให้กรอกในขณะนี้')
-      : 'ส่งแบบประเมินตนเองแล้ว ดูคะแนนที่กรอกไว้ด้านล่าง'}</div>`}
+    ${editable ? '' : `<div class="panel-note ap-note">${skip
+      ? 'รอบนี้หัวหน้าเป็นผู้ประเมิน ไม่ต้องประเมินตนเอง · ติดตามสถานะได้จากแถบด้านบน'
+      : st === S_SELF
+        ? esc(g.why || 'ยังไม่เปิดให้กรอกในขณะนี้')
+        : 'ส่งแบบประเมินตนเองแล้ว ดูคะแนนที่กรอกไว้ด้านล่าง'}</div>`}
 
-    ${formTable('self', self, editable, mine, mgr)}
+    ${skip ? '' : formTable('self', self, editable, mine, mgr)}
 
     ${logBox(mine)}`;
 }
@@ -174,9 +179,9 @@ function paneTeam(team) {
         <tbody>${team.map((r) => `<tr>
           <td>${esc(clean(r.EmployeeName))}</td>
           <td>${esc(clean(r.Section) || clean(r.Department))}</td>
-          <td>${pill(r.Status)}${clean(r.Status) === S_SELF
+          <td>${pill(r.Status)}${clean(r.Status) === S_SELF && !noSelf(r)
             ? '<div class="ap-wait">รอพนักงานประเมินตนเองก่อน</div>' : ''}</td>
-          <td class="num">${fix(r.SelfScore)}</td>
+          <td class="num">${selfFix(r)}</td>
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
             clean(r.Status) === S_MGR && g.ok ? 'ประเมิน' : 'ดูรายละเอียด'}</button></td>
@@ -206,7 +211,7 @@ function paneApprove() {
           return `<tr>
             <td>${esc(clean(r.EmployeeName))}</td>
             <td>${esc(clean(r.Department))}</td>
-            <td class="num">${fix(r.SelfScore)}</td>
+            <td class="num">${selfFix(r)}</td>
             <td class="num">${fix(r.MgrScore)}</td>
             <td class="num">${esc(gr[1])}</td>
             <td class="num"><button class="btn-mini" data-apopen="${r.id}">พิจารณา</button></td>
@@ -342,8 +347,8 @@ function statusTrack(row) {
   const st = clean(row.Status);
   const order = [...STAGES, DONE];
   const steps = [
-    { name: S_SELF, label: 'พนักงานประเมินตนเอง', done: at(/ส่งแบบประเมินตนเอง/) },
-    { name: S_MGR, label: 'ผู้ประเมินให้คะแนนและลงนาม', done: at(/ผู้ประเมินสรุปผล|หัวหน้าประเมิน/) },
+    ...(noSelf(row) ? [] : [{ name: S_SELF, label: 'พนักงานประเมินตนเอง', done: at(/ส่งแบบประเมินตนเอง/) }]),
+    { name: S_MGR, label: 'ผู้ประเมินให้คะแนนและลงนาม', done: at(/ผู้ประเมินสรุปผล/) },
     { name: S_HR, label: 'ฝ่ายบุคคลตรวจสอบ', done: at(/ฝ่ายบุคคลตรวจสอบ/) },
     { name: S_BOSS, label: 'ผู้บริหารอนุมัติ', done: at(/ผู้บริหาร/) },
     { name: S_ACK, label: 'พนักงานรับทราบผล', done: at(/รับทราบ/) },
@@ -572,7 +577,7 @@ async function openSheet(row, rerender) {
     body: `
       <div class="ap-stats small">
         <div><b>${pill(st)}</b><span>สถานะ</span></div>
-        <div><b>${fix(row.SelfScore)}</b><span>ตนเอง</span></div>
+        ${noSelf(row) ? '' : `<div><b>${fix(row.SelfScore)}</b><span>ตนเอง</span></div>`}
         <div><b>${fix(row.MgrScore)}</b><span>ผู้ประเมิน</span></div>
         <div><b>${row.Grade ? esc(row.Grade) : '—'}</b><span>เกรด</span></div>
       </div>
@@ -622,7 +627,7 @@ async function openSheet(row, rerender) {
       </div>
 
       ${logBox(row)}`,
-    footer: `${isMgrTurn || isHrTurn || isBossTurn
+    footer: `${(isMgrTurn && !noSelf(row)) || isHrTurn || isBossTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
       ${state.isHR && !isMgrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
