@@ -174,7 +174,8 @@ function paneTeam(team) {
         <tbody>${team.map((r) => `<tr>
           <td>${esc(clean(r.EmployeeName))}</td>
           <td>${esc(clean(r.Section) || clean(r.Department))}</td>
-          <td>${pill(r.Status)}</td>
+          <td>${pill(r.Status)}${clean(r.Status) === S_SELF
+            ? '<div class="ap-wait">รอพนักงานประเมินตนเองก่อน</div>' : ''}</td>
           <td class="num">${fix(r.SelfScore)}</td>
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${

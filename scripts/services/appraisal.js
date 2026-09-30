@@ -154,8 +154,11 @@ export function stageOpen(cycle, stage) {
   if (clean(cycle.Status) !== 'เปิด') return { ok: false, why: `รอบ ${clean(cycle.Title)} ปิดรับข้อมูลแล้ว` };
   if (stage !== S_SELF && stage !== S_MGR) return { ok: true };
   const cur = clean(cycle.Stage) || S_SELF;
-  if (cur !== stage) return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
-  return { ok: true };
+  if (cur === stage) return { ok: true };
+  // เปิดขั้นหัวหน้าประเมินแล้ว คนที่ยังไม่ได้ประเมินตนเองยังส่งตามหลังได้
+  // ไม่งั้นใบนั้นค้าง: พนักงานทำไม่ได้ หัวหน้าก็ยังทำไม่ได้เพราะใบยังไม่ถึงขั้นหัวหน้า
+  if (stage === S_SELF && cur === S_MGR) return { ok: true, late: true };
+  return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
 }
 
 /**
@@ -321,7 +324,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       EmployeeName: clean(p.Title), EmployeeEmail: clean(p.Email),
       Department: clean(p.Department), Section: clean(p.Section),
       EvaluatorName: clean(p.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
-      Status: STAGES[0], SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
+      Status: firstStage(cycle), SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
       SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
       // ดึงวันเริ่มงานจากทะเบียนบุคลากร · วันประเมินแต่ละครั้งฝ่ายบุคคลกำหนดเอง
       Extra: JSON.stringify({
@@ -377,7 +380,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
     EmployeeName: clean(me.Title), EmployeeEmail: clean(me.Email),
     Department: clean(me.Department), Section: clean(me.Section),
     EvaluatorName: clean(me.Manager), EvaluatorEmail: mgr ? clean(mgr.Email) : '',
-    Status: STAGES[0], SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
+    Status: firstStage(cycle), SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
     SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
     Extra: JSON.stringify({
       startDate: me.StartDate ? String(me.StartDate).slice(0, 10) : '',
@@ -385,6 +388,29 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
     }),
   });
   return 1;
+}
+
+/**
+ * ขั้นแรกของใบที่สร้างใหม่: รอบที่ตั้งขั้นตอนเป็น "หัวหน้าประเมิน" (เช่นประเมินทดลองงาน)
+ * เริ่มที่หัวหน้าเลย ไม่ต้องให้พนักงานประเมินตนเองก่อน
+ */
+export const firstStage = (cycle) => (clean(cycle && cycle.Stage) === S_MGR ? S_MGR : S_SELF);
+
+/** ใบที่ยังรอประเมินตนเองและยังไม่ได้ส่ง (ใช้ตอนรอบเปลี่ยนเป็นขั้นหัวหน้าประเมิน) */
+export const waitingSelf = (rows) => rows.filter((r) => clean(r.Status) === S_SELF && !(+r.SelfScore > 0));
+
+/** ข้ามขั้นประเมินตนเอง ส่งใบไปให้หัวหน้าประเมินเลย */
+export async function skipSelf(rows, by, onProgress = () => {}) {
+  let done = 0;
+  for (const r of rows) {
+    // eslint-disable-next-line no-await-in-loop
+    await update('appraisals', r.id, {
+      Status: S_MGR, Log: addLog(r, 'ข้ามขั้นประเมินตนเอง ส่งให้หัวหน้าประเมิน', by),
+    });
+    done += 1;
+    onProgress(done, rows.length);
+  }
+  return done;
 }
 
 /** บันทึกผลการประเมินตนเอง */
