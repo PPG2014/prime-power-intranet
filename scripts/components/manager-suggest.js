@@ -10,7 +10,7 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
-import { levelOf } from '../pages/directory.page.js';
+import { levelOf, SECRETARY_TIER } from '../pages/directory.page.js';
 
 const plain = (v) => String((v && typeof v === 'object') ? (v.LookupValue ?? v.Title ?? '') : (v ?? '')).trim();
 const arr = (v) => (Array.isArray(v) ? v.map(plain) : String(v || '').split(/[,\n]/).map((x) => x.trim())).filter(Boolean);
@@ -19,7 +19,7 @@ let staff = [];
 let projects = [];
 let autoValue = '';          // ค่าที่ระบบเติมล่าสุด ใช้แยกว่าช่องนี้ผู้ใช้แก้เองหรือยัง
 
-/** ระดับที่เลือกในฟอร์มตอนนี้ (1 = สูงสุด … 5 = บุคลากรในแผนก) */
+/** ระดับที่เลือกในฟอร์มตอนนี้ (1 = ผู้บริหาร … 8 = บุคลากรในแผนก) */
 const formPosition = () => {
   const v = ($('#f_Position') || {}).value || '';
   return v === '__custom' ? (($('#f_Position_custom') || {}).value || '') : v;
@@ -44,7 +44,8 @@ function suggest() {
   const sec = plain(($('#f_Section') || {}).value);
   const lv = formLevel();
   const inDept = (p) => plain(p.Department) === dept || arr(p.Oversees).includes(dept);
-  const above = others.filter((p) => inDept(p) && levelOf(p) < lv);
+  // เลขานุการอยู่ชั้นสูงในผัง แต่ไม่ใช่หัวหน้าของใคร จึงไม่นับเป็นผู้บังคับบัญชา
+  const above = others.filter((p) => inDept(p) && levelOf(p) < lv && levelOf(p) !== SECRETARY_TIER);
   if (above.length) {
     // ใกล้ที่สุดก่อน (ระดับสูงกว่าเพียงขั้นเดียวดีที่สุด) · ระดับเท่ากันเลือกคนแผนกเดียวกัน
     above.sort((a, b) => (levelOf(b) - levelOf(a))
@@ -53,7 +54,7 @@ function suggest() {
     return { name: plain(best.Title), why: `${plain(best.Position) || 'ระดับสูงกว่า'} · ${dept}` };
   }
   // 3) หัวฝ่ายเอง → ผู้บริหารที่ดูแลฝ่ายนี้ หรือกรรมการผู้จัดการ
-  const exec = others.find((p) => arr(p.Oversees).includes(dept) && levelOf(p) <= lv)
+  const exec = others.find((p) => arr(p.Oversees).includes(dept) && levelOf(p) <= lv && levelOf(p) !== SECRETARY_TIER)
     || others.find((p) => plain(p.Position) === 'กรรมการผู้จัดการ');
   return exec ? { name: plain(exec.Title), why: plain(exec.Position) || 'ผู้บริหาร' } : null;
 }

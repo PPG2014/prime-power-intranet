@@ -32,12 +32,14 @@
 
 /* ชั้นหัวหน้า เน้นให้เด่นกว่าการ์ดทั่วไป */
 .staff-card.is-lead { border-color: #cfe0f0; box-shadow: 0 4px 14px rgba(0, 57, 122, .10); }
-.tier-1 .staff-card { border-top: 3px solid var(--navy); }
-.tier-2 .staff-card { border-top: 3px solid #0a5fa8; }
-.tier-3 .staff-card { border-top: 3px solid var(--blue); }
-.tier-4 .staff-card { border-top: 3px solid var(--green); }
+/* 1 ผู้บริหาร · 2 รองผู้บริหาร · 3 เลขานุการ · 4 ผู้อำนวยการ · 5 ผู้จัดการฝ่าย · 6 รองผู้จัดการฝ่าย · 7 ผู้จัดการแผนก */
+.tier-1 .staff-card, .tier-2 .staff-card { border-top: 3px solid var(--navy); }
+.tier-3 .staff-card { border-top: 3px solid #7a8aa3; }
+.tier-4 .staff-card { border-top: 3px solid #0a5fa8; }
+.tier-5 .staff-card, .tier-6 .staff-card { border-top: 3px solid var(--blue); }
+.tier-7 .staff-card { border-top: 3px solid var(--green); }
 .tier-1 .staff-name { font-size: 17px; }
-.tier-1 .staff-card, .tier-2 .staff-card { width: 360px; }
+.tier-1 .staff-card, .tier-2 .staff-card, .tier-4 .staff-card { width: 360px; }
 
 /* ระดับ 4 เรียงต่อจากผัง คั่นด้วยเส้นบาง */
 .org-chart + .staff-grid { padding-top: var(--gap); border-top: 1px dashed var(--line); }

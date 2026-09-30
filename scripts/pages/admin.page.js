@@ -281,6 +281,11 @@ async function openEditor(key, record) {
   const isCycle = key === 'appraisalCycles';
   // แบบฟอร์ม: ตั้งเส้นทางอนุมัติได้ในหน้าต่างเดียวกัน (เขียนลง ApprovalMatrix ให้เอง)
   const isForm = key === 'formCatalog';
+  // บุคลากร: ระดับชุดเก่า (5 ชั้น) → เลือกระดับชุดใหม่ที่ตรงกันไว้ให้ กดบันทึกแล้วได้ค่าใหม่เลย
+  if (key === 'directory' && record && record.Level) {
+    const { LEVELS, levelOf } = await import('./directory.page.js');
+    if (!LEVELS.includes(String(record.Level).trim())) record = { ...record, Level: LEVELS[levelOf(record) - 1] };
+  }
   openModal({
     title: `${s.icon} ${isCycle ? (isNew ? 'สร้างแบบประเมิน' : 'แก้ไขแบบประเมิน')
       : `${isNew ? 'เพิ่ม' : 'แก้ไข'}${s.title}`}`,
