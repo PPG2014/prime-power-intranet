@@ -101,7 +101,9 @@
   width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 9px;
   border: 1px solid var(--line); border-radius: 8px; font: inherit;
 }
-.ap-empack { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.ap-empack { margin: 12px 0 14px; padding: 12px 14px; border: 2px solid #2e9e5b; border-radius: 10px; background: #f3fbf6; }
+.ap-empack label { display: block; margin: 6px 0; }
+.ap-empack input[type=text], .ap-empack textarea { width: 100%; }
 
 /* ช่องลายเซ็น */
 .sig-head { font-size: .86em; font-weight: 600; margin-bottom: 4px; }
