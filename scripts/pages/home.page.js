@@ -156,18 +156,28 @@ export function mount(ctx) {
     const n = newsRows.find((r) => String(r.id) === String(id));
     if (!n) return;
     const files = toFiles(n.Files);
+    // รูปภาพที่แนบ แสดงในหน้าต่างเลย (ย่อให้พอดีกรอบ ทั้งแนวตั้งและแนวนอน) · ไฟล์อื่นเป็นรายการให้เปิด
+    const isImg = (a) => /^(JPG|JPEG|PNG|GIF|WEBP)$/i.test(a.kind || '')
+      || /\.(jpe?g|png|gif|webp)$/i.test(a.name || '');
+    const imgs = files.filter(isImg);
+    const others = files.filter((a) => !isImg(a));
     openModal({
       title: n.Title, wide: true,
       body: `
         <div class="doc-meta"><span>${esc(thaiDateShort(n.PublishDate))}</span></div>
+        ${imgs.length ? `<div class="news-imgs">${imgs.map((a) => `
+          <a class="news-img" href="${esc(a.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม">
+            <img data-photo="${esc(a.url)}" alt="${esc(a.name || n.Title)}" loading="lazy"></a>`).join('')}</div>` : ''}
         ${n.Content ? `<div class="doc-body">${esc(n.Content)}</div>`
-                    : '<div class="doc-empty">ยังไม่ได้ใส่เนื้อหาสำหรับข่าวนี้</div>'}
-        ${files.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
-          ${files.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
-            <span>${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
+                    : (imgs.length ? '' : '<div class="doc-empty">ยังไม่ได้ใส่เนื้อหาสำหรับข่าวนี้</div>')}
+        ${others.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${others.length} ไฟล์</h4>
+          ${others.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
+            <span>📄</span>
             <b>${esc(a.name)}</b>
             <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
           </a>`).join('')}</div>` : ''}`,
     });
+    // รูปใน SharePoint ต้องแนบ token จึงโหลดได้
+    if (imgs.length) import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   });
 }
