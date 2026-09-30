@@ -29,7 +29,8 @@ let scheme = 'มาตรฐาน';   // เกณฑ์เกรดของ�
 let autoMade = 0;          // จำนวนใบที่ระบบเพิ่งสร้างให้เอง
 let cycles = [];           // ทุกรอบ (ฝ่ายบุคคล/ผู้ดูแล ใช้เลือกดูย้อนหลัง)
 let allCycles = [];        // ทุกรอบ ใช้เปิดใบประเมินเก่าของตัวเอง
-let myHistory = [];        // ใบประเมินของฉันในรอบอื่น ๆ (ดูย้อนหลัง)
+let myHistory = [];        // ใบประเมินของฉันทุกรอบ (ดูย้อนหลัง)
+let shownId = null;        // ใบที่แสดงเป็นหลักด้านบน (ทำเครื่องหมายในตารางประวัติ)
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
@@ -116,10 +117,10 @@ export async function render(ctx) {
   const mineMain = myRows.find((r) => needsEmpSign(r)
     || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok)) || myRows[0] || null;
 
-  // ประวัติการประเมินของฉันทุกรอบ (ยกเว้นใบที่แสดงอยู่) — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
+  // ประวัติการประเมินของฉันทุกรอบ รวมรอบที่แสดงอยู่ด้านบน — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
   allCycles = await list('appraisalCycles').catch(() => []);
-  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail
-    && !(mineMain && r.id === mineMain.id))
+  shownId = mineMain ? mineMain.id : null;
+  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
     .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
 
   const mine = mineMain;
@@ -202,7 +203,7 @@ function historyPanel() {
       <table class="ap-table">
         <thead><tr><th>แบบประเมิน</th><th>สถานะ</th><th class="num">คะแนน</th><th>เกรด</th><th></th></tr></thead>
         <tbody>${myHistory.map((r) => `<tr>
-          <td>${esc(clean(r.CycleName))}</td>
+          <td>${esc(clean(r.CycleName))}${r.id === shownId ? ' <span class="dim">· แสดงด้านบน</span>' : ''}</td>
           <td>${pill(r.Status)}</td>
           <td class="num">${submitted(r) ? fix(r.FinalScore || r.MgrScore) : '—'}</td>
           <td>${esc(gradeText(r))}</td>
