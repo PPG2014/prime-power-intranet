@@ -21,37 +21,58 @@ export const meta = { route: 'directory', title: 'บุคลากร', nav: t
  * ต้องตรงกับตัวเลือกของคอลัมน์ Level ใน SharePoint
  */
 export const LEVELS = [
-  'ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด',
-  'ผู้จัดการฝ่าย / รองผู้บริหาร',
+  'ผู้บริหาร',
+  'รองผู้บริหาร',
+  'เลขานุการ',
+  'ผู้อำนวยการ',
+  'ผู้จัดการฝ่าย',
   'รองผู้จัดการฝ่าย',
-  'ผู้จัดการแผนก / เลขานุการ',
+  'ผู้จัดการแผนก',
   'บุคลากรในแผนก',
 ];
-const TOP_TIERS = [1, 2, 3, 4];   // ชั้นที่จัดกึ่งกลาง
-const STAFF_TIER = 5;             // ชั้นที่เรียงเป็นตาราง
+export const SECRETARY_TIER = 3;  // เลขานุการอยู่ใต้ผู้บริหาร แต่ไม่ใช่หัวหน้าของคนในฝ่าย
+const SECTION_HEAD_TIER = 7;      // ผู้จัดการแผนก ใช้เรียงลำดับแผนก
+const STAFF_TIER = LEVELS.length; // ชั้นที่เรียงเป็นตาราง
+const TOP_TIERS = LEVELS.map((_, i) => i + 1).filter((n) => n !== STAFF_TIER); // ชั้นที่จัดกึ่งกลาง
 
 /**
- * หาชั้นของคนหนึ่งคน
- * รับได้ทั้งค่าที่ขึ้นต้นด้วยเลข (ข้อมูลเก่า) และค่าที่เป็นข้อความล้วน
+ * ค่าระดับแบบเก่า (5 ชั้น) → ชั้นใหม่ · ชั้นที่รวมสองตำแหน่งไว้ด้วยกันจะดูชื่อตำแหน่งประกอบ
+ * ข้อมูลเก่าที่ยังไม่ได้แก้จึงยังขึ้นผังถูกที่
+ */
+const OLD_LEVELS = {
+  'ผู้อำนวยการฝ่าย / ผู้บริหารสูงสุด': (pos) => (/^กรรมการผู้จัดการ|^ประธาน/.test(pos) ? 1 : 4),
+  'ผู้จัดการฝ่าย / รองผู้บริหาร': (pos) => (/^รองกรรมการผู้จัดการ|^รองประธาน/.test(pos) ? 2 : 5),
+  'รองผู้จัดการฝ่าย': () => 6,
+  'ผู้จัดการแผนก / เลขานุการ': (pos) => (/เลขานุการ/.test(pos) ? 3 : 7),
+  'บุคลากรในแผนก': () => 8,
+};
+const OLD_BY_NUMBER = Object.values(OLD_LEVELS);
+
+/**
+ * หาชั้นของคนหนึ่งคน (1 = บนสุด)
+ * รับได้ทั้งค่าระดับชุดปัจจุบัน ค่าชุดเก่า 5 ชั้น และค่าที่ขึ้นต้นด้วยเลข (ข้อมูลเก่ากว่านั้น)
  * ถ้ายังไม่ได้ระบุ จะเดาจากชื่อตำแหน่งให้ก่อน
  */
 export function levelOf(p) {
   const raw = String(p.Level || '').trim();
-
-  const n = parseInt(raw, 10);
-  if (n >= 1 && n <= LEVELS.length) return n;
+  const pos = String(p.Position || '').trim();
 
   if (raw) {
     const text = raw.replace(/^\d+\s*[—–-]\s*/, '');
-    const i = LEVELS.findIndex((l) => l === text);
+    const i = LEVELS.indexOf(text);
     if (i >= 0) return i + 1;
+    if (OLD_LEVELS[text]) return OLD_LEVELS[text](pos);
+    const n = parseInt(raw, 10);
+    if (n >= 1 && n <= OLD_BY_NUMBER.length) return OLD_BY_NUMBER[n - 1](pos);
   }
 
-  const pos = p.Position || '';
-  if (/^กรรมการผู้จัดการ|^ประธาน|ผู้อำนวยการฝ่าย|^ผู้อำนวยการ/.test(pos)) return 1;
-  if (/^รองกรรมการผู้จัดการ|^รองประธาน|^รองผู้อำนวยการ|ผู้จัดการฝ่าย|หัวหน้าฝ่าย/.test(pos)) return 2;
-  if (/รองผู้จัดการฝ่าย|รองหัวหน้าฝ่าย/.test(pos)) return 3;
-  if (/ผู้จัดการแผนก|หัวหน้าแผนก|หัวหน้างาน|เลขานุการ|ผู้จัดการโครงการ/.test(pos)) return 4;
+  if (/^กรรมการผู้จัดการ|^ประธาน/.test(pos)) return 1;
+  if (/^รองกรรมการผู้จัดการ|^รองประธาน/.test(pos)) return 2;
+  if (/เลขานุการ/.test(pos)) return 3;
+  if (/ผู้อำนวยการ/.test(pos) && !/^รองผู้อำนวยการ/.test(pos)) return 4;
+  if (/^รองผู้อำนวยการ|(?<!รอง)ผู้จัดการฝ่าย|(?<!รอง)หัวหน้าฝ่าย/.test(pos)) return 5;
+  if (/รองผู้จัดการฝ่าย|รองหัวหน้าฝ่าย/.test(pos)) return 6;
+  if (/ผู้จัดการแผนก|หัวหน้าแผนก|หัวหน้างาน|ผู้จัดการโครงการ/.test(pos)) return 7;
   return STAFF_TIER;
 }
 
@@ -119,7 +140,7 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
 
   // ถ้าระบุแผนกไว้ ให้แยกบุคลากรตามแผนก เรียงตามลำดับผู้จัดการแผนก
   // ลำดับแผนก: ยึดทะเบียนแผนกเป็นหลัก ถ้าไม่มีในทะเบียนค่อยใช้ลำดับผู้จัดการแผนก
-  const secOrder = [...secOrderList, ...tiers[3].map((p) => p.Section).filter(Boolean)]
+  const secOrder = [...secOrderList, ...tiers[SECTION_HEAD_TIER - 1].map((p) => p.Section).filter(Boolean)]
     .filter((v, i, a) => a.indexOf(v) === i);
   const sections = [];
   staff.forEach((p) => {
