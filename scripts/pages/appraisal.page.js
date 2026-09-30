@@ -26,6 +26,8 @@ let myEmail = '';
 let scheme = 'มาตรฐาน';   // เกณฑ์เกรดของรอบนี้
 let autoMade = 0;          // จำนวนใบที่ระบบเพิ่งสร้างให้เอง
 let cycles = [];           // ทุกรอบ (ฝ่ายบุคคล/ผู้ดูแล ใช้เลือกดูย้อนหลัง)
+let allCycles = [];        // ทุกรอบ ใช้เปิดใบประเมินเก่าของตัวเอง
+let myHistory = [];        // ใบประเมินของฉันในรอบอื่น ๆ (ดูย้อนหลัง)
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
@@ -38,6 +40,15 @@ const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(LAB
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
+/** ผู้ประเมินส่งผลแล้ว (เลยขั้นหัวหน้าประเมิน) */
+const submitted = (r) => [STAGES[2], STAGES[3], STAGES[4], DONE].includes(clean(r && r.Status));
+/** เกรดของใบ: ใช้ที่บันทึกไว้ ถ้ายังไม่มี (ขั้นตอนใหม่บันทึกตอนผู้บริหารอนุมัติ) คิดจากคะแนนผู้ประเมิน */
+function gradeText(r) {
+  if (clean(r.Grade)) return clean(r.Grade);
+  const score = +r.FinalScore || +r.MgrScore || 0;
+  if (!submitted(r) || !score) return '—';
+  return gradeOf(score, isProbation(clean(r.FormSet) || clean(cycle && cycle.FormSet)) ? 'ทดลองงาน' : 'มาตรฐาน')[1];
+}
 
 /** ผู้บริหารที่อนุมัติผลได้: ผู้ดูแลระบบ หรือระดับผู้จัดการฝ่ายขึ้นไป */
 function canApprove() {
@@ -62,6 +73,11 @@ export async function render(ctx) {
   secs = await criteria(clean(cycle?.FormSet));
   scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
   rows = cycle ? await sheets(clean(cycle.Title)) : [];
+  // ประวัติการประเมินของฉันทุกรอบ — ผู้ถูกประเมินเปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
+  allCycles = await list('appraisalCycles').catch(() => []);
+  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail
+    && !(cycle && clean(r.CycleName) === clean(cycle.Title)))
+    .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
 
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
   if (cycle) {
@@ -137,6 +153,31 @@ export async function render(ctx) {
 
 /* ───────── การประเมินของฉัน ───────── */
 function paneMe(mine) {
+  return paneMeCurrent(mine) + historyPanel();
+}
+
+/** ประวัติการประเมินของฉันในรอบก่อน ๆ พร้อมเปิดดู/ดาวน์โหลดเอกสาร */
+function historyPanel() {
+  if (!myHistory.length) return '';
+  return `
+    <div class="panel">
+      <div class="panel-head">📚 ประวัติการประเมินของฉัน
+        <span class="panel-meta">${myHistory.length} รอบ · เปิดดูและดาวน์โหลดเอกสารได้ตลอด</span></div>
+      <table class="ap-table">
+        <thead><tr><th>แบบประเมิน</th><th>สถานะ</th><th class="num">คะแนน</th><th>เกรด</th><th></th></tr></thead>
+        <tbody>${myHistory.map((r) => `<tr>
+          <td>${esc(clean(r.CycleName))}</td>
+          <td>${pill(r.Status)}</td>
+          <td class="num">${submitted(r) ? fix(r.FinalScore || r.MgrScore) : '—'}</td>
+          <td>${esc(gradeText(r))}</td>
+          <td class="num"><button class="btn-mini" data-aphopen="${r.id}">📄 เปิดดู</button>
+            ${isProbation(clean(r.FormSet)) && submitted(r) ? `<button class="btn-mini" data-aphexport="${r.id}">⭳ เอกสาร</button>` : ''}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function paneMeCurrent(mine) {
   if (!cycle) return '';
   if (!mine) {
     return `<div class="panel"><div class="empty">ยังไม่มีใบประเมินของคุณในรอบนี้
@@ -156,13 +197,17 @@ function paneMe(mine) {
       <div><b>${pill(st)}</b><span>สถานะของฉัน</span></div>
       ${skip ? '' : `<div><b>${fix(mine.SelfScore)}</b><span>คะแนนประเมินตนเอง</span></div>`}
       <div><b>${fix(mine.MgrScore)}</b><span>คะแนนจากหัวหน้า</span></div>
-      <div><b>${mine.Grade ? esc(mine.Grade) : '—'}</b><span>เกรดสรุป</span></div>
+      <div><b>${esc(gradeText(mine))}</b><span>เกรดสรุป</span></div>
     </div>
+
+    ${submitted(mine) && !needsEmpSign(mine) ? `<div class="ap-docbar">
+      <button class="btn-mini" data-apopen="${mine.id}">📄 เปิดดูใบประเมิน</button>
+      ${isProbation(cycle?.FormSet) ? `<button class="btn-mini" data-apexport="${mine.id}">⭳ ดาวน์โหลดเอกสาร</button>` : ''}
+    </div>` : ''}
 
     ${needsEmpSign(mine) ? `<div class="panel ap-ack">
       <h3>ผลการประเมินรอบนี้</h3>
-      <p>คะแนน <b>${fix(mine.FinalScore || mine.MgrScore)}</b> · เกรด <b>${esc(mine.Grade
-        || gradeOf(+mine.FinalScore || +mine.MgrScore || 0, scheme)[1])}</b>
+      <p>คะแนน <b>${fix(mine.FinalScore || mine.MgrScore)}</b> · เกรด <b>${esc(gradeText(mine))}</b>
         ${mine.HeadComment ? `<br>ความเห็นผู้บริหาร: ${esc(mine.HeadComment)}` : ''}</p>
       <p class="dim">กดปุ่มด้านล่างเพื่อเปิดใบประเมิน ลงลายเซ็นรับทราบ และดาวน์โหลดเอกสารได้</p>
       <button class="btn btn-primary" data-apopen="${mine.id}">✍ เปิดใบเพื่อลงนามรับทราบ</button>
@@ -478,7 +523,7 @@ function pickSignMode() {
 }
 
 /** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 (ถามก่อนว่าพร้อมลายเซ็นหรือไม่) */
-async function exportProbation(row) {
+async function exportProbation(row, useSecs = secs) {
   const withSign = await pickSignMode();
   if (withSign === null) return;
   const dir = await list('directory').catch(() => []);
@@ -498,7 +543,7 @@ async function exportProbation(row) {
     },
     rounds: (x.rounds && x.rounds.length ? x.rounds
       : ROUND_DEFS.map((r) => ({ label: r.label, date: '' }))),
-    sections: secs, answers: ans,
+    sections: useSecs, answers: ans,
     notes: Object.fromEntries(Object.entries(ans)
       .filter(([k]) => k.endsWith('__note')).map(([k, v]) => [k.replace('__note', ''), v])),
     total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
@@ -580,6 +625,19 @@ export function mount(ctx) {
   // เปิดใบประเมินของลูกทีม / รายการรออนุมัติ
   onClick('apopen', (id) => openSheet(rows.find((r) => String(r.id) === String(id)), rerender));
   onClick('apexport', (id) => { const r = rows.find((x) => String(x.id) === String(id)); if (r) exportProbation(r); });
+  // ใบของรอบเก่า: ใช้หัวข้อประเมินและสถานะของรอบนั้นชั่วคราว (รอบที่ปิดแล้วเปิดดูอย่างเดียว)
+  const withCycleOf = async (r, fn) => {
+    const c = allCycles.find((x) => clean(x.Title) === clean(r.CycleName))
+      || { Title: clean(r.CycleName), FormSet: clean(r.FormSet), Status: 'ปิด' };
+    const saved = { cycle, secs, scheme };
+    cycle = c;
+    secs = await criteria(clean(c.FormSet) || clean(r.FormSet));
+    scheme = isProbation(clean(c.FormSet) || clean(r.FormSet)) ? 'ทดลองงาน' : 'มาตรฐาน';
+    try { await fn(); } finally { ({ cycle, secs, scheme } = saved); }
+  };
+  const hist = (id) => myHistory.find((x) => String(x.id) === String(id));
+  onClick('aphopen', (id) => { const r = hist(id); if (r) withCycleOf(r, () => openSheet(r, rerender)); });
+  onClick('aphexport', (id) => { const r = hist(id); if (r) withCycleOf(r, () => exportProbation(r)); });
   const cyc = $('#ap-cycle');
   if (cyc) cyc.onchange = () => setState({ apCycleId: cyc.value });
 
@@ -646,7 +704,7 @@ async function openSheet(row, rerender) {
         <div><b>${pill(st)}</b><span>สถานะ</span></div>
         ${noSelf(row) ? '' : `<div><b>${fix(row.SelfScore)}</b><span>ตนเอง</span></div>`}
         <div><b>${fix(row.MgrScore)}</b><span>ผู้ประเมิน</span></div>
-        <div><b>${row.Grade ? esc(row.Grade) : '—'}</b><span>เกรด</span></div>
+        <div><b>${esc(gradeText(row))}</b><span>เกรด</span></div>
       </div>
 
       ${statusTrack(row)}
@@ -766,7 +824,8 @@ async function openSheet(row, rerender) {
   }
 
   const ex = $('#ap-export');
-  if (ex) ex.onclick = () => exportProbation(row);
+  const openSecs = secs;        // ใบของรอบเก่าใช้หัวข้อของรอบนั้น แม้ปิดหน้าต่างไปแล้ว
+  if (ex) ex.onclick = () => exportProbation(row, openSecs);
 
   const saveMgr = $('#ap-mgr-save');
   if (saveMgr) {
