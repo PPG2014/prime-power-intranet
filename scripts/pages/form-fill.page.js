@@ -308,6 +308,7 @@ async function downloadBlankForm(form, fields) {
     requester: { name: (me && me.Title) || state.user?.name || '', sig },
     empCode: (me && me.EmployeeCode) || values.std_emp_code || '',
     position: (me && me.Position) || '',
+    dept: (me && me.Department) || '',
     approvals: steps.map((st) => ({ role: st.StepName || `ผู้อนุมัติลำดับ ${st.StepOrder}` })),
   });
 
