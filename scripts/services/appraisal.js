@@ -328,6 +328,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
       // ดึงวันเริ่มงานจากทะเบียนบุคลากร · วันประเมินแต่ละครั้งฝ่ายบุคคลกำหนดเอง
       Extra: JSON.stringify({
+        ...(firstStage(cycle) === S_MGR ? { noSelf: true } : {}),
         startDate: p.StartDate ? String(p.StartDate).slice(0, 10) : '',
         rounds: mergeRounds(p.StartDate, cycle,
           allSheets.filter((r) => clean(r.EmployeeEmail).toLowerCase() === clean(p.Email).toLowerCase())),
@@ -383,6 +384,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
     Status: firstStage(cycle), SelfScore: 0, MgrScore: 0, FinalScore: 0, Grade: '',
     SelfData: '{}', MgrData: '{}', Log: '{"items":[]}',
     Extra: JSON.stringify({
+      ...(firstStage(cycle) === S_MGR ? { noSelf: true } : {}),
       startDate: me.StartDate ? String(me.StartDate).slice(0, 10) : '',
       rounds: mergeRounds(me.StartDate, cycle, prev),
     }),
@@ -396,6 +398,17 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
  */
 export const firstStage = (cycle) => (clean(cycle && cycle.Stage) === S_MGR ? S_MGR : S_SELF);
 
+/** ใบนี้ไม่มีขั้นประเมินตนเอง (สร้างในรอบที่เริ่มที่หัวหน้า หรือถูกข้ามขั้นแล้ว) */
+export function noSelf(row) {
+  if (!row) return false;
+  if (extraOf(row).noSelf) return true;
+  const log = logOf(row);
+  if (log.some((l) => /ข้ามขั้นประเมินตนเอง/.test(l.action || ''))) return true;
+  // ใบที่เลยขั้นประเมินตนเองไปแล้วโดยไม่เคยส่งแบบประเมินตนเอง (สร้างที่ขั้นหัวหน้าก่อนมีตัวบอก noSelf)
+  return clean(row.Status) !== S_SELF && !(+row.SelfScore > 0)
+    && !log.some((l) => /ส่งแบบประเมินตนเอง/.test(l.action || ''));
+}
+
 /** ใบที่ยังรอประเมินตนเองและยังไม่ได้ส่ง (ใช้ตอนรอบเปลี่ยนเป็นขั้นหัวหน้าประเมิน) */
 export const waitingSelf = (rows) => rows.filter((r) => clean(r.Status) === S_SELF && !(+r.SelfScore > 0));
 
@@ -406,6 +419,7 @@ export async function skipSelf(rows, by, onProgress = () => {}) {
     // eslint-disable-next-line no-await-in-loop
     await update('appraisals', r.id, {
       Status: S_MGR, Log: addLog(r, 'ข้ามขั้นประเมินตนเอง ส่งให้หัวหน้าประเมิน', by),
+      Extra: JSON.stringify({ ...extraOf(r), noSelf: true }),
     });
     done += 1;
     onProgress(done, rows.length);
