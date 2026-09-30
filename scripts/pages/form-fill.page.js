@@ -5,6 +5,7 @@ import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm } from '../components/form-renderer.js';
 import { buildRoute, flowFieldsFor, stepsOf } from '../services/requests.js';
 import { renderFormDoc } from '../templates/form-doc.js';
+import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
@@ -182,7 +183,7 @@ export async function render(ctx) {
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
         ${isPR(form.FormCode) ? '' : `<section class="q-group q-sign">
-          <h3 class="q-group-title">ลายเซ็นผู้ยื่น</h3>
+          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) ? ' <b class="req">*</b>' : ''}</h3>
           <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
             (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
           ${signaturePad('requester', (editSign && editSign.url) || (me && me.SignatureUrl) || '', true)}
@@ -306,6 +307,7 @@ async function downloadBlankForm(form, fields) {
     form, fields, values,
     requester: { name: (me && me.Title) || state.user?.name || '', sig },
     empCode: (me && me.EmployeeCode) || values.std_emp_code || '',
+    position: (me && me.Position) || '',
     approvals: steps.map((st) => ({ role: st.StepName || `ผู้อนุมัติลำดับ ${st.StepOrder}` })),
   });
 
@@ -382,6 +384,14 @@ export function mount(ctx) {
       const v = res.values;
       const msg = await queueProblem(form, fields, v, editId);
       if (msg) { err.innerHTML = msg; err.hidden = false; return; }
+    }
+    // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
+    if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
+      err.innerHTML = 'กรุณาลงลายเซ็นผู้เบิกจ่ายก่อนส่ง — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"';
+      err.hidden = false;
+      const pad = $('.sig-pad[data-sig="requester"]');
+      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
     }
     err.hidden = true;
 

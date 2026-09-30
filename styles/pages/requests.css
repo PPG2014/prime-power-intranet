@@ -169,6 +169,45 @@
 .tv-gap { margin-top: 12px; }
 .tv-blue { color: #1f3fbf; } .tv-red { color: #d11; }
 
+/* ใบรับรองแทนใบเสร็จรับเงิน (เบิกสวัสดิการห้องพักรายเดือน) — ตามต้นฉบับ Excel */
+.wf-doc { font-size: 12px; color: #000; }
+.wf-logo { text-align: center; margin: 4px 0 18px; }
+.wf-logo img { height: 56px; display: inline-block; }
+.wf-title { text-align: center; font-size: 19px; font-weight: 700; margin: 0 0 8px; }
+.wf-co { text-align: center; font-size: 11.5px; line-height: 2; margin-bottom: 22px; }
+.wf-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.wf-table th, .wf-table td { border: 1px solid #000; padding: 3px 4px; height: 28px; vertical-align: middle; }
+.wf-table thead th { background: #dce9f7; font-weight: 700; text-align: center; font-size: 11.5px; white-space: nowrap;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.wf-c1 { width: 7.2%; } .wf-c2 { width: 17.8%; } .wf-c4 { width: 12.6%; } .wf-c5 { width: 13.8%; }
+.wf-c { text-align: center; } .wf-r { text-align: right; } .wf-bold { font-weight: 700; white-space: nowrap; font-size: 11.5px; }
+.wf-doc td.wf-in { background: #efefef !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.wf-line { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; font-size: 11.5px; }
+.wf-box { display: inline-block; background: #efefef; min-height: 20px; padding: 0 4px; text-align: center;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.wf-b1 { min-width: 56px; } .wf-b2 { min-width: 70px; } .wf-b3 { min-width: 96px; } .wf-b4 { min-width: 44px; }
+.wf-gap { width: 14px; }
+.wf-docs { display: flex; align-items: flex-end; gap: 10px; margin-top: 26px; }
+.wf-copies { min-width: 76px; border-bottom: 1px dotted #000; }
+.wf-sp { margin-left: 12px; }
+.wf-cert { margin: 6px 0 40px; }
+.wf-signs { display: flex; justify-content: space-between; gap: 30px; }
+.wf-left { flex: 1.1; } .wf-right { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.wf-srow { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 18px; }
+.wf-srow > b { min-width: 52px; }
+.wf-sline { display: inline-flex; justify-content: center; align-items: flex-end; min-width: 150px; min-height: 26px;
+  border-bottom: 1px solid #ccc; position: relative; }
+.wf-sline img { max-height: 42px; max-width: 150px; margin-bottom: 1px; }
+.wf-short { min-width: 110px; }
+.wf-right .wf-srow { margin-bottom: 4px; }
+.wf-signer { text-align: center; margin-bottom: 10px; }
+.rq-sign { margin: 8px 0; }
+
+/* ตารางในเอกสารไม่ใช้ขนาดตัวอักษร/ระยะของตารางทั่วไปของเว็บ */
+.wf-table td, .tv-table td, .tv-table th, .fd-li td, .fd-li th { font-size: inherit; }
+.wf-table { font-size: 12px; } .tv-table { font-size: 12px; }
+.wf-table tbody tr:hover, .tv-table tbody tr:hover, .fd-li tbody tr:hover { background: none; }
+
 @media print {
   body.printing-doc .topbar, body.printing-doc header, body.printing-doc footer,
   body.printing-doc #app, body.printing-doc .modal-head, body.printing-doc .modal-foot { display: none !important; }

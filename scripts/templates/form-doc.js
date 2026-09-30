@@ -9,6 +9,7 @@ import { esc } from '../core/dom.js';
 import { LETTERHEAD } from '../core/letterhead.js';
 import { lineCols, lineTotal, toLineRows, showIfMatches } from '../components/form-renderer.js';
 import { isTravel, renderTravel } from './travel-expense.js';
+import { isWelfareRoom, renderWelfareRoom } from './welfare-room.js';
 
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
 const optsOf = (f) => String(f.Options || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
@@ -76,11 +77,13 @@ function valueHtml(f, v) {
  * values    = ค่าที่กรอก { FieldKey: value }
  * docNo     = เลขที่คำขอ (ถ้าส่งแล้ว) · submitted = วันที่ยื่น
  * requester = { name, sig, at } · approvals = [{ role, name, sig, result, note, at }]
- * empCode   = รหัสพนักงานของผู้ยื่น (ใบเบิกค่าเดินทางใช้เป็น "เลขที่")
+ * empCode   = รหัสพนักงานของผู้ยื่น (ใบเบิกค่าเดินทางใช้เป็น "เลขที่") · position = ตำแหน่งผู้ยื่น
+ * finalSign = ผู้อนุมัติขั้นสุดท้ายที่ลงนามแล้ว { name, sig } (ใบรับรองแทนใบเสร็จ)
  */
 export function renderFormDoc({ form = {}, fields = [], values = {}, docNo = '', submitted = '',
-  requester = {}, approvals = [], empCode = '' }) {
+  requester = {}, approvals = [], empCode = '', position = '', finalSign = null }) {
   // ฟอร์มที่มีแม่แบบตามต้นฉบับ ใช้แม่แบบนั้นแทน
+  if (isWelfareRoom(form)) return renderWelfareRoom({ fields, values, empCode, requester, finalSign, position });
   if (isTravel(form, fields)) return renderTravel({ form, fields, values, empCode, requester, approvals });
   const shown = fields.filter((f) => f.FieldType !== 'section' && showIfMatches(f.ShowIf, values));
   const groups = [];
