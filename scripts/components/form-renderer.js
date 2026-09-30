@@ -69,19 +69,54 @@ export const STANDARD = [
  */
 /** ชื่อไทยของช่องมาตรฐาน จาก FieldKey ใช้ตอนแสดงคำขอในหน้าอื่น */
 export function standardLabel(key) {
-  const f = STANDARD.find((x) => x.FieldKey === key);
+  const f = [...STANDARD, ATTACH].find((x) => x.FieldKey === key);
   return f ? f.Title : null;
 }
 
+/**
+ * ช่องแนบหลักฐานประกอบ — เติมท้ายฟอร์มให้เองเมื่อฟอร์มนั้นยังไม่มีช่องแนบไฟล์
+ * ฟอร์มที่มีตารางเลขไมล์ (เบิกค่าเดินทาง) จะบอกให้แนบรูปเลขไมล์ของแต่ละงาน
+ */
+export const ATTACH = { FieldKey: 'std_attach', Title: 'แนบหลักฐานประกอบการเบิก / เอกสารประกอบ',
+  FieldType: 'file', Section: 'หลักฐานประกอบ', ColumnWidth: 'full' };
+
+function attachHelp(formFields) {
+  const mileage = formFields.some((f) => f.FieldType === 'lineitems' && /ไมล์/.test(String(f.Options || '')));
+  return mileage
+    ? 'กรณีเบิกค่าน้ำมัน ให้จดเลขไมล์ก่อน-หลังของแต่ละงาน และแนบรูปหน้าปัดเลขไมล์ พร้อมใบเสร็จค่าน้ำมัน/ทางด่วน/ที่จอดรถ'
+    : 'ถ้ามี เช่น ใบเสร็จ ใบกำกับภาษี รูปถ่าย หรือเอกสารที่เกี่ยวข้อง';
+}
+
 export function withStandard(formFields, form) {
+  // ฟอร์มที่ยังไม่มีช่องแนบไฟล์ เติมช่องแนบหลักฐานให้ท้ายฟอร์ม (ไม่บังคับ)
+  const withAttach = formFields.some((f) => f.FieldType === 'file') ? formFields
+    : [...formFields, { ...ATTACH, Options: '', HelpText: attachHelp(formFields), ShowIf: '',
+      SortOrder: 99999, IsActive: true }];
   if (form && (form.UseStandardHeader === false || form.UseStandardHeader === 'No')) {
-    return formFields;
+    return withAttach;
   }
   const titles = new Set(formFields.map((f) => String(f.Title).trim()));
   const std = STANDARD
     .filter((f) => !titles.has(f.Title))
     .map((f, i) => ({ ...f, Options: '', HelpText: '', ShowIf: '', SortOrder: -100 + i, IsActive: true }));
-  return [...std, ...formFields];
+  return [...std, ...withAttach];
+}
+
+/** คอลัมน์ของตารางรายการ จาก Options บรรทัดละ key|ชื่อ|ชนิด */
+export function lineCols(f) {
+  return String(f.Options || 'detail|รายละเอียด|text\nqty|จำนวน|number\nprice|ราคา|money')
+    .split(/\r?\n/).map((line) => {
+      const [key, label, type] = line.split('|').map((x) => (x || '').trim());
+      return { key, label: label || key, type: type || 'text' };
+    }).filter((c) => c.key);
+}
+
+/** ยอดรวมของตารางรายการ (คอลัมน์ money แรก คูณคอลัมน์ qty ถ้ามี) · ไม่มีคอลัมน์เงินคืน null */
+export function lineTotal(cols, rows) {
+  const money = cols.find((c) => c.type === 'money');
+  if (!money) return null;
+  const qty = cols.find((c) => c.key === 'qty' && c.key !== money.key);
+  return rows.reduce((t, r) => t + (+r[money.key] || 0) * (qty ? (+r[qty.key] || 1) : 1), 0);
 }
 
 const opts = (f) => String(f.Options || '').split('\n').map((x) => x.trim()).filter(Boolean);
@@ -93,7 +128,7 @@ function getDefault(fields, f) {
 }
 
 /** แปลงค่ารายการเป็นอาร์เรย์ของแถวเสมอ */
-function toLineRows(v) {
+export function toLineRows(v) {
   if (Array.isArray(v)) return v;
   try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; }
   catch (e) { return []; }
@@ -112,7 +147,7 @@ function resolveDefault(raw, me) {
 }
 
 /** เงื่อนไขแสดงช่อง รูปแบบ key=value คั่นหลายเงื่อนไขด้วย | (ตรงข้อใดข้อหนึ่งก็พอ) */
-function showIfMatches(rule, values) {
+export function showIfMatches(rule, values) {
   if (!rule) return true;
   return String(rule).split('|').some((part) => {
     const [key, ...rest] = part.split('=');
@@ -169,11 +204,7 @@ function control(f, value) {
        * ชนิด: text, number, money, choice:ตัวเลือก1;ตัวเลือก2
        * คอลัมน์ money จะถูกรวมเป็นยอดท้ายตาราง (คูณจำนวนถ้ามีคอลัมน์ qty)
        */
-      const cols = String(f.Options || 'detail|รายละเอียด|text\nqty|จำนวน|number\nprice|ราคา|money')
-        .split('\n').map((line) => {
-          const [key, label, type] = line.split('|').map((x) => x.trim());
-          return { key, label: label || key, type: type || 'text' };
-        }).filter((c) => c.key);
+      const cols = lineCols(f);
       const rows = toLineRows(value);
       return `<div class="li-field" id="${id}" data-cols='${esc(JSON.stringify(cols))}'>
         <table class="li-table">
@@ -280,7 +311,8 @@ export function collectForm(fields) {
     out[f.FieldKey] = v;
   }
 
-  return errors.length ? { errors } : { values: out };
+  // partial = ค่าที่กรอกไว้แม้ยังไม่ครบ ใช้ตอนดาวน์โหลดแบบฟอร์มไปกรอกต่อ
+  return errors.length ? { errors, partial: out } : { values: out };
 }
 
 /** ผูกช่องแนบไฟล์และเงื่อนไขการแสดงช่อง เรียกหลังฟอร์มขึ้นจอ */

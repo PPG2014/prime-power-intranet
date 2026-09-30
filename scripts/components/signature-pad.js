@@ -94,3 +94,15 @@ export async function readSignature(role, folder = 'Appraisals/signatures') {
   const up = await uploadFile(file, folder);
   return up.url;
 }
+
+/**
+ * ลายเซ็นสำหรับแสดงตัวอย่างในเอกสาร โดยยังไม่อัปโหลด
+ * คืน URL ที่อัปโหลดแล้ว / รูปที่เพิ่งวาดเป็น data URL / ค่าว่าง
+ */
+export function previewSignature(role) {
+  const box = $(`.sig-pad[data-sig="${role}"]`);
+  if (!box) return '';
+  if (box.dataset.uploaded) return box.dataset.uploaded;
+  const canvas = box.querySelector('.sig-canvas');
+  return canvas && box.isDirty && box.isDirty() ? canvas.toDataURL('image/png') : '';
+}
