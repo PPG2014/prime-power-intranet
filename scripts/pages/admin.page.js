@@ -11,7 +11,7 @@ import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
-import { sheets, clean, generateSheets } from '../services/appraisal.js';
+import { sheets, clean, generateSheets, waitingSelf, skipSelf, S_MGR } from '../services/appraisal.js';
 import { routeHost, bindRouteEditor, routeProblems, saveRoute } from '../components/approval-route-editor.js';
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 
@@ -442,6 +442,17 @@ async function saveCycleSheets(record, data, grid, btn) {
   const res = clean(cycle.Status) === 'เปิด'
     ? await generateSheets(cycle, (d, n) => { btn.textContent = `กำลังสร้างใบประเมิน ${d}/${n}…`; })
     : { failed: [] };
+  // รอบเปิดขั้นหัวหน้าประเมิน แต่ยังมีใบค้างขั้นประเมินตนเอง (สร้างไว้ก่อนเปลี่ยนขั้น) → ถามว่าจะข้ามไปเลยไหม
+  if (clean(cycle.Status) === 'เปิด' && clean(cycle.Stage) === S_MGR) {
+    const stuck = waitingSelf(await sheets(title));
+    if (stuck.length && confirm(`มีใบประเมิน ${stuck.length} ใบที่ยังอยู่ขั้น "ประเมินตนเอง" `
+      + `(${stuck.map((r) => clean(r.EmployeeName)).slice(0, 5).join(', ')}${stuck.length > 5 ? ' …' : ''})\n\n`
+      + 'ตกลง = ข้ามขั้นประเมินตนเอง ส่งให้หัวหน้าประเมินเลย\n'
+      + 'ยกเลิก = คงไว้ ให้พนักงานประเมินตนเองก่อน (ส่งตามหลังได้)')) {
+      await skipSelf(stuck, state.user?.name || state.user?.email || 'ผู้ดูแลระบบ',
+        (d, n) => { btn.textContent = `กำลังส่งให้หัวหน้าประเมิน ${d}/${n}…`; });
+    }
+  }
   if (grid) {
     await saveCycleGrid(await sheets(title), grid,
       (d, n) => { btn.textContent = `กำลังบันทึกข้อมูลผู้ถูกประเมิน ${d}/${n}…`; });
