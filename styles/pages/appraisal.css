@@ -197,3 +197,4 @@
 .ap-rolein.bad { border-color: #e02424; background: #fff5f5; }
 .ap-roleall td { background: #f7f9fc; }
 .ap-roleall .ap-rolein { border-style: dashed; }
+.ap-wait { color: var(--dim); font-size: .85em; margin-top: 2px; }

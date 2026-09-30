@@ -154,8 +154,11 @@ export function stageOpen(cycle, stage) {
   if (clean(cycle.Status) !== 'เปิด') return { ok: false, why: `รอบ ${clean(cycle.Title)} ปิดรับข้อมูลแล้ว` };
   if (stage !== S_SELF && stage !== S_MGR) return { ok: true };
   const cur = clean(cycle.Stage) || S_SELF;
-  if (cur !== stage) return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
-  return { ok: true };
+  if (cur === stage) return { ok: true };
+  // เปิดขั้นหัวหน้าประเมินแล้ว คนที่ยังไม่ได้ประเมินตนเองยังส่งตามหลังได้
+  // ไม่งั้นใบนั้นค้าง: พนักงานทำไม่ได้ หัวหน้าก็ยังทำไม่ได้เพราะใบยังไม่ถึงขั้นหัวหน้า
+  if (stage === S_SELF && cur === S_MGR) return { ok: true, late: true };
+  return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
 }
 
 /**
