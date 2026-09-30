@@ -5,7 +5,8 @@ import { toCsv, downloadText } from '../utils/csv.js';
 import {
   STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
-  submitSelf, submitManager, hrReview, executiveDecide, sendBack, acknowledge,
+  submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
+  signsOf, empSigned, hrSigned, needsEmpSign,
   S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo, noSelf,
   canHrReview, canBossApprove, inApproveScope, rolesOf,
 } from '../services/appraisal.js';
@@ -24,13 +25,16 @@ let me = null;          // แถวบุคลากรของผู้ใ�
 let myEmail = '';
 let scheme = 'มาตรฐาน';   // เกณฑ์เกรดของรอบนี้
 let autoMade = 0;          // จำนวนใบที่ระบบเพิ่งสร้างให้เอง
+let cycles = [];           // ทุกรอบ (ฝ่ายบุคคล/ผู้ดูแล ใช้เลือกดูย้อนหลัง)
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
   [STAGES[3]]: 'head', [STAGES[4]]: 'ack', [DONE]: 'done',
 };
 const dt = (v) => (v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(clean(s) || '—')}</span>`;
+/** ชื่อสถานะที่แสดง · ขั้นฝ่ายบุคคลคือช่วงที่พนักงานกับฝ่ายบุคคลลงนามพร้อมกัน */
+const LABEL = { [STAGES[2]]: 'พนักงานรับทราบ · ฝ่ายบุคคลตรวจสอบ', [STAGES[3]]: 'รอผู้บริหาร' };
+const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(LABEL[clean(s)] || clean(s) || '—')}</span>`;
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
@@ -47,7 +51,14 @@ export async function render(ctx) {
   const dir = await list('directory').catch(() => []);
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
-  cycle = await activeCycle();
+  // ฝ่ายบุคคล/ผู้ดูแลเลือกดูรอบเก่าได้ · รอบที่ปิดแล้วระบบล็อกทุกขั้น จึงเป็นการดูอย่างเดียว
+  const canBrowse = state.isHR || state.isAdmin;
+  cycles = canBrowse ? (await list('appraisalCycles').catch(() => []))
+    .slice().sort((a, b) => String(b.StartDate || b.Created || '').localeCompare(String(a.StartDate || a.Created || ''))
+      || (+b.id || 0) - (+a.id || 0)) : [];
+  const picked = canBrowse && state.apCycleId
+    ? cycles.find((c) => String(c.id) === String(state.apCycleId)) : null;
+  cycle = picked || await activeCycle();
   secs = await criteria(clean(cycle?.FormSet));
   scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
   rows = cycle ? await sheets(clean(cycle.Title)) : [];
@@ -99,6 +110,12 @@ export async function render(ctx) {
            · สถานะรอบ: ${esc(clean(cycle.Status) || '—')}`
         : 'ยังไม่ได้เปิดรอบประเมิน'}</p>
 
+      ${cycles.length > 1 ? `<label class="ap-cycle">ดูรอบ
+        <select id="ap-cycle">${cycles.map((c) => `<option value="${esc(c.id)}" ${cycle && String(c.id) === String(cycle.id) ? 'selected' : ''}>${
+          esc(clean(c.Title))} · ${esc(clean(c.Status) || '—')}${c.IsActive === false ? ' (ซ่อน)' : ''}</option>`).join('')}</select>
+        ${cycle && clean(cycle.Status) !== 'เปิด' ? '<span class="dim">ดูข้อมูลย้อนหลัง (แก้ไขไม่ได้ · ส่งออกเอกสารได้)</span>' : ''}
+      </label>` : ''}
+
       <div class="chips">
         ${tabs.map(([k, label]) => `<button class="chip" data-aptab="${k}"
           aria-pressed="${tab === k}">${esc(label)}${todo[k]
@@ -142,9 +159,10 @@ function paneMe(mine) {
       <div><b>${mine.Grade ? esc(mine.Grade) : '—'}</b><span>เกรดสรุป</span></div>
     </div>
 
-    ${st === S_ACK ? `<div class="panel ap-ack">
+    ${needsEmpSign(mine) ? `<div class="panel ap-ack">
       <h3>ผลการประเมินรอบนี้</h3>
-      <p>คะแนนสรุป <b>${fix(mine.FinalScore)}</b> · เกรด <b>${esc(mine.Grade || '')}</b>
+      <p>คะแนน <b>${fix(mine.FinalScore || mine.MgrScore)}</b> · เกรด <b>${esc(mine.Grade
+        || gradeOf(+mine.FinalScore || +mine.MgrScore || 0, scheme)[1])}</b>
         ${mine.HeadComment ? `<br>ความเห็นผู้บริหาร: ${esc(mine.HeadComment)}` : ''}</p>
       <p class="dim">กดปุ่มด้านล่างเพื่อเปิดใบประเมิน ลงลายเซ็นรับทราบ และดาวน์โหลดเอกสารได้</p>
       <button class="btn btn-primary" data-apopen="${mine.id}">✍ เปิดใบเพื่อลงนามรับทราบ</button>
@@ -287,7 +305,8 @@ function paneAll() {
           <td>${esc(clean(r.EvaluatorName))}</td>
           <td>${pill(r.Status)}</td>
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
-          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
+          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycle?.FormSet)
+            ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⭳</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>
         <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
@@ -340,30 +359,36 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
     </div>`;
 }
 
-/** แถบสถานะทุกขั้นตอน พร้อมวันเวลาที่ทำ */
+/**
+ * แถบสถานะทุกขั้นตอน พร้อมชื่อและวันเวลาที่ทำ
+ * ดูจากลายเซ็นในใบเป็นหลัก (ถูกล้างเมื่อส่งกลับให้แก้) ขั้นที่กำลังรอจะขึ้น "กำลังดำเนินการ"
+ */
 function statusTrack(row) {
   const hist = logOf(row);
   const at = (re) => (hist.filter((l) => re.test(l.action)).slice(-1)[0] || {});
   const st = clean(row.Status);
-  const order = [...STAGES, DONE];
+  const sg = signsOf(row);
+  const fromSign = (x) => (x && x.at ? { by: x.name, at: x.at } : {});
   const steps = [
-    ...(noSelf(row) ? [] : [{ name: S_SELF, label: 'พนักงานประเมินตนเอง', done: at(/ส่งแบบประเมินตนเอง/) }]),
-    { name: S_MGR, label: 'ผู้ประเมินให้คะแนนและลงนาม', done: at(/ผู้ประเมินสรุปผล/) },
-    { name: S_HR, label: 'ฝ่ายบุคคลตรวจสอบ', done: at(/ฝ่ายบุคคลตรวจสอบ/) },
-    { name: S_BOSS, label: 'ผู้บริหารอนุมัติ', done: at(/ผู้บริหาร/) },
-    { name: S_ACK, label: 'พนักงานรับทราบผล', done: at(/รับทราบ/) },
+    ...(noSelf(row) ? [] : [{ label: 'พนักงานประเมินตนเอง', now: st === S_SELF,
+      done: st === S_SELF ? {} : at(/ส่งแบบประเมินตนเอง/) }]),
+    { label: 'ผู้ประเมินให้คะแนนและลงนาม', now: st === S_MGR,
+      done: st === S_MGR ? {} : fromSign(sg.evaluator) },
+    { label: 'พนักงานรับทราบและลงนาม', now: needsEmpSign(row), done: fromSign(sg.employee) },
+    { label: 'ฝ่ายบุคคลตรวจสอบและลงนาม', now: st === S_HR && !hrSigned(row), done: fromSign(sg.hr) },
+    { label: 'ฝ่ายบุคคลส่งให้ผู้บริหาร', now: st === S_HR && empSigned(row) && hrSigned(row),
+      done: [S_BOSS, S_ACK, DONE].includes(st) ? at(/ส่งให้ผู้บริหาร/) : {} },
+    { label: 'ผู้บริหารรับทราบ / อนุมัติ', now: st === S_BOSS, done: fromSign(sg.approver) },
   ];
-  const curIdx = order.indexOf(st);
   return `<div class="ap-track">
     ${steps.map((x) => {
-    const idx = order.indexOf(x.name);
-    const state = x.done.at ? 'ok' : (st === x.name ? 'now' : (curIdx > idx ? 'ok' : 'wait'));
+    const state = x.now ? 'now' : (x.done.at ? 'ok' : (st === DONE ? 'ok' : 'wait'));
     return `<div class="ap-step ${state}">
         <div class="ap-step-dot">${state === 'ok' ? '✓' : ''}</div>
         <div class="ap-step-body">
           <b>${esc(x.label)}</b>
-          <span>${x.done.at ? `${esc(x.done.by || '')} · ${esc(dt(x.done.at))}`
-    : (st === x.name ? 'กำลังดำเนินการ' : 'รอดำเนินการ')}</span>
+          <span>${x.done.at && !x.now ? `${esc(x.done.by || '')} · ${esc(dt(x.done.at))}`
+    : (x.now ? 'กำลังดำเนินการ' : (state === 'ok' ? 'เรียบร้อย' : 'รอดำเนินการ'))}</span>
         </div>
       </div>`;
   }).join('')}
@@ -517,6 +542,9 @@ export function mount(ctx) {
 
   // เปิดใบประเมินของลูกทีม / รายการรออนุมัติ
   onClick('apopen', (id) => openSheet(rows.find((r) => String(r.id) === String(id)), rerender));
+  onClick('apexport', (id) => { const r = rows.find((x) => String(x.id) === String(id)); if (r) exportProbation(r); });
+  const cyc = $('#ap-cycle');
+  if (cyc) cyc.onchange = () => setState({ apCycleId: cyc.value });
 
   // ผู้ดูแล: สร้างใบประเมิน + ส่งออก CSV
   const gen = $('#ap-gen');
@@ -558,7 +586,9 @@ async function openSheet(row, rerender) {
     && clean(row.EvaluatorEmail).toLowerCase() === myEmail;
   const isHrTurn = st === S_HR && canHrReview(row, who());
   const isBossTurn = st === S_BOSS && canBossApprove(row, who());
-  const isEmpTurn = st === S_ACK && clean(row.EmployeeEmail).toLowerCase() === myEmail;
+  // พนักงานลงนามรับทราบได้ทันทีที่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล
+  const isEmpTurn = needsEmpSign(row) && clean(row.EmployeeEmail).toLowerCase() === myEmail;
+  const readyForBoss = !!(sg.evaluator && sg.evaluator.at) && empSigned(row);
 
   const selfAns = answersOf(row, 'self');
   const mgrAns = answersOf(row, 'mgr');
@@ -605,10 +635,10 @@ async function openSheet(row, rerender) {
 
         <div class="ap-signs">
           ${signBlock('4.1 ผู้ประเมิน', sg.evaluator, 'evaluator', isMgrTurn)}
-          ${signBlock('4.2 ฝ่ายทรัพยากรมนุษย์', sg.hr, 'hr', isHrTurn)}
           ${signBlock('ผู้ถูกประเมินรับทราบ', sg.employee, 'employee', isEmpTurn,
     sg.employee && sg.employee.at ? `<div class="dim">ลงนามรับทราบแล้ว</div>` : '')}
-          ${signBlock('4.3 ผู้อนุมัติ', sg.approver, 'approver', isBossTurn, isBossTurn
+          ${signBlock('4.2 ฝ่ายทรัพยากรมนุษย์', sg.hr, 'hr', isHrTurn)}
+          ${signBlock('4.3 ผู้บริหาร (ลงนามหรือไม่ก็ได้)', sg.approver, 'approver', isBossTurn, isBossTurn
     ? `<div class="ap-sum"><label><input type="radio" name="boss-ok" value="1" checked> อนุมัติ</label>
          <label><input type="radio" name="boss-ok" value="0"> ไม่อนุมัติ</label></div>
        <label>คะแนนสรุป (ปรับได้)<input type="number" id="ap-final" step="0.1" min="0" max="100"
@@ -630,12 +660,13 @@ async function openSheet(row, rerender) {
     footer: `${(isMgrTurn && !noSelf(row)) || isHrTurn || isBossTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
-      ${state.isHR && !isMgrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
+      ${state.isHR && !isMgrTurn && !isHrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
-      ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้ฝ่ายบุคคล</button>' : ''}
-      ${isHrTurn ? `<button class="btn-mini" id="ap-hr-toemp">ส่งให้พนักงานรับทราบ (ข้ามผู้บริหาร)</button>
-                    <button class="btn btn-primary" id="ap-hr-send">ส่งให้ผู้บริหารอนุมัติ</button>` : ''}
-      ${isBossTurn ? '<button class="btn btn-primary" id="ap-approve">บันทึกผลการอนุมัติ</button>' : ''}
+      ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้พนักงานรับทราบ / ฝ่ายบุคคล</button>' : ''}
+      ${isHrTurn ? `<button class="btn-mini" id="ap-hr-sign">💾 บันทึกลายเซ็นฝ่ายบุคคล</button>
+                    <button class="btn btn-primary" id="ap-hr-send" ${readyForBoss ? ''
+    : 'disabled title="รอพนักงานลงนามรับทราบก่อน"'}>ส่งให้ผู้บริหาร</button>` : ''}
+      ${isBossTurn ? '<button class="btn btn-primary" id="ap-approve">บันทึกผล</button>' : ''}
       ${isEmpTurn ? '<button class="btn btn-primary" id="ap-emp-ack">✓ ลงนามรับทราบ</button>' : ''}`,
   });
 
@@ -713,20 +744,29 @@ async function openSheet(row, rerender) {
     };
   }
 
-  const hrGo = async (to, btn) => {
-    btn.disabled = true;
-    try {
-      await hrReview(row, { sign: await signOf('hr'), to, by: state.user?.name || '' });
-      close(); await rerender();
-    } catch (e) { btn.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
+  const hrSignNow = async () => {
+    const sign = await signOf('hr');
+    if (!sign.name && !sign.url) throw new Error('กรอกชื่อผู้ลงนามหรือเซ็นในช่องฝ่ายทรัพยากรมนุษย์ก่อน');
+    return sign;
   };
+  const hrSave2 = $('#ap-hr-sign');
+  if (hrSave2) {
+    hrSave2.onclick = async () => {
+      hrSave2.disabled = true;
+      try {
+        await hrSign(row, { sign: await hrSignNow(), by: state.user?.name || '', summary: readSummary() });
+        close(); await rerender();
+      } catch (e) { hrSave2.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }
+    };
+  }
   const hrSend = $('#ap-hr-send');
-  if (hrSend) hrSend.onclick = () => hrGo(S_BOSS, hrSend);
-  const hrToEmp = $('#ap-hr-toemp');
-  if (hrToEmp) {
-    hrToEmp.onclick = () => {
-      if (!confirm('ส่งให้พนักงานเซ็นรับทราบเลย โดยข้ามขั้นผู้บริหาร?')) return;
-      hrGo(S_ACK, hrToEmp);
+  if (hrSend) {
+    hrSend.onclick = async () => {
+      hrSend.disabled = true;
+      try {
+        await hrReview(row, { sign: await hrSignNow(), by: state.user?.name || '', summary: readSummary() });
+        close(); await rerender();
+      } catch (e) { hrSend.disabled = false; alert('ส่งไม่สำเร็จ — ' + e.message); }
     };
   }
 
