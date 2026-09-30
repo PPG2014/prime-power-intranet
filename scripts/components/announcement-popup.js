@@ -156,8 +156,8 @@ export async function previewAnnouncement(item) {
   if (to && today > to) why.push(`หมดช่วงแสดงแล้ว (${thaiDateShort(item.EndDate)})`);
 
   previewNote = why.length
-    ? `ตัวอย่าง · ประกาศนี้ยังไม่เด้งบนหน้าแรกตอนนี้ เพราะ${why.join(' และ ')}`
-    : 'ตัวอย่าง · ประกาศนี้กำลังเด้งบนหน้าแรกอยู่';
+    ? `ตัวอย่าง · ประกาศนี้ยังไม่ขึ้น Popup บนหน้าแรกตอนนี้ เพราะ${why.join(' และ ')}`
+    : 'ตัวอย่าง · ประกาศนี้กำลังขึ้น Popup บนหน้าแรกอยู่';
   clearTimeout(timer); timer = null;
   items = [item];
   index = 0;

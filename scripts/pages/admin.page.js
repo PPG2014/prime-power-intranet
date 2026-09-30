@@ -198,7 +198,7 @@ export async function render(ctx) {
                   <button class="btn-move" data-down="${r.id}" title="เลื่อนลง"
                     ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
                 </span>` : ''}
-                ${key === 'announcements' ? `<button class="btn-mini" data-prev="${r.id}" title="ดูว่าประกาศนี้เด้งออกมาหน้าตาแบบไหน">👁 ดูตัวอย่าง</button>` : ''}
+                ${key === 'announcements' ? `<button class="btn-mini" data-prev="${r.id}" title="ดูว่า Popup ประกาศนี้หน้าตาแบบไหน">👁 ดูตัวอย่าง</button>` : ''}
                 ${s.readOnly ? '' : `<button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>
                 <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
               </td></tr>`).join('')
