@@ -10,6 +10,7 @@ import { LETTERHEAD } from '../core/letterhead.js';
 import { lineCols, lineTotal, toLineRows, showIfMatches } from '../components/form-renderer.js';
 import { isTravel, renderTravel } from './travel-expense.js';
 import { isWelfareRoom, renderWelfareRoom } from './welfare-room.js';
+import { isMemo, renderMemo } from './memo.js';
 
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
 const optsOf = (f) => String(f.Options || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
@@ -81,8 +82,9 @@ function valueHtml(f, v) {
  * finalSign = ผู้อนุมัติขั้นสุดท้ายที่ลงนามแล้ว { name, sig } (ใบรับรองแทนใบเสร็จ)
  */
 export function renderFormDoc({ form = {}, fields = [], values = {}, docNo = '', submitted = '',
-  requester = {}, approvals = [], empCode = '', position = '', finalSign = null }) {
+  requester = {}, approvals = [], empCode = '', position = '', dept = '', finalSign = null }) {
   // ฟอร์มที่มีแม่แบบตามต้นฉบับ ใช้แม่แบบนั้นแทน
+  if (isMemo(form)) return renderMemo({ fields, values, empCode, requester, approvals, person: { position, dept } });
   if (isWelfareRoom(form)) return renderWelfareRoom({ fields, values, empCode, requester, finalSign, position });
   if (isTravel(form, fields)) return renderTravel({ form, fields, values, empCode, requester, approvals });
   const shown = fields.filter((f) => f.FieldType !== 'section' && showIfMatches(f.ShowIf, values));

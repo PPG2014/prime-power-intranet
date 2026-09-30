@@ -203,6 +203,48 @@
 .wf-signer { text-align: center; margin-bottom: 10px; }
 .rq-sign { margin: 8px 0; }
 
+/* บันทึกข้อความภายใน / MEMORANDUM — ตามต้นฉบับ Word */
+.mm-doc { font-size: 13.5px; color: #000; line-height: 1.55; }
+.mm-doc .ex-letterhead { margin-bottom: 10px; }
+.mm-title { text-align: center; font-size: 17px; font-weight: 700; margin: 6px 0 14px; color: #000; }
+.mm-date { text-align: right; margin: 0 80px 14px 0; }
+.mm-fill { display: inline-block; border-bottom: 1px dotted #000; min-height: 20px; padding: 0 6px;
+  vertical-align: bottom; text-align: left; }
+.mm-w-date { width: 210px; } .mm-w-detail { flex: 1; margin-left: 16px; }
+.mm-w-half { flex: 1; } .mm-w-rest { flex: 0.8; }
+.mm-w-name { width: 175px; text-align: center; } .mm-w-name2 { width: 205px; text-align: center; }
+.mm-w-sdate { width: 160px; } .mm-w-note { width: 230px; }
+.mm-subject, .mm-to { display: flex; gap: 0; margin-bottom: 4px; }
+.mm-lbl { width: 72px; flex: none; }
+.mm-topics { flex: 1; }
+.mm-topic { display: flex; align-items: flex-end; min-height: 30px; }
+.mm-box { display: inline-flex; width: 20px; height: 18px; border: 1.2px solid #000; margin-right: 18px;
+  align-items: center; justify-content: center; font-size: 13px; line-height: 1; flex: none; align-self: center; }
+.mm-tl { white-space: nowrap; }
+.mm-to { margin: 14px 0 16px; }
+.mm-to > div:last-child { padding-left: 38px; }
+.mm-irow { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 14px; }
+.mm-il { width: 104px; flex: none; } .mm-il2 { width: 36px; flex: none; margin-left: 30px; }
+.mm-reason-h { margin: 4px 0 4px; }
+.mm-reason { position: relative; }
+.mm-reason-text { position: absolute; left: 0; right: 0; top: 6px; white-space: pre-wrap; line-height: 42px; padding: 0 4px; }
+.mm-rline { border-bottom: 1px dotted #000; height: 42px; }
+.mm-close { margin: 58px 0 16px; }
+.mm-signs { display: flex; gap: 20px; }
+.mm-col { flex: 1; line-height: 2.1; }
+.mm-right { padding-left: 24px; }
+.mm-sh { margin-bottom: 4px; }
+.mm-spacer { height: 64px; }
+.mm-sigline { position: relative; width: 175px; height: 26px; border-bottom: 1px dotted #000; }
+.mm-sigline img { position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%); max-height: 46px; max-width: 170px; }
+.mm-chk { display: flex; align-items: center; min-height: 32px; }
+.mm-chk .mm-box { margin-right: 14px; }
+.mm-rsign { padding-left: 90px; }
+.mm-rsign .mm-sigline { width: 205px; }
+.mm-role { text-align: center; width: 205px; }
+.mm-top { margin-top: 40px; line-height: 2.1; }
+.mm-top .mm-sh { margin-bottom: 18px; }
+
 /* ตารางในเอกสารไม่ใช้ขนาดตัวอักษร/ระยะของตารางทั่วไปของเว็บ */
 .wf-table td, .tv-table td, .tv-table th, .fd-li td, .fd-li th { font-size: inherit; }
 .wf-table { font-size: 12px; } .tv-table { font-size: 12px; }
@@ -222,6 +264,7 @@
   .ex-table tr, .ex-ans, .li-view tr { break-inside: avoid; page-break-inside: avoid; }
   .fd-f, .fd-li tr, .tv-table tr, .tv-signs { break-inside: avoid; page-break-inside: avoid; }
   .tv-blue, .tv-red { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .mm-signs, .mm-top { break-inside: avoid; page-break-inside: avoid; }
   .fd-gtitle { break-after: avoid; }
   .fd-li th, .fd-gtitle { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.printing-doc .fd-sign-panel { display: none !important; }
