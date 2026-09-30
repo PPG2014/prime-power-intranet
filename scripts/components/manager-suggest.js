@@ -20,7 +20,11 @@ let projects = [];
 let autoValue = '';          // ค่าที่ระบบเติมล่าสุด ใช้แยกว่าช่องนี้ผู้ใช้แก้เองหรือยัง
 
 /** ระดับที่เลือกในฟอร์มตอนนี้ (1 = สูงสุด … 5 = บุคลากรในแผนก) */
-const formLevel = () => levelOf({ Level: ($('#f_Level') || {}).value || '', Position: ($('#f_Position') || {}).value || '' });
+const formPosition = () => {
+  const v = ($('#f_Position') || {}).value || '';
+  return v === '__custom' ? (($('#f_Position_custom') || {}).value || '') : v;
+};
+const formLevel = () => levelOf({ Level: ($('#f_Level') || {}).value || '', Position: formPosition() });
 
 function suggest() {
   const self = plain(($('#f_Title') || {}).value);
@@ -86,7 +90,7 @@ export async function bindManagerSuggest() {
   ]);
   autoValue = '';
   const later = () => setTimeout(apply, 0);    // ให้ช่องที่ขึ้นกับฝ่าย (แผนก/โครงการ) วาดใหม่เสร็จก่อน
-  ['#f_Department', '#f_Section', '#f_Level', '#f_Title', '#f_Position'].forEach((s) => {
+  ['#f_Department', '#f_Section', '#f_Level', '#f_Title', '#f_Position', '#f_Position_custom'].forEach((s) => {
     const el = $(s);
     if (el) el.addEventListener('change', later);
   });
