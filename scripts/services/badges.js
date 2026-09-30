@@ -9,7 +9,7 @@
 import { list } from './data.js';
 import { state, setState } from '../core/state.js';
 import { stepsOf, loadResolved, roleOnRequest, parseLog } from './requests.js';
-import { activeCycle, sheets, appraisalTodo, clean } from './appraisal.js';
+import { openCycles, sheets, appraisalTodo, clean } from './appraisal.js';
 
 const LIVE = ['รออนุมัติ'];
 const low = (v) => String(v || '').trim().toLowerCase();
@@ -91,11 +91,13 @@ async function countRequests(ids) {
 }
 
 async function countAppraisal(person) {
-  const cycle = await activeCycle();
-  if (!cycle) return 0;
-  const rows = await sheets(clean(cycle.Title));
+  // นับทุกรอบที่เปิดอยู่ ไม่ใช่แค่รอบแรก
+  const cycles = await openCycles();
+  if (!cycles.length) return 0;
+  const titles = new Set(cycles.map((c) => clean(c.Title)));
+  const rows = (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
   return appraisalTodo({
-    cycle, rows, email: state.user?.email, person, isAdmin: state.isAdmin, isHR: state.isHR,
+    cycles, rows, email: state.user?.email, person, isAdmin: state.isAdmin, isHR: state.isHR,
   }).total;
 }
 

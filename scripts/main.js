@@ -62,7 +62,7 @@ async function enter(user) {
   import('./services/badges.js').then((m) => {
     m.refreshBadges({ force: true });
     setInterval(() => {
-      import('./services/data.js').then((d) => d.clearDataCache('requests'));
+      import('./services/data.js').then((d) => ['requests', 'appraisals', 'appraisalCycles'].forEach((n) => d.clearDataCache(n)));
       m.refreshBadges({ force: true });
     }, 5 * 60 * 1000);
   });

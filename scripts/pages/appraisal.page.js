@@ -1,9 +1,9 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { state, setState } from '../core/state.js';
-import { list } from '../services/data.js';
+import { list, clearDataCache } from '../services/data.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 import {
-  STAGES, DONE, activeCycle, criteria, scoreOf, sheets, mineOf, teamOf,
+  STAGES, DONE, activeCycle, openCycles, cycleOfSheet, criteria, scoreOf, sheets, mineOf, teamOf,
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
   submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
   signsOf, empSigned, hrSigned, needsEmpSign,
@@ -18,7 +18,9 @@ import { rubricDrawer, bindRubricDrawer } from '../components/rubric-drawer.js';
 
 export const meta = { route: 'appraisal', title: 'ประเมินผลบุคลากร', nav: true, order: 7, adminOnly: false };
 
-let cycle = null;
+let cycle = null;         // รอบหลักที่แสดงหัวหน้า (รอบที่เลือก หรือรอบเปิดรอบแรก)
+let liveCycles = [];      // รอบที่แสดงในหน้านี้ — ทุกรอบที่เปิดอยู่ หรือเฉพาะรอบที่ฝ่ายบุคคลเลือกดู
+const secsCache = {};
 let secs = [];
 let rows = [];
 let me = null;          // แถวบุคลากรของผู้ใช้
@@ -40,6 +42,23 @@ const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(LAB
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
+/** รอบของใบนี้ (ไม่พบใช้รอบหลัก) */
+const cycleOf = (r) => cycleOfSheet(r, liveCycles) || cycleOfSheet(r, allCycles) || cycle;
+/** หัวข้อประเมินของรอบ (จำไว้ ไม่โหลดซ้ำ) */
+async function criteriaOf(c) {
+  const k = clean(c && c.FormSet);
+  if (!secsCache[k]) secsCache[k] = await criteria(k);
+  return secsCache[k];
+}
+/** ตั้งรอบ/หัวข้อ/เกณฑ์เกรดให้ตรงกับใบที่กำลังเปิด */
+async function focusCycle(r) {
+  const c = cycleOf(r);
+  if (!c) return;
+  cycle = c;
+  secs = await criteriaOf(c);
+  scheme = isProbation(c.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
+}
+
 /** ผู้ประเมินส่งผลแล้ว (เลยขั้นหัวหน้าประเมิน) */
 const submitted = (r) => [STAGES[2], STAGES[3], STAGES[4], DONE].includes(clean(r && r.Status));
 /** เกรดของใบ: ใช้ที่บันทึกไว้ ถ้ายังไม่มี (ขั้นตอนใหม่บันทึกตอนผู้บริหารอนุมัติ) คิดจากคะแนนผู้ประเมิน */
@@ -59,6 +78,9 @@ const who = () => ({ email: myEmail, person: me, isAdmin: state.isAdmin, isHR: s
 
 export async function render(ctx) {
   myEmail = String(state.user?.email || '').toLowerCase();
+  // เปิดหน้านี้ทุกครั้งดึงรอบและใบประเมินล่าสุด — รอบที่เพิ่งสร้างขึ้นทันทีไม่ต้องรีเฟรช
+  clearDataCache('appraisalCycles');
+  clearDataCache('appraisals');
   const dir = await list('directory').catch(() => []);
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
@@ -69,33 +91,45 @@ export async function render(ctx) {
       || (+b.id || 0) - (+a.id || 0)) : [];
   const picked = canBrowse && state.apCycleId
     ? cycles.find((c) => String(c.id) === String(state.apCycleId)) : null;
-  cycle = picked || await activeCycle();
-  secs = await criteria(clean(cycle?.FormSet));
+  // ไม่ได้เลือกรอบ → แสดงทุกรอบที่เปิดอยู่พร้อมกัน (เช่น ทดลองงานครั้งที่ 1 และครั้งที่ 2 ของคนละคน)
+  liveCycles = picked ? [picked] : await openCycles();
+  cycle = picked || liveCycles[0] || await activeCycle();
+  if (cycle && !liveCycles.length) liveCycles = [cycle];
+  secs = await criteriaOf(cycle);
   scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
-  rows = cycle ? await sheets(clean(cycle.Title)) : [];
-  // ประวัติการประเมินของฉันทุกรอบ — ผู้ถูกประเมินเปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
-  allCycles = await list('appraisalCycles').catch(() => []);
-  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail
-    && !(cycle && clean(r.CycleName) === clean(cycle.Title)))
-    .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
+  const titles = new Set(liveCycles.map((c) => clean(c.Title)));
+  const loadRows = async () => (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
+  rows = await loadRows();
 
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
-  if (cycle) {
-    try {
-      // สร้างเฉพาะใบของตัวเอง — ใบของคนอื่นสร้างตอนบันทึกแบบประเมิน หรือกดปุ่มในแท็บภาพรวม
-      // (เดิมผู้ดูแลเปิดหน้านี้ทีไรระบบไล่สร้างให้ทุกคน ทำให้ช้าและเสี่ยงได้ใบซ้ำเมื่อเปิดพร้อมกัน)
-      const made = await autoCreate(cycle, { isAdmin: false, email: myEmail });
-      if (made) { autoMade = made; rows = await sheets(clean(cycle.Title)); }
-    } catch (e) { /* สร้างไม่ได้ก็ใช้งานส่วนอื่นต่อได้ */ }
+  // (สร้างเฉพาะใบของตัวเอง — ใบของคนอื่นสร้างตอนบันทึกแบบประเมิน หรือกดปุ่มในแท็บภาพรวม)
+  let made = 0;
+  for (const c of liveCycles) {
+    // eslint-disable-next-line no-await-in-loop
+    try { made += await autoCreate(c, { isAdmin: false, email: myEmail }); } catch (e) { /* ข้ามได้ */ }
   }
+  if (made) { autoMade = made; rows = await loadRows(); }
 
-  const mine = mineOf(rows, myEmail);
+  // ใบของฉันที่แสดงเป็นหลัก: ใบที่รอฉันทำก่อน · ไม่มีก็ใบล่าสุด
+  const myRows = rows.filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
+    .sort((a, b) => (+b.id || 0) - (+a.id || 0));
+  const mineMain = myRows.find((r) => needsEmpSign(r)
+    || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok)) || myRows[0] || null;
+
+  // ประวัติการประเมินของฉันทุกรอบ (ยกเว้นใบที่แสดงอยู่) — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
+  allCycles = await list('appraisalCycles').catch(() => []);
+  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail
+    && !(mineMain && r.id === mineMain.id))
+    .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
+
+  const mine = mineMain;
+  if (mine) await focusCycle(mine);
   const team = teamOf(rows, myEmail);
   const tab = state.apTab || 'me';
 
   // ตัวเลขเตือนบนแถบ: ใบที่รอฉันทำในแต่ละแถบ (นับแบบเดียวกับตัวเลขบนเมนู)
   const todo = appraisalTodo({
-    cycle, rows, email: myEmail, person: me, isAdmin: state.isAdmin, isHR: state.isHR,
+    cycles: liveCycles, rows, email: myEmail, person: me, isAdmin: state.isAdmin, isHR: state.isHR,
   });
 
   const tabs = [
@@ -120,14 +154,16 @@ export async function render(ctx) {
   <section class="page page-appraisal">
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
-      <p class="page-lead">${cycle
+      <p class="page-lead">${liveCycles.length > 1
+        ? `รอบที่เปิดอยู่ ${liveCycles.length} รอบ: ${liveCycles.map((c) => `<b>${esc(clean(c.Title))}</b> (${esc(clean(c.Round) || clean(c.Stage) || '')})`).join(' · ')}`
+        : cycle
         ? `รอบ <b>${esc(clean(cycle.Title))}</b>${cycle.FormSet ? ` · แบบประเมิน: ${esc(clean(cycle.FormSet))}` : ''}
            · ขั้นตอนที่เปิดอยู่: ${esc(clean(cycle.Stage) || S_SELF)}
            · สถานะรอบ: ${esc(clean(cycle.Status) || '—')}`
         : 'ยังไม่ได้เปิดรอบประเมิน'}</p>
 
       ${cycles.length > 1 ? `<label class="ap-cycle">ดูรอบ
-        <select id="ap-cycle">${cycles.map((c) => `<option value="${esc(c.id)}" ${cycle && String(c.id) === String(cycle.id) ? 'selected' : ''}>${
+        <select id="ap-cycle"><option value="" ${state.apCycleId ? '' : 'selected'}>ทุกรอบที่เปิดอยู่</option>${cycles.map((c) => `<option value="${esc(c.id)}" ${state.apCycleId && String(c.id) === String(state.apCycleId) ? 'selected' : ''}>${
           esc(clean(c.Title))} · ${esc(clean(c.Status) || '—')}${c.IsActive === false ? ' (ซ่อน)' : ''}</option>`).join('')}</select>
         ${cycle && clean(cycle.Status) !== 'เปิด' ? '<span class="dim">ดูข้อมูลย้อนหลัง (แก้ไขไม่ได้ · ส่งออกเอกสารได้)</span>' : ''}
       </label>` : ''}
@@ -188,7 +224,7 @@ function paneMeCurrent(mine) {
   const st = clean(mine.Status);
   const self = answersOf(mine, 'self');
   const mgr = answersOf(mine, 'mgr');
-  const g = stageOpen(cycle, S_SELF);
+  const g = stageOpen(cycleOf(mine), S_SELF);
   const skip = noSelf(mine);     // รอบที่หัวหน้าประเมินอย่างเดียว ไม่มีแบบประเมินตนเอง
   const editable = !skip && st === S_SELF && g.ok;
 
@@ -202,7 +238,7 @@ function paneMeCurrent(mine) {
 
     ${submitted(mine) && !needsEmpSign(mine) ? `<div class="ap-docbar">
       <button class="btn-mini" data-apopen="${mine.id}">📄 เปิดดูใบประเมิน</button>
-      ${isProbation(cycle?.FormSet) ? `<button class="btn-mini" data-apexport="${mine.id}">⭳ ดาวน์โหลดเอกสาร</button>` : ''}
+      ${isProbation(cycleOf(mine)?.FormSet) ? `<button class="btn-mini" data-apexport="${mine.id}">⭳ ดาวน์โหลดเอกสาร</button>` : ''}
     </div>` : ''}
 
     ${needsEmpSign(mine) ? `<div class="panel ap-ack">
@@ -229,25 +265,27 @@ function paneMeCurrent(mine) {
 /* ───────── ทีมของฉัน ───────── */
 function paneTeam(team) {
   if (!cycle) return '';
-  const g = stageOpen(cycle, S_MGR);
+  // แต่ละใบอาจอยู่คนละรอบ — ดูว่ารอบของใบนั้นเปิดขั้นหัวหน้าประเมินหรือยัง
+  const gOf = (r) => stageOpen(cycleOf(r), S_MGR);
   const open = team.filter((r) => clean(r.Status) === S_MGR);
+  const blocked = [...new Set(team.filter((r) => clean(r.Status) === S_MGR && !gOf(r).ok).map((r) => gOf(r).why))];
 
   return `
     <div class="panel">
       <div class="panel-head">ลูกทีมที่ต้องประเมิน
         <span class="panel-meta">${open.length} / ${team.length} รายการรอดำเนินการ</span></div>
-      ${g.ok ? '' : `<div class="panel-note">${esc(g.why)}</div>`}
+      ${blocked.map((w) => `<div class="panel-note">${esc(w)}</div>`).join('')}
       ${team.length ? `<table class="ap-table">
         <thead><tr><th>ชื่อ</th><th>แผนก</th><th>สถานะ</th><th class="num">ตนเอง</th><th class="num">หัวหน้า</th><th></th></tr></thead>
         <tbody>${team.map((r) => `<tr>
-          <td>${esc(clean(r.EmployeeName))}</td>
+          <td>${esc(clean(r.EmployeeName))}${liveCycles.length > 1 ? `<div class="dim">${esc(clean(r.CycleName))}</div>` : ''}</td>
           <td>${esc(clean(r.Section) || clean(r.Department))}</td>
           <td>${pill(r.Status)}${clean(r.Status) === S_SELF && !noSelf(r)
             ? '<div class="ap-wait">รอพนักงานประเมินตนเองก่อน</div>' : ''}</td>
           <td class="num">${selfFix(r)}</td>
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
-            clean(r.Status) === S_MGR && g.ok ? 'ประเมิน' : 'ดูรายละเอียด'}</button></td>
+            clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน' : 'ดูรายละเอียด'}</button></td>
         </tr>`).join('')}</tbody></table>`
         : '<div class="empty">ยังไม่มีลูกทีมในรอบนี้</div>'}
     </div>`;
@@ -350,7 +388,7 @@ function paneAll() {
           <td>${esc(clean(r.EvaluatorName))}</td>
           <td>${pill(r.Status)}</td>
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
-          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycle?.FormSet)
+          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycleOf(r)?.FormSet)
             ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⭳</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>
         <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข</div>`
@@ -523,9 +561,10 @@ function pickSignMode() {
 }
 
 /** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 (ถามก่อนว่าพร้อมลายเซ็นหรือไม่) */
-async function exportProbation(row, useSecs = secs) {
+async function exportProbation(row, useSecs = null) {
   const withSign = await pickSignMode();
   if (withSign === null) return;
+  useSecs = useSecs || await criteriaOf(cycleOf(row));
   const dir = await list('directory').catch(() => []);
   const person = dir.find((d) => clean(d.Email).toLowerCase() === clean(row.EmployeeEmail).toLowerCase()) || {};
   const sigOf = (name) => (dir.find((d) => clean(d.Title) === clean(name)) || {}).SignatureUrl || '';
@@ -578,7 +617,43 @@ async function exportProbation(row, useSecs = secs) {
 }
 
 /* ───────── เหตุการณ์ ───────── */
+/**
+ * อัปเดตเองเมื่อข้อมูลเปลี่ยน (มีรอบใหม่ ใบใหม่ หรือสถานะเปลี่ยน) โดยไม่ต้องกดรีเฟรช
+ * เช็กทุก 60 วินาที และทุกครั้งที่กลับมาที่แท็บนี้ · ไม่วาดใหม่ระหว่างเปิดหน้าต่างใบประเมินค้างไว้
+ */
+let watchTimer = null;
+let watchCheck = null;
+let watchBound = false;
+const sigOf = (cs, ss) => JSON.stringify([
+  cs.map((c) => [c.id, clean(c.Status), clean(c.Stage), clean(c.Title)]),
+  ss.map((r) => [r.id, clean(r.Status), r.Modified || '']),
+]);
+let lastSig = '';
+function startWatch() {
+  if (watchTimer) return;
+  const check = async () => {
+    if (state.route !== 'appraisal') { clearInterval(watchTimer); watchTimer = null; return; }
+    if (document.hidden || document.querySelector('#overlay-root .mask, .eta-mask')) return;
+    clearDataCache('appraisalCycles'); clearDataCache('appraisals');
+    const [cs, ss] = await Promise.all([list('appraisalCycles').catch(() => []), list('appraisals').catch(() => [])]);
+    const sig = sigOf(cs, ss);
+    if (lastSig && sig !== lastSig) {
+      const { render: r } = await import('../core/render.js');
+      r();
+    }
+    lastSig = sig;
+  };
+  watchTimer = setInterval(check, 60000);
+  watchCheck = check;
+  if (!watchBound) {
+    watchBound = true;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && watchTimer && watchCheck) watchCheck(); });
+  }
+  check();
+}
+
 export function mount(ctx) {
+  startWatch();
   onClick('aptab', (k) => setState({ apTab: k }));
   bindRubricDrawer();
 
@@ -645,9 +720,17 @@ export function mount(ctx) {
   const gen = $('#ap-gen');
   if (gen) {
     gen.onclick = async () => {
-      if (!confirm(`สร้างใบประเมินรอบ "${clean(cycle.Title)}" ให้บุคลากรที่ยังไม่มีใบ?`)) return;
+      const targets = liveCycles.filter((c) => clean(c.Status) === 'เปิด');
+      if (!targets.length) { alert('รอบนี้ปิดแล้ว สร้างใบเพิ่มไม่ได้'); return; }
+      if (!confirm(`สร้างใบประเมินรอบ ${targets.map((c) => `"${clean(c.Title)}"`).join(', ')} ให้บุคลากรที่ยังไม่มีใบ?`)) return;
       gen.disabled = true;
-      const res = await generateSheets(cycle, (d, t) => { gen.textContent = `กำลังสร้าง ${d}/${t}…`; });
+      const res = { created: 0, skipped: 0, noManager: 0, failed: [] };
+      for (const c of targets) {
+        // eslint-disable-next-line no-await-in-loop
+        const one = await generateSheets(c, (d, t) => { gen.textContent = `${clean(c.Title)} · กำลังสร้าง ${d}/${t}…`; });
+        res.created += one.created || 0; res.skipped += one.skipped || 0;
+        res.noManager += one.noManager || 0; res.failed.push(...(one.failed || []));
+      }
       alert(`สร้างแล้ว ${res.created} ใบ · มีอยู่เดิม ${res.skipped} ใบ`
         + (res.noManager ? `\nมี ${res.noManager} คนที่ยังไม่ได้กำหนดผู้บังคับบัญชา จะไม่มีผู้ประเมิน` : '')
         + (res.failed.length ? `\n\nสร้างไม่สำเร็จ ${res.failed.length} ใบ\n${res.failed.slice(0, 10).join('\n')}` : ''));
@@ -671,6 +754,7 @@ export function mount(ctx) {
 /* ───────── หน้าต่างประเมินลูกทีม / อนุมัติผล ───────── */
 async function openSheet(row, rerender) {
   if (!row) return;
+  await focusCycle(row);        // ใบของรอบไหน ใช้ขั้นตอนและหัวข้อของรอบนั้น
   const { openModal } = await import('../components/modal.js');
   const st = clean(row.Status);
   const x = extraOf(row);

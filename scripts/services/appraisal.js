@@ -37,6 +37,16 @@ export const clean = (v) => (v && typeof v === 'object'
 
 const num = (v) => (isNaN(+v) ? 0 : +v);
 
+/** ทุกรอบที่เปิดอยู่พร้อมกัน (เช่น ประเมินทดลองงานครั้งที่ 1 ของคนหนึ่ง กับครั้งที่ 2 ของอีกคน) */
+export async function openCycles() {
+  const rows = await list('appraisalCycles').catch(() => []);
+  return rows.filter((c) => c.IsActive !== false && clean(c.Status) === 'เปิด');
+}
+
+/** รอบของใบประเมินใบหนึ่ง (จับจากชื่อรอบในใบ) */
+export const cycleOfSheet = (row, cycles = []) =>
+  cycles.find((c) => clean(c.Title) === clean(row && row.CycleName)) || null;
+
 /** รอบประเมินที่เปิดใช้งานอยู่ (เอาแถวที่ IsActive ไม่ใช่ false และสถานะเปิด) */
 export async function activeCycle() {
   const rows = await list('appraisalCycles').catch(() => []);
@@ -227,17 +237,20 @@ export function inApproveScope(row, who) {
  *   approve ใบที่รอฉันอนุมัติ หรือรอฉันตรวจสอบในฐานะฝ่ายบุคคลที่ถูกกำหนดตัวไว้
  *   all     ใบที่รอฝ่ายบุคคลตรวจสอบและไม่ได้กำหนดผู้ตรวจไว้ (เฉพาะฝ่ายบุคคล)
  */
-export function appraisalTodo({ cycle, rows, email, person = null, isAdmin = false, isHR = false }) {
+export function appraisalTodo({ cycle, cycles = null, rows, email, person = null, isAdmin = false, isHR = false }) {
   const out = { me: 0, team: 0, approve: 0, all: 0, total: 0 };
-  if (!cycle || clean(cycle.Status) !== 'เปิด') return out;
+  // หลายรอบเปิดพร้อมกันได้ — แต่ละใบใช้รอบของตัวเอง (ไม่ส่ง cycles มา ใช้รอบเดียวตามเดิม)
+  const cyc = (r) => (cycles ? cycleOfSheet(r, cycles) : cycle);
+  const open = (r) => { const c = cyc(r); return !!c && clean(c.Status) === 'เปิด'; };
+  rows = rows.filter(open);
   const st = (r) => clean(r.Status);
   const who = { email, person, isAdmin, isHR };
   const me = lowEmail(email);
 
-  const mine = mineOf(rows, email);
-  if (mine && ((st(mine) === S_SELF && !noSelf(mine) && stageOpen(cycle, S_SELF).ok) || needsEmpSign(mine))) out.me = 1;
+  out.me = rows.filter((r) => lowEmail(r.EmployeeEmail) === me
+    && ((st(r) === S_SELF && !noSelf(r) && stageOpen(cyc(r), S_SELF).ok) || needsEmpSign(r))).length;
 
-  out.team = stageOpen(cycle, S_MGR).ok ? teamOf(rows, email).filter((r) => st(r) === S_MGR).length : 0;
+  out.team = teamOf(rows, email).filter((r) => st(r) === S_MGR && stageOpen(cyc(r), S_MGR).ok).length;
 
   out.approve = rows.filter((r) => (st(r) === S_BOSS && canBossApprove(r, who))
     || (st(r) === S_HR && lowEmail((rolesOf(r).hr || {}).email) === me)).length;
