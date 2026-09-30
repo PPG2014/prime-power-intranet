@@ -205,3 +205,28 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 #admin-tbody tr.drop-after td { box-shadow: inset 0 -3px 0 var(--blue); }
 #admin-tbody tr.row-off td { color: #98a2ae; }
 .off-tag { font-size: 10.5px; color: #9a6700; background: #fff4d6; border-radius: 4px; padding: 0 4px; margin-top: 2px; }
+
+/* เส้นทางอนุมัติในหน้าต่างแบบฟอร์ม (components/approval-route-editor.js) */
+.ar-box { margin-top: 18px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ar-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 10px 14px; background: var(--navy); color: #fff; font-weight: 700; }
+.ar-count { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13.5px; }
+.ar-count select { padding: 5px 8px; border-radius: 6px; border: 0; font: inherit; color: var(--navy); }
+.ar-step { display: flex; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.ar-step:nth-child(even) { background: #f8fafc; }
+.ar-no { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, #1fae5b, #0b6ab0); color: #fff; font-weight: 700; }
+.ar-body { flex: 1; min-width: 0; }
+.ar-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
+.ar-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--navy); }
+.ar-row select, .ar-row input, .ar-q { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-weight: 400; color: inherit; }
+.ar-people { margin-top: 8px; }
+.ar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.ar-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: #e6f0fb; color: var(--navy); font-size: 13px; font-weight: 600; }
+.ar-chip button { width: 20px; height: 20px; border-radius: 50%; line-height: 1; color: var(--navy); font-size: 15px; }
+.ar-chip button:hover { background: #cfe0f5; }
+.ar-q { width: 100%; box-sizing: border-box; }
+.ar-auto { margin-top: 8px; font-size: 12.5px; }
+.ar-none { padding: 14px; color: var(--dim); font-size: 13px; }
+@media (max-width: 720px) { .ar-row { grid-template-columns: 1fr; } }

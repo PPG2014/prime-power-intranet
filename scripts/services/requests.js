@@ -7,6 +7,9 @@
  */
 import { list, update } from './data.js';
 
+/** ประเภทผู้อนุมัติที่เป็นตำแหน่งผู้บริหาร — ชื่อประเภทตรงกับตำแหน่งในทะเบียนบุคลากร */
+export const EXEC_TYPES = ['กรรมการผู้จัดการ', 'รองกรรมการผู้จัดการด้านปฏิบัติการ', 'รองกรรมการผู้จัดการด้านการเงิน'];
+
 /**
  * หาผู้อนุมัติจริงของลำดับหนึ่ง
  * ถ้าเป็นประเภทตามตำแหน่ง จะหาจากสายบังคับบัญชาหรือผังฝ่ายของผู้ยื่น
@@ -55,6 +58,13 @@ export async function resolveApprovers(step, req) {
       ? (proj.Owner.LookupValue ?? proj.Owner.Title ?? '')
       : proj.Owner;
     return owner ? [owner] : named;
+  }
+
+  // ผู้บริหารตามตำแหน่ง — หาจากช่องตำแหน่งในทะเบียนบุคลากร (ต้องตรงทั้งคำ
+  // เพราะ "รองกรรมการผู้จัดการ…" มีคำว่า "กรรมการผู้จัดการ" อยู่ด้วย) · ไม่พบใครใช้ชื่อที่ระบุไว้แทน
+  if (EXEC_TYPES.includes(type)) {
+    const hit = dir.filter((p) => p.IsActive !== false && String(p.Position || '').trim() === type);
+    return hit.length ? hit.map((p) => p.Title) : named;
   }
 
   if (type === 'ผู้จัดการฝ่ายของผู้ยื่น' || type === 'หัวหน้าฝ่ายตามสังกัด') {

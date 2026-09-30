@@ -12,6 +12,7 @@ import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
 import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets } from '../services/appraisal.js';
+import { routeHost, bindRouteEditor, routeProblems, saveRoute } from '../components/approval-route-editor.js';
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
@@ -278,12 +279,15 @@ async function openEditor(key, record) {
   const isNew = !record;
   // รอบประเมิน: เลือกรายชื่อแล้วกรอกข้อมูลทดลองงานและวันลาของแต่ละคนได้ในหน้าต่างเดียวกัน
   const isCycle = key === 'appraisalCycles';
+  // แบบฟอร์ม: ตั้งเส้นทางอนุมัติได้ในหน้าต่างเดียวกัน (เขียนลง ApprovalMatrix ให้เอง)
+  const isForm = key === 'formCatalog';
   openModal({
     title: `${s.icon} ${isCycle ? (isNew ? 'สร้างแบบประเมิน' : 'แก้ไขแบบประเมิน')
       : `${isNew ? 'เพิ่ม' : 'แก้ไข'}${s.title}`}`,
     wide: true,
     body: await formBody(s, record || {})
       + (isCycle ? cycleGridHost() : '')
+      + (isForm ? routeHost() : '')
       + (isNew && !s.readOnly && !isCycle ? `
         <div class="import-row">
           <span>หรือนำเข้าหลายรายการพร้อมกัน</span>
@@ -304,12 +308,14 @@ async function openEditor(key, record) {
   bindPeoplePickers();
   bindCustomChoices();
   if (isCycle) bindCycleGrid(record || {});
+  if (isForm) bindRouteEditor(record ? record.FormCode : '');
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async (ev) => {
     const data = collect(s);
     if (!data) return;
     // ชื่อผู้ประเมิน/ผู้ตรวจ/ผู้อนุมัติต้องตรงกับทะเบียนบุคลากร ไม่งั้นจะไม่มีใครเปิดใบนั้นได้
     if (isCycle && gridProblems().length) return;
+    if (isForm && routeProblems()) return;
     const grid = isCycle ? readCycleGrid() : null;
 
     const btn = ev.currentTarget;
@@ -368,6 +374,7 @@ async function openEditor(key, record) {
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);
       const sheetFails = isCycle ? await saveCycleSheets(record, data, grid, btn) : [];
+      const routeNotes = isForm ? await saveRoute(data.FormCode || (record && record.FormCode)) : [];
       clearCaches();
       closeModal();
       rerender();
@@ -386,6 +393,11 @@ async function openEditor(key, record) {
         notes.push('SharePoint ปฏิเสธการบันทึกช่องที่เลือกได้หลายค่า\n  '
           + res.dropped.join('\n  ')
           + '\n  ข้อมูลอื่นบันทึกแล้ว ส่วนช่องเหล่านี้ต้องแก้ใน SharePoint โดยตรง');
+      }
+      if (routeNotes.length) {
+        notes.push('เส้นทางอนุมัติ: SharePoint ไม่รับบางช่องของ List "ApprovalMatrix"\n  ' + routeNotes.join('\n  ')
+          + '\n  ถ้าเป็นช่อง ApproverType ให้เพิ่มตัวเลือก "กรรมการผู้จัดการ", "รองกรรมการผู้จัดการด้านปฏิบัติการ",'
+          + ' "รองกรรมการผู้จัดการด้านการเงิน" ในคอลัมน์นั้น (หรือเปลี่ยนเป็น Single line of text) แล้วบันทึกอีกครั้ง');
       }
       if (sheetFails.length) {
         notes.push(`สร้างใบประเมินไม่สำเร็จ ${sheetFails.length} ใบ — ข้อมูลในตารางของคนเหล่านี้ยังไม่ถูกบันทึก\n  `

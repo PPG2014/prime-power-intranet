@@ -188,7 +188,7 @@ export const SCHEMA = {
   approvalMatrix: {
     title: 'เส้นทางอนุมัติ', icon: '✔️', list: 'approvalMatrix', spName: 'ApprovalMatrix',
     sortField: 'SortOrder', groupBy: 'FormCode',
-    hint: 'กำหนดว่าแต่ละแบบฟอร์มต้องผ่านใครบ้างตามลำดับ · แต่ละลำดับใส่ผู้อนุมัติได้หลายคน',
+    hint: 'ตั้งง่ายกว่าที่ จัดการข้อมูล → แบบฟอร์ม → ✎ แก้ไข (ส่วน "เส้นทางอนุมัติ") · หน้านี้ใช้ดู/แก้รายแถว',
     columns: ['FormCode', 'StepOrder', 'StepName', 'Approvers', 'ApproveMode'],
     labels: { FormCode: 'รหัสฟอร์ม', StepOrder: 'ลำดับ', StepName: 'ชื่อขั้น',
               Approvers: 'ผู้อนุมัติ', ApproveMode: 'เงื่อนไข' },
@@ -202,7 +202,8 @@ export const SCHEMA = {
         help: 'เช่น ผู้บังคับบัญชา · ผู้จัดการฝ่าย · กรรมการผู้จัดการ' },
       { key: 'ApproverType', label: 'ประเภทผู้อนุมัติ', type: 'choice',
         options: ['ระบุชื่อเจาะจง', 'ผู้บังคับบัญชาของผู้ยื่น', 'ผู้จัดการฝ่ายของผู้ยื่น',
-                  'หัวหน้าฝ่ายตามสังกัด', 'ผู้รับผิดชอบหลักของโครงการ'],
+                  'หัวหน้าฝ่ายตามสังกัด', 'ผู้รับผิดชอบหลักของโครงการ',
+                  'กรรมการผู้จัดการ', 'รองกรรมการผู้จัดการด้านปฏิบัติการ', 'รองกรรมการผู้จัดการด้านการเงิน'],
         help: 'เลือกตามตำแหน่งได้ เมื่อฟอร์มใช้ร่วมหลายฝ่ายและผู้อนุมัติต่างกันตามผู้ยื่น' },
       { key: 'Approvers', label: 'ระบุชื่อผู้อนุมัติ (เลือกได้หลายคน)', type: 'multilookup',
         from: 'directory', labelWith: 'Position', searchable: true, full: true,
