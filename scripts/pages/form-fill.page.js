@@ -3,8 +3,10 @@ import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm } from '../components/form-renderer.js';
-import { LETTERHEAD } from '../core/letterhead.js';
-import { buildRoute, flowFieldsFor } from '../services/requests.js';
+import { buildRoute, flowFieldsFor, stepsOf } from '../services/requests.js';
+import { renderFormDoc } from '../templates/form-doc.js';
+import { isWelfareRoom } from '../templates/welfare-room.js';
+import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
 import { mountQueueCalendar } from '../components/queue-calendar.js';
@@ -20,6 +22,7 @@ const active = (v) => v !== false && v !== 'No' && v !== 'ไม่' && v !== 0;
 let form = null;
 let me = null;
 let editId = null;
+let editSign = null;    // ลายเซ็นผู้ยื่นเดิม (โหมดแก้ไข)
 
 /**
  * เลขที่เอกสาร แยกรันตามฟอร์ม รีเซ็ตทุกปี
@@ -112,6 +115,7 @@ export async function render(ctx) {
     const orig = all.find((r) => String(r.id) === String(editId));
     if (orig) { try { editData = JSON.parse(orig.FormData || '{}'); } catch (e) {} }
   }
+  editSign = (editData && editData._requesterSign) || null;
 
   me = people.find((p) => p.Email && state.user
     && p.Email.toLowerCase() === String(state.user.email).toLowerCase()) || null;
@@ -178,6 +182,12 @@ export async function render(ctx) {
         ${form.FormNote ? `<div class="form-note-box">
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
+        ${isPR(form.FormCode) ? '' : `<section class="q-group q-sign">
+          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) ? ' <b class="req">*</b>' : ''}</h3>
+          <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
+            (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
+          ${signaturePad('requester', (editSign && editSign.url) || (me && me.SignatureUrl) || '', true)}
+        </section>`}
         <div class="form-foot">
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
             esc(thaiDateShort(new Date().toISOString()))}</span>
@@ -277,8 +287,8 @@ async function queueProblem(form, fields, values, excludeId) {
       : '<br><br>วันนี้คิวเต็มแล้ว กรุณาเลือกวันอื่น');
 }
 
-/** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 พร้อมหัวกระดาษ กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
-function downloadBlankForm(form, fields) {
+/** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 หน้าตาเหมือนหน้ากรอก กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
+async function downloadBlankForm(form, fields) {
   // ใบขอสั่งซื้อใช้แม่แบบเอกสารจริง เติมค่าที่พิมพ์ไว้แล้วให้ ที่เหลือเว้นว่างให้เขียนมือ
   if (isPR(form.FormCode)) {
     const values = readLiveValues(fields);
@@ -289,47 +299,33 @@ function downloadBlankForm(form, fields) {
       sign: { requester: { name: (me && me.Title) || state.user?.name || '' } },
     }), 'ดาวน์โหลดแบบฟอร์ม — ใบขอสั่งซื้อ');
   }
-  const val = (k) => {
-    const el = document.getElementById('q_' + k);
-    if (!el) return '';
-    if (el.dataset && el.dataset.value) return el.dataset.value;
-    return el.value || '';
-  };
-  const rows = fields
-    .filter((f) => { const b = document.querySelector(`[data-q="${f.FieldKey}"]`); return !b || !b.hidden; })
-    .filter((f) => f.FieldType !== 'file' && f.FieldType !== 'lineitems')
-    .map((f) => `<tr><th>${esc(f.Title)}</th><td>${esc(val(f.FieldKey)) || '&nbsp;'}</td></tr>`).join('');
+  const res = collectForm(fields);
+  const values = res.values || res.partial || {};
+  const sig = previewSignature('requester') || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
+  const steps = await stepsOf(form.FormCode).catch(() => []);
+  const html = renderFormDoc({
+    form, fields, values,
+    requester: { name: (me && me.Title) || state.user?.name || '', sig },
+    empCode: (me && me.EmployeeCode) || values.std_emp_code || '',
+    position: (me && me.Position) || '',
+    approvals: steps.map((st) => ({ role: st.StepName || `ผู้อนุมัติลำดับ ${st.StepOrder}` })),
+  });
 
   const win = document.getElementById('overlay-root');
   win.innerHTML = `
     <div class="mask" id="dl-mask">
       <div class="modal modal-wide">
         <div class="modal-head">ดาวน์โหลดแบบฟอร์ม <button id="dl-close">✕</button></div>
-        <div class="modal-body">
-          <div class="ex-doc" id="dl-doc">
-            <img class="ex-letterhead" src="${LETTERHEAD}" alt="Prime Power">
-            <h2 class="ex-title">${esc(form.Title)}</h2>
-            ${form.ISODocNo ? `<div class="ex-meta"><span>เลขที่เอกสาร ${esc(form.ISODocNo)}</span>
-              <span>${esc(form.ISORevision || '')}</span></div>` : ''}
-            <table class="ex-table">${rows}</table>
-            <div class="ex-approvals">
-              <div class="ex-approve"><div class="ex-ap-role">ผู้ยื่นคำขอ</div>
-                <div class="ex-ap-sign"><div class="ex-ap-line"></div></div>
-                <div class="ex-ap-name">( ${esc(state.user?.name || '')} )<br>
-                  <span class="ex-ap-time">วันที่ ......../......../........</span></div></div>
-              <div class="ex-approve"><div class="ex-ap-role">ผู้อนุมัติ</div>
-                <div class="ex-ap-sign"><div class="ex-ap-line"></div></div>
-                <div class="ex-ap-name">( ................................ )<br>
-                  <span class="ex-ap-time">วันที่ ......../......../........</span></div></div>
-            </div>
-          </div>
-        </div>
+        <div class="modal-body">${html}</div>
         <div class="modal-foot">
+          <span class="dim">ช่องที่ยังไม่กรอกเว้นว่างไว้ให้เขียนมือ</span>
           <button class="btn-mini" id="dl-cancel">ปิด</button>
           <button class="btn btn-primary" id="dl-print">พิมพ์ / บันทึกเป็น PDF</button>
         </div>
       </div>
     </div>`;
+  const { hydratePhotos } = await import('../services/photos.js');
+  hydratePhotos(win);     // ลายเซ็นที่เก็บใน SharePoint ต้องแนบ token จึงโหลดได้
   const close = () => { win.innerHTML = ''; };
   document.getElementById('dl-close').onclick = close;
   document.getElementById('dl-cancel').onclick = close;
@@ -346,6 +342,7 @@ export function mount(ctx) {
   if (!send || !fields.length) return;
 
   bindForm(fields, `Requests/${form.FormCode}`);
+  bindSignaturePads(`Requests/${form.FormCode}/signatures`);
 
   // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
   if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
@@ -388,6 +385,14 @@ export function mount(ctx) {
       const msg = await queueProblem(form, fields, v, editId);
       if (msg) { err.innerHTML = msg; err.hidden = false; return; }
     }
+    // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
+    if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
+      err.innerHTML = 'กรุณาลงลายเซ็นผู้เบิกจ่ายก่อนส่ง — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"';
+      err.hidden = false;
+      const pad = $('.sig-pad[data-sig="requester"]');
+      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     err.hidden = true;
 
     // สรุปข้อมูลทั้งใบให้ตรวจทาน แล้วกดยืนยันก่อนส่งจริง
@@ -403,6 +408,15 @@ export function mount(ctx) {
     send.textContent = 'กำลังส่ง…';
 
     try {
+      // ลายเซ็นผู้ยื่น: เซ็นใหม่ → อัปโหลด · ไม่เซ็นใหม่ → ใช้ของเดิม/ลายเซ็นในทะเบียน
+      if (!isPR(form.FormCode)) {
+        const url = await readSignature('requester', `Requests/${form.FormCode}/signatures`)
+          || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
+        if (url) {
+          res.values._requesterSign = { name: (me && me.Title) || state.user?.name || '',
+            url, at: new Date().toISOString() };
+        }
+      }
       if (editId) {
         // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
         const orig = (await list('requests').catch(() => [])).find((r) => String(r.id) === String(editId)) || {};

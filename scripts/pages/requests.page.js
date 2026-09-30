@@ -5,9 +5,11 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor } from '../services/requests.js';
-import { LETTERHEAD } from '../core/letterhead.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
-import { standardLabel } from '../components/form-renderer.js';
+import { standardLabel, withStandard } from '../components/form-renderer.js';
+import { renderFormDoc } from '../templates/form-doc.js';
+import { isWelfareRoom } from '../templates/welfare-room.js';
+import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isUnread, markSeen } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
 
@@ -327,6 +329,7 @@ async function openRequest(req) {
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
   const answerRows = Object.entries(data)
+    .filter(([k]) => !k.startsWith('_'))      // ค่าภายใน เช่นลายเซ็นผู้ยื่น
     .filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))
     .map(([k, v]) => {
       const f = fields.find((x) => x.FieldKey === k);
@@ -340,7 +343,7 @@ async function openRequest(req) {
       }
       const isDate = (f && f.FieldType === 'date') || k === 'std_date'
         || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
-      const val = Array.isArray(v) ? v.join(', ')
+      const val = Array.isArray(v) ? v.map((x) => (x && typeof x === 'object' ? (x.name || x.Title || '') : x)).join(', ')
         : isDate ? thaiDateShort(v) : v;
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
     }).join('');
@@ -428,7 +431,8 @@ async function openRequest(req) {
         </div>
       </div>`,
   });
-  onClick('exportreq', () => exportRequest(req, steps, answerRows));
+  const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
+  onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
 
   if (role.canActNow) bindActions(req, steps, role);
 
@@ -480,6 +484,10 @@ function actionBox(req, role) {
       <label class="rq-note-label" for="rq-note">เหตุผล / ความเห็น
         <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
+      ${role.isLastStep ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) ? ' open' : ''}>
+        <summary><b>✍ ลายเซ็นผู้อนุมัติ</b> <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span></summary>
+        ${signaturePad('approver', '', true)}
+      </details>` : ''}
       ${role.isFinalStep ? `
         <div class="rq-slip-upload">
           <label class="btn-mini upload-btn" for="rq-slip">แนบสลิปการโอน</label>
@@ -502,6 +510,8 @@ let pendingSlip = null;
 
 function bindActions(req, steps, role) {
   pendingSlip = null;
+  const signFolder = `Requests/${req.FormCode || 'forms'}/signatures`;
+  if (role.isLastStep) bindSignaturePads(signFolder);
   const err = $('#rq-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
 
@@ -573,7 +583,8 @@ function bindActions(req, steps, role) {
     if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
     busy(true);
     try {
-      await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip });
+      const sig = action === 'อนุมัติ' && role.isLastStep ? await readSignature('approver', signFolder) : '';
+      await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip, sig });
       await done();
     } catch (e) {
       busy(false);
@@ -590,7 +601,8 @@ function bindActions(req, steps, role) {
     if (!pendingSlip) { fail('ต้องแนบสลิปการโอนก่อนปิดงาน'); return; }
     busy(true);
     try {
-      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note() });
+      const sig = role.isLastStep ? await readSignature('approver', signFolder) : '';
+      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note(), sig });
       await decide({ ...req, CurrentStep: 999 }, steps, { action: 'ปิดงาน', by: me, slip: pendingSlip });
       await done();
     } catch (e) {
@@ -602,7 +614,7 @@ function bindActions(req, steps, role) {
 }
 
 /** ส่งออกคำขอเป็นเอกสาร A4 พร้อมหัวกระดาษ ข้อมูล และบล็อกอนุมัติจากระบบ */
-async function exportRequest(req, steps, answerRows) {
+async function exportRequest(req, steps, answerRows, doc = {}) {
   const log = parseLog(req.ApprovalLog);
   const dir = await list('directory').catch(() => []);
   const sigOf = (name) => (dir.find((p) => p.Title === name) || {}).SignatureUrl || '';
@@ -625,27 +637,47 @@ async function exportRequest(req, steps, answerRows) {
     return openPRWindow(html, `ใบขอสั่งซื้อ — ${req.Title}`);
   }
 
-  // บล็อกผู้อนุมัติ สร้างจากบันทึกจริง ไม่ใช่ช่องเซ็นเปล่า
+  // เอกสารทั่วไป: หน้าตาเหมือนหน้ากรอกฟอร์ม · ผู้อนุมัติมาจากบันทึกจริง
+  const { fields = [], data = {}, formRow = {} } = doc;
+  const em = String(req.RequesterEmail || '').toLowerCase();
+  const who = dir.find((p) => String(p.Email || '').toLowerCase() === em)
+    || dir.find((p) => p.Title === req.RequesterName) || {};
+  const isRequester = !!em && em === String(state.user?.email || '').toLowerCase();
+  const saved = data._requesterSign || null;
+  const requester = () => ({
+    name: (saved && saved.name) || who.Title || req.RequesterName || '',
+    sig: (saved && saved.url) || who.SignatureUrl || '',
+    at: (saved && saved.at) || req.SubmittedDate,
+  });
   const approvals = steps.map((st) => {
     const n = +st.StepOrder;
     const act = log.filter((l) => l.step === n).slice(-1)[0];
-    const who = act ? act.by : ((st._resolved || [])[0] || '');
-    const sig = act && act.action === 'อนุมัติ' ? sigOf(act.by) : '';
-    return `
-      <div class="ex-approve">
-        <div class="ex-ap-role">${esc(st.StepName || 'ลำดับ ' + n)}</div>
-        <div class="ex-ap-sign">
-          ${sig ? `<img src="${esc(sig)}" alt="">` : '<div class="ex-ap-line"></div>'}
-        </div>
-        <div class="ex-ap-name">${act
-          ? `<b>${act.action === 'อนุมัติ' ? '✓ อนุมัติ' : act.action === 'ส่งกลับแก้ไข' ? '↩ ส่งกลับแก้ไข' : '✗ ไม่อนุมัติ'}</b><br>
-             ${act.note ? `<span class="ex-ap-time">เหตุผล: ${esc(act.note)}</span><br>` : ''}
-             ( ${esc(act.by)} )<br>
-             <span class="ex-ap-time">${esc(thaiDateTime(act.at))}</span>`
-          : `( ${esc(who)} )<br><span class="ex-ap-time">รออนุมัติ</span>`}
-        </div>
-      </div>`;
-  }).join('');
+    const role = st.StepName || 'ลำดับ ' + n;
+    if (!act) return { role, name: (st._resolved || [])[0] || '', wait: 'รออนุมัติ' };
+    return {
+      role, name: act.by, note: act.note, at: act.at,
+      sig: act.action === 'อนุมัติ' ? (act.sig || sigOf(act.by)) : '',
+      result: act.action === 'อนุมัติ' ? '✓ อนุมัติ' : act.action === 'ส่งกลับแก้ไข' ? '↩ ส่งกลับแก้ไข' : '✗ ไม่อนุมัติ',
+    };
+  });
+  // ผู้อนุมัติขั้นสุดท้าย: ลายเซ็นขึ้นเมื่อขั้นนั้นอนุมัติแล้วเท่านั้น
+  // หลังเสร็จสิ้น ผู้อนุมัติคนนั้นเซ็นเพิ่ม/เปลี่ยนได้จากหน้านี้ (เก็บใน _approverSign)
+  const last = steps.length ? Math.max(...steps.map((st) => +st.StepOrder)) : 0;
+  const lastAct = log.filter((l) => l.step === last && l.action === 'อนุมัติ').slice(-1)[0];
+  const lastStep = steps.find((st) => +st.StepOrder === last) || {};
+  const finalSign = () => (data._approverSign && data._approverSign.url ? data._approverSign
+    : lastAct ? { name: lastAct.by, sig: lastAct.sig || sigOf(lastAct.by) } : null);
+  const finished = !!lastAct || ['อนุมัติแล้ว', 'เสร็จสิ้น'].includes(String(req.Status || '').trim());
+  const myName = (dir.find((p) => String(p.Email || '').toLowerCase() === String(state.user?.email || '').toLowerCase()) || {}).Title
+    || state.user?.name || '';
+  const isFinalApprover = finished && !!myName
+    && ((lastAct && lastAct.by === myName) || (lastStep._resolved || []).includes(myName));
+  const docHtml = () => renderFormDoc({
+    form: { ...formRow, Title: formRow.Title || req.FormName }, fields, values: data,
+    docNo: req.Title, submitted: req.SubmittedDate, requester: requester(), approvals,
+    empCode: who.EmployeeCode || data.std_emp_code || '', position: who.Position || '',
+    finalSign: finalSign(),
+  });
 
   const win = document.getElementById('overlay-root');
   win.innerHTML = `
@@ -654,18 +686,19 @@ async function exportRequest(req, steps, answerRows) {
         <div class="modal-head">ส่งออกเอกสาร — ${esc(req.Title)}
           <button id="ex-close">✕</button></div>
         <div class="modal-body">
-          <div class="ex-doc" id="ex-doc">
-            <img class="ex-letterhead" src="${LETTERHEAD}" alt="Prime Power Construction">
-            <h2 class="ex-title">${esc(req.FormName || '')}</h2>
-            <div class="ex-meta">
-              <span>เลขที่คำขอ ${esc(req.Title)}</span>
-              <span>วันที่ยื่น ${esc(thaiDateTime(req.SubmittedDate))}</span>
-            </div>
-            <table class="ex-table">
-              ${answerRows.replace(/rq-ans/g, 'ex-ans')}
-            </table>
-            <div class="ex-approvals">${approvals}</div>
-          </div>
+          ${isRequester ? `<details class="panel fd-sign-panel"${requester().sig ? '' : ' open'}>
+            <summary><b>✍ ลายเซ็นผู้ยื่น</b> <span class="dim">— ${requester().sig ? 'เปลี่ยนลายเซ็นในเอกสาร' : 'ยังไม่มีลายเซ็น ลากเมาส์เซ็นหรืออัปโหลดรูป'}</span></summary>
+            ${signaturePad('requester', '', true)}
+            <button class="btn-mini" id="ex-sign-save">ใส่ลายเซ็นนี้ในเอกสาร</button>
+            <span class="dim" id="ex-sign-msg"></span>
+          </details>` : ''}
+          ${isFinalApprover ? `<details class="panel fd-sign-panel"${finalSign() && finalSign().sig ? '' : ' open'}>
+            <summary><b>✍ ลายเซ็นผู้อนุมัติ</b> <span class="dim">— ${finalSign() && finalSign().sig ? 'เปลี่ยนลายเซ็นในเอกสาร' : 'ลากเมาส์เซ็นหรืออัปโหลดรูป'}</span></summary>
+            ${signaturePad('approver', '', true)}
+            <button class="btn-mini" id="ex-asign-save">ใส่ลายเซ็นนี้ในเอกสาร</button>
+            <span class="dim" id="ex-asign-msg"></span>
+          </details>` : ''}
+          <div id="ex-doc">${docHtml()}</div>
         </div>
         <div class="modal-foot">
           <button class="btn-mini" id="ex-cancel">ปิด</button>
@@ -673,6 +706,8 @@ async function exportRequest(req, steps, answerRows) {
         </div>
       </div>
     </div>`;
+  const { hydratePhotos } = await import('../services/photos.js');
+  hydratePhotos(win);
 
   const close = () => { win.innerHTML = ''; };
   document.getElementById('ex-close').onclick = close;
@@ -680,6 +715,33 @@ async function exportRequest(req, steps, answerRows) {
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
   // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
   document.getElementById('ex-print').onclick = () => printWithNotice('printing-doc');
+
+  // ผู้ยื่น / ผู้อนุมัติขั้นสุดท้าย เซ็นเพิ่มหรือเปลี่ยนลายเซ็นตอนส่งออก → บันทึกลงคำขอ แล้ววาดเอกสารใหม่
+  const folder = `Requests/${req.FormCode || 'forms'}/signatures`;
+  if (document.querySelector('.fd-sign-panel')) bindSignaturePads(folder);
+  const bindSave = (btnId, msgId, role, key, name) => {
+    const signBtn = document.getElementById(btnId);
+    if (!signBtn) return;
+    signBtn.onclick = async () => {
+      const msg = document.getElementById(msgId);
+      signBtn.disabled = true;
+      try {
+        const url = await readSignature(role, folder);
+        if (!url) { msg.textContent = 'ยังไม่ได้เซ็นหรืออัปโหลดรูป'; return; }
+        const next = { ...data, [key]: { name, url, sig: url, at: new Date().toISOString() } };
+        const { update } = await import('../services/data.js');
+        await update('requests', req.id, { FormData: JSON.stringify(next) });
+        Object.assign(data, next);
+        req.FormData = JSON.stringify(next);
+        document.getElementById('ex-doc').innerHTML = docHtml();
+        hydratePhotos(document.getElementById('ex-doc'));
+        msg.textContent = '✓ บันทึกลายเซ็นแล้ว';
+      } catch (e) { msg.textContent = 'บันทึกไม่สำเร็จ — ' + e.message; }
+      finally { signBtn.disabled = false; }
+    };
+  };
+  bindSave('ex-sign-save', 'ex-sign-msg', 'requester', '_requesterSign', requester().name);
+  bindSave('ex-asign-save', 'ex-asign-msg', 'approver', '_approverSign', myName);
 }
 
 export function mount(ctx) {

@@ -168,6 +168,8 @@ export function roleOnRequest(req, steps, userName) {
     // ขั้นสุดท้ายแบบแนบสลิป + ปิดงาน ใช้เฉพาะฟอร์มเบิกจ่ายเงิน
     // ฟอร์มอื่นขั้นสุดท้ายเป็นการอนุมัติปกติ แล้วสถานะเป็น "อนุมัติแล้ว"
     isFinalStep: canActNow && cur === lastStep && needsSlip(req.FormCode),
+    // ลำดับอนุมัติสุดท้าย (ทุกฟอร์ม) — ให้ผู้อนุมัติลงลายเซ็นในเอกสารได้
+    isLastStep: canActNow && cur === lastStep,
   };
 }
 
@@ -254,14 +256,15 @@ async function assertFresh(req) {
   return now;
 }
 
-export async function decide(req, steps, { action, by, note = '', slip = null }) {
+export async function decide(req, steps, { action, by, note = '', slip = null, sig = '' }) {
   req = await assertFresh(req);                // ด่านกันอนุมัติซ้ำ
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
   const step = steps.find((s) => +s.StepOrder === cur);
   const mode = step ? step.ApproveMode : 'คนใดคนหนึ่งอนุมัติก็ผ่าน';
 
-  log.push({ step: cur, action, by, note, at: new Date().toISOString() });
+  // sig = ลายเซ็นที่ผู้อนุมัติเซ็นตอนกด (ถ้ามี) ใช้ในเอกสารส่งออก
+  log.push({ step: cur, action, by, note, at: new Date().toISOString(), ...(sig ? { sig } : {}) });
 
   // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก)
   const already = parseLog(req.ApprovalLog)
