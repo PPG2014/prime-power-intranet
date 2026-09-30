@@ -441,9 +441,46 @@ function attendanceBar(row) {
 
 const ROUND_DEFS = ROUND_DAYS;
 
+/** แบบไม่มีลายเซ็น: เอารูปลายเซ็นและวันที่ออก คงชื่อไว้ให้รู้ว่าใครต้องเซ็น */
+const stripSigns = (keep, sign) => (keep ? sign : Object.fromEntries(Object.entries(sign)
+  .map(([k, v]) => [k, { ...v, sig: '', date: '' }])));
 
-/** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 */
+
+/** เลือกว่าจะส่งออกพร้อมลายเซ็น หรือเว้นช่องไว้ให้เซ็นด้วยปากกา · ยกเลิกคืน null */
+function pickSignMode() {
+  return new Promise((resolve) => {
+    const layer = document.createElement('div');
+    layer.className = 'eta-mask';
+    layer.innerHTML = `
+      <div class="eta-box" role="dialog" aria-modal="true" aria-labelledby="sm-title">
+        <div class="eta-head" id="sm-title">⭳ ส่งออกผลการประเมิน</div>
+        <div class="eta-body">
+          <label class="pp-item"><input type="radio" name="sm" value="with" checked>
+            <span><b>พร้อมลายเซ็น</b> · ใส่ลายเซ็นและวันที่ที่ลงนามในระบบ</span></label>
+          <label class="pp-item"><input type="radio" name="sm" value="without">
+            <span><b>ไม่มีลายเซ็น</b> · เว้นช่องลายเซ็นและวันที่ไว้ให้เซ็นด้วยปากกา</span></label>
+          <p class="pp-hint">คะแนนในเอกสารเป็นคะแนนที่ผู้ประเมินส่งแล้ว แก้ไขไม่ได้ทั้งสองแบบ</p>
+        </div>
+        <div class="eta-foot">
+          <button type="button" class="btn-mini" data-sm="0">ยกเลิก</button>
+          <button type="button" class="btn btn-primary" data-sm="1">ส่งออก</button>
+        </div>
+      </div>`;
+    const done = (v) => { layer.remove(); removeEventListener('keydown', onKey, true); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } };
+    layer.querySelector('[data-sm="0"]').onclick = () => done(null);
+    layer.querySelector('[data-sm="1"]').onclick = () =>
+      done(layer.querySelector('input[name=sm]:checked').value === 'with');
+    addEventListener('keydown', onKey, true);
+    document.body.appendChild(layer);
+    layer.querySelector('[data-sm="1"]').focus();
+  });
+}
+
+/** ส่งออกเอกสารตามแบบฟอร์ม FM-HRM-004 (ถามก่อนว่าพร้อมลายเซ็นหรือไม่) */
 async function exportProbation(row) {
+  const withSign = await pickSignMode();
+  if (withSign === null) return;
   const dir = await list('directory').catch(() => []);
   const person = dir.find((d) => clean(d.Email).toLowerCase() === clean(row.EmployeeEmail).toLowerCase()) || {};
   const sigOf = (name) => (dir.find((d) => clean(d.Title) === clean(name)) || {}).SignatureUrl || '';
@@ -466,7 +503,7 @@ async function exportProbation(row) {
       .filter(([k]) => k.endsWith('__note')).map(([k, v]) => [k.replace('__note', ''), v])),
     total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
     attendance: x.attendance || {}, summary: x.summary || {},
-    sign: {
+    sign: stripSigns(withSign, {
       evaluator: {
         name: (x.sign?.evaluator?.name) || clean(row.EvaluatorName),
         date: (x.sign?.evaluator?.at) || at('ผู้ประเมิน'),
@@ -489,7 +526,7 @@ async function exportProbation(row) {
         sig: (x.sign?.approver?.url) || '',
         approved: x.sign?.approver?.approved,
       },
-    },
+    }),
   });
 
   openPRWindow(html, `แบบประเมินผลระหว่างทดลองงาน — ${clean(row.EmployeeName)}`);
@@ -655,8 +692,7 @@ async function openSheet(row, rerender) {
           ${signBlock('4.3 ผู้บริหาร (ลงนามหรือไม่ก็ได้)', sg.approver, 'approver', isBossTurn, isBossTurn
     ? `<div class="ap-sum"><label><input type="radio" name="boss-ok" value="1" checked> อนุมัติ</label>
          <label><input type="radio" name="boss-ok" value="0"> ไม่อนุมัติ</label></div>
-       <label>คะแนนสรุป (ปรับได้)<input type="number" id="ap-final" step="0.1" min="0" max="100"
-         value="${fix(row.MgrScore)}"></label>`
+       <div class="dim">คะแนนสรุป <b>${fix(row.MgrScore)}</b> · ตามที่ผู้ประเมินส่ง (แก้ไขไม่ได้)</div>`
     : (sg.approver && sg.approver.approved !== undefined
       ? `<div class="dim">ผล: ${sg.approver.approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}</div>` : ''))}
         </div>
@@ -700,13 +736,9 @@ async function openSheet(row, rerender) {
     const sc = scoreOf(secs, ans);
     $('#ap-score').textContent = fix(sc.score);
     $('#ap-grade').textContent = gradeOf(sc.score, scheme)[1];
-    const fin = $('#ap-final');
-    if (fin && !fin.dataset.touched) fin.value = fix(sc.score);
     return { ans, sc };
   };
   $$('.ap-form input[type=radio]').forEach((el) => { el.onchange = recalc; });
-  const fin = $('#ap-final');
-  if (fin) fin.oninput = () => { fin.dataset.touched = '1'; };
 
   const close = () => { $('#overlay-root').innerHTML = ''; };
   $('#ap-close').onclick = close;
@@ -784,7 +816,8 @@ async function openSheet(row, rerender) {
       try {
         const approved = ($$('input[name=boss-ok]:checked')[0] || {}).value !== '0';
         await executiveDecide(row, {
-          approved, finalScore: +$('#ap-final').value || 0,
+          // คะแนนล็อกตั้งแต่ผู้ประเมินส่ง — ผู้บริหารอนุมัติตามคะแนนของผู้ประเมิน
+          approved, finalScore: +row.MgrScore || 0,
           sign: await signOf('approver'), by: state.user?.name || '',
           note: $('#sg-approver-note') ? $('#sg-approver-note').value.trim() : '', scheme,
         });
