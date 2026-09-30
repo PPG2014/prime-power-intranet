@@ -198,3 +198,5 @@
 .ap-roleall td { background: #f7f9fc; }
 .ap-roleall .ap-rolein { border-style: dashed; }
 .ap-wait { color: var(--dim); font-size: .85em; margin-top: 2px; }
+.ap-cycle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: .92em; }
+.ap-cycle select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; max-width: 100%; }

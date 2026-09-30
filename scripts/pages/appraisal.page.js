@@ -25,6 +25,7 @@ let me = null;          // แถวบุคลากรของผู้ใ�
 let myEmail = '';
 let scheme = 'มาตรฐาน';   // เกณฑ์เกรดของรอบนี้
 let autoMade = 0;          // จำนวนใบที่ระบบเพิ่งสร้างให้เอง
+let cycles = [];           // ทุกรอบ (ฝ่ายบุคคล/ผู้ดูแล ใช้เลือกดูย้อนหลัง)
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
@@ -50,7 +51,14 @@ export async function render(ctx) {
   const dir = await list('directory').catch(() => []);
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
-  cycle = await activeCycle();
+  // ฝ่ายบุคคล/ผู้ดูแลเลือกดูรอบเก่าได้ · รอบที่ปิดแล้วระบบล็อกทุกขั้น จึงเป็นการดูอย่างเดียว
+  const canBrowse = state.isHR || state.isAdmin;
+  cycles = canBrowse ? (await list('appraisalCycles').catch(() => []))
+    .slice().sort((a, b) => String(b.StartDate || b.Created || '').localeCompare(String(a.StartDate || a.Created || ''))
+      || (+b.id || 0) - (+a.id || 0)) : [];
+  const picked = canBrowse && state.apCycleId
+    ? cycles.find((c) => String(c.id) === String(state.apCycleId)) : null;
+  cycle = picked || await activeCycle();
   secs = await criteria(clean(cycle?.FormSet));
   scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
   rows = cycle ? await sheets(clean(cycle.Title)) : [];
@@ -101,6 +109,12 @@ export async function render(ctx) {
            · ขั้นตอนที่เปิดอยู่: ${esc(clean(cycle.Stage) || S_SELF)}
            · สถานะรอบ: ${esc(clean(cycle.Status) || '—')}`
         : 'ยังไม่ได้เปิดรอบประเมิน'}</p>
+
+      ${cycles.length > 1 ? `<label class="ap-cycle">ดูรอบ
+        <select id="ap-cycle">${cycles.map((c) => `<option value="${esc(c.id)}" ${cycle && String(c.id) === String(cycle.id) ? 'selected' : ''}>${
+          esc(clean(c.Title))} · ${esc(clean(c.Status) || '—')}${c.IsActive === false ? ' (ซ่อน)' : ''}</option>`).join('')}</select>
+        ${cycle && clean(cycle.Status) !== 'เปิด' ? '<span class="dim">ดูข้อมูลย้อนหลัง (แก้ไขไม่ได้ · ส่งออกเอกสารได้)</span>' : ''}
+      </label>` : ''}
 
       <div class="chips">
         ${tabs.map(([k, label]) => `<button class="chip" data-aptab="${k}"
@@ -291,7 +305,8 @@ function paneAll() {
           <td>${esc(clean(r.EvaluatorName))}</td>
           <td>${pill(r.Status)}</td>
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
-          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
+          <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycle?.FormSet)
+            ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⭳</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>
         <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
@@ -527,6 +542,9 @@ export function mount(ctx) {
 
   // เปิดใบประเมินของลูกทีม / รายการรออนุมัติ
   onClick('apopen', (id) => openSheet(rows.find((r) => String(r.id) === String(id)), rerender));
+  onClick('apexport', (id) => { const r = rows.find((x) => String(x.id) === String(id)); if (r) exportProbation(r); });
+  const cyc = $('#ap-cycle');
+  if (cyc) cyc.onchange = () => setState({ apCycleId: cyc.value });
 
   // ผู้ดูแล: สร้างใบประเมิน + ส่งออก CSV
   const gen = $('#ap-gen');
