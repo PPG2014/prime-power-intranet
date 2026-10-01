@@ -58,23 +58,36 @@ async function enter(user) {
   startRouter(render);
   startIdleLogout();
 
-  // ตัวเลขเตือนบนเมนู: นับทันทีที่เข้าระบบ แล้วนับซ้ำทุก 5 นาที เผื่อมีคำขอใหม่ระหว่างเปิดค้าง
+  // ตัวเลขเตือนบนเมนู: นับทันทีที่เข้าระบบ แล้วนับซ้ำราวทุก 5 นาที เผื่อมีคำขอใหม่ระหว่างเปิดค้าง
+  // สุ่มรอบละ 5–6 นาที ไม่ให้ทุกเครื่องในบริษัทดึงข้อมูลพร้อมกันเป๊ะ
+  // แท็บที่ซ่อนอยู่ (ไม่ได้ดู) ไม่ดึง — พอกลับมาดูแท็บ ถ้าเลยรอบแล้วค่อยนับใหม่ทันที
   import('./services/badges.js').then((m) => {
     m.refreshBadges({ force: true });
-    setInterval(() => {
+    let lastAt = Date.now();
+    const recount = () => {
+      lastAt = Date.now();
       import('./services/data.js').then((d) => ['requests', 'appraisals', 'appraisalCycles'].forEach((n) => d.clearDataCache(n)));
       m.refreshBadges({ force: true });
-    }, 5 * 60 * 1000);
+    };
+    const tick = () => {
+      if (!document.hidden) recount();
+      setTimeout(tick, 5 * 60 * 1000 + Math.random() * 60 * 1000);
+    };
+    setTimeout(tick, 5 * 60 * 1000 + Math.random() * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && Date.now() - lastAt > 5 * 60 * 1000) recount();
+    });
   });
 
   // ประกาศเด้งขึ้นหลังหน้าแรกวาดเสร็จ เพื่อไม่ให้บังตอนหน้ายังโหลดไม่เสร็จ
   showAnnouncements();
 
   // โหลดข้อมูลที่ใช้บ่อยรอไว้เบื้องหลัง พอกดเมนูไหนก็ขึ้นได้ทันที
-  const warm = () => ['directory', 'formCatalog', 'requests', 'approvalMatrix',
-    'policies', 'documents', 'rooms', 'departments', 'sections']
+  // เฉพาะรายการที่เกือบทุกหน้าต้องใช้ (คำขอ/เส้นทางอนุมัติ ตัวเลขเตือนโหลดให้แล้ว)
+  // นโยบาย คู่มือ ห้องประชุม โหลดตอนเปิดหน้านั้นจริง · หน่วงแบบสุ่ม 2–6 วินาที กระจายภาระช่วงเช้าที่คนเข้าพร้อมกัน
+  const warm = () => ['directory', 'formCatalog', 'departments', 'sections']
     .forEach((n) => list(n).catch(() => {}));
-  (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(warm);
+  setTimeout(() => (window.requestIdleCallback || ((f) => f()))(warm), 2000 + Math.random() * 4000);
 }
 
 /** แปลรหัสผิดพลาดของไมโครซอฟท์เป็นข้อความที่บอกได้ว่าต้องทำอะไรต่อ */

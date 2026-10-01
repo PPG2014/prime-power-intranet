@@ -644,7 +644,7 @@ function startWatch() {
     }
     lastSig = sig;
   };
-  watchTimer = setInterval(check, 60000);
+  watchTimer = setInterval(check, 60000 + Math.random() * 30000);   // 60–90 วินาที สุ่มไม่ให้ทุกเครื่องตรงกัน
   watchCheck = check;
   if (!watchBound) {
     watchBound = true;

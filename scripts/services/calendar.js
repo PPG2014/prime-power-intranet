@@ -1,11 +1,12 @@
 /** ตารางห้องประชุมจากปฏิทิน Outlook */
 import { CONFIG } from '../core/config.js';
 import { getToken, getTokenFor } from './auth.js';
+import { graphFetch } from './graph-fetch.js';
 
 /** อ่านช่วงเวลาที่ห้องไม่ว่าง จาก Room Mailbox */
 export async function getRoomSchedule(roomMailbox, startISO, endISO) {
   const token = await getTokenFor(CONFIG.auth.calendarScopes);
-  const res = await fetch('https://graph.microsoft.com/v1.0/me/calendar/getSchedule', {
+  const res = await graphFetch('https://graph.microsoft.com/v1.0/me/calendar/getSchedule', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -41,7 +42,7 @@ export async function createRoomBooking({ room, subject, startISO, endISO, atten
     people.push({ emailAddress: { address: room.RoomMailbox, name: room.Title }, type: 'resource' });
   }
 
-  const res = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+  const res = await graphFetch('https://graph.microsoft.com/v1.0/me/events', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
