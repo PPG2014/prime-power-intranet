@@ -57,7 +57,8 @@ export async function optionsFor(field, parentValue) {
     .filter((r) => r.IsActive !== false)
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
-  if (field.dependsOn) {
+  // allOptions: ใช้ dependsOn แค่คุมการแสดงช่อง แต่ตัวเลือกไม่กรองตามฝ่าย (เช่น โครงการ ใช้ได้ทุกฝ่ายที่ไปประจำโครงการ)
+  if (field.dependsOn && !field.allOptions) {
     if (!parentValue) {
       rows = [];
     } else {

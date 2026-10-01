@@ -18,6 +18,33 @@ const arr = (v) => (Array.isArray(v) ? v.map(plain) : String(v || '').split(/[,\
 let staff = [];
 let projects = [];
 let autoValue = '';          // ค่าที่ระบบเติมล่าสุด ใช้แยกว่าช่องนี้ผู้ใช้แก้เองหรือยัง
+let projTouched = false;     // ผู้ใช้ติ๊ก/เอาติ๊กโครงการเองแล้ว → ไม่เลือกให้อีก
+
+/**
+ * โครงการที่มีชื่อคนนี้อยู่ (ผู้รับผิดชอบหลัก หรือทีมงาน ตามหน้าโครงการ)
+ * ติ๊กให้เองเฉพาะตอนยังไม่ได้เลือกโครงการใดเลย และผู้ใช้ยังไม่ได้แก้เอง
+ */
+function tickProjects() {
+  const box = $('#f_Project');
+  const wrap = $('[data-field="Project"]');
+  if (wrap && wrap.hidden) return;          // ฝ่ายนี้ไม่ได้ทำงานแบบแยกโครงการ
+  const name = plain(($('#f_Title') || {}).value);
+  const hint = $('#proj-hint');
+  if (!box || !name || projTouched) { if (hint && projTouched) hint.innerHTML = ''; return; }
+  const checks = $$('#f_Project input[type=checkbox]');
+  if (!checks.length || checks.some((c) => c.checked && !c.dataset.auto)) return;
+  const mine = projects.filter((pj) => plain(pj.Owner) === name || arr(pj.Team).includes(name));
+  const titles = new Set(mine.flatMap((pj) => [plain(pj.Title), plain(pj.ProjectCode)]).filter(Boolean));
+  let n = 0;
+  checks.forEach((c) => {
+    const hit = titles.has(c.value.trim());
+    c.checked = hit;
+    if (hit) { c.dataset.auto = '1'; n += 1; } else delete c.dataset.auto;
+  });
+  if (hint) {
+    hint.innerHTML = n ? `💡 ระบบติ๊กให้ ${n} โครงการ ที่มีชื่อนี้เป็นผู้รับผิดชอบหลักหรือทีมงาน · ติ๊กออก/เพิ่มเองได้` : '';
+  }
+}
 
 /** ระดับที่เลือกในฟอร์มตอนนี้ (1 = ผู้บริหาร … 8 = บุคลากรในแผนก) */
 const formPosition = () => {
@@ -90,6 +117,7 @@ export async function bindManagerSuggest() {
     list('directory').catch(() => []), list('projects').catch(() => []),
   ]);
   autoValue = '';
+  projTouched = false;
   const later = () => setTimeout(apply, 0);    // ให้ช่องที่ขึ้นกับฝ่าย (แผนก/โครงการ) วาดใหม่เสร็จก่อน
   ['#f_Department', '#f_Section', '#f_Level', '#f_Title', '#f_Position', '#f_Position_custom'].forEach((s) => {
     const el = $(s);
@@ -97,8 +125,20 @@ export async function bindManagerSuggest() {
   });
   // รายการโครงการถูกวาดใหม่เมื่อเปลี่ยนฝ่าย จึงดักที่กรอบนอก
   const pj = $('[data-field="Project"]');
-  if (pj) pj.addEventListener('change', later);
+  if (pj) {
+    if (!$('#proj-hint')) pj.insertAdjacentHTML('beforeend', '<div class="mgr-hint" id="proj-hint"></div>');
+    // ผู้ใช้กดติ๊กเอง → ไม่เลือกให้อีก
+    pj.addEventListener('change', (e) => { if (e.isTrusted && e.target.matches('input[type=checkbox]')) projTouched = true; later(); });
+  }
+  // เปลี่ยนชื่อ → ลองติ๊กใหม่ · เปลี่ยนฝ่าย รายการโครงการถูกวาดใหม่ → รอวาดเสร็จแล้วค่อยติ๊ก
+  const nameEl = $('#f_Title');
+  if (nameEl) nameEl.addEventListener('change', () => { tickProjects(); apply(); });
+  const projList = $('#f_Project');
+  if (projList) new MutationObserver(() => { tickProjects(); apply(); }).observe(projList, { childList: true });
+  // ช่องโครงการเพิ่งแสดง (เปลี่ยนเป็นฝ่ายที่ทำงานแบบแยกโครงการ) → ติ๊กให้ตอนนั้น
+  if (pj) new MutationObserver(() => { tickProjects(); apply(); }).observe(pj, { attributes: true, attributeFilter: ['hidden'] });
   const input = $('#f_Manager');
   if (input) input.addEventListener('change', later);
+  tickProjects();
   apply();
 }
