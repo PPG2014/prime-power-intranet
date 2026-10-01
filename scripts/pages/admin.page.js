@@ -386,6 +386,10 @@ async function openEditor(key, record) {
       closeModal();
       rerender();
       const notes = [];
+      // ช่องหลายค่าที่ SharePoint ยังไม่เปิด Allow multiple values แยกแจ้งต่างหาก (ไม่ใช่คอลัมน์หาย)
+      const multiOff = (res && res.skipped || []).filter((x) => /Allow multiple values/.test(x));
+      if (multiOff.length) notes.push('บันทึกแล้วแต่ไม่ครบทุกค่า\n  ' + multiOff.join('\n  '));
+      if (res && res.skipped) res.skipped = res.skipped.filter((x) => !/Allow multiple values/.test(x));
       if (res && res.skipped && res.skipped.length) {
         notes.push('ยังไม่มีคอลัมน์เหล่านี้ใน List "' + (s.spName || s.list) + '"\n  '
           + res.skipped.join('\n  '));

@@ -256,7 +256,17 @@ async function keepKnown(name, fields) {
       }
       else out[k] = cv;
     } else if (cols.has(baseKey)) {
-      out[k] = v;                 // คอลัมน์ Lookup ส่งเป็นเลข id ตามเดิม
+      // คอลัมน์ Lookup ส่งเป็นเลข id · ถ้าใน SharePoint ไม่ได้เปิด "Allow multiple values"
+      // ส่งเป็นชุดจะถูกปฏิเสธ → ส่งค่าแรกค่าเดียว แล้วบอกให้ไปเปิดตัวเลือกนั้น
+      const lk = (cols.get(baseKey) || {}).lookup;
+      if (Array.isArray(v) && lk && lk.allowMultipleValues === false) {
+        out[k] = v.length ? v[0] : null;
+        if (v.length > 1) {
+          skipped.push(`${baseKey} (คอลัมน์นี้ใน SharePoint ยังไม่ได้เปิด "Allow multiple values" — บันทึกได้แค่ค่าแรก`
+            + ' ไปที่ List Settings → คอลัมน์ ' + baseKey + ' → ติ๊ก Allow multiple values แล้วบันทึกใหม่)');
+        }
+        delete fields[k + '@odata.type'];
+      } else out[k] = v;
     } else {
       skipped.push(baseKey);
     }
@@ -298,12 +308,14 @@ async function send(name, fields, request) {
     return { res: await request(fields), dropped: [] };
   } catch (err) {
     // รอบสอง ตัดช่องที่เลือกได้หลายค่าออกก่อน เพราะเป็นสาเหตุที่พบบ่อยสุด
+    const why = String((err && err.message) || '').replace(/\s+/g, ' ').slice(0, 220);
     const multi = multiKeys(name, fields);
     if (multi.length) {
       const trimmed = { ...fields };
       multi.forEach((k) => { delete trimmed[k]; delete trimmed[k + '@odata.type']; });
       try {
-        return { res: await request(trimmed), dropped: multi.map((k) => k.replace(/LookupId$/, '')) };
+        return { res: await request(trimmed),
+          dropped: multi.map((k) => k.replace(/LookupId$/, '') + (why ? ` — SharePoint ตอบว่า: ${why}` : '')) };
       } catch (e2) { /* ยังพัง ไปลองตัดทีละช่องต่อ */ }
     }
 
