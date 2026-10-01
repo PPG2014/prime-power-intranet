@@ -6,7 +6,7 @@
 import { esc } from '../core/dom.js';
 import { uploadFile } from '../services/photos.js';
 
-export function pickSlip({ folder = 'Requests/slips', title = 'แนบสลิปการโอนเงิน' } = {}) {
+export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบุฝ่าย/สลิปโอนเงิน', title = 'แนบสลิปการโอนเงิน' } = {}) {
   return new Promise((resolve) => {
     let slip = null;
     let busy = false;

@@ -12,6 +12,7 @@ import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../service
 import { mountQueueCalendar } from '../components/queue-calendar.js';
 import { confirmSubmit } from '../components/submit-confirm.js';
 import { printWithNotice } from '../components/eta-notice.js';
+import { formFolder } from '../services/photos.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -342,8 +343,8 @@ export function mount(ctx) {
   const send = $('#q-send');
   if (!send || !fields.length) return;
 
-  bindForm(fields, `Requests/${form.FormCode}`);
-  bindSignaturePads(`Requests/${form.FormCode}/signatures`);
+  bindForm(fields, formFolder(form, 'ไฟล์แนบ'));
+  bindSignaturePads(formFolder(form, 'ลายเซ็น'));
 
   // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
   if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
@@ -411,7 +412,7 @@ export function mount(ctx) {
     try {
       // ลายเซ็นผู้ยื่น: เซ็นใหม่ → อัปโหลด · ไม่เซ็นใหม่ → ใช้ของเดิม/ลายเซ็นในทะเบียน
       if (!isPR(form.FormCode)) {
-        const url = await readSignature('requester', `Requests/${form.FormCode}/signatures`)
+        const url = await readSignature('requester', formFolder(form, 'ลายเซ็น'))
           || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
         if (url) {
           res.values._requesterSign = { name: (me && me.Title) || state.user?.name || '',

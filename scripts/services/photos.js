@@ -10,6 +10,7 @@
  */
 import { CONFIG } from '../core/config.js';
 import { getToken } from './auth.js';
+import { graphFetch } from './graph-fetch.js';
 
 const MAX_W = 600;
 const MAX_H = 800;      // สัดส่วน 3:4 แบบรูปติดบัตร
@@ -66,6 +67,21 @@ export const safeFolder = (name) =>
   String(name || '').replace(/[\\/:*?"<>|#%]/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
+ * โฟลเดอร์เก็บไฟล์ของแบบฟอร์ม — แยกเป็น ฝ่ายเจ้าของ › แบบฟอร์ม › ชนิดไฟล์ ให้หาในคลังเอกสารได้ง่าย
+ *   Attachments/แบบฟอร์ม/ฝ่ายบัญชีและการเงิน/FM-ACC-003 แบบฟอร์มเบิกเงินสำรองโครงการ/ไฟล์แนบ
+ * kind: 'ไฟล์แนบ' | 'ลายเซ็น' | 'สลิปโอนเงิน'
+ * ไฟล์เดิมที่อัปโหลดไว้ก่อน (Attachments/Requests/…) อยู่ที่เดิม ลิงก์ในคำขอยังเปิดได้ตามปกติ
+ */
+export function formFolder(form = {}, kind = 'ไฟล์แนบ') {
+  const plain = (v) => String((v && typeof v === 'object') ? (v.LookupValue ?? v.Title ?? '') : (v ?? '')).trim();
+  const dept = safeFolder(plain(form.Department)) || 'ไม่ระบุฝ่าย';
+  const code = safeFolder(plain(form.FormCode));
+  const title = safeFolder(plain(form.Title || form.FormName)).slice(0, 60).trim();
+  const name = [code, title].filter(Boolean).join(' ') || 'แบบฟอร์มอื่น ๆ';
+  return ['แบบฟอร์ม', dept, name, kind].join('/');
+}
+
+/**
  * ชื่อไฟล์แบบสั้นและเป็นอักษรอังกฤษล้วน
  *
  * ไม่ใส่ชื่อคนหรือชื่อเอกสารไว้ในชื่อไฟล์ ด้วยสองเหตุผล
@@ -97,7 +113,7 @@ export async function uploadPhoto(file, hint, folder = '', mode = 'card') {
 
   const token = await getToken();
   const path = [PHOTO_ROOT, ...folder.split('/').map(safeFolder).filter(Boolean), safeName(hint, 'jpg')].join('/');
-  const res = await fetch(
+  const res = await graphFetch(
     `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}` +
     `/drive/root:/${encodeURIComponent(path)}:/content`,
     { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' }, body: blob });
@@ -165,7 +181,7 @@ export async function uploadFile(file, folder = '', onProgress = () => {}) {
 
   // ── ไฟล์เล็ก: ส่งทีเดียว ─────────────────────────────
   if (file.size <= SIMPLE_LIMIT) {
-    const res = await fetch(`${base}/content`, {
+    const res = await graphFetch(`${base}/content`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`,
                  'Content-Type': file.type || 'application/octet-stream' },
@@ -177,7 +193,7 @@ export async function uploadFile(file, folder = '', onProgress = () => {}) {
   }
 
   // ── ไฟล์ใหญ่: เปิด upload session แล้วแบ่งส่งทีละชิ้น ───
-  const ses = await fetch(`${base}/createUploadSession`, {
+  const ses = await graphFetch(`${base}/createUploadSession`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ item: { '@microsoft.graph.conflictBehavior': 'rename' } }),
@@ -242,7 +258,7 @@ export async function photoBlobUrl(webUrl) {
   if (_photoCache.has(webUrl)) return _photoCache.get(webUrl);
 
   const token = await getToken();
-  const res = await fetch(
+  const res = await graphFetch(
     `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/content`,
     { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error('โหลดรูปไม่สำเร็จ (' + res.status + ')');
