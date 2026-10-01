@@ -480,7 +480,7 @@ function renderSlip(raw) {
 function actionBox(req, role) {
   return `
     <div class="rq-action">
-      <h4>${role.isFinalStep ? 'ขั้นสุดท้าย — แนบสลิปแล้วปิดงาน' : 'ดำเนินการ'}</h4>
+      <h4>${role.isFinalStep ? 'ขั้นสุดท้าย — กดอนุมัติแล้วแนบสลิปการโอนเงิน' : 'ดำเนินการ'}</h4>
       <label class="rq-note-label" for="rq-note">เหตุผล / ความเห็น
         <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
@@ -488,19 +488,12 @@ function actionBox(req, role) {
         <summary><b>✍ ลายเซ็นผู้อนุมัติ</b> <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span></summary>
         ${signaturePad('approver', '', true)}
       </details>` : ''}
-      ${role.isFinalStep ? `
-        <div class="rq-slip-upload">
-          <label class="btn-mini upload-btn" for="rq-slip">แนบสลิปการโอน</label>
-          <input type="file" id="rq-slip" accept="image/*,application/pdf" hidden>
-          <span id="rq-slip-name" class="dim">ยังไม่ได้แนบ · หรือกด <kbd>Ctrl</kbd>+<kbd>V</kbd> เพื่อวางรูปสลิป</span>
-          <div class="rq-slip-preview" id="rq-slip-preview" hidden></div>
-        </div>` : ''}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
         <button class="btn-mini danger" id="rq-reject">✗ ไม่อนุมัติ</button>
         <button class="btn-mini warn" id="rq-sendback">↩ ส่งกลับแก้ไข</button>
         ${role.isFinalStep
-          ? '<button class="btn btn-primary" id="rq-finish">✓ อนุมัติและปิดงาน</button>'
+          ? '<button class="btn btn-primary" id="rq-finish">✓ อนุมัติ (แนบสลิปโอนเงิน)</button>'
           : '<button class="btn btn-primary" id="rq-approve">✓ อนุมัติ</button>'}
       </div>
     </div>`;
@@ -514,48 +507,6 @@ function bindActions(req, steps, role) {
   if (role.isLastStep) bindSignaturePads(signFolder);
   const err = $('#rq-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
-
-  const slipInput = $('#rq-slip');
-
-  /** อัปโหลดสลิป พร้อมแสดงตัวอย่างรูป — ใช้ทั้งการเลือกไฟล์และการวาง Ctrl+V */
-  const takeSlip = async (f) => {
-    if (!f) return;
-    const label = $('#rq-slip-name');
-    const prev = $('#rq-slip-preview');
-    label.textContent = 'กำลังอัปโหลด…';
-    if (prev) {
-      prev.innerHTML = f.type.startsWith('image/')
-        ? `<img src="${URL.createObjectURL(f)}" alt="ตัวอย่างสลิป">` : '';
-      prev.hidden = !f.type.startsWith('image/');
-    }
-    try {
-      pendingSlip = await uploadFile(f, `Requests/${req.FormCode}/slips`, (pct) => {
-        label.textContent = `กำลังอัปโหลด ${pct}%`;
-      });
-      label.textContent = `✓ ${pendingSlip.name} · ${pendingSlip.sizeText}`;
-    } catch (e) { pendingSlip = null; label.textContent = e.message; }
-  };
-
-  if (slipInput) {
-    slipInput.onchange = (ev) => takeSlip(ev.target.files[0]);
-
-    // วางรูปสลิปจากคลิปบอร์ดได้ทันที (แคปหน้าจอแอปธนาคาร แล้วกด Ctrl+V)
-    const onPaste = (ev) => {
-      if (!document.body.contains(slipInput)) {       // ปิดหน้าต่างแล้ว เลิกฟัง
-        document.removeEventListener('paste', onPaste);
-        return;
-      }
-      const items = [...(ev.clipboardData?.items || [])];
-      const img = items.find((it) => it.kind === 'file' && it.type.startsWith('image/'));
-      if (!img) return;                                // วางข้อความตามปกติ ไม่ขวาง
-      ev.preventDefault();
-      const blob = img.getAsFile();
-      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
-      takeSlip(new File([blob], `slip-${stamp}.${ext}`, { type: blob.type }));
-    };
-    document.addEventListener('paste', onPaste);
-  }
 
   const note = () => $('#rq-note').value.trim();
   const busy = (on) => $$('.rq-buttons button').forEach((b) => { b.disabled = on; });
@@ -596,14 +547,16 @@ function bindActions(req, steps, role) {
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
   const rj = $('#rq-reject'); if (rj) rj.onclick = () => run('ไม่อนุมัติ');
   const sb = $('#rq-sendback'); if (sb) sb.onclick = () => run('ส่งกลับแก้ไข');
+  // ขั้นสุดท้าย (บัญชีการเงิน): กดอนุมัติ → หน้าต่างแนบสลิปเด้งขึ้น (เลือกไฟล์ / ลากวาง / Ctrl+V)
   const fn = $('#rq-finish'); if (fn) fn.onclick = async () => {
     err.hidden = true;
-    if (!pendingSlip) { fail('ต้องแนบสลิปการโอนก่อนปิดงาน'); return; }
+    const { pickSlip } = await import('../components/slip-dialog.js');
+    pendingSlip = await pickSlip({ folder: `Requests/${req.FormCode}/slips` });
+    if (!pendingSlip) return;               // ยกเลิก = ยังไม่อนุมัติ
     busy(true);
     try {
       const sig = role.isLastStep ? await readSignature('approver', signFolder) : '';
-      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note(), sig });
-      await decide({ ...req, CurrentStep: 999 }, steps, { action: 'ปิดงาน', by: me, slip: pendingSlip });
+      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note(), sig, slip: pendingSlip, closeAfter: true });
       await done();
     } catch (e) {
       busy(false);

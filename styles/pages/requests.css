@@ -345,3 +345,13 @@
 }
 .rq-row.unread { border-color: #f5a3a3; background: #fff7f7; }
 .rq-new-flag { color: #c81e1e; font-weight: 600; font-size: .92em; }
+
+/* หน้าต่างแนบสลิปการโอนเงิน (ขั้นสุดท้ายของฟอร์มเบิกเงิน) */
+.slip-box { width: min(560px, 100%); }
+.slip-drop { display: block; border: 2px dashed #9fb3cc; border-radius: 12px; background: #f6f9fc; cursor: pointer;
+  padding: 14px; text-align: center; transition: border-color .15s, background .15s; outline: none; }
+.slip-drop:hover, .slip-drop:focus, .slip-drop.over { border-color: var(--blue, #0a5fa8); background: #eef5fc; }
+.slip-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 130px; justify-content: center; }
+.slip-preview img { max-width: 100%; max-height: 46vh; object-fit: contain; border-radius: 6px; }
+.slip-ico { font-size: 34px; line-height: 1; }
+.slip-status { margin-top: 8px; min-height: 18px; }
