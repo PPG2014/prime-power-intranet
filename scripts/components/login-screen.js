@@ -5,6 +5,7 @@
  */
 import { CONFIG } from '../core/config.js';
 import { $ } from '../core/dom.js';
+import { policyLink, bindPolicyLinks } from './privacy-policy.js';
 
 const MS_MARK = `<svg viewBox="0 0 23 23" width="18" height="18" aria-hidden="true">
   <rect x="1"  y="1"  width="10" height="10" fill="#f25022"/>
@@ -50,6 +51,7 @@ export function renderLogin({ onSignIn, error }) {
             ระบบไม่เก็บรหัสผ่านของคุณ การกรอกรหัสผ่านเกิดขึ้นบนหน้าเข้าสู่ระบบของ Microsoft
             และแสดงข้อมูลตามสิทธิ์ที่บัญชีของคุณมีอยู่แล้วเท่านั้น
           </p>
+          <div class="login-policy">${policyLink()}</div>
         </div>
 
         <footer class="login-foot">
@@ -58,6 +60,8 @@ export function renderLogin({ onSignIn, error }) {
         </footer>
       </main>
     </div>`;
+
+  bindPolicyLinks($('#app'));
 
   $('#ms-signin').onclick = (ev) => {
     const btn = ev.currentTarget;
