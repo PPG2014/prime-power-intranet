@@ -59,7 +59,12 @@
 .tl-people { font-size: 12px; color: var(--muted); }
 .tl-act { font-size: 12px; margin-top: 4px; color: var(--ok); }
 .tl-act.bad { color: var(--danger); }
-.tl-note { color: var(--muted); font-style: italic; }
+/* ความเห็นผู้อนุมัติ — กรอบแดงเด่น ๆ ให้เห็นทันที */
+.tl-note { margin-top: 6px; padding: 8px 10px; border: 1.5px solid #e03131; border-left-width: 5px;
+  border-radius: 8px; background: #fff0f0; color: #c92a2a; font-weight: 700; font-size: 1.05em;
+  line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tl-note-h { display: block; font-size: .78em; font-weight: 600; color: #e03131; margin-bottom: 2px; }
+
 
 .rq-slip { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px solid var(--line-soft); }
 .rq-slip h4 { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
@@ -355,3 +360,15 @@
 .slip-preview img { max-width: 100%; max-height: 46vh; object-fit: contain; border-radius: 6px; }
 .slip-ico { font-size: 34px; line-height: 1; }
 .slip-status { margin-top: 8px; min-height: 18px; }
+
+/* ไฟล์แนบในหน้าต่างรายละเอียดคำขอ — กดเปิดได้ รูปภาพมีภาพย่อ */
+.rq-files { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; }
+.rq-file { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid var(--line, #dde3ea);
+  border-radius: 8px; color: var(--brand, #0b4ea2); text-decoration: none; max-width: 100%; }
+.rq-file:hover { background: rgba(11, 78, 162, .06); }
+.rq-file b { text-decoration: underline; overflow-wrap: anywhere; text-align: left; }
+.rq-ans .rq-file span { color: inherit; max-width: none; }
+.rq-file img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #f1f4f8; flex: none; }
+.rq-slip img { cursor: zoom-in; }
+
+.ex-ap-note { color: #c92a2a; font-weight: 700; }

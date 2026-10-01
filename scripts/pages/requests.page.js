@@ -343,6 +343,17 @@ async function openRequest(req) {
       }
       const isDate = (f && f.FieldType === 'date') || k === 'std_date'
         || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
+      // ไฟล์แนบ: กดเปิดได้ (รูปภาพโชว์ตัวอย่างด้วย)
+      if (Array.isArray(v) && v.some((x) => x && typeof x === 'object' && x.url)) {
+        return `<div class="rq-ans rq-ans-files"><span>${esc(label)}</span><div class="rq-files">${v.map((x) => {
+          const name = (x && (x.name || x.Title)) || 'ไฟล์แนบ';
+          if (!x || !x.url || x.url === '#') return `<b>${esc(name)}</b>`;
+          const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/i.test(x.kind || '') || /\.(jpe?g|png|gif|webp)$/i.test(name);
+          return `<a class="rq-file" href="${esc(x.url)}" target="_blank" rel="noopener" title="เปิดไฟล์">
+            ${img ? `<img data-photo="${esc(x.url)}" alt="${esc(name)}" loading="lazy">` : '<span>📄</span>'}
+            <b>${esc(name)}</b></a>`;
+        }).join('')}</div></div>`;
+      }
       const val = Array.isArray(v) ? v.map((x) => (x && typeof x === 'object' ? (x.name || x.Title || '') : x)).join(', ')
         : isDate ? thaiDateShort(v) : v;
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
@@ -389,7 +400,7 @@ async function openRequest(req) {
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
-          ${a.note ? `<div class="tl-note">${esc(a.note)}</div>` : ''}</div>`).join('')}
+          ${a.note ? `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>` : ''}</div>`).join('')}
       </div></div>`;
   }).join('');
 
@@ -431,6 +442,8 @@ async function openRequest(req) {
         </div>
       </div>`,
   });
+  // รูปใน SharePoint (ไฟล์แนบ / สลิป) ต้องแนบ token จึงโหลดได้
+  import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
 
@@ -473,7 +486,7 @@ function renderSlip(raw) {
   if (!s || !s.url) return '';
   const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(s.kind);
   return `<div class="rq-slip"><h4>หลักฐานการโอนเงิน</h4>
-    ${img ? `<img src="${esc(s.url)}" alt="สลิป">`
+    ${img ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม"><img data-photo="${esc(s.url)}" alt="สลิป"></a>`
       : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
 }
 
@@ -596,26 +609,30 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   const who = dir.find((p) => String(p.Email || '').toLowerCase() === em)
     || dir.find((p) => p.Title === req.RequesterName) || {};
   const isRequester = !!em && em === String(state.user?.email || '').toLowerCase();
-  const saved = data._requesterSign || null;
-  const requester = () => ({
-    name: (saved && saved.name) || who.Title || req.RequesterName || '',
-    sig: (saved && saved.url) || who.SignatureUrl || '',
-    at: (saved && saved.at) || req.SubmittedDate,
-  });
-  const approvals = steps.map((st) => {
+  const requester = () => {
+    const saved = data._requesterSign || null;   // อ่านใหม่ทุกครั้ง เผื่อเพิ่งเซ็นในหน้านี้
+    return {
+      name: (saved && saved.name) || who.Title || req.RequesterName || '',
+      sig: (saved && saved.url) || who.SignatureUrl || '',
+      at: (saved && saved.at) || req.SubmittedDate,
+    };
+  };
+  const last = steps.length ? Math.max(...steps.map((st) => +st.StepOrder)) : 0;
+  // คำนวณใหม่ทุกครั้งที่วาดเอกสาร — หลังกด "ใส่ลายเซ็นนี้ในเอกสาร" ลายเซ็นใหม่จึงขึ้นทันที
+  const approvals = () => steps.map((st) => {
     const n = +st.StepOrder;
     const act = log.filter((l) => l.step === n).slice(-1)[0];
     const role = st.StepName || 'ลำดับ ' + n;
     if (!act) return { role, name: (st._resolved || [])[0] || '', wait: 'รออนุมัติ' };
+    const own = n === last && act.action === 'อนุมัติ' && data._approverSign && data._approverSign.url;
     return {
       role, name: act.by, note: act.note, at: act.at,
-      sig: act.action === 'อนุมัติ' ? (act.sig || sigOf(act.by)) : '',
+      sig: act.action === 'อนุมัติ' ? (own ? data._approverSign.url : (act.sig || sigOf(act.by))) : '',
       result: act.action === 'อนุมัติ' ? '✓ อนุมัติ' : act.action === 'ส่งกลับแก้ไข' ? '↩ ส่งกลับแก้ไข' : '✗ ไม่อนุมัติ',
     };
   });
   // ผู้อนุมัติขั้นสุดท้าย: ลายเซ็นขึ้นเมื่อขั้นนั้นอนุมัติแล้วเท่านั้น
   // หลังเสร็จสิ้น ผู้อนุมัติคนนั้นเซ็นเพิ่ม/เปลี่ยนได้จากหน้านี้ (เก็บใน _approverSign)
-  const last = steps.length ? Math.max(...steps.map((st) => +st.StepOrder)) : 0;
   const lastAct = log.filter((l) => l.step === last && l.action === 'อนุมัติ').slice(-1)[0];
   const lastStep = steps.find((st) => +st.StepOrder === last) || {};
   const finalSign = () => (data._approverSign && data._approverSign.url ? data._approverSign
@@ -627,7 +644,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     && ((lastAct && lastAct.by === myName) || (lastStep._resolved || []).includes(myName));
   const docHtml = () => renderFormDoc({
     form: { ...formRow, Title: formRow.Title || req.FormName }, fields, values: data,
-    docNo: req.Title, submitted: req.SubmittedDate, requester: requester(), approvals,
+    docNo: req.Title, submitted: req.SubmittedDate, requester: requester(), approvals: approvals(),
     empCode: who.EmployeeCode || data.std_emp_code || '', position: who.Position || '', dept: who.Department || req.RequesterDept || '',
     finalSign: finalSign(),
   });

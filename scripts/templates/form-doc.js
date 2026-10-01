@@ -101,7 +101,7 @@ export function renderFormDoc({ form = {}, fields = [], values = {}, docNo = '',
       <div class="ex-ap-role">${esc(role)}</div>
       <div class="ex-ap-sign">${p.sig ? sigImg(p.sig) : '<div class="ex-ap-line"></div>'}</div>
       <div class="ex-ap-name">${p.result ? `<b>${esc(p.result)}</b><br>` : ''}
-        ${p.note ? `<span class="ex-ap-time">เหตุผล: ${esc(p.note)}</span><br>` : ''}
+        ${p.note ? `<span class="ex-ap-time ex-ap-note">ความเห็น: ${esc(p.note)}</span><br>` : ''}
         ( ${esc(p.name || '................................')} )<br>
         <span class="ex-ap-time">${p.at ? esc(thaiDateTime(p.at)) : (p.wait ? esc(p.wait) : 'วันที่ ......../......../........')}</span>
       </div>
