@@ -3,7 +3,7 @@ import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { CONFIG } from '../core/config.js';
-import { uploadPhoto, uploadFile, kb, fileSize, fileKind } from '../services/photos.js';
+import { uploadPhoto, uploadFile, kb, fileSize, fileKind, hydratePhotos } from '../services/photos.js';
 
 /** รูปที่เลือกไว้ในฟอร์มที่เปิดอยู่ เก็บเป็น data URL */
 let draftPhotos = {};   // ลิงก์รูปของแต่ละช่อง แยกตาม key (รูปภาพ/ลายเซ็น ใช้คนละช่อง)
@@ -130,7 +130,7 @@ export async function formBody(schema, record = {}) {
       draftPhotos[f.key] = v || '';
       input = `<div class="photo-field">
         <div class="photo-preview" id="${id}_prev">${v
-          ? `<img src="${esc(v)}" alt="">` : '<span>ยังไม่มีรูป</span>'}</div>
+          ? `<img data-photo="${esc(v)}" alt="">` : '<span>ยังไม่มีรูป</span>'}</div>
         <div class="photo-actions">
           <label class="btn-mini upload-btn" for="${id}_file">เลือกรูป</label>
           <input type="file" id="${id}_file" accept="image/*" hidden>
@@ -310,6 +310,7 @@ export function bindPhoto(schema) {
     if (f.type !== 'photo') continue;
     const id = 'f_' + f.key;
     const file = $('#' + id + '_file');
+    hydratePhotos($('#' + id + '_prev'));     // รูปเดิมใน SharePoint ต้องโหลดผ่าน token
     const prev = $('#' + id + '_prev');
     const clear = $('#' + id + '_clear');
     if (!file) continue;
@@ -326,7 +327,8 @@ export function bindPhoto(schema) {
       try {
         const url = await uploadPhoto(img, hintName(), folderFor(schema), f.keepRatio ? 'keep' : 'card');
         draftPhotos[f.key] = url;
-        prev.innerHTML = `<img src="${url}" alt="">`;
+        prev.innerHTML = `<img data-photo="${esc(url)}" alt="">`;
+        hydratePhotos(prev);
         setStatus(`เรียบร้อย · จากไฟล์ ${kb(img.size)} ย่อเหลือประมาณ 60–80 KB`, 'ok');
       } catch (err) {
         setStatus(err.message, 'bad');
