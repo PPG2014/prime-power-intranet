@@ -190,7 +190,7 @@ function connectors() {
 }
 
 /**
- * ผู้ดำรงตำแหน่งผู้บริหาร — แสดงชื่อในกล่องบนผังเท่านั้น (ไม่แก้ข้อมูลในทะเบียนบุคลากร)
+ * ผู้ดำรงตำแหน่งผู้บริหาร — ไม่แสดงบนผัง ใช้ตอนคลิกกล่องเพื่อเปิดข้อมูลคนนั้น (ไม่แก้ข้อมูลในทะเบียนบุคลากร)
  * ค่าว่าง = ตำแหน่งว่าง · ไม่อยู่ในรายการนี้ = ไม่แสดงชื่อ (คลิกแล้วหาจากช่องตำแหน่งในทะเบียน)
  */
 export const HOLDERS = {
@@ -206,15 +206,11 @@ const unitName = (b) => (b[4] === 'pm' ? b[7] : b[5].join(''));
 function label(b) {
   const [x, y, w, h, kind, th, en] = b;
   const [fs, lh] = TYPE[kind];
-  const holder = HOLDERS[th.join('')];
-  const lines = [...th, ...en, ...(holder ? [holder] : [])];
-  // มีชื่อผู้ดำรงตำแหน่ง → 3 บรรทัด ระยะบรรทัดแคบลงให้อยู่ในกล่องเดิม
-  const step = holder ? Math.min(lh, (h - 12) / 3) : lh;
-  const top = y + h / 2 - ((lines.length - 1) * step) / 2;
+  const lines = [...th, ...en];
+  const top = y + h / 2 - ((lines.length - 1) * lh) / 2;
   const cx = x + w / 2;
-  const cls = (i) => (holder && i === lines.length - 1 ? ' class="th cc-holder"' : i < th.length ? ' class="th"' : '');
-  return `<text x="${cx}" y="${top}" font-size="${holder ? fs - 1.5 : fs}" dominant-baseline="central" data-w="${w - 8}">${lines.map((t, i) =>
-    `<tspan x="${cx}" y="${(top + i * step).toFixed(1)}"${cls(i)}>${esc(t)}</tspan>`).join('')}</text>`;
+  return `<text x="${cx}" y="${top}" font-size="${fs}" dominant-baseline="central" data-w="${w - 8}">${lines.map((t, i) =>
+    `<tspan x="${cx}" y="${(top + i * lh).toFixed(1)}"${i < th.length ? ' class="th"' : ''}>${esc(t)}</tspan>`).join('')}</text>`;
 }
 
 function box(b, i) {
