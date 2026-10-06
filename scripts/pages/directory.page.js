@@ -13,7 +13,7 @@ const toArray = (v) => rawArray(v)
     : x))
   .filter(Boolean);
 import { state, setState } from '../core/state.js';
-import { buildCompanyChart, renderCompanyChart } from '../components/company-chart.js';
+import { renderCompanyChart, bindCompanyChart } from '../components/company-chart.js';
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
 
@@ -182,24 +182,16 @@ const tabBar = (tab) => `<div class="dir-tabs" role="tablist">${TABS.map(([k, la
     ${tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</div>`;
 
 /** แท็บแผนผังองค์กร — วาดจากข้อมูลบุคลากร ฝ่าย และแผนก */
-async function renderChartTab(all) {
+async function renderChartTab() {
   const { settings } = await import('../utils/settings.js');
   const cfg = await settings();
-  const chart = buildCompanyChart({
-    people: all,
-    departments: await list('departments').then((r) => r.filter((d) => d.IsActive !== false)
-      .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0))).catch(() => []),
-    sections: await sections(),
-    levelOf, toArray,
-    execGroups: String(cfg.ExecutiveGroup || 'ผู้บริหาร').split(',').map((x) => x.trim()).filter(Boolean),
-  });
   return `
   <section class="page page-directory">
     <div class="wrap">
       <h1 class="page-title">${esc(meta.title)}</h1>
-      <p class="page-lead">แผนผังโครงสร้างองค์กร Prime Power · อัปเดตตามข้อมูลบุคลากรล่าสุดอัตโนมัติ</p>
+      <p class="page-lead">แผนผังองค์กร Prime Power Construction ตามฉบับประกาศ</p>
       ${tabBar('chart')}
-      ${renderCompanyChart(chart, { officialUrl: cfg.OrgChartUrl || '' })}
+      ${renderCompanyChart({ officialUrl: cfg.OrgChartUrl || '' })}
     </div>
   </section>`;
 }
@@ -210,7 +202,7 @@ export async function render(ctx) {
   const all = everyone.filter((p) => p.IsActive !== false);
   const hidden = everyone.length - all.length;
   people = all;
-  if (state.dirTab === 'chart') return renderChartTab(all);
+  if (state.dirTab === 'chart') return renderChartTab();
   const rows = q
     ? all.filter((p) => Object.values(p).join(' ').toLowerCase().includes(q))
     : all;
@@ -362,13 +354,16 @@ function bindPhotoZoom(box) {
 }
 
 /** รายชื่อคนในฝ่าย/แผนกที่คลิกจากแผนผัง เรียงจากระดับสูงลงล่าง */
+const plainText = (v) => String((v && typeof v === 'object') ? (v.LookupValue ?? v.Title ?? '') : (v ?? '')).trim();
+/** เทียบชื่อหน่วยงาน/ตำแหน่งแบบไม่สนช่องว่าง (ผังพิมพ์แยกบรรทัด ข้อมูลบุคลากรอาจเว้นวรรคต่างกัน) */
+const same = (a, b) => plainText(a).replace(/\s+/g, '') === plainText(b).replace(/\s+/g, '');
+
 function openUnit(dept, sec = '') {
-  const plain = (v) => String((v && typeof v === 'object') ? (v.LookupValue ?? v.Title ?? '') : (v ?? '')).trim();
   const rows = people
-    .filter((p) => plain(p.Department) === dept && (!sec || plain(p.Section) === sec))
+    .filter((p) => same(p.Department, dept) && (!sec || same(p.Section, sec)))
     .sort((a, b) => (levelOf(a) - levelOf(b)) || ((+a.SortOrder || 0) - (+b.SortOrder || 0)));
   // ผู้อำนวยการที่ดูแลฝ่ายนี้ ขึ้นบนสุดของรายชื่อฝ่าย (ไม่ใช่รายชื่อแผนก)
-  const dirs = sec ? [] : people.filter((p) => !rows.includes(p) && toArray(p.Oversees).includes(dept));
+  const dirs = sec ? [] : people.filter((p) => !rows.includes(p) && toArray(p.Oversees).some((d) => same(d, dept)));
   const list_ = [...dirs, ...rows];
   openModal({
     title: sec ? `${sec} · ${dept}` : dept,
@@ -384,6 +379,25 @@ function openUnit(dept, sec = '') {
   bindPeople(root, (p) => openPerson(p, () => openUnit(dept, sec), `← กลับไปที่${sec || dept}`));
 }
 
+/** คลิกตำแหน่งในผัง → ข้อมูลผู้ดำรงตำแหน่ง (หลายคนแสดงเป็นรายชื่อ) */
+function openPosition(pos) {
+  const norm = (v) => plainText(v).replace(/\s+/g, '');
+  let rows = people.filter((p) => same(p.Position, pos));
+  if (!rows.length) rows = people.filter((p) => norm(p.Position).startsWith(norm(pos)));
+  if (rows.length === 1) return openPerson(rows[0]);
+  openModal({
+    title: pos,
+    wide: rows.length > 0,
+    body: rows.length
+      ? `<div class="staff-grid">${rows.map((p) => card(p)).join('')}</div>`
+      : '<div class="empty">ยังไม่มีบุคลากรที่ระบุตำแหน่งนี้ในทะเบียนบุคลากร</div>',
+  });
+  const root = $('#overlay-root');
+  hydratePhotos(root);
+  bindCopyButtons(root);
+  bindPeople(root, (p) => openPerson(p, () => openPosition(pos), `← กลับไปที่${pos}`));
+}
+
 /** คลิก/กด Enter ที่การ์ดบุคลากร → เปิดข้อมูลคนนั้น */
 function bindPeople(root, open) {
   root.querySelectorAll('[data-person]').forEach((el) => {
@@ -397,8 +411,7 @@ export function mount(ctx) {
   hydratePhotos($('#app'));
   bindCopyButtons($('#app'));
   onClick('dirtab', (k) => setState({ dirTab: k }));
-  onClick('ccperson', (id) => { const p = people.find((x) => String(x.id) === String(id)); if (p) openPerson(p); });
-  $$('[data-ccunit]').forEach((el) => { el.onclick = () => openUnit(el.dataset.ccunit, el.dataset.ccsec || ''); });
+  bindCompanyChart($('#app'), { onUnit: openUnit, onPosition: openPosition });
   const show = (id) => {
     const p = people.find((x) => String(x.id) === String(id));
     if (p) openPerson(p);
