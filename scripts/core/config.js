@@ -11,7 +11,7 @@ export const CONFIG = {
    * ⚠ เปลี่ยนค่านี้ทุกครั้งที่อัปโหลดโค้ดใหม่ เบราว์เซอร์ของผู้ใช้จะโหลดรุ่นใหม่ให้เอง
    *   (ดู scripts/core/version-check.js) ถ้าไม่เปลี่ยน ผู้ใช้อาจได้ไฟล์เก่าค้างอยู่ราว 10 นาที
    */
-  build: '2026-10-07-policy-img-mobile',
+  build: '2026-10-07-teams-slip',
 
   /** ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งานนานเกินกี่นาที (services/idle-logout.js) */
   idleMinutes: 60,
@@ -31,6 +31,7 @@ export const CONFIG = {
     scopes: ['User.Read', 'Sites.ReadWrite.All'],
     /** สิทธิ์เสริม ขอเฉพาะตอนกดจองห้องจริง (ตรวจห้องว่าง + สร้างนัดหมาย) · Microsoft Graph แบบ Delegated */
     calendarScopes: ['Calendars.ReadWrite'],
+    teamsScopes: ['Chat.Create', 'ChatMessage.Send'],   // แจ้งผู้ยื่นทาง Teams พร้อมสลิปโอนเงิน
     /**
      * URL ที่เด้งกลับหลังล็อกอิน — คำนวณจากที่อยู่ปัจจุบัน จึงใช้ได้ทั้งบน GitHub Pages
      * และบน localhost โดยไม่ต้องแก้โค้ด ค่าที่ได้จะลงท้ายด้วย / เสมอ

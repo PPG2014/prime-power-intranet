@@ -567,9 +567,23 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     pendingSlip = await pickSlip({ folder: formFolder(formRow, 'สลิปโอนเงิน') });
     if (!pendingSlip) return;               // ยกเลิก = ยังไม่อนุมัติ
     busy(true);
+    // ขอสิทธิ์ Teams ทันทีหลังกดยืนยัน (ครั้งแรกอาจเด้งหน้าต่างขอสิทธิ์ ต้องอยู่ใกล้การกดปุ่ม ไม่งั้นเบราว์เซอร์บล็อก)
+    const teams = await import('../services/teams-notify.js');
+    const tokenP = teams.teamsToken().catch((e) => e);
     try {
       const sig = role.isLastStep ? await readSignature('approver', signFolder) : '';
-      await decide(req, steps, { action: 'อนุมัติ', by: me, note: note(), sig, slip: pendingSlip, closeAfter: true });
+      const msg = note();
+      await decide(req, steps, { action: 'อนุมัติ', by: me, note: msg, sig, slip: pendingSlip, closeAfter: true });
+      // แจ้งผู้ยื่นทาง Teams พร้อมรูปสลิป — ไม่สำเร็จก็ไม่กระทบการอนุมัติที่บันทึกแล้ว
+      const { toast } = await import('../components/toast.js');
+      try {
+        const token = await tokenP;
+        if (token instanceof Error) throw token;
+        const r = await teams.notifySlipPaid({ req, slip: pendingSlip, by: me, note: msg, token });
+        if (r.sent) toast(`✓ แจ้ง ${req.RequesterName || 'ผู้ยื่น'} ทาง Teams พร้อมสลิปแล้ว`);
+      } catch (e) {
+        toast(`อนุมัติและปิดงานแล้ว แต่แจ้งทาง Teams ไม่สำเร็จ — ${e.message}`, 'bad');
+      }
       await done();
     } catch (e) {
       busy(false);
