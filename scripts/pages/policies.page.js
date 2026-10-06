@@ -43,12 +43,13 @@ export async function render(ctx) {
 /** รูปแสดงเลย · ไฟล์อื่นเป็นลิงก์กดเปิด */
 function renderAttachments(files) {
   if (!files.length) return '';
-  const isImg = (a) => /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind);
+  const isImg = (a) => /^(JPG|JPEG|PNG|GIF|WEBP)$/i.test(a.kind || '') || /\.(jpe?g|png|gif|webp)$/i.test(a.name || '');
   const imgs = files.filter(isImg);
   const docs = files.filter((a) => !isImg(a));
   return `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
     ${imgs.map((a) => `<figure class="doc-img">
-        <img src="${esc(a.url)}" alt="${esc(a.name)}" loading="lazy">
+        <a href="${esc(a.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม">
+          <img data-photo="${esc(a.url)}" data-fail="msg" alt="${esc(a.name)}"></a>
         <figcaption>${esc(a.name)}</figcaption></figure>`).join('')}
     ${docs.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
         <span>📄</span><b>${esc(a.name)}</b>
@@ -75,5 +76,8 @@ export function mount(ctx) {
         ${renderAttachments(files)}
 `,
     });
+    // รูปใน SharePoint ต้องโหลดผ่านสิทธิ์ของผู้ใช้ (token) — ใส่ลิงก์ตรง ๆ จะขึ้นเฉพาะเครื่องที่เคยล็อกอิน SharePoint ไว้
+    // มือถือ/Safari ไม่มีคุกกี้นั้น รูปจึงไม่แสดง
+    import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   });
 }

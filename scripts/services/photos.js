@@ -271,6 +271,12 @@ export async function photoBlobUrl(webUrl) {
 /** แทนที่ <img> ที่โหลดไม่ได้ ด้วยตัวอักษรย่อของชื่อ (เหมือนช่องไม่มีรูป) */
 function fallbackInitials(img) {
   const s = document.createElement('span');
+  if (img.dataset.fail === 'msg') {   // รูปเอกสาร: บอกว่าโหลดไม่ได้ แทนตัวอักษรย่อ
+    s.className = 'photo-fail';
+    s.textContent = 'โหลดรูปไม่สำเร็จ — กดที่นี่เพื่อเปิดไฟล์';
+    img.replaceWith(s);
+    return;
+  }
   s.textContent = String(img.getAttribute('alt') || '').slice(0, 2);
   img.replaceWith(s);
 }
