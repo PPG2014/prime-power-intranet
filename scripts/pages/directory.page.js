@@ -369,10 +369,18 @@ const sameSection = (a, b) => {
   return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
 };
 
+/** ชื่อฝ่าย: ไม่สนช่องว่างและคำว่า "ฝ่าย" — "ทรัพยากรบุคคล" = "ฝ่ายทรัพยากรบุคคล" */
+const deptKey = (v) => plainText(v).replace(/\s+|ฝ่าย/g, '');
+const sameDept = (a, b) => {
+  const x = deptKey(a), y = deptKey(b);
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+};
+
 function openUnit(dept, sec = '') {
   const byLevel = (a, b) => (levelOf(a) - levelOf(b)) || ((+a.SortOrder || 0) - (+b.SortOrder || 0));
-  const inDept = people.filter((p) => same(p.Department, dept));
-  let rows = inDept.filter((p) => !sec || sameSection(p.Section, sec)).sort(byLevel);
+  const inDept = people.filter((p) => sameDept(p.Department, dept));
+  // ชื่อแผนกไม่ซ้ำกันทั้งบริษัท จึงค้นจากทุกฝ่าย เผื่อช่องฝ่ายของคนนั้นเขียนไม่ตรงกับผัง
+  let rows = (sec ? people.filter((p) => sameSection(p.Section, sec)) : inDept).sort(byLevel);
   // แผนกยังไม่มีใครระบุไว้ → แสดงคนทั้งฝ่ายแทน พร้อมบอกว่ายังไม่ได้ระบุแผนก
   let fallback = false;
   // (เอาเฉพาะคนที่ยังไม่ระบุแผนก ถ้าไม่มีเลยค่อยแสดงทั้งฝ่าย)
@@ -382,7 +390,7 @@ function openUnit(dept, sec = '') {
     fallback = noSec.length ? 'nosec' : 'all';
   }
   // ผู้อำนวยการที่ดูแลฝ่ายนี้ ขึ้นบนสุดของรายชื่อฝ่าย (ไม่ใช่รายชื่อแผนก)
-  const dirs = sec ? [] : people.filter((p) => !rows.includes(p) && toArray(p.Oversees).some((d) => same(d, dept)));
+  const dirs = sec ? [] : people.filter((p) => !rows.includes(p) && toArray(p.Oversees).some((d) => sameDept(d, dept)));
   const list_ = [...dirs, ...rows];
   openModal({
     title: sec ? `${sec} · ${dept}` : dept,
@@ -393,7 +401,9 @@ function openUnit(dept, sec = '') {
            (ระบุแผนกได้ที่ ⚙ จัดการข้อมูล → บุคลากร → ช่องแผนก)</div>` : ''}
          <div class="dir-unit-meta">${rows.length} คน${dirs.length ? ` · ผู้อำนวยการที่ดูแล ${dirs.length} คน` : ''}</div>
          <div class="staff-grid">${list_.map((p) => card(p)).join('')}</div>`
-      : '<div class="empty">ยังไม่มีบุคลากรในหน่วยนี้</div>',
+      : `<div class="empty">ยังไม่มีบุคลากรในหน่วยนี้</div>
+         <div class="dir-unit-note">ตรวจที่ ⚙ จัดการข้อมูล → บุคลากร ว่าช่อง <b>ฝ่าย</b> ตรงกับ “${esc(dept)}”${
+           sec ? ` และช่อง <b>แผนก</b> ตรงกับ “${esc(sec)}”` : ''} และติ๊ก <b>เปิดใช้งาน</b> ไว้</div>`,
   });
   const root = $('#overlay-root');
   hydratePhotos(root);
