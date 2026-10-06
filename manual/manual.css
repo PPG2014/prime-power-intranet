@@ -23,6 +23,8 @@ h1, h2, h3, h4 { line-height: 1.35; color: var(--navy); }
 .mh a { color: #fff; text-decoration: none; font-size: 14px; border: 1px solid rgba(255, 255, 255, .5);
   padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
 .mh a:hover { background: rgba(255, 255, 255, .12); }
+.mh a.pdf { background: var(--green); border-color: var(--green); font-weight: 600; }
+.mh a.pdf:hover { background: var(--green-dark); }
 .mh .toc-btn { display: none; white-space: nowrap; background: none; color: #fff; border: 1px solid rgba(255, 255, 255, .5);
   border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
 
@@ -165,9 +167,24 @@ details.qa > div { padding: 0 16px 12px 36px; }
 
 /* ── พิมพ์ ── */
 @media print {
-  .mh, .toc, .top-btn { display: none !important; }
+  .mh, .top-btn, .toc-btn { display: none !important; }
+  /* สารบัญเป็นหน้าที่ 2 ของเล่ม (ลิงก์กดได้ในไฟล์ PDF) */
+  .toc { display: block !important; position: static; max-height: none; overflow: visible; border: 0; padding: 0;
+    font-size: 14px; page-break-before: always; page-break-after: always; box-shadow: none; }
+  .toc h4 { font-size: 22px; color: var(--navy); margin: 0 0 14px; }
+  .toc li a { padding: 3px 0; }
+  .toc li a.on { background: none; font-weight: 400; color: var(--ink); }
+  .toc .grp { margin: 14px 0 4px; font-size: 13px; }
+  /* ปก → สารบัญ → เนื้อหา (main ใช้ display: contents เพื่อให้เรียงลำดับร่วมกับสารบัญได้) */
+  .layout { display: flex; flex-direction: column; }
+  .layout > main { display: contents; }
+  .layout > .toc { order: 2; }
+  main > .chapter { order: 3; }
+  .chapter.cover { order: 1; min-height: 255mm; display: flex; flex-direction: column; justify-content: center; padding: 40px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .chapter.cover .logo { align-self: flex-start; width: auto; }
   body { background: #fff; font-size: 13.5px; }
-  .layout { display: block; padding: 0; }
+  .layout { padding: 0; gap: 0; }
   .chapter { border: 0; padding: 0; margin: 0 0 18px; page-break-before: always; }
   .chapter.cover { page-break-before: auto; }
   figure.shot { page-break-inside: avoid; }
