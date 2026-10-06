@@ -358,10 +358,29 @@ const plainText = (v) => String((v && typeof v === 'object') ? (v.LookupValue ??
 /** เทียบชื่อหน่วยงาน/ตำแหน่งแบบไม่สนช่องว่าง (ผังพิมพ์แยกบรรทัด ข้อมูลบุคลากรอาจเว้นวรรคต่างกัน) */
 const same = (a, b) => plainText(a).replace(/\s+/g, '') === plainText(b).replace(/\s+/g, '');
 
+/**
+ * ชื่อแผนกในผังกับในทะเบียนบุคลากรมักเขียนต่างกันเล็กน้อย
+ * เช่น "แผนกงานขออนุญาตและใบอนุญาต(เขตพื้นที่ทั่วไป)" กับ "แผนกขออนุญาตและใบอนุญาต (เขตพื้นที่ทั่วไป)"
+ * จึงตัดช่องว่าง วงเล็บ และคำว่า แผนก/งาน ออกก่อนเทียบ และยอมให้ชื่อหนึ่งอยู่ในอีกชื่อหนึ่ง
+ */
+const secKey = (v) => plainText(v).replace(/\s+|แผนก|งาน|[()（）]/g, '');
+const sameSection = (a, b) => {
+  const x = secKey(a), y = secKey(b);
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+};
+
 function openUnit(dept, sec = '') {
-  const rows = people
-    .filter((p) => same(p.Department, dept) && (!sec || same(p.Section, sec)))
-    .sort((a, b) => (levelOf(a) - levelOf(b)) || ((+a.SortOrder || 0) - (+b.SortOrder || 0)));
+  const byLevel = (a, b) => (levelOf(a) - levelOf(b)) || ((+a.SortOrder || 0) - (+b.SortOrder || 0));
+  const inDept = people.filter((p) => same(p.Department, dept));
+  let rows = inDept.filter((p) => !sec || sameSection(p.Section, sec)).sort(byLevel);
+  // แผนกยังไม่มีใครระบุไว้ → แสดงคนทั้งฝ่ายแทน พร้อมบอกว่ายังไม่ได้ระบุแผนก
+  let fallback = false;
+  // (เอาเฉพาะคนที่ยังไม่ระบุแผนก ถ้าไม่มีเลยค่อยแสดงทั้งฝ่าย)
+  if (sec && !rows.length && inDept.length) {
+    const noSec = inDept.filter((p) => !plainText(p.Section));
+    rows = (noSec.length ? noSec : inDept).sort(byLevel);
+    fallback = noSec.length ? 'nosec' : 'all';
+  }
   // ผู้อำนวยการที่ดูแลฝ่ายนี้ ขึ้นบนสุดของรายชื่อฝ่าย (ไม่ใช่รายชื่อแผนก)
   const dirs = sec ? [] : people.filter((p) => !rows.includes(p) && toArray(p.Oversees).some((d) => same(d, dept)));
   const list_ = [...dirs, ...rows];
@@ -369,7 +388,10 @@ function openUnit(dept, sec = '') {
     title: sec ? `${sec} · ${dept}` : dept,
     wide: true,
     body: list_.length
-      ? `<div class="dir-unit-meta">${rows.length} คน${dirs.length ? ` · ผู้อำนวยการที่ดูแล ${dirs.length} คน` : ''}</div>
+      ? `${fallback ? `<div class="dir-unit-note">ยังไม่มีบุคลากรที่ระบุแผนกนี้ในทะเบียนบุคลากร — ${fallback === 'nosec'
+             ? `แสดงคนใน${esc(dept)}ที่ยังไม่ได้ระบุแผนก` : `แสดงรายชื่อทั้ง${esc(dept)}แทน`}
+           (ระบุแผนกได้ที่ ⚙ จัดการข้อมูล → บุคลากร → ช่องแผนก)</div>` : ''}
+         <div class="dir-unit-meta">${rows.length} คน${dirs.length ? ` · ผู้อำนวยการที่ดูแล ${dirs.length} คน` : ''}</div>
          <div class="staff-grid">${list_.map((p) => card(p)).join('')}</div>`
       : '<div class="empty">ยังไม่มีบุคลากรในหน่วยนี้</div>',
   });
