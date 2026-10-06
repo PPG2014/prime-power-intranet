@@ -109,14 +109,23 @@ const row = (list, cls = '') => (list.length
 
 /** HTML ของแผนผัง */
 export function renderCompanyChart(c, { officialUrl = '' } = {}) {
-  const execRows = [
+  const secBox = c.secretaries.length
+    ? `<div class="cc-secretary">${c.secretaries.map((p) => personBox(p, 'is-sec')).join('')}</div>` : '';
+  const link = '<div class="cc-link" aria-hidden="true"></div>';
+  // มีประธาน: ประธาน → รองประธานซ้าย-ขวา → กรรมการผู้จัดการ (+เลขานุการ)
+  // ยังไม่มีประธาน: กรรมการผู้จัดการอยู่บนสุด รองฯ ขนาบซ้าย-ขวาแถวเดียวกัน เลขานุการอยู่ข้างใต้
+  const execRows = c.president.length ? [
     row(c.president, 'cc-top'),
     row(c.vps, 'cc-vp'),
-    c.md.length || c.secretaries.length ? `<div class="cc-row cc-md">
+    c.md.length || secBox ? `<div class="cc-row cc-md">${c.md.map((p) => personBox(p, 'is-md')).join('')}${secBox}</div>` : '',
+  ].filter(Boolean).join(link) : [
+    c.md.length || c.vps.length ? `<div class="cc-row cc-trio">
+      ${c.vps.filter((_, i) => i % 2 === 0).map((p) => personBox(p, 'is-side')).join('')}
       ${c.md.map((p) => personBox(p, 'is-md')).join('')}
-      ${c.secretaries.length ? `<div class="cc-secretary">${c.secretaries.map((p) => personBox(p, 'is-sec')).join('')}</div>` : ''}
+      ${c.vps.filter((_, i) => i % 2 === 1).map((p) => personBox(p, 'is-side')).join('')}
     </div>` : '',
-  ].filter(Boolean).join('<div class="cc-link" aria-hidden="true"></div>');
+    secBox ? `<div class="cc-row cc-md">${secBox}</div>` : '',
+  ].filter(Boolean).join(link);
 
   const columns = [
     c.direct.length ? `<section class="cc-col cc-col-direct">
