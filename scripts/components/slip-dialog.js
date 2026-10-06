@@ -49,6 +49,8 @@ export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบ
       status.textContent = 'กำลังอัปโหลด…';
       try {
         slip = await uploadFile(file, folder, (pct) => { status.textContent = `กำลังอัปโหลด ${pct}%`; });
+        // เก็บตัวไฟล์ไว้ส่งรูปทาง Teams (ไม่นับเป็นข้อมูลที่บันทึกลงคำขอ)
+        Object.defineProperty(slip, 'file', { value: file, enumerable: false });
         status.textContent = `✓ แนบแล้ว ${slip.name} · ${slip.sizeText || ''} · กดที่กรอบเพื่อเปลี่ยนไฟล์`;
         ok.disabled = false;
       } catch (e) {
