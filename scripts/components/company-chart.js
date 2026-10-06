@@ -1,7 +1,7 @@
 /**
  * แผนผังองค์กร (แท็บ "แผนผังองค์กร" ในหน้าบุคลากร)
  *
- * วาดตามผังฉบับประกาศ (ประกาศ ณ วันที่ 05/08/2569) ให้เหมือนต้นฉบับทุกตำแหน่ง
+ * วาดตามผังฉบับประกาศ (ประกาศ ณ วันที่ 5 สิงหาคม พ.ศ.2569) ให้เหมือนต้นฉบับทุกตำแหน่ง
  * พิกัดทุกกล่องวัดจากไฟล์ต้นฉบับขนาด 2000 × 1415 px — ห้ามขยับเอง
  * ถ้าผังองค์กรเปลี่ยน ให้แก้รายการ BOXES / เส้นเชื่อม ตามฉบับประกาศใหม่
  *
@@ -244,10 +244,9 @@ export function renderCompanyChart({ officialUrl = '' } = {}) {
         <g class="cc-lines">${connectors()}</g>
         <g class="cc-boxes">${BOXES.map(box).join('')}</g>
         <g class="cc-sign">
-          <text x="1483" y="1288" dominant-baseline="central">ลงชื่อ<tspan textLength="199" lengthAdjust="spacing">.............................</tspan></text>
-          <text x="1638" y="1320" text-anchor="middle" dominant-baseline="central">(นายไพรัช เขียวเขว้า)</text>
-          <text x="1638" y="1352" text-anchor="middle" dominant-baseline="central">กรรมการผู้จัดการ</text>
-          <text x="1622" y="1385" text-anchor="middle" dominant-baseline="central">ประกาศ ณ วันที่ 05/08/2569</text>
+          <text x="1638" y="1310" text-anchor="middle" dominant-baseline="central">นายไพรัช เขียนเขว้า</text>
+          <text x="1638" y="1343" text-anchor="middle" dominant-baseline="central">กรรมการผู้จัดการ</text>
+          <text x="1638" y="1376" text-anchor="middle" dominant-baseline="central">ประกาศ ณ วันที่ 5 สิงหาคม พ.ศ.2569</text>
         </g>
       </svg>
     </div>`;

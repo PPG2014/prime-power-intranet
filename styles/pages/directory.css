@@ -188,3 +188,4 @@
 }
 .cc-swipe { display: none; }
 @media (max-width: 1140px) { .cc-swipe { display: inline; } }
+.dir-unit-note { background: #fff5e6; border: 1px solid #f5d29a; color: #8a5a00; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; margin-bottom: 10px; }
