@@ -88,11 +88,12 @@ export async function render(ctx) {
           <div class="panel side-panel">
             <div class="panel-head">📚 คู่มือการใช้งาน
               <a class="panel-link" href="#/documents">ทั้งหมด →</a></div>
-            ${manuals.length ? `<ul class="side-list">
+            <ul class="side-list">
+              <li><a href="manual/" target="_blank" rel="noopener"><span class="si">📘</span>
+                <span class="st"><b>คู่มือการใช้งานระบบ Intranet</b> (ฉบับเต็ม · อบรมพนักงานใหม่)</span><span class="sx">↗</span></a></li>
               ${manuals.map((d) => `<li>
                 <a href="#/documents"><span class="si">${d.Icon || '📘'}</span>
-                  <span class="st">${esc(d.Title)}</span></a></li>`).join('')}</ul>`
-              : '<div class="side-empty">ยังไม่มีคู่มือ</div>'}
+                  <span class="st">${esc(d.Title)}</span></a></li>`).join('')}</ul>
           </div>
           <div class="panel side-panel">
             <div class="panel-head">🏍 จองคิว Messenger วันนี้
