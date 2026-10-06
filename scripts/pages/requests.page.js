@@ -3,7 +3,7 @@ import { list, get, clearDataCache } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
-import { uploadFile, fileSize, fileKind } from '../services/photos.js';
+import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel, withStandard } from '../components/form-renderer.js';
@@ -447,7 +447,7 @@ async function openRequest(req) {
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
 
-  if (role.canActNow) bindActions(req, steps, role);
+  if (role.canActNow) bindActions(req, steps, role, formRow);
 
   onClick('reqcancel', async () => {
     if (!confirm('ยกเลิกคำขอนี้ใช่หรือไม่ · การยกเลิกถาวร')) return;
@@ -514,9 +514,9 @@ function actionBox(req, role) {
 
 let pendingSlip = null;
 
-function bindActions(req, steps, role) {
+function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title: req.FormName }) {
   pendingSlip = null;
-  const signFolder = `Requests/${req.FormCode || 'forms'}/signatures`;
+  const signFolder = formFolder(formRow, 'ลายเซ็น');
   if (role.isLastStep) bindSignaturePads(signFolder);
   const err = $('#rq-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
@@ -564,7 +564,7 @@ function bindActions(req, steps, role) {
   const fn = $('#rq-finish'); if (fn) fn.onclick = async () => {
     err.hidden = true;
     const { pickSlip } = await import('../components/slip-dialog.js');
-    pendingSlip = await pickSlip({ folder: `Requests/${req.FormCode}/slips` });
+    pendingSlip = await pickSlip({ folder: formFolder(formRow, 'สลิปโอนเงิน') });
     if (!pendingSlip) return;               // ยกเลิก = ยังไม่อนุมัติ
     busy(true);
     try {
@@ -687,7 +687,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   document.getElementById('ex-print').onclick = () => printWithNotice('printing-doc');
 
   // ผู้ยื่น / ผู้อนุมัติขั้นสุดท้าย เซ็นเพิ่มหรือเปลี่ยนลายเซ็นตอนส่งออก → บันทึกลงคำขอ แล้ววาดเอกสารใหม่
-  const folder = `Requests/${req.FormCode || 'forms'}/signatures`;
+  const folder = formFolder({ FormCode: req.FormCode, Title: req.FormName, ...formRow }, 'ลายเซ็น');
   if (document.querySelector('.fd-sign-panel')) bindSignaturePads(folder);
   const bindSave = (btnId, msgId, role, key, name) => {
     const signBtn = document.getElementById(btnId);

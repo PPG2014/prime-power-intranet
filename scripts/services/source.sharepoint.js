@@ -5,6 +5,7 @@
 import { CONFIG } from '../core/config.js';
 import { getToken } from './auth.js';
 import { LOOKUPS } from './lookups.js';
+import { graphFetch } from './graph-fetch.js';
 
 const base = () => `https://graph.microsoft.com/v1.0/sites/${CONFIG.sharepoint.siteId}`;
 /**
@@ -44,7 +45,7 @@ async function call(path, options = {}) {
   const token = await getToken();
   if (!token) throw new Error('ยังไม่ได้เข้าสู่ระบบ');
 
-  const res = await fetch(base() + path, {
+  const res = await graphFetch(base() + path, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -57,6 +58,9 @@ async function call(path, options = {}) {
     const detail = await res.text().catch(() => '');
     if (res.status === 403) {
       throw new Error('ยังไม่ได้รับสิทธิ์เข้าถึงข้อมูล — ต้องให้ผู้ดูแลอนุมัติสิทธิ์ Sites.ReadWrite.All ก่อน');
+    }
+    if (res.status === 429 || res.status === 503) {
+      throw new Error('ขณะนี้มีผู้ใช้งาน SharePoint หนาแน่น ระบบลองใหม่ให้หลายครั้งแล้วยังไม่สำเร็จ — กรุณารอสักครู่แล้วลองอีกครั้ง');
     }
     if (res.status === 404) {
       throw new Error(`ไม่พบรายการที่ขอ (${path}) — ตรวจว่า GUID ของ List ใน config.js ตรงกับของจริง`);
