@@ -13,7 +13,7 @@ const toArray = (v) => rawArray(v)
     : x))
   .filter(Boolean);
 import { state, setState } from '../core/state.js';
-import { renderCompanyChart, bindCompanyChart } from '../components/company-chart.js';
+import { renderCompanyChart, bindCompanyChart, HOLDERS } from '../components/company-chart.js';
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
 
@@ -414,6 +414,15 @@ function openUnit(dept, sec = '') {
 /** คลิกตำแหน่งในผัง → ข้อมูลผู้ดำรงตำแหน่ง (หลายคนแสดงเป็นรายชื่อ) */
 function openPosition(pos) {
   const norm = (v) => plainText(v).replace(/\s+/g, '');
+  // ตำแหน่งที่กำหนดผู้ดำรงไว้บนผัง → หาตามชื่อ (ไม่สนคำนำหน้า) · ตำแหน่งว่าง → แจ้งว่าว่าง
+  if (pos in HOLDERS) {
+    const want = norm(HOLDERS[pos]).replace(/^(นาย|นางสาว|นาง|น\.ส\.)/, '');
+    const hit = want && people.find((p) => norm(p.Title).replace(/^(นาย|นางสาว|นาง|น\.ส\.)/, '') === want);
+    if (hit) return openPerson(hit);
+    return openModal({ title: pos, body: want
+      ? `<div class="empty">${esc(HOLDERS[pos])}<br><span class="dim">ยังไม่มีข้อมูลในทะเบียนบุคลากร</span></div>`
+      : '<div class="empty">ตำแหน่งนี้ว่างอยู่</div>' });
+  }
   let rows = people.filter((p) => same(p.Position, pos));
   if (!rows.length) rows = people.filter((p) => norm(p.Position).startsWith(norm(pos)));
   if (rows.length === 1) return openPerson(rows[0]);
