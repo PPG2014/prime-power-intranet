@@ -230,7 +230,7 @@ Attachments/แบบฟอร์ม/ฝ่ายบัญชีและกา�
 | Position | Single line of text | ตำแหน่ง |
 | Department | Lookup → L01.Title | ฝ่าย |
 | Section | Lookup → L15.Title | แผนกย่อย เว้นว่างได้ |
-| Office | Single line of text | สำนักงานที่ประจำ ที่เดียว: `สำนักงานใหญ่` หรือ `สำนักงานชลบุรี` · ติ๊กได้ในหน้าแก้ไขบุคลากร |
+| Office | Single line of text | สถานที่ประจำ ค่าเดียว: `สำนักงานใหญ่` / `สำนักงานชลบุรี` / `โครงการ` · ติ๊กได้ในหน้าแก้ไขบุคลากร |
 | Project | Lookup → L16.Title (**Allow multiple values**) | โครงการที่สังกัด เลือกได้หลายโครงการ · แสดงเฉพาะฝ่ายที่ระบุใน Settings คีย์ ProjectDepartments |
 | Oversees | Lookup → L01.Title (**Allow multiple values**) | ใช้กับผู้อำนวยการที่ดูแลหลายฝ่าย เว้นว่างสำหรับคนทั่วไป |
 | Level | Choice | 5 ตัวเลือก ดูด้านล่าง (ไม่ต้องมีเลขนำหน้า) |

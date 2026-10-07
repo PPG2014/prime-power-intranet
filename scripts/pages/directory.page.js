@@ -16,7 +16,7 @@ import { state, setState } from '../core/state.js';
 import { renderCompanyChart, bindCompanyChart, HOLDERS } from '../components/company-chart.js';
 
 /** สำนักงานที่ประจำ (ช่อง Office เก็บเป็นข้อความคั่นด้วยจุลภาค) */
-const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี'];
+const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี', 'โครงการ'];
 const officesOf = (p) => String((p && p.Office) || '').split(',').map((x) => x.trim()).filter(Boolean);
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
@@ -151,7 +151,11 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
   const sections = [];
   staff.forEach((p) => {
     // ช่องโครงการเลือกได้หลายค่า คนหนึ่งจึงอาจอยู่ได้หลายกลุ่ม
-    const keys = groupKey === 'Project' ? toArray(p[groupKey]) : [p[groupKey] || ''];
+    // ฝ่ายที่แบ่งตามโครงการ: คนประจำสำนักงาน (ไม่มีโครงการ) แยกเป็นกลุ่ม "ประจำสำนักงาน…" ของตัวเอง
+    const office = officesOf(p)[0];
+    const keys = groupKey === 'Project'
+      ? (toArray(p[groupKey]).length ? toArray(p[groupKey]) : (office && office !== 'โครงการ' ? ['ประจำ' + office] : []))
+      : [p[groupKey] || ''];
     (keys.length ? keys : ['']).forEach((key) => {
       let g = sections.find((x) => x.name === key);
       if (!g) sections.push((g = { name: key, rows: [] }));
@@ -159,6 +163,9 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
     });
   });
   sections.sort((a, b) => {
+    // กลุ่มประจำสำนักงานขึ้นก่อนกลุ่มโครงการ · กลุ่ม "ยังไม่ระบุ" ไว้ท้ายสุด
+    const rank = (n) => (n === 'ประจำสำนักงานใหญ่' ? 0 : n === 'ประจำสำนักงานชลบุรี' ? 1 : n ? 2 : 3);
+    if (rank(a.name) !== rank(b.name)) return rank(a.name) - rank(b.name);
     const i = secOrder.indexOf(a.name), j = secOrder.indexOf(b.name);
     return (i < 0 ? 999 : i) - (j < 0 ? 999 : j);
   });
