@@ -234,6 +234,34 @@ const personChip = (name, role) => {
     </div>`;
 };
 
+/**
+ * การ์ดลอยของผู้รับผิดชอบ: วางแบบ fixed ตามตำแหน่งชื่อ แล้วดันให้อยู่ในจอเสมอ
+ * (ถ้าวางในหน้าต่างตามปกติ คนที่อยู่ขอบขวา/บนสุดจะถูกตัดข้อมูลหาย)
+ */
+function placeHoverCards(root) {
+  if (!root) return;
+  const place = (chip) => {
+    const card = chip.querySelector('.pp-hover');
+    const info = chip.querySelector('.pp-info');
+    if (!card || !info) return;
+    card.classList.add('is-fixed');
+    const a = info.getBoundingClientRect();
+    const w = card.offsetWidth, h = card.offsetHeight, gap = 10, pad = 8;
+    const left = Math.max(pad, Math.min(a.left, window.innerWidth - w - pad));
+    let top = a.top - h - gap;
+    const below = top < pad;                                   // ที่ด้านบนไม่พอ → แสดงด้านล่างแทน
+    if (below) top = Math.min(a.bottom + gap, window.innerHeight - h - pad);
+    card.style.left = `${left}px`;
+    card.style.top = `${Math.max(pad, top)}px`;
+    card.classList.toggle('below', below);
+    card.style.setProperty('--arrow-x', `${Math.max(12, Math.min(a.left - left + 24, w - 24))}px`);
+  };
+  root.querySelectorAll('.pp-chip').forEach((chip) => {
+    chip.addEventListener('mouseenter', () => place(chip));
+    chip.addEventListener('focusin', () => place(chip));
+  });
+}
+
 /** หน้าต่างรายละเอียดโครงการแบบขยาย */
 function openProject(p) {
   const plan = num(p.PlanProgress), actual = num(p.ActualProgress), pay = num(p.ActualPayment);
@@ -295,6 +323,7 @@ function openProject(p) {
   });
 
   hydratePhotos($('#overlay-root'));
+  placeHoverCards($('#overlay-root'));
   onClick('vhistory', () => showHistory(p));
   onClick('vexport', () => exportProject(p));
   onClick('vedit', () => editProject(p));

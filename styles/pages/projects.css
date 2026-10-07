@@ -195,6 +195,10 @@
 .pph-row.dim { color: var(--dim); word-break: break-all; }
 .pph-hint { font-size: 11px; color: var(--blue); margin-top: 6px; }
 
+/* วางด้วยสคริปต์ให้อยู่ในจอเสมอ (ไม่ถูกขอบหน้าต่างตัด) */
+.pp-hover.is-fixed { position: fixed; bottom: auto; z-index: 1000; max-width: calc(100vw - 16px); }
+.pp-hover.is-fixed::after { left: var(--arrow-x, 24px); }
+.pp-hover.is-fixed.below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--line); }
 @media (max-width: 620px) { .pp-hover { display: none !important; } }
 .pj-facts b.warranty, .pj-view .pv-row b.warranty { color: var(--warn); }
 
