@@ -162,6 +162,12 @@ export async function formBody(schema, record = {}) {
           <span>${esc(o.label)}</span></label>`).join('')
           : `<div class="check-empty">${esc(f.emptyHint || '— ไม่มีตัวเลือก —')}</div>`}
       </div>`;
+    } else if (f.type === 'checks') {
+      // ติ๊กได้หลายข้อจากตัวเลือกคงที่ · เก็บเป็นข้อความคั่นด้วย ", " (คอลัมน์ Single line of text)
+      const chosen = String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
+      input = `<div class="check-list check-inline" id="${id}">${f.options.map((o) => `<label class="check-item">
+          <input type="checkbox" value="${esc(o)}" ${chosen.includes(o) ? 'checked' : ''}>
+          <span>${esc(o)}</span></label>`).join('')}</div>`;
     } else if (f.type === 'people') {
       // เลือกบุคลากรจากทะเบียน กรองตามฝ่ายและค้นหาชื่อได้ เก็บเป็นอีเมลบรรทัดละคน
       const staff = (await list('directory').catch(() => []))
@@ -253,6 +259,10 @@ export function collect(schema) {
     }
     if (f.type === 'multilookup') {
       out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value);
+      continue;
+    }
+    if (f.type === 'checks') {
+      out[f.key] = [...el.querySelectorAll('input:checked')].map((c) => c.value).join(', ');
       continue;
     }
     if (f.custom && el.value === '__custom') {

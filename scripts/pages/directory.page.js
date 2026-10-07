@@ -15,6 +15,10 @@ const toArray = (v) => rawArray(v)
 import { state, setState } from '../core/state.js';
 import { renderCompanyChart, bindCompanyChart, HOLDERS } from '../components/company-chart.js';
 
+/** สำนักงานที่ประจำ (ช่อง Office เก็บเป็นข้อความคั่นด้วยจุลภาค) */
+const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี'];
+const officesOf = (p) => String((p && p.Office) || '').split(',').map((x) => x.trim()).filter(Boolean);
+
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
 
 /**
@@ -98,6 +102,7 @@ const card = (p, cls = '') => `
       ${p.Email ? `<div class="mail-line"><a class="staff-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
         ${copyButton(p.Email, '')}</div>` : ''}
       <div class="staff-ext">โทรภายใน <b>${p.Extension ? esc(p.Extension) : '—'}</b></div>
+      ${officesOf(p).length ? `<div class="office-tag">📍 ${esc(officesOf(p).join(' · '))}</div>` : ''}
     </div>
   </article>`;
 
@@ -203,9 +208,11 @@ export async function render(ctx) {
   const hidden = everyone.length - all.length;
   people = all;
   if (state.dirTab === 'chart') return renderChartTab();
-  const rows = q
-    ? all.filter((p) => Object.values(p).join(' ').toLowerCase().includes(q))
-    : all;
+  const office = state.dirOffice || '';
+  const rows = all
+    .filter((p) => !office || officesOf(p).includes(office))
+    .filter((p) => !q || Object.values(p).join(' ').toLowerCase().includes(q));
+  const officeCount = (o) => all.filter((p) => officesOf(p).includes(o)).length;
   let groups = await groupByDepartment(rows);
 
   /**
@@ -251,6 +258,10 @@ export async function render(ctx) {
           <span>🔍</span>
           <input id="dir-q" type="search" data-keepfocus value="${esc(state.directoryQuery || '')}"
                  placeholder="ค้นหาชื่อ ชื่อเล่น ตำแหน่ง หรือฝ่าย" autocomplete="off">
+        </div>
+        <div class="office-chips" role="group" aria-label="กรองตามสำนักงาน">
+          ${[['', 'ทุกสำนักงาน'], ...OFFICES.map((o) => [o, o])].map(([v, t]) => `<button type="button" class="chip"
+            data-diroffice="${esc(v) || 'all'}" aria-pressed="${office === v}">${esc(t)}${v ? ` <b>${officeCount(v)}</b>` : ''}</button>`).join('')}
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} คน${
           q ? '' : ` · ${groups.length} ฝ่าย`}${
@@ -301,6 +312,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
             ${row('แผนก', p.Section)}
             ${row('ระดับ', p.Level)}
             ${row('โทรภายใน', p.Extension)}
+            ${row('ประจำสำนักงาน', officesOf(p).join(', '))}
           </div>
 
           ${p.Email ? `<div class="mail-line pv-mailline"><a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
@@ -452,6 +464,7 @@ export function mount(ctx) {
   hydratePhotos($('#app'));
   bindCopyButtons($('#app'));
   onClick('dirtab', (k) => setState({ dirTab: k }));
+  onClick('diroffice', (v) => setState({ dirOffice: v === 'all' ? '' : v }));
   bindCompanyChart($('#app'), { onUnit: openUnit, onPosition: openPosition });
   const show = (id) => {
     const p = people.find((x) => String(x.id) === String(id));
