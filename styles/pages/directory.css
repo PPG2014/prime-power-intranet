@@ -189,3 +189,10 @@
 .cc-swipe { display: none; }
 @media (max-width: 1140px) { .cc-swipe { display: inline; } }
 .dir-unit-note { background: #fff5e6; border: 1px solid #f5d29a; color: #8a5a00; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; margin-bottom: 10px; }
+
+/* ประจำสำนักงาน */
+.check-list.check-inline { max-height: none; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.office-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.office-chips .chip b { font-size: 12px; opacity: .7; margin-left: 2px; }
+.office-tag { display: inline-block; margin-top: 6px; font-size: 12px; color: #1e7f4f; background: #e9f7ef;
+  border-radius: 999px; padding: 1px 10px; }
