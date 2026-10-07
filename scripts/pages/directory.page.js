@@ -16,7 +16,7 @@ import { state, setState } from '../core/state.js';
 import { renderCompanyChart, bindCompanyChart, HOLDERS } from '../components/company-chart.js';
 
 /** สำนักงานที่ประจำ (ช่อง Office เก็บเป็นข้อความคั่นด้วยจุลภาค) */
-const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี'];
+const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี', 'โครงการ'];
 const officesOf = (p) => String((p && p.Office) || '').split(',').map((x) => x.trim()).filter(Boolean);
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
@@ -102,7 +102,7 @@ const card = (p, cls = '') => `
       ${p.Email ? `<div class="mail-line"><a class="staff-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
         ${copyButton(p.Email, '')}</div>` : ''}
       <div class="staff-ext">โทรภายใน <b>${p.Extension ? esc(p.Extension) : '—'}</b></div>
-      ${officesOf(p).length ? `<div class="office-tag">📍 ${esc(officesOf(p).join(' · '))}</div>` : ''}
+      ${officesOf(p).length ? `<div class="office-tag">📍 ประจำ${esc(officesOf(p)[0])}</div>` : ''}
     </div>
   </article>`;
 
@@ -151,7 +151,11 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
   const sections = [];
   staff.forEach((p) => {
     // ช่องโครงการเลือกได้หลายค่า คนหนึ่งจึงอาจอยู่ได้หลายกลุ่ม
-    const keys = groupKey === 'Project' ? toArray(p[groupKey]) : [p[groupKey] || ''];
+    // ฝ่ายที่แบ่งตามโครงการ: คนประจำสำนักงาน (ไม่มีโครงการ) แยกเป็นกลุ่ม "ประจำสำนักงาน…" ของตัวเอง
+    const office = officesOf(p)[0];
+    const keys = groupKey === 'Project'
+      ? (toArray(p[groupKey]).length ? toArray(p[groupKey]) : (office && office !== 'โครงการ' ? ['ประจำ' + office] : []))
+      : [p[groupKey] || ''];
     (keys.length ? keys : ['']).forEach((key) => {
       let g = sections.find((x) => x.name === key);
       if (!g) sections.push((g = { name: key, rows: [] }));
@@ -159,6 +163,9 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
     });
   });
   sections.sort((a, b) => {
+    // กลุ่มประจำสำนักงานขึ้นก่อนกลุ่มโครงการ · กลุ่ม "ยังไม่ระบุ" ไว้ท้ายสุด
+    const rank = (n) => (n === 'ประจำสำนักงานใหญ่' ? 0 : n === 'ประจำสำนักงานชลบุรี' ? 1 : n ? 2 : 3);
+    if (rank(a.name) !== rank(b.name)) return rank(a.name) - rank(b.name);
     const i = secOrder.indexOf(a.name), j = secOrder.indexOf(b.name);
     return (i < 0 ? 999 : i) - (j < 0 ? 999 : j);
   });
@@ -260,7 +267,7 @@ export async function render(ctx) {
                  placeholder="ค้นหาชื่อ ชื่อเล่น ตำแหน่ง หรือฝ่าย" autocomplete="off">
         </div>
         <div class="office-chips" role="group" aria-label="กรองตามสำนักงาน">
-          ${[['', 'ทุกสำนักงาน'], ...OFFICES.map((o) => [o, o])].map(([v, t]) => `<button type="button" class="chip"
+          ${[['', 'ทุกสำนักงาน'], ...OFFICES.map((o) => [o, 'ประจำ' + o])].map(([v, t]) => `<button type="button" class="chip"
             data-diroffice="${esc(v) || 'all'}" aria-pressed="${office === v}">${esc(t)}${v ? ` <b>${officeCount(v)}</b>` : ''}</button>`).join('')}
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} คน${
@@ -312,7 +319,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
             ${row('แผนก', p.Section)}
             ${row('ระดับ', p.Level)}
             ${row('โทรภายใน', p.Extension)}
-            ${row('ประจำสำนักงาน', officesOf(p).join(', '))}
+            ${row('สำนักงาน', officesOf(p).length ? 'ประจำ' + officesOf(p)[0] : '')}
           </div>
 
           ${p.Email ? `<div class="mail-line pv-mailline"><a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>

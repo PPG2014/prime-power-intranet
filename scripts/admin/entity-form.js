@@ -33,6 +33,13 @@ export const toFiles = (v) => {
  * ต้องคลี่ให้เป็นอาร์เรย์ของข้อความเสมอ ไม่งั้นเทียบกับตัวเลือกในฟอร์มไม่ตรง
  * แล้วเครื่องหมายถูกที่เคยติ๊กไว้จะหายไปตอนเปิดแก้ไข
  */
+/** ช่องติ๊กแบบเลือกได้ข้อเดียว (data-single): ติ๊กข้อหนึ่ง ข้ออื่นในกลุ่มหลุดเอง */
+document.addEventListener('change', (ev) => {
+  const box = ev.target.closest && ev.target.closest('[data-single]');
+  if (!box || !ev.target.checked) return;
+  box.querySelectorAll('input[type=checkbox]').forEach((i) => { if (i !== ev.target) i.checked = false; });
+});
+
 export const toArray = (v) => {
   const raw = Array.isArray(v)
     ? v
@@ -165,9 +172,10 @@ export async function formBody(schema, record = {}) {
     } else if (f.type === 'checks') {
       // ติ๊กได้หลายข้อจากตัวเลือกคงที่ · เก็บเป็นข้อความคั่นด้วย ", " (คอลัมน์ Single line of text)
       const chosen = String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
-      input = `<div class="check-list check-inline" id="${id}">${f.options.map((o) => `<label class="check-item">
+      // single: เลือกได้ข้อเดียว — ติ๊กข้อหนึ่ง ข้ออื่นหลุดเอง (กดซ้ำเพื่อเอาออกได้)
+      input = `<div class="check-list check-inline" id="${id}"${f.single ? ' data-single="1"' : ''}>${f.options.map((o) => `<label class="check-item">
           <input type="checkbox" value="${esc(o)}" ${chosen.includes(o) ? 'checked' : ''}>
-          <span>${esc(o)}</span></label>`).join('')}</div>`;
+          <span>${esc((f.labels && f.labels[o]) || o)}</span></label>`).join('')}</div>`;
     } else if (f.type === 'people') {
       // เลือกบุคลากรจากทะเบียน กรองตามฝ่ายและค้นหาชื่อได้ เก็บเป็นอีเมลบรรทัดละคน
       const staff = (await list('directory').catch(() => []))
