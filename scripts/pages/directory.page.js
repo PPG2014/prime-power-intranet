@@ -102,7 +102,7 @@ const card = (p, cls = '') => `
       ${p.Email ? `<div class="mail-line"><a class="staff-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
         ${copyButton(p.Email, '')}</div>` : ''}
       <div class="staff-ext">โทรภายใน <b>${p.Extension ? esc(p.Extension) : '—'}</b></div>
-      ${officesOf(p).length ? `<div class="office-tag">📍 ${esc(officesOf(p).join(' · '))}</div>` : ''}
+      ${officesOf(p).length ? `<div class="office-tag">📍 ประจำ${esc(officesOf(p)[0])}</div>` : ''}
     </div>
   </article>`;
 
@@ -260,7 +260,7 @@ export async function render(ctx) {
                  placeholder="ค้นหาชื่อ ชื่อเล่น ตำแหน่ง หรือฝ่าย" autocomplete="off">
         </div>
         <div class="office-chips" role="group" aria-label="กรองตามสำนักงาน">
-          ${[['', 'ทุกสำนักงาน'], ...OFFICES.map((o) => [o, o])].map(([v, t]) => `<button type="button" class="chip"
+          ${[['', 'ทุกสำนักงาน'], ...OFFICES.map((o) => [o, 'ประจำ' + o])].map(([v, t]) => `<button type="button" class="chip"
             data-diroffice="${esc(v) || 'all'}" aria-pressed="${office === v}">${esc(t)}${v ? ` <b>${officeCount(v)}</b>` : ''}</button>`).join('')}
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} คน${
@@ -312,7 +312,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
             ${row('แผนก', p.Section)}
             ${row('ระดับ', p.Level)}
             ${row('โทรภายใน', p.Extension)}
-            ${row('ประจำสำนักงาน', officesOf(p).join(', '))}
+            ${row('สำนักงาน', officesOf(p).length ? 'ประจำ' + officesOf(p)[0] : '')}
           </div>
 
           ${p.Email ? `<div class="mail-line pv-mailline"><a class="pv-mail" href="mailto:${esc(p.Email)}">✉ ${esc(p.Email)}</a>
