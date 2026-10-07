@@ -17,7 +17,12 @@ import { renderCompanyChart, bindCompanyChart, HOLDERS } from '../components/com
 
 /** สำนักงานที่ประจำ (ช่อง Office เก็บเป็นข้อความคั่นด้วยจุลภาค) */
 const OFFICES = ['สำนักงานใหญ่', 'สำนักงานชลบุรี', 'โครงการ'];
-const officesOf = (p) => String((p && p.Office) || '').split(',').map((x) => x.trim()).filter(Boolean);
+const officesOf = (p) => {
+  const set = String((p && p.Office) || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (set.length) return set;
+  // ยังไม่ได้ติ๊กสถานที่ แต่มีโครงการในทะเบียนอยู่แล้ว → นับเป็นประจำโครงการ
+  return toArray(p && p.Project).length ? ['โครงการ'] : [];
+};
 
 export const meta = { route: 'directory', title: 'บุคลากร', nav: true, order: 9, adminOnly: false };
 
