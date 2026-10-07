@@ -10,6 +10,7 @@ import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
 import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
+import { syncFromProject, syncFromPerson, syncSummary } from '../services/project-sync.js';
 import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets, waitingSelf, skipSelf, S_MGR } from '../services/appraisal.js';
 import { routeHost, bindRouteEditor, routeProblems, saveRoute } from '../components/approval-route-editor.js';
@@ -124,6 +125,7 @@ export async function render(ctx) {
             ${s.icon} ${esc(s.title)}${s.groupBy && activeGroup
               ? ' · ' + esc(formLabel(activeGroup)) : ''} — ${rows.length} รายการ
 
+            ${key === 'projects' || key === 'directory' ? '<button class="head-btn" data-psync="1" title="เติมชื่อที่ขาดให้โครงการกับบุคลากรตรงกัน (ไม่ลบข้อมูล)">↻ ซิงก์โครงการ ↔ บุคลากร</button>' : ''}
             ${key === 'directory' ? '<button class="head-btn" data-autosort="1" title="เรียงตามฝ่าย → ระดับในผัง → แผนก">⚡ เรียงตามระดับอัตโนมัติ</button>' : ''}
             ${s.readOnly ? '' : '<button class="head-btn" data-new="1">+ เพิ่มรายการ</button>'}</div>
           ${(() => {
@@ -382,6 +384,10 @@ async function openEditor(key, record) {
                         : await update(s.list, record.id, data);
       const sheetFails = isCycle ? await saveCycleSheets(record, data, grid, btn) : [];
       const routeNotes = isForm ? await saveRoute(data.FormCode || (record && record.FormCode)) : [];
+      // โครงการ ↔ บุคลากร: แก้ฝั่งหนึ่ง อีกฝั่งอัปเดตตาม
+      const after = { ...(record || {}), ...data };
+      const sync = s.list === 'projects' ? syncSummary(await syncFromProject(isNew ? null : record, after), 'ช่องโครงการของบุคลากร')
+        : s.list === 'directory' ? syncSummary(await syncFromPerson(isNew ? null : record, after), 'ทีมของโครงการ') : '';
       clearCaches();
       closeModal();
       rerender();
@@ -415,7 +421,8 @@ async function openEditor(key, record) {
           + sheetFails.slice(0, 10).join('\n  ')
           + '\n  กดบันทึกอีกครั้งเพื่อลองใหม่ หรือกด ↻ ตรวจและสร้างใบที่ยังขาด ในหน้าประเมินผล');
       }
-      if (notes.length) alert('บันทึกแล้ว แต่มีข้อสังเกต\n\n' + notes.join('\n\n'));
+      if (notes.length) alert('บันทึกแล้ว แต่มีข้อสังเกต\n\n' + notes.join('\n\n') + (sync ? '\n\n' + sync : ''));
+      else if (sync) alert('บันทึกแล้ว\n\n' + sync);
     } catch (e) {
       console.error(e);
       err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(e.message)}`;
@@ -499,6 +506,22 @@ export function mount(ctx) {
   if (gsel) gsel.onchange = () => setState({ adminGroup: gsel.value });
 
     onClick('new', () => openEditor(key, null));
+    onClick('psync', async (_, btn) => {
+      if (!confirm('ตรวจให้โครงการกับบุคลากรตรงกันทั้งหมด\n\n'
+        + '• คนที่ติ๊กโครงการไว้แต่ยังไม่อยู่ในทีม → เพิ่มเข้าทีมโครงการ\n'
+        + '• คนที่อยู่ในทีม/เป็นผู้รับผิดชอบ แต่ช่องโครงการยังไม่มี → เพิ่มโครงการให้\n\n'
+        + 'ระบบเติมเฉพาะที่ขาด ไม่ลบข้อมูลใด ๆ · ต้องการทำต่อหรือไม่')) return;
+      btn.disabled = true;
+      const { reconcileAll } = await import('../services/project-sync.js');
+      try {
+        const r = await reconcileAll((d, t) => { btn.textContent = `กำลังซิงก์ ${d}/${t}…`; });
+        clearCaches(); rerender();
+        alert(r.done.length || r.failed.length
+          ? `ซิงก์แล้ว ${r.done.length} รายการ${r.failed.length ? ` · ไม่สำเร็จ ${r.failed.length}` : ''}\n\n`
+            + [...r.done, ...r.failed].slice(0, 25).join('\n') + (r.done.length + r.failed.length > 25 ? '\n…' : '')
+          : 'โครงการกับบุคลากรตรงกันอยู่แล้ว ไม่มีอะไรต้องแก้');
+      } catch (e) { alert('ซิงก์ไม่สำเร็จ — ' + e.message); btn.disabled = false; }
+    });
   onClick('group', () => {}); // select ใช้ onchange แยกด้านล่าง
   onClick('prev', (id) => previewAnnouncement(rows.find((r) => String(r.id) === String(id))));
   onClick('edit', (id) => openEditor(key, rows.find((r) => String(r.id) === String(id))));
@@ -639,8 +662,11 @@ export function mount(ctx) {
     if (!confirm(`ต้องการลบ "${r.Title}" ออกจาก${s.title} ใช่หรือไม่`)) return;
     try {
       await remove(s.list, id);
+      const sync = s.list === 'projects' ? syncSummary(await syncFromProject(r, null), 'ช่องโครงการของบุคลากร')
+        : s.list === 'directory' ? syncSummary(await syncFromPerson(r, null), 'ทีมของโครงการ') : '';
       clearCaches();
       rerender();
+      if (sync) alert('ลบแล้ว\n\n' + sync);
     } catch (e) {
       console.error(e);
       alert('ลบไม่สำเร็จ — ' + e.message);
@@ -692,7 +718,10 @@ export async function openProjectEditor(record, onSaved) {
       }
       data.UpdatedDate = new Date().toISOString();
       await update(sc.list, record.id, data);
+      const sync = syncSummary(await syncFromProject(record, { ...record, ...data }), 'ช่องโครงการของบุคลากร');
+      clearCaches();
       closeModal();
+      if (sync) alert('บันทึกแล้ว\n\n' + sync);
       if (onSaved) onSaved();
     } catch (e) {
       console.error(e);
