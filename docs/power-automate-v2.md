@@ -55,13 +55,16 @@
 @startsWith(coalesce(triggerOutputs()?['body/PAState'], ''), 'PENDING')
 ```
 
-## กล่อง 2–4 — ตัวแปร 3 ตัว (ใต้ทริกเกอร์ ต่อกันเรียงลงมา)
-**+** → **Initialize variable** ทำ 3 ครั้ง (Value ปล่อยว่าง)
+## กล่อง 2–4 — ตัวแปร 4 ตัว (ใต้ทริกเกอร์ ต่อกันเรียงลงมา)
+**+** → **Initialize variable** ทำ 4 ครั้ง (Value ปล่อยว่าง)
 | Name | Type |
 |---|---|
 | `varCode` | String |
 | `varBy` | String |
 | `varNote` | String |
+| `varWho` | String |
+
+> `varWho` = อีเมลคนที่กดการ์ด ใช้แจ้งเขาในกล่อง 9.1 เมื่อกดการ์ดใบเก่า (เพิ่มภายหลัง — โฟลว์ที่ทำไปแล้วให้เพิ่มตัวแปรนี้ใต้ `varNote`)
 
 ## กล่อง 5 — ล็อกคำขอ (กันส่งการ์ดซ้ำ)
 **+** → **Update item** → Rename `lockItem`
@@ -116,6 +119,10 @@ first(body('approvalOne')?['responses'])?['responder']?['displayName']
 ```
 coalesce(first(body('approvalOne')?['responses'])?['comments'], '')
 ```
+**E)** **Set variable** → Name `varWho` · Value (fx)
+```
+first(body('approvalOne')?['responses'])?['responder']?['email']
+```
 
 ### สาขา **True** (ต้องกดครบทุกคน)
 **A)** **Start and wait for an approval** → Rename `approvalAll`
@@ -138,6 +145,12 @@ if(contains(body('allCodes'), '3'), '3', if(contains(body('allCodes'), '2'), '2'
 **E)** **Set variable** → Name `varBy` · Value (พิมพ์) `ผู้อนุมัติทุกคนในลำดับนี้`
 
 **F)** **Set variable** → Name `varNote` · Value (fx) `join(body('allText'), ' | ')`
+
+**G)** **Select** → Rename `allWho`
+- From (fx) `body('approvalAll')?['responses']`
+- Map: โหมดข้อความ → (fx) `item()?['responder']?['email']`
+
+**H)** **Set variable** → Name `varWho` · Value (fx) `join(body('allWho'), ';')`
 
 **Save**
 
@@ -170,7 +183,28 @@ if(equals(variables('varCode'), '1'), 'อนุมัติ', if(equals(variabl
     length(json(if(empty(triggerOutputs()?['body/ApprovalLog']), '[]', triggerOutputs()?['body/ApprovalLog'])))
     ```
 
-> ถ้ามีคนดำเนินการในเว็บไปก่อน หรือผู้ยื่นแก้ไขและยื่นใหม่ระหว่างที่การ์ดเก่ายังค้าง = False → ผลจากการ์ดเก่าถูกข้าม ไม่เขียนทับ · **กล่อง 10–13 ใส่ในสาขา True ทั้งหมด** · สาขา False ปล่อยว่าง
+> ถ้ามีคนดำเนินการในเว็บไปก่อน หรือผู้ยื่นแก้ไขและยื่นใหม่ระหว่างที่การ์ดเก่ายังค้าง = False → ผลจากการ์ดเก่าถูกข้าม ไม่เขียนทับ · **กล่อง 10–13 ใส่ในสาขา True ทั้งหมด** · สาขา False ใส่กล่อง 9.1
+
+## กล่อง 9.1 — แจ้งคนที่กดการ์ดใบเก่าว่า "มีคนดำเนินการไปแล้ว" (สาขา False)
+> เกิดเมื่อผู้อนุมัติอีกคนกด **ในเว็บ** ไปก่อน — การ์ดใน Teams/Outlook ของคนอื่นยังมีปุ่มค้างอยู่
+> (การ์ดที่กดจาก Teams/Outlook แบบ "คนใดคนหนึ่ง" ระบบ Approvals ปิดการ์ดของคนอื่นให้เองอยู่แล้ว)
+> เมื่อมีคนมากดการ์ดใบเก่า ระบบไม่บันทึกซ้ำ และส่งข้อความบอกเขาทันทีว่าใครทำไปแล้ว
+
+**A) Compose** → Rename `lastAct` · Inputs (fx)
+```
+last(json(if(empty(outputs('latest')?['body/ApprovalLog']), '[]', outputs('latest')?['body/ApprovalLog'])))
+```
+**B) Compose** → Rename `staleMsg` · Inputs (fx)
+```
+concat('คำขอ ', triggerOutputs()?['body/Title'], ': <b>', coalesce(outputs('lastAct')?['by'], 'มีผู้ใช้'), ' ', coalesce(outputs('lastAct')?['action'], 'ดำเนินการ'), 'ไปแล้ว</b> (สถานะล่าสุด: ', coalesce(outputs('latest')?['body/Status'], '-'), ')<br>การกดจากการ์ดใบนี้ไม่ถูกบันทึก คุณไม่ต้องดำเนินการเพิ่ม<br><a href="https://ppg2014.github.io/prime-power-intranet/#/requests">เปิดดูคำขอ</a>')
+```
+**C) Send an email (V2)** · **To** (fx) `variables('varWho')` · **Subject** (fx) `concat('ไม่ต้องดำเนินการ: ', triggerOutputs()?['body/Title'], ' มีผู้ดำเนินการไปแล้ว')` · **Body** (fx) `outputs('staleMsg')`
+
+**D) Post message in a chat or channel** (Microsoft Teams) · Post as **Flow bot** · Post in **Chat with Flow bot** · **Recipient** (fx) `variables('varWho')` · **Message** (fx) `outputs('staleMsg')`
+
+> **ทำไมปิดการ์ดใบเก่าให้อัตโนมัติไม่ได้:** ตัวเชื่อม Approvals แบบมาตรฐานไม่มีคำสั่ง "ยกเลิกการ์ด"
+> ทางเดียวที่ปิดได้คือแก้ตาราง Approvals ผ่านตัวเชื่อม **Microsoft Dataverse** ซึ่งเป็นแบบ **Premium** (ต้องมีไลเซนส์ Power Automate Premium)
+> ถ้าองค์กรมีไลเซนส์นี้ แจ้งผู้ดูแลระบบเพื่อเพิ่มขั้นตอนปิดการ์ดได้ · ในเว็บไม่มีปัญหานี้ (เว็บอ่านสถานะสดและเอาปุ่มออกให้เอง)
 
 ---
 
@@ -250,6 +284,7 @@ concat('ผลการพิจารณา: <b>', outputs('resultText'), '</b>
 | กล่อง approval แดงที่ Assigned to | CurrentApprovers ว่างหรืออีเมลผิด → แก้ทะเบียนบุคลากร → ↻ ส่งแจ้งอนุมัติใหม่ |
 | ไม่เห็นปุ่มในอีเมล | เปิดใน Outlook (ปุ่มแบบกดได้ทำงานใน Outlook) หรือใช้ Teams → Approvals / ลิงก์ในอีเมลที่พาไปหน้า Approvals |
 | ได้การ์ดซ้ำ | โฟลว์เก่ายังเปิด → Turn off |
-| กดแล้วสถานะไม่เปลี่ยน | เป็นการ์ดใบเก่า — มีคนดำเนินการในเว็บไปก่อน หรือคำขอถูกยื่นใหม่แล้ว (stillValid = False) ถูกต้องตามออกแบบ ให้ใช้การ์ดใบล่าสุด |
+| กดแล้วสถานะไม่เปลี่ยน | เป็นการ์ดใบเก่า — มีคนดำเนินการในเว็บไปก่อน หรือคำขอถูกยื่นใหม่แล้ว (stillValid = False) ถูกต้องตามออกแบบ · คนที่กดจะได้อีเมล/Teams แจ้งว่าใครทำไปแล้ว (กล่อง 9.1) |
+| คนอื่นในลำดับเดียวกันยังเห็นปุ่มในการ์ด หลังมีคนกดในเว็บไปแล้ว | ข้อจำกัดของ Approvals แบบมาตรฐาน (ดูกล่อง 9.1) · ถ้ากด ระบบไม่บันทึกซ้ำ และแจ้งเขาว่าใครทำไปแล้ว |
 
 **ข้อจำกัดที่ต้องรู้:** ขั้นสุดท้ายของฟอร์มเบิกเงินที่ต้อง **แนบสลิป** — การ์ด Approvals ในอีเมล/Teams รับไฟล์แนบไม่ได้ ฝ่ายการเงินกด "1. อนุมัติ" ในการ์ดเพื่อปิดลำดับได้ แต่การแนบสลิปต้องทำในเว็บ
