@@ -10,7 +10,7 @@ import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
-import { isUnread, markSeen } from '../services/badges.js';
+import { isUnread, markSeen, refreshBadges } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -447,7 +447,7 @@ async function openRequest(req) {
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
 
-  if (role.canActNow) bindActions(req, steps, role, formRow);
+  if (role.canActNow) { bindActions(req, steps, role, formRow); watchOthers(req); }
 
   onClick('reqcancel', async () => {
     if (!confirm('ยกเลิกคำขอนี้ใช่หรือไม่ · การยกเลิกถาวร')) return;
@@ -510,6 +510,39 @@ function actionBox(req, role) {
           : '<button class="btn btn-primary" id="rq-approve">✓ อนุมัติ</button>'}
       </div>
     </div>`;
+}
+
+/**
+ * ระหว่างเปิดหน้าต่างค้างไว้ ตรวจทุก 15 วินาทีว่ามีคนอื่นดำเนินการไปก่อนไหม
+ * (เช่นผู้อนุมัติอีกคนในลำดับเดียวกันกดในเว็บ/Teams/อีเมล) ถ้ามี เอาปุ่มออกแล้วแจ้งว่าใครทำไปแล้ว
+ */
+function watchOthers(req) {
+  const sig = (r) => `${r.Status}|${+r.CurrentStep || 1}|${parseLog(r.ApprovalLog).length}`;
+  const before = sig(req);
+  const timer = setInterval(async () => {
+    const box = document.querySelector('.rq-action');
+    if (!box) { clearInterval(timer); return; }                 // ปิดหน้าต่างแล้ว
+    if (box.querySelector('button:disabled')) return;           // ผู้ใช้กำลังบันทึกเอง
+    let now;
+    try { now = await get('requests', req.id); } catch (e) { return; }
+    if (!now || sig(now) === before) return;
+    clearInterval(timer);
+    clearDataCache('requests');
+    refreshBadges({ force: true });
+    const last = parseLog(now.ApprovalLog).slice(-1)[0];
+    box.outerHTML = `<div class="rq-wait rq-acted">
+      ⚠ <b>${esc(last ? last.by || 'มีผู้ใช้' : 'มีผู้ใช้')}</b> ${esc(last ? last.action : 'ดำเนินการ')}ไปแล้ว${
+        last && last.at ? ` เมื่อ ${esc(thaiDateTime(last.at))}` : ''}
+      · สถานะล่าสุด: <b>${esc(now.Status || '-')}</b><br>
+      คุณไม่ต้องดำเนินการในลำดับนี้ <button class="btn-mini" id="rq-reload">↻ เปิดดูสถานะล่าสุด</button></div>`;
+    const btn = document.getElementById('rq-reload');
+    if (btn) btn.onclick = async () => {
+      closeModal();
+      const { render: rerender } = await import('../core/render.js');
+      await rerender();
+      openRequest({ ...req, ...now, FormCode: formCodeOf({ ...req, ...now }) });
+    };
+  }, 15000);
 }
 
 let pendingSlip = null;
