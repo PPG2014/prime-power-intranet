@@ -114,7 +114,7 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
       <div class="pr-sg a r1"><b>ผู้ขอสั่งซื้อ :</b> ${signLine(sign.requester)}</div>
       <div class="pr-sg a r1p">( <span class="pr-name">${nameIn(sign.requester)}</span> )</div>
       <div class="pr-sg a r1t pos-l">ตำแหน่ง :</div>
-      <div class="pr-sg a r1t pos-v">${requester.position
+      <div class="pr-sg a r1t pos-v pos-wrap">${requester.position
         ? `<span class="pr-fill">${esc(requester.position)}</span>` : '…................................'}</div>
 
       <div class="pr-sg b r1"><b>ผู้อนุมัติ :</b> ${signLine(sign.approver)}</div>

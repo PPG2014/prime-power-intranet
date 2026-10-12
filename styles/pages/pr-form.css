@@ -95,6 +95,8 @@
 .pr-sg.pos-v { font-size: 12.5pt; }
 .pr-sg.a.pos-v { left: 32mm; }
 .pr-sg.b.pos-v { left: 90.7mm; }
+/* ตำแหน่งผู้ขอยาวเกินช่อง → ตัดขึ้นบรรทัดที่ 2 ภายในคอลัมน์ (ไม่ทับคอลัมน์ผู้อนุมัติ) */
+.pr-sg.pos-wrap { white-space: normal; width: 42mm; line-height: 5.2mm; margin-top: -0.6mm; }
 .pr-sg.a { left: 17mm; }
 .pr-sg.b { left: 75.7mm; }
 .pr-sg.c { left: 134.7mm; }
@@ -140,3 +142,4 @@
 .pr-modal { max-width: 232mm; }
 .pr-modal .modal-body { padding: 0; background: #e9edf2; }
 .pr-tip { margin-right: auto; font-size: .82em; }
+.pos-wrap .pr-fill { display: inline; }
