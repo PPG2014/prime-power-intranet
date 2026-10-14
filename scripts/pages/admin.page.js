@@ -10,6 +10,7 @@ import { parseCsv, toCsv, downloadText, castValue } from '../utils/csv.js';
 import { previewAnnouncement } from '../components/announcement-popup.js';
 import { hydratePhotos } from '../services/photos.js';
 import { clearCaches } from '../utils/dept.js';
+import { findDuplicates, confirmDuplicates } from '../admin/duplicates.js';
 import { syncFromProject, syncFromPerson, syncSummary } from '../services/project-sync.js';
 import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets, waitingSelf, skipSelf, S_MGR } from '../services/appraisal.js';
@@ -248,7 +249,7 @@ function bindImport(s) {
       return;
     }
 
-    const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const allRows = await list(s.list).catch(() => rows);   // ทั้งชุด ไม่ใช่เฉพาะกลุ่มที่กรองอยู่
     const items = [], dups = [];
     table.slice(1).forEach((line) => {
       const item = {};
@@ -256,7 +257,8 @@ function bindImport(s) {
         const f = s.fields.find((x) => x.key === h) || (h === s.sortField ? { key: h, type: 'number' } : null);
         if (f) item[h] = castValue(f, line[i]);
       });
-      const clash = (s.unique || []).some((k) => item[k] && rows.some((r) => norm(r[k]) === norm(item[k])));
+      // ซ้ำกับของเดิม หรือซ้ำกับแถวก่อนหน้าในไฟล์เดียวกัน → ข้าม
+      const clash = findDuplicates(s, item, [...allRows, ...items]).length > 0;
       (clash ? dups : items).push(item);
     });
 
@@ -330,30 +332,16 @@ async function openEditor(key, record) {
     const btn = ev.currentTarget;
     const err = $('#form-error');
 
-    /**
-     * เตือนเมื่อค่าซ้ำกับรายการที่มีอยู่แล้ว
-     * เทียบแบบไม่สนตัวพิมพ์และช่องว่างหัวท้าย เพราะพิมพ์ซ้ำมักต่างกันแค่นั้น
-     */
-    const norm = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-    for (const key of (s.unique || [])) {
-      const value = norm(data[key]);
-      if (!value) continue;
-      const clash = rows.find((r) => norm(r[key]) === value && (isNew || r.id !== record.id));
-      if (!clash) continue;
-
-      const label = (s.fields.find((f) => f.key === key) || {}).label || key;
-      const ok = confirm(
-        `มี${s.title}ที่ใช้${label}นี้อยู่แล้ว\n\n` +
-        `"${clash[key]}"` +
-        (clash.Department ? `  (${clash.Department})` : '') +
-        '\n\nต้องการบันทึกซ้ำหรือไม่');
-      if (!ok) {
-        err.textContent = `ยกเลิกการบันทึก เพราะ${label}ซ้ำกับรายการที่มีอยู่`;
-        err.hidden = false;
-        const el = $('#f_' + key);
-        if (el) el.focus();
-        return;
-      }
+    // ตรวจค่าซ้ำ: ช่องห้ามซ้ำ (strict) บันทึกไม่ได้ · ช่องอื่นเตือนให้ยืนยัน (admin/duplicates.js)
+    // เทียบกับข้อมูลทั้งชุด (ตาราง rows อาจถูกกรองตามกลุ่มอยู่)
+    const allRows = await list(s.list).catch(() => rows);
+    const stop = confirmDuplicates(s, data, allRows, isNew ? null : record.id);
+    if (stop) {
+      err.textContent = stop.message;
+      err.hidden = false;
+      const el = $('#f_' + stop.key);
+      if (el) el.focus();
+      return;
     }
 
     btn.disabled = true;
@@ -700,6 +688,10 @@ export async function openProjectEditor(record, onSaved) {
   $('#pe-save').onclick = async (ev) => {
     const data = collect(sc);
     if (!data) return;
+    // ตรวจชื่อ/รหัสโครงการซ้ำเหมือนหน้าจัดการข้อมูล
+    const all = await list(sc.list).catch(() => []);
+    const stop = confirmDuplicates(sc, data, all, record ? record.id : null);
+    if (stop) { const el = $('#f_' + stop.key); if (el) el.focus(); return; }
     const btn = ev.currentTarget;
     btn.disabled = true;
     btn.textContent = 'กำลังบันทึก…';

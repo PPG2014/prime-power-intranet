@@ -25,7 +25,7 @@ export const SCHEMA = {
   sections: {
     title: 'แผนก', icon: '🗂', list: 'sections', spName: 'Sections', sortField: 'SortOrder',
     search: true, facets: ['Department'],
-    unique: ['Title', 'Department'],
+    unique: [['Title', 'Department']],   // ชื่อแผนกซ้ำได้ถ้าอยู่คนละฝ่าย
     hint: 'ทะเบียนแผนกย่อยภายในฝ่าย ใช้เป็นตัวเลือกในหน้าบุคลากร เพื่อไม่ให้พิมพ์ชื่อแผนกไม่ตรงกัน',
     columns: ['Title', 'Department'],
     labels: { Title: 'ชื่อแผนก', Department: 'อยู่ใต้ฝ่าย' },
@@ -41,6 +41,7 @@ export const SCHEMA = {
     title: 'โครงการ', icon: '🏗', list: 'projects', spName: 'Projects', sortField: 'SortOrder',
     search: true, facets: ['Department'],
     unique: ['Title', 'ProjectCode'],
+    strict: ['ProjectCode'],          // รหัสโครงการห้ามซ้ำ · ชื่อซ้ำแค่เตือน
     history: 'projectHistory',
     hint: 'ทะเบียนโครงการและความคืบหน้า · ทุกครั้งที่บันทึก ระบบเก็บค่าเดิมไว้ในประวัติให้อัตโนมัติ',
     columns: ['ProjectCode', 'Title', 'Status', 'Owner', 'ActualProgress', 'UpdatedDate'],
@@ -105,7 +106,9 @@ export const SCHEMA = {
   directory: {
     title: 'บุคลากร', icon: '👥', list: 'directory', spName: 'Directory', sortField: 'SortOrder',
     search: true, facets: ['Department', 'Section'],
-    unique: ['Title'],
+    unique: ['Title', 'Email'],
+    strict: ['Email'],                // อีเมลห้ามซ้ำ (ใช้ส่งการ์ดอนุมัติ/แจ้งเตือน) · ชื่อซ้ำแค่เตือน
+    nameKeys: ['Title'],              // เทียบชื่อโดยตัดคำนำหน้า นาย/นาง/นางสาว
     hint: 'ลำดับนี้ใช้เรียงคนภายในฝ่ายเดียวกัน ส่วนลำดับของฝ่ายตั้งที่หน่วยงานและเบอร์ต่อ',
     columns: ['PhotoUrl', 'Title', 'Position', 'Department', 'Section'],
     labels: { PhotoUrl: 'รูป', Title: 'ชื่อ-สกุล', Position: 'ตำแหน่ง',
