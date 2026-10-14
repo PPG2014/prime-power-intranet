@@ -44,10 +44,15 @@ export async function groupOrder() {
     .filter((v, i, a) => a.indexOf(v) === i);
 }
 
-export async function groupByDepartment(rows, key = 'Department') {
-  const order = await groupOrder();
+/**
+ * byRows = true → เรียงกลุ่มตามลำดับที่ฝ่ายนั้นปรากฏครั้งแรกใน rows (ใช้กับรายการที่ผู้ดูแลจัดลำดับเองแล้ว เช่นแบบฟอร์ม)
+ * ค่าเริ่มต้น → เรียงตามลำดับฝ่ายในทะเบียนหน่วยงาน
+ */
+export async function groupByDepartment(rows, key = 'Department', { byRows = false } = {}) {
   const seen = [];
   rows.forEach((r) => { if (!seen.includes(r[key])) seen.push(r[key]); });
+  if (byRows) return seen.map((name) => ({ name, rows: rows.filter((r) => r[key] === name) }));
+  const order = await groupOrder();
   seen.sort((a, b) => {
     const i = order.indexOf(a), j = order.indexOf(b);
     return (i < 0 ? 999 : i) - (j < 0 ? 999 : j);

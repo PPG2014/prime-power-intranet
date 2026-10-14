@@ -28,15 +28,15 @@ export async function render(ctx) {
   const q = (state.formQuery || '').trim().toLowerCase();
   const chip = state.formChip || 'ทั้งหมด';
 
-  // เรียงตามลำดับที่จัดไว้ในหน้าจัดการข้อมูล (ฝ่ายเรียงตามทะเบียนหน่วยงาน)
+  // เรียงตามลำดับที่จัดไว้ในหน้าจัดการข้อมูล · กลุ่มฝ่ายเรียงตามแบบฟอร์มแรกของฝ่ายนั้น
   const all = (await list('formCatalog')).filter((f) => f.IsActive !== false)
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   const rows = all.filter((f) =>
     (chip === 'ทั้งหมด' || f.Department === chip) &&
     (!q || (f.Title + f.Description + f.FormCode + f.Department).toLowerCase().includes(q)));
 
-  const chips = ['ทั้งหมด', ...(await groupByDepartment(all)).map((g) => g.name)];
-  const groups = await groupByDepartment(rows);
+  const chips = ['ทั้งหมด', ...(await groupByDepartment(all, 'Department', { byRows: true })).map((g) => g.name)];
+  const groups = await groupByDepartment(rows, 'Department', { byRows: true });   // ตามลำดับแบบฟอร์มในหน้าจัดการข้อมูล
 
   return `
   <section class="page page-forms">
