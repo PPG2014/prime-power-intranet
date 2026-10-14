@@ -59,3 +59,13 @@ nav a { position: relative; }
 @media (max-width: 620px) { .top-search input { width: 120px; } }
 #topbar-actions { display: flex; align-items: center; gap: 10px; }
 #topbar-actions .top-search { margin: 0; }
+
+/* มือถือ: แถบบนสุดเหลือแค่ช่องค้นหา + ออกจากระบบ ไม่ให้ข้อความตัดบรรทัดล้นแถบ */
+@media (max-width: 620px) {
+  .topbar .wrap > span:first-child, .topbar .who { display: none; }
+  #topbar-actions { flex: 1; justify-content: flex-end; gap: 8px; }
+  .top-search { flex: 1; }
+  .top-search input { width: 100%; }
+  .signout-btn { margin-left: 0; padding: 4px 10px; white-space: nowrap; }
+  .topbar .mode-tag { display: none; }
+}

@@ -300,9 +300,9 @@ async function openEditor(key, record) {
       + (isNew && !s.readOnly && !isCycle ? `
         <div class="import-row">
           <span>หรือนำเข้าหลายรายการพร้อมกัน</span>
-          <label class="btn-mini" for="csv-in">⭱ นำเข้าจากไฟล์ CSV</label>
+          <label class="btn-mini" for="csv-in">⬆ นำเข้าจากไฟล์ CSV</label>
           <input type="file" id="csv-in" accept=".csv,text/csv" hidden>
-          <button class="btn-mini" id="csv-template">⭳ ดาวน์โหลดไฟล์ตัวอย่าง</button>
+          <button class="btn-mini" id="csv-template">⬇ ดาวน์โหลดไฟล์ตัวอย่าง</button>
         </div>` : '')
 ,
     footer: `<button class="btn-mini" id="cancel">ยกเลิก</button>

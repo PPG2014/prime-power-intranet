@@ -208,7 +208,7 @@ function historyPanel() {
           <td class="num">${submitted(r) ? fix(r.FinalScore || r.MgrScore) : '—'}</td>
           <td>${esc(gradeText(r))}</td>
           <td class="num"><button class="btn-mini" data-aphopen="${r.id}">📄 เปิดดู</button>
-            ${isProbation(clean(r.FormSet)) && submitted(r) ? `<button class="btn-mini" data-aphexport="${r.id}">⭳ เอกสาร</button>` : ''}</td>
+            ${isProbation(clean(r.FormSet)) && submitted(r) ? `<button class="btn-mini" data-aphexport="${r.id}">⬇ เอกสาร</button>` : ''}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>`;
@@ -239,7 +239,7 @@ function paneMeCurrent(mine) {
 
     ${submitted(mine) && !needsEmpSign(mine) ? `<div class="ap-docbar">
       <button class="btn-mini" data-apopen="${mine.id}">📄 เปิดดูใบประเมิน</button>
-      ${isProbation(cycleOf(mine)?.FormSet) ? `<button class="btn-mini" data-apexport="${mine.id}">⭳ ดาวน์โหลดเอกสาร</button>` : ''}
+      ${isProbation(cycleOf(mine)?.FormSet) ? `<button class="btn-mini" data-apexport="${mine.id}">⬇ ดาวน์โหลดเอกสาร</button>` : ''}
     </div>` : ''}
 
     ${needsEmpSign(mine) ? `<div class="panel ap-ack">
@@ -367,7 +367,7 @@ function paneAll() {
     <div class="panel">
       <div class="panel-head">ความคืบหน้าตามฝ่าย
         <span class="panel-meta">
-          <button class="btn-mini" id="ap-csv">⭳ ส่งออก CSV</button>
+          <button class="btn-mini" id="ap-csv">⬇ ส่งออก CSV</button>
           <button class="btn-mini" id="ap-gen" title="ปกติระบบสร้างให้เองเมื่อเปิดหน้านี้ ปุ่มนี้ใช้เมื่อเพิ่งเพิ่มพนักงานใหม่">↻ ตรวจและสร้างใบที่ยังขาด</button>
         </span></div>
       <table class="ap-table">
@@ -390,7 +390,7 @@ function paneAll() {
           <td>${pill(r.Status)}</td>
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycleOf(r)?.FormSet)
-            ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⭳</button>` : ''}</td>
+            ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⬇</button>` : ''}</td>
         </tr>`).join('')}</tbody></table>
         <div class="panel-note">กรอกข้อมูลการทดลองงานและวันขาด ลา มาสาย ได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข</div>`
         : '<div class="empty">ยังไม่มีใบประเมินในรอบนี้</div>'}
@@ -537,7 +537,7 @@ function pickSignMode() {
     layer.className = 'eta-mask';
     layer.innerHTML = `
       <div class="eta-box" role="dialog" aria-modal="true" aria-labelledby="sm-title">
-        <div class="eta-head" id="sm-title">⭳ ส่งออกผลการประเมิน</div>
+        <div class="eta-head" id="sm-title">⬇ ส่งออกผลการประเมิน</div>
         <div class="eta-body">
           <label class="pp-item"><input type="radio" name="sm" value="with" checked>
             <span><b>พร้อมลายเซ็น</b> · ใส่ลายเซ็นและวันที่ที่ลงนามในระบบ</span></label>
@@ -845,7 +845,7 @@ async function openSheet(row, rerender) {
       ${logBox(row)}`,
     footer: `${(isMgrTurn && !noSelf(row)) || isHrTurn || isBossTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
-      ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⭳ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
+      ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⬇ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
       ${state.isHR && !isMgrTurn && !isHrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
       ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้พนักงานรับทราบ / ฝ่ายบุคคล</button>' : ''}

@@ -442,7 +442,7 @@ async function openRequest(req) {
         </div>` : ''}
 
         <div class="rq-export-row">
-          <button class="btn-mini" data-exportreq="${req.id}">⭳ ส่งออกเป็นเอกสาร (PDF)</button>
+          <button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>
         </div>
       </div>`,
   });

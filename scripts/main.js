@@ -69,6 +69,13 @@ async function enter(user) {
     const open = $('#nav').classList.toggle('open');
     this.setAttribute('aria-expanded', open);
   };
+  // เลือกเมนูแล้วต้องปิดแผงเมนูเอง (มือถือ) — รวมกรณีกดหน้าเดิมซ้ำซึ่งไม่เกิด hashchange
+  const closeNav = () => {
+    $('#nav').classList.remove('open');
+    $('#burger').setAttribute('aria-expanded', 'false');
+  };
+  $('#nav').addEventListener('click', (e) => { if (e.target.closest('a')) closeNav(); });
+  addEventListener('hashchange', closeNav);
 
   startRendering();
   startRouter(render);
