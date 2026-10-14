@@ -45,9 +45,25 @@ async function enter(user) {
   $('#topbar-actions').innerHTML = `
     ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}
     ${role.unconfigured ? '<span class="mode-tag">ยังไม่ได้กำหนดผู้ดูแลระบบ</span>' : ''}
+    <form class="top-search" id="top-search" role="search">
+      <input id="top-search-q" type="search" placeholder="🔍 ค้นหาทั้งเว็บ" aria-label="ค้นหาทั้งเว็บ" autocomplete="off">
+    </form>
     <span class="who">👤 ${esc(user.name)}</span>
     <button id="signout" class="signout-btn">ออกจากระบบ</button>`;
   $('#signout').onclick = () => signOut();
+  $('#top-search').onsubmit = (e) => {
+    e.preventDefault();
+    const q = $('#top-search-q').value.trim();
+    location.hash = '#/search' + (q ? '/' + encodeURIComponent(q) : '');
+    $('#top-search-q').value = '';
+  };
+  // กด / ที่ไหนก็ได้ (นอกช่องพิมพ์) เพื่อไปช่องค้นหา
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    $('#top-search-q').focus();
+  });
 
   $('#burger').onclick = function () {
     const open = $('#nav').classList.toggle('open');
@@ -57,6 +73,15 @@ async function enter(user) {
   startRendering();
   startRouter(render);
   startIdleLogout();
+
+  // ข้อผิดพลาดที่ผู้ใช้เจอ → บันทึกลง AuditLog ให้ผู้ดูแลตามแก้ได้ (services/data.js logError)
+  import('./services/data.js').then(({ logError }) => {
+    window.addEventListener('error', (e) => {
+      // รูป/สคริปต์โหลดไม่ขึ้น (ไม่มี error object) ไม่ต้องบันทึก
+      if (e.error) logError(e.error);
+    });
+    window.addEventListener('unhandledrejection', (e) => logError(e.reason));
+  });
 
   // ตัวเลขเตือนบนเมนู: นับทันทีที่เข้าระบบ แล้วนับซ้ำราวทุก 5 นาที เผื่อมีคำขอใหม่ระหว่างเปิดค้าง
   // สุ่มรอบละ 5–6 นาที ไม่ให้ทุกเครื่องในบริษัทดึงข้อมูลพร้อมกันเป๊ะ

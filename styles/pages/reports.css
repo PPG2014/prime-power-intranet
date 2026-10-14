@@ -11,3 +11,6 @@
 .rr-table { width: 100%; border-collapse: collapse; font-size: .88em; }
 .rr-table th, .rr-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
 .rr-table tr.late td { color: var(--danger); }
+.rr-kpis-sm { margin: 4px 0 10px; }
+.rr-kpis-sm > div.warn b { color: var(--warn, #b26a00); }
+.rr-kpis-sm > div.bad b { color: var(--danger, #c0392b); }

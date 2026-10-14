@@ -54,9 +54,21 @@ Get-Mailbox -RecipientTypeDetails RoomMailbox | Select DisplayName, PrimarySmtpA
 |---|---|---|
 | Intranet Owners | Full Control | intranet.pr@primepower.co.th และผู้ดูแลระบบ |
 | Intranet Editors | Contribute | ผู้ประสานงานของแต่ละฝ่ายที่ต้องอัปเดตเนื้อหา |
-| Intranet Visitors | Read | บุคลากรทุกคน |
+| Intranet Members | Read ทั้งไซต์ + Contribute เฉพาะ List ที่ต้องเขียน (ตารางด้านล่าง) | บุคลากรทุกคน |
 
-เว็บใช้กลุ่ม Intranet Owners เป็นตัวตัดสินว่าใครเห็นโหมดผู้ดูแลระบบ ไม่ต้องเก็บรายชื่อในโค้ด
+> ⚠ **สิทธิ์ในเว็บเป็นแค่การซ่อนเมนู สิทธิ์จริงอยู่ที่ SharePoint** — พนักงานที่มีสิทธิ์ Edit ใน List ใด
+> แก้ List นั้นตรงได้เสมอ (ผ่าน SharePoint หรือ Graph) โดยไม่ต้องผ่านเว็บ จึงต้องตั้งสิทธิ์รายลิสต์ตามนี้
+> (List → Settings → Permissions for this list → **Stop Inheriting Permissions**)
+
+| List | บุคลากรทั่วไป | ผู้ดูแลระบบ / HR | เหตุผล |
+|---|---|---|---|
+| Settings, ApprovalMatrix, FormCatalog, FormFields, Departments, Sections, Directory, ReportingLine, Projects, ProjectHistory, Policies, Documents, Rooms, Announcements, News | **Read** | Edit | ข้อมูลหลัก — ถ้าพนักงานแก้ได้ จะตั้งตัวเองเป็นแอดมิน (Settings → Admins) หรือแก้เส้นทางอนุมัติได้ |
+| Requests, RequestHistory | **Contribute** | Edit | ต้องยื่นคำขอและบันทึกผลอนุมัติได้ · เปิด **Versioning** ไว้ตรวจย้อนหลังว่าใครแก้อะไร |
+| Appraisals, AppraisalCycles, AppraisalCriteria | **ไม่มีสิทธิ์** หรือ Read เฉพาะที่จำเป็น | Edit (HR) | คะแนนประเมินเป็นข้อมูลลับ — เว็บโหลดทั้ง List มาที่เครื่องผู้ใช้ ใครอ่าน List ได้จะเห็นคะแนนทุกคนผ่าน F12 |
+| Feedback | **Add only** | Edit | ส่งความคิดเห็นได้ แต่อ่าน/แก้ของคนอื่นไม่ได้ |
+| AuditLog | **Add only** (ดู sharepoint-todo.md) | Read | บันทึกการใช้งานต้องแก้/ลบไม่ได้ |
+
+ผู้ดูแลระบบในเว็บตัดสินจาก Settings → แถว `Admins` (อีเมลคั่นด้วยจุลภาค) · ถ้าอ่าน Settings ไม่สำเร็จ ระบบถือว่าไม่มีใครเป็นผู้ดูแล
 
 ---
 
@@ -106,7 +118,7 @@ List หลักที่ List อื่นอ้างอิงถึง **ต
 
 ```
 Attachments/Documents/ฝ่ายความปลอดภัย อาชีวอนามัยและสิ่งแวดล้อม/คู่มือความปลอดภัย-a1b2c3.pdf
-Photos/Directory/ผู้บริหาร/ไพรัช-เขียนเขว้า-d4e5f6.jpg
+Photos/Directory/ผู้บริหาร/สมชาย-วัฒนกิจ-d4e5f6.jpg
 Attachments/แบบฟอร์ม/ฝ่ายบัญชีและการเงิน/FM-ACC-003 แบบฟอร์มเบิกเงินสำรองโครงการ/สลิปโอนเงิน/mg7x2k9a1b2c3.png
 ```
 
@@ -236,7 +248,10 @@ Attachments/แบบฟอร์ม/ฝ่ายบัญชีและกา�
 | Level | Choice | 5 ตัวเลือก ดูด้านล่าง (ไม่ต้องมีเลขนำหน้า) |
 | Email | Single line of text | อีเมลบริษัท |
 | Manager | Single line of text | หัวหน้าโดยตรง (ชื่อตรงกับ Title) · ใช้กับขั้น "ผู้บังคับบัญชาของผู้ยื่น" |
-| BackupManager | Single line of text | ผู้อนุมัติแทน (สำรอง) · ยังไม่สลับอัตโนมัติ |
+| BackupManager | Single line of text | ผู้อนุมัติแทน (สำรอง) · ถ้าหัวหน้าของคนนี้ไม่อยู่และไม่ได้ตั้ง Delegate ระบบส่งคำขอของคนนี้มาที่นี่ |
+| AwayFrom | Date and time (Date only) | ไม่อยู่ตั้งแต่วันที่ (ลา/เดินทาง) |
+| AwayTo | Date and time (Date only) | ถึงวันที่ · เว้นว่าง = วันเดียว |
+| Delegate | Single line of text | ผู้ปฏิบัติแทนช่วงไม่อยู่ — คำขอที่ต้องให้คนนี้อนุมัติจะไปที่ Delegate อัตโนมัติ |
 | Extension | Single line of text | เบอร์ต่อ |
 | PhotoUrl | **Multiple lines of text (plain)** | ลิงก์รูปติดบัตร ระบบใส่ให้อัตโนมัติ · ต้องไม่ใช่บรรทัดเดียว เพราะลิงก์ที่มีชื่อฝ่ายภาษาไทยยาวเกิน 255 อักขระ |
 | UserAccount | Person or Group | ผูกกับบัญชี M365 ใช้ตอนหาผู้อนุมัติ |
@@ -276,7 +291,7 @@ Attachments/แบบฟอร์ม/ฝ่ายบัญชีและกา�
 |---|---|---|
 | Title | Single line of text | ชื่อพนักงาน ต้องตรงกับ Title ในทะเบียนบุคลากรเป๊ะ |
 | Manager | Single line of text | ชื่อหัวหน้าโดยตรง (ต้องตรงกับ Title ในทะเบียน) |
-| BackupManager | Single line of text | ผู้อนุมัติแทนเมื่อหัวหน้าไม่อยู่ (ยังไม่ใช้อัตโนมัติ) |
+| BackupManager | Single line of text | ผู้อนุมัติแทนเมื่อหัวหน้าไม่อยู่ (ใช้อัตโนมัติ — ดู L02 Directory) |
 | IsActive | Yes/No | |
 
 ⚠️ **ต้องเป็น Single line of text ไม่ใช่ Person or Group** — ระบบจับคู่ผู้อนุมัติด้วยชื่อ (Title) ทั้งหมด ถ้าตั้งเป็น Person จะเขียนผ่าน Graph ไม่ได้และหน้าจัดการข้อมูลบันทึกไม่ลง เหมือนบทเรียน FormCode/ApproverType

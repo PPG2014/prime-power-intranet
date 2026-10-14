@@ -1,5 +1,5 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
-import { list, get, clearDataCache } from '../services/data.js';
+import { list, listRecent, get, clearDataCache } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
@@ -102,12 +102,15 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
 
-  // โหลดทั้งหมดแล้วตัดเหลือช่วงล่าสุด กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
-  // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด"
+  // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
+  // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด" (ดึงทั้ง List)
   const MONTHS = 6;
   const cutoff = Date.now() - MONTHS * 30 * 86400000;
   clearDataCache('requests');   // สถานะอาจเพิ่งเปลี่ยนจากการกดในอีเมล/Teams ต้องอ่านสดเสมอ
-  const everything = (await list('requests').catch(() => []))
+  const fetched = await (state.showAllRequests
+    ? list('requests')
+    : listRecent('requests', { days: MONTHS * 30, statuses: ['รออนุมัติ', 'ส่งกลับแก้ไข'] })).catch(() => []);
+  const everything = [...fetched]
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
 
   const isRecent = (r) => {
@@ -117,7 +120,8 @@ export async function render(ctx) {
   // คำขอที่ยังเดินอยู่ต้องเห็นเสมอ ต่อให้ยื่นนานแล้ว
   const live = (r) => ['รออนุมัติ', 'ส่งกลับแก้ไข'].includes(String(r.Status || '').trim());
 
-  olderCount = everything.filter((r) => !isRecent(r) && !live(r)).length;
+  // ได้มาแค่บางส่วนจาก SharePoint → ไม่รู้จำนวนที่ซ่อน (-1 = มีอาจมีของเก่า แสดงปุ่มโดยไม่บอกจำนวน)
+  olderCount = fetched.partial ? -1 : everything.filter((r) => !isRecent(r) && !live(r)).length;
   allRequests = state.showAllRequests
     ? everything
     : everything.filter((r) => isRecent(r) || live(r));
@@ -216,7 +220,7 @@ export async function render(ctx) {
               ? '<div class="side-empty">ไม่พบคำขอที่ค้นหา</div>'
               : '<div class="side-empty">คุณยังไม่ได้ยื่นคำขอ<br><a href="#/forms">ไปหน้าแบบฟอร์ม</a></div>')}
             ${olderCount && !state.showAllRequests ? `<div class="rq-older">
-              ซ่อนคำขอเก่ากว่า 6 เดือนไว้ ${olderCount} ใบ
+              ซ่อนคำขอเก่ากว่า 6 เดือนไว้${olderCount > 0 ? ` ${olderCount} ใบ` : ''}
               <button class="btn-mini" id="rq-showall">แสดงย้อนหลังทั้งหมด</button>
             </div>` : ''}
             ${state.showAllRequests ? `<div class="rq-older">
@@ -405,7 +409,7 @@ async function openRequest(req) {
   }).join('');
 
   openModal({
-    title: `${esc(req.Title)} · ${esc(req.FormName || '')}`,
+    title: `${req.Title} · ${req.FormName || ''}`,   // openModal escape ให้เองแล้ว
     wide: true,
     body: `
       <div class="rq-detail">
@@ -784,4 +788,18 @@ export function mount(ctx) {
     const r = allRequests.find((x) => String(x.id) === String(id));
     if (r) openRequest(r);
   });
+
+  // ลิงก์ตรง #/requests/<id> (จากหน้าค้นหา) — เปิดหน้าต่างคำขอใบนั้นทันที เปิดครั้งเดียวต่อการเข้าลิงก์
+  const deep = ctx && ctx.state && ctx.state.params && ctx.state.params.id;
+  if (deep && deepOpened !== location.hash) {
+    deepOpened = location.hash;
+    const r = allRequests.find((x) => String(x.id) === String(deep));
+    if (r) openRequest(r);
+    else get('requests', deep).then((x) => {
+      if (!x) return;
+      const mineOk = state.isAdmin || String(x.RequesterEmail || '').toLowerCase() === String(state.user?.email || '').toLowerCase();
+      if (mineOk) openRequest({ ...x, FormCode: formCodeOf(x) });
+    }).catch(() => {});
+  } else if (!deep) deepOpened = '';
 }
+let deepOpened = '';

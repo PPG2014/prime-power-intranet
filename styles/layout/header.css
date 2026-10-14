@@ -50,3 +50,12 @@ nav a { position: relative; }
   border-radius: 9px; background: #e02424; color: #fff; font-size: 11px; font-weight: 700;
   line-height: 18px; text-align: center; vertical-align: 1px;
 }
+
+/* ช่องค้นหาบนแถบบนสุด */
+.top-search input { width: 190px; padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.12); color: #fff; font: inherit; font-size: 13px; }
+.top-search input::placeholder { color: rgba(255,255,255,.75); }
+.top-search input:focus { outline: none; background: #fff; color: var(--ink, #1a1a1a); }
+@media (max-width: 620px) { .top-search input { width: 120px; } }
+#topbar-actions { display: flex; align-items: center; gap: 10px; }
+#topbar-actions .top-search { margin: 0; }

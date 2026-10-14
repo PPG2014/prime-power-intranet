@@ -15,7 +15,43 @@ export const EXEC_TYPES = ['กรรมการผู้จัดการ', '
  * ถ้าเป็นประเภทตามตำแหน่ง จะหาจากสายบังคับบัญชาหรือผังฝ่ายของผู้ยื่น
  * req = คำขอ (มี RequesterName, RequesterDept)
  */
+/**
+ * ผู้อนุมัติของลำดับนี้ หลังสลับคนที่ "ไม่อยู่" เป็นผู้ปฏิบัติแทน
+ * คนที่ตั้งช่วงไม่อยู่ (AwayFrom–AwayTo) ในทะเบียนบุคลากร และวันนี้อยู่ในช่วงนั้น
+ *   → ใช้ Delegate (ผู้ปฏิบัติแทน) ของคนนั้น
+ *   → ถ้าไม่ได้ตั้ง และเป็นลำดับ "ผู้บังคับบัญชาของผู้ยื่น" ใช้ BackupManager ของผู้ยื่น
+ *   → ไม่มีทั้งคู่ คงชื่อเดิม (ยังอนุมัติได้เมื่อกลับมา)
+ */
 export async function resolveApprovers(step, req) {
+  const names = await resolveRaw(step, req);
+  if (!names.length) return names;
+  const dir = await list('directory').catch(() => []);
+  const em = String(req.RequesterEmail || '').trim().toLowerCase();
+  const me = (em && dir.find((p) => String(p.Email || '').trim().toLowerCase() === em))
+    || dir.find((p) => String(p.Title).trim() === String(req.RequesterName || '').trim());
+  const isBoss = (step.ApproverType || '') === 'ผู้บังคับบัญชาของผู้ยื่น';
+  const out = names.map((n) => {
+    const p = dir.find((x) => String(x.Title).trim() === String(n).trim());
+    if (!p || !isAway(p)) return n;
+    const sub = nameOf(p.Delegate) || (isBoss && me ? nameOf(me.BackupManager) : '');
+    return sub && sub !== String(n).trim() ? sub : n;
+  });
+  return [...new Set(out)];
+}
+
+const nameOf = (v) => String((v && typeof v === 'object' ? (v.LookupValue ?? v.Title) : v) || '').trim();
+
+/** วันนี้อยู่ในช่วงไม่อยู่ของคนนี้ไหม (นับทั้งวันแรกและวันสุดท้าย) */
+export function isAway(p, now = new Date()) {
+  if (!p || !p.AwayFrom) return false;
+  const day = (v) => { const d = new Date(v); return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+  const from = day(p.AwayFrom);
+  const to = p.AwayTo ? day(p.AwayTo) : from;
+  const today = day(now);
+  return !!(from && to && today >= from && today <= to);
+}
+
+async function resolveRaw(step, req) {
   const type = step.ApproverType || 'ระบุชื่อเจาะจง';
   const named = Array.isArray(step.Approvers)
     ? step.Approvers.map((x) => (x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x)).filter(Boolean)
