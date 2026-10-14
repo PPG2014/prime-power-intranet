@@ -126,7 +126,7 @@ export async function render(ctx) {
         ${Object.entries(PERIODS).map(([k, v]) =>
           `<button class="chip" data-period="${k}" aria-pressed="${days === k}">${esc(v)}</button>`).join('')}
         <span class="toolbar-meta">${rows.length} คำขอ</span>
-        <button class="btn-mini" id="rr-csv">⭳ ส่งออก CSV</button>
+        <button class="btn-mini" id="rr-csv">⬇ ส่งออก CSV</button>
       </div>
 
       <div class="rr-kpis">

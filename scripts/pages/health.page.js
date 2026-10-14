@@ -251,7 +251,7 @@ export async function render(ctx) {
         <div class="hl-kpi info"><b>${by('info').length}</b><span>ข้อสังเกต</span></div>
         <div class="hl-actions">
           <a class="btn-mini" href="#/admin">← กลับไปจัดการข้อมูล</a>
-          <button class="btn-mini" id="hl-csv">⭳ ส่งออก CSV</button>
+          <button class="btn-mini" id="hl-csv">⬇ ส่งออก CSV</button>
           <button class="btn btn-primary" id="hl-again">↻ ตรวจอีกครั้ง</button>
         </div>
       </div>

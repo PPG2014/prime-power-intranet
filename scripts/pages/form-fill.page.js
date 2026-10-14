@@ -193,7 +193,7 @@ export async function render(ctx) {
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
             esc(thaiDateShort(new Date().toISOString()))}</span>
           <span class="foot-btns">
-            <button class="btn-mini" id="q-download">⭳ ดาวน์โหลดแบบฟอร์ม</button>
+            <button class="btn-mini" id="q-download">⬇ ดาวน์โหลดแบบฟอร์ม</button>
             <button class="btn btn-primary" id="q-send">ส่งคำขอ</button>
           </span>
         </div>
@@ -252,8 +252,8 @@ function templateButtons(form) {
       const g = googleExport(l.url);
       return `<div class="tpl-item">
         <span class="tpl-label">📎 ${esc(l.label)}</span>
-        ${g ? `<a class="btn-mini" href="${esc(g.url)}" target="_blank" rel="noopener">⭳ ดาวน์โหลด ${esc(g.name)}</a>
-               <a class="btn-mini" href="${esc(g.pdf)}" target="_blank" rel="noopener">⭳ PDF</a>` : ''}
+        ${g ? `<a class="btn-mini" href="${esc(g.url)}" target="_blank" rel="noopener">⬇ ดาวน์โหลด ${esc(g.name)}</a>
+               <a class="btn-mini" href="${esc(g.pdf)}" target="_blank" rel="noopener">⬇ PDF</a>` : ''}
         <a class="btn-mini" href="${esc(l.url)}" target="_blank" rel="noopener">↗ ${g ? 'เปิดดู' : 'เปิด / ดาวน์โหลด'}</a>
       </div>`;
     }).join('')}

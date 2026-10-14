@@ -110,7 +110,7 @@ function card(p) {
         esc(thaiDateShort(p.UpdatedDate)) || '—'}</span>
       <span class="pj-actions">
         <button class="btn-mini" data-history="${p.id}">🕓 ประวัติ</button>
-        <button class="btn-mini" data-export="${p.id}">⭳ ส่งออก</button>
+        <button class="btn-mini" data-export="${p.id}">⬇ ส่งออก</button>
       </span>
     </div>
   </article>`;
@@ -168,7 +168,7 @@ export async function renderDashboard() {
     </div>
 
     <div class="pj-tools">
-      <button class="btn-mini" id="pj-export-all">⭳ ส่งออกสรุปทุกโครงการ</button>
+      <button class="btn-mini" id="pj-export-all">⬇ ส่งออกสรุปทุกโครงการ</button>
       ${state.isAdmin ? `<button class="btn-mini" id="pj-reorder"
         title="เปิดหน้าจัดการข้อมูล → โครงการ แล้วลาก ⠿ เพื่อจัดลำดับ · ลำดับที่นี่จะเปลี่ยนตามทันที">⇅ จัดลำดับโครงการ</button>` : ''}
     </div>
@@ -318,7 +318,7 @@ function openProject(p) {
           </div>` : ''}
       </div>`,
     footer: `<button class="btn-mini" data-vhistory="${p.id}">🕓 ประวัติความคืบหน้า</button>
-             <button class="btn-mini" data-vexport="${p.id}">⭳ ส่งออกรายงาน</button>
+             <button class="btn-mini" data-vexport="${p.id}">⬇ ส่งออกรายงาน</button>
              ${state.isAdmin ? `<button class="btn btn-primary" data-vedit="${p.id}">✎ อัปเดตโครงการ</button>` : ''}`,
   });
 
@@ -523,7 +523,7 @@ function exportAll(rows, label) {
     wide: true,
     body: `<div class="pj-report rpx" id="pj-report-all">${summary}${projectPages}</div>`,
     footer: `<button class="btn-mini" id="rpa-close">ปิด</button>
-             <button class="btn-mini" id="rpa-csv">⭳ ดาวน์โหลด CSV</button>
+             <button class="btn-mini" id="rpa-csv">⬇ ดาวน์โหลด CSV</button>
              <button class="btn-mini" data-rpaimg="png" title="เลือกหน้าได้ · 1920×1080 พิกเซล · หลายหน้ารวมเป็น ZIP">🖼 รูป PNG (Full HD)</button>
              <button class="btn-mini" data-rpaimg="jpg" title="เลือกหน้าได้ · 1920×1080 พิกเซล · ไฟล์เล็กกว่า PNG · หลายหน้ารวมเป็น ZIP">🖼 รูป JPG (Full HD)</button>
              <button class="btn btn-primary" id="rpa-print">พิมพ์ / บันทึกเป็น PDF</button>`,
