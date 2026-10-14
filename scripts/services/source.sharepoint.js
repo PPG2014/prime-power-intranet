@@ -287,6 +287,33 @@ export async function list(name) {
   return resolveIn(name, await fetchRows(name));
 }
 
+/**
+ * อ่านเฉพาะรายการที่ "มีความเคลื่อนไหวหลัง since" หรือ "สถานะยังเดินอยู่" — กรองที่ฝั่ง SharePoint
+ * ไม่ต้องดาวน์โหลดคำขอเก่าทั้งหมดทุกครั้ง (List ใหญ่หลายพันใบจะเปิดหน้าเร็วขึ้นมาก)
+ * ควรสร้าง Index ที่คอลัมน์ Modified และ Status (List settings → Indexed columns) เมื่อเกิน 5,000 รายการ
+ * กรองไม่สำเร็จ (ยังไม่มี Index / Graph ไม่รองรับ) → คืน null ให้ผู้เรียกใช้ทั้ง List แทน
+ */
+export async function listRecent(name, { since, statuses = [] }) {
+  const q = (v) => `'${String(v).replace(/'/g, "''")}'`;
+  const filter = [`fields/Modified ge ${q(since.toISOString())}`,
+    ...statuses.map((st) => `fields/Status eq ${q(st)}`)].join(' or ');
+  const rows = [];
+  let path = `/lists/${await listId(name)}/items?expand=fields&$top=999&$filter=${encodeURIComponent(filter)}`;
+  try {
+    while (path) {
+      // eslint-disable-next-line no-await-in-loop
+      const data = await call(path, { headers: { Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } });
+      rows.push(...data.value.map((it) => ({ id: it.id, ...flatten(it.fields) })));
+      const next = data['@odata.nextLink'];
+      path = next ? next.replace(base(), '') : null;
+    }
+  } catch (e) {
+    console.warn(`กรอง ${name} ที่ SharePoint ไม่สำเร็จ ใช้ทั้ง List แทน:`, e.message);
+    return null;
+  }
+  return resolveIn(name, rows);
+}
+
 export async function get(name, id) {
   const it = await call(`/lists/${await listId(name)}/items/${id}?expand=fields`);
   return { id: it.id, ...flatten(it.fields) };

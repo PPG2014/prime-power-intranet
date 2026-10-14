@@ -21,7 +21,8 @@ const TTL = 60000;            // อายุแคช 60 วินาที
 const cache = new Map();      // name → { at, p }
 
 export function clearDataCache(name) {
-  if (name) cache.delete(name); else cache.clear();
+  if (!name) { cache.clear(); return; }
+  [...cache.keys()].forEach((k) => { if (k === name || k.startsWith(name + '|')) cache.delete(k); });
 }
 
 export function list(name) {
@@ -33,6 +34,31 @@ export function list(name) {
     throw err;
   });
   cache.set(name, { at: Date.now(), p });
+  return p;
+}
+
+/**
+ * เฉพาะรายการที่มีความเคลื่อนไหวใน `days` วันล่าสุด หรือสถานะอยู่ใน `statuses` (เช่น รออนุมัติ)
+ * SharePoint กรองให้ที่ต้นทาง · ถ้ากรองไม่ได้ ใช้ทั้ง List แล้วกรองในเครื่องแทน (ผลเหมือนกัน)
+ * คืนอาร์เรย์ที่มี .partial = true เมื่อได้มาแค่บางส่วน (ไม่รู้จำนวนรายการเก่าที่ถูกข้าม)
+ */
+export function listRecent(name, { days = 183, statuses = [] } = {}) {
+  const key = `${name}|recent|${days}|${statuses.join(',')}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < TTL) return hit.p;
+  const since = new Date(Date.now() - days * 86400000);
+  const local = async () => (await list(name)).filter((r) => {
+    const m = new Date(r.Modified || r.SubmittedDate || r.Created || 0);
+    return statuses.includes(String(r.Status || '').trim()) || isNaN(m) || m >= since;
+  });
+  const p = (async () => {
+    if (src().listRecent) {
+      const rows = await src().listRecent(name, { since, statuses });
+      if (rows) return Object.assign(rows, { partial: true });
+    }
+    return local();
+  })().catch((err) => { cache.delete(key); throw err; });
+  cache.set(key, { at: Date.now(), p });
   return p;
 }
 
@@ -89,6 +115,36 @@ async function titleOf(name, id) {
     const r = rows.find((x) => String(x.id) === String(id));
     return r ? (r.Title || r.EmployeeName || r.id) : '';
   } catch (e) { return ''; }
+}
+
+/**
+ * บันทึกข้อผิดพลาดที่ผู้ใช้เจอ ลง List AuditLog (การกระทำ = "ข้อผิดพลาด")
+ * ให้ผู้ดูแลเปิดดูได้ที่ จัดการข้อมูล → บันทึกการใช้งาน → กรองการกระทำ "ข้อผิดพลาด"
+ * จำกัดไม่เกิน 5 ครั้งต่อการเปิดเว็บ และไม่บันทึกข้อความซ้ำ กันบันทึกท่วม
+ */
+const errSeen = new Set();
+export async function logError(err, where = '') {
+  if (CONFIG.dataSource === 'mock' || auditOff || errSeen.size >= 5) return;
+  const msg = String((err && (err.message || err.reason)) || err || 'ไม่ทราบสาเหตุ').slice(0, 250);
+  if (errSeen.has(msg)) return;
+  errSeen.add(msg);
+  const who = state.user || {};
+  try {
+    await src().create(AUDIT_LIST, {
+      Title: `ข้อผิดพลาด · ${msg}`.slice(0, 250),
+      Action: 'ข้อผิดพลาด',
+      ListName: where || location.hash || '#/',
+      ItemId: '',
+      ItemTitle: msg,
+      ByName: who.name || '',
+      ByEmail: who.email || '',
+      At: new Date().toISOString(),
+      Details: JSON.stringify({
+        page: location.hash, build: CONFIG.build, browser: navigator.userAgent,
+        stack: String((err && err.stack) || '').slice(0, 1500),
+      }).slice(0, 4000),
+    });
+  } catch (e) { /* บันทึกไม่ได้ก็ข้าม ไม่ให้วนเกิด error ซ้ำ */ }
 }
 
 export const get    = (name, id)      => src().get(name, id);

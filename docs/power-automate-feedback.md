@@ -13,7 +13,7 @@
    - **ชื่อค่า:** `FeedbackRecipients`
    - **ค่า:** อีเมลผู้รับ คั่นด้วยจุลภาค เช่น
      ```
-     hr@primepower.co.th, narakorn.pa@primepower.co.th
+     hr@primepower.co.th, admin@primepower.co.th
      ```
    - **ความหมาย:** ผู้รับแจ้งเตือนความคิดเห็นใหม่
 3. บันทึก

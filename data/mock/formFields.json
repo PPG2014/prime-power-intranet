@@ -872,7 +872,7 @@
   "FieldKey": "confirm_exec",
   "Title": "ได้รับการยืนยันข้อมูลจากทางผู้บริหาร",
   "FieldType": "choice",
-  "Options": "คุณไพรัช เขียนเขว้า\nคุณกานต์ธิดา ใสสะอาด\nคุณอาทิตย์ กรแก้ว\nอื่นๆ",
+  "Options": "คุณสมชาย วัฒนกิจ\nคุณปรียา อินทโชติ\nคุณธเนศ บุญมั่น\nอื่นๆ",
   "IsRequired": true,
   "DefaultValue": "",
   "HelpText": "",

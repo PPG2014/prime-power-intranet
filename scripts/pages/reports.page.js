@@ -1,5 +1,5 @@
 import { esc, $, onClick } from '../core/dom.js';
-import { list } from '../services/data.js';
+import { list, listRecent } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { parseLog } from '../services/requests.js';
 import { toCsv, downloadText } from '../utils/csv.js';
@@ -22,7 +22,9 @@ let snapshot = { rows: [], perStep: [], perPerson: [] };
 
 export async function render(ctx) {
   const days = state.reportPeriod || '90';
-  const all = await list('requests').catch(() => []);
+  // ช่วงเวลาจำกัด → ให้ SharePoint กรองมาเฉพาะช่วงนั้น (+ ใบที่ยังรออนุมัติ) ไม่ต้องดึงทั้ง List
+  const all = await (days === 'all' ? list('requests')
+    : listRecent('requests', { days: +days, statuses: ['รออนุมัติ'] })).catch(() => []);
   const since = days === 'all' ? 0 : Date.now() - (+days) * 86400000;
   const rows = all.filter((r) => {
     const d = new Date(r.SubmittedDate);
@@ -76,6 +78,23 @@ export async function render(ctx) {
     .sort((a, b) => b.days - a.days);
 
   snapshot = { rows, perStep, perPerson };
+
+  // งานค้างแยกตามฝ่ายของผู้ยื่น (จำนวน / ค้างเกิน 7 วัน)
+  const pendDept = {};
+  pending.forEach(({ r, days: d }) => {
+    const k = clean(r.RequesterDept) || 'ไม่ระบุ';
+    const o = (pendDept[k] = pendDept[k] || { n: 0, late: 0, max: 0 });
+    o.n += 1; if (d > 7) o.late += 1; o.max = Math.max(o.max, d);
+  });
+
+  // ภาพรวมโครงการ (ไม่ขึ้นกับช่วงเวลาที่เลือก)
+  const projects = await list('projects').catch(() => []);
+  const num = (v) => (isNaN(+v) ? 0 : +v);
+  const closed = (p) => /ปิดโครงการ|ส่งมอบแล้ว/.test(clean(p.Status)) || p.InWarranty === true || p.InWarranty === 'Yes';
+  const activePj = projects.filter((p) => !closed(p));
+  const pjLate = activePj.filter((p) => p.EndDate && new Date(p.EndDate) < new Date() && num(p.ActualProgress) < 100);
+  const pjBehind = activePj.filter((p) => !pjLate.includes(p) && num(p.PlanProgress) - num(p.ActualProgress) > 0.5);
+  const pjOk = activePj.length - pjLate.length - pjBehind.length;
 
   const done = rows.filter((r) => ['อนุมัติแล้ว', 'เสร็จสิ้น'].includes(clean(r.Status)));
   const cycle = done.map((r) => {
@@ -144,6 +163,30 @@ export async function render(ctx) {
             <tbody>${perPerson.slice(0, 8).map((x) =>
               `<tr><td>${esc(x.k)}</td><td>${x.n}</td><td>${esc(dur(x.avg))}</td></tr>`).join('')}</tbody>
           </table>` : '<div class="dim">ยังไม่มีข้อมูลการอนุมัติ</div>'}
+        </div>
+      </div>
+
+      <div class="rr-cols">
+        <div class="panel">
+          <div class="panel-head">คำขอรออนุมัติ แยกตามฝ่าย</div>
+          ${Object.keys(pendDept).length ? `<table class="rr-table">
+            <thead><tr><th>ฝ่าย</th><th>รออนุมัติ</th><th>เกิน 7 วัน</th><th>นานสุด</th></tr></thead>
+            <tbody>${Object.entries(pendDept).sort((a, b) => b[1].n - a[1].n).map(([k, o]) =>
+              `<tr${o.late ? ' class="late"' : ''}><td>${esc(k)}</td><td>${o.n}</td><td>${o.late}</td><td>${o.max.toFixed(1)} วัน</td></tr>`).join('')}</tbody>
+          </table>` : '<div class="empty">ไม่มีคำขอค้าง</div>'}
+        </div>
+        <div class="panel">
+          <div class="panel-head">สถานะโครงการที่กำลังดำเนินการ
+            <span class="panel-meta">${activePj.length} โครงการ · <a href="#/projects">ดูทั้งหมด</a></span></div>
+          <div class="rr-kpis rr-kpis-sm">
+            <div><b>${pjOk}</b><span>ตามแผน</span></div>
+            <div class="warn"><b>${pjBehind.length}</b><span>ช้ากว่าแผน</span></div>
+            <div class="bad"><b>${pjLate.length}</b><span>เกินกำหนดสัญญา</span></div>
+          </div>
+          ${[...pjLate, ...pjBehind].slice(0, 6).map((p) => `<div class="rr-row">
+            <span class="rr-label">${esc(clean(p.Title))}</span>
+            <span class="dim">${pjLate.includes(p) ? 'เกินกำหนด' : `ช้ากว่าแผน ${(num(p.PlanProgress) - num(p.ActualProgress)).toFixed(1)}%`}</span>
+          </div>`).join('')}
         </div>
       </div>
 

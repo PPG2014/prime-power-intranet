@@ -8,7 +8,7 @@
  * ถ้ายังไม่เคยตั้งค่านี้เลย จะถือว่าทุกคนเป็นผู้ดูแลชั่วคราว
  * เพื่อให้เข้าไปตั้งค่าครั้งแรกได้ พร้อมขึ้นคำเตือนให้รีบกำหนด
  */
-import { settings } from './settings.js';
+import { settings, settingsFailed } from './settings.js';
 
 export const ADMIN_KEY = 'Admins';
 /** ฝ่ายบุคคล: ทำงานระบบประเมินได้ทั้งหมด แต่ไม่เห็นข้อมูลชุดอื่นในหน้าจัดการข้อมูล */
@@ -20,6 +20,9 @@ const emails = (raw) => String(raw || '').toLowerCase()
 export async function resolveAdmin(email) {
   const cfg = await settings();
   const raw = cfg[ADMIN_KEY];
+
+  // อ่านตั้งค่าไม่ได้ (เน็ตสะดุด/ไม่มีสิทธิ์) → ไม่มีใครเป็นผู้ดูแล ปิดไว้ก่อนเพื่อความปลอดภัย
+  if (settingsFailed()) return { isAdmin: false, isHR: false, unconfigured: false };
 
   if (raw === undefined) {
     return { isAdmin: true, isHR: true, unconfigured: true };
