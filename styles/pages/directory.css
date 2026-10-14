@@ -131,10 +131,21 @@
 .pv-block h4 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
 .pv-block ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.8; }
 
+/* มือถือ: รูป ชื่อ ตำแหน่ง อยู่กลาง · ตารางข้อมูลเต็มความกว้าง ป้ายซ้าย-ค่าขวาเป็นแนวเดียวกันทุกแถว */
 @media (max-width: 620px) {
-  .person-view { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-  .pv-row { justify-content: center; }
-  .pv-block ul { text-align: left; }
+  .person-view { grid-template-columns: 1fr; justify-items: center; gap: var(--gap); }
+  .pv-photo { width: 168px; height: 224px; }
+  .pv-info { width: 100%; }
+  .pv-name, .pv-en, .pv-pos { text-align: center; }
+  .pv-name { font-size: 20px; }
+  .pv-pos { margin-top: 6px; line-height: 1.45; }
+  .pv-row { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: baseline;
+    padding: 10px 2px; text-align: left; }
+  .pv-row span { width: auto; }
+  .pv-row b { line-height: 1.45; overflow-wrap: anywhere; }
+  .pv-mailline { justify-content: center; text-align: center; }
+  .pv-block { text-align: left; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+  .pv-block h4 { margin-bottom: 4px; }
 }
 .hidden-note { color: var(--warn); cursor: help; border-bottom: 1px dotted var(--warn); }
 
