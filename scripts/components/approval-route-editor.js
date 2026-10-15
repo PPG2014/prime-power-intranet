@@ -75,6 +75,8 @@ function stepHtml(s, i) {
       </details>
       <label class="ar-opt"><input type="checkbox" data-opt ${s.Optional ? 'checked' : ''}>
         ขั้นนี้ไม่บังคับ — ผู้อนุมัติกด "ข้ามขั้นนี้" ได้ · หาผู้อนุมัติไม่เจอ ระบบข้ามให้อัตโนมัติ</label>
+      ${n > 1 ? `<label class="ar-opt"><input type="checkbox" data-early ${s.NotifyAtSubmit ? 'checked' : ''}>
+        แจ้งผู้อนุมัติขั้นนี้ให้ทราบตั้งแต่มีคำขอเข้ามา (ดูได้อย่างเดียว) แล้วแจ้งอีกครั้งเมื่อถึงคิว</label>` : ''}
     </div>
   </div>`;
 }
@@ -118,6 +120,8 @@ function read() {
     if (el.querySelector('[data-also]')) s.AlsoTypes = $$('[data-also]', el).filter((c) => c.checked).map((c) => c.value);
     const opt = el.querySelector('[data-opt]');
     if (opt) s.Optional = opt.checked;
+    const early = el.querySelector('[data-early]');
+    s.NotifyAtSubmit = !!(early && early.checked);
   });
 }
 
@@ -126,7 +130,7 @@ function bind() {
     read();
     const n = +e.target.value;
     while (steps.length < n) steps.push({ StepName: '', ApproverType: NAMED, Approvers: [], ApproveMode: MODES[0],
-      ApproverDept: '', AlsoTypes: [], Optional: false });
+      ApproverDept: '', AlsoTypes: [], Optional: false, NotifyAtSubmit: false });
     steps.length = n;
     paint();
   };
@@ -175,6 +179,7 @@ export async function bindRouteEditor(formCode) {
     ApproverDept: plain(s.ApproverDept),
     AlsoTypes: splitList(s.AlsoTypes),
     Optional: yes(s.Optional),
+    NotifyAtSubmit: yes(s.NotifyAtSubmit),
   }));
   paint();
 }
@@ -212,6 +217,7 @@ export async function saveRoute(formCode) {
     ApproverDept: s.ApproverDept || '',
     AlsoTypes: s.AlsoTypes.join(', '),
     Optional: !!s.Optional,
+    NotifyAtSubmit: !!s.NotifyAtSubmit,
     SortOrder: i + 1,
     IsActive: true,
   }));

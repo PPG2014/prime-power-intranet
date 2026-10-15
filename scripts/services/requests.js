@@ -146,6 +146,9 @@ async function projectOfRequest(req) {
   return projects.find((p) => String(p.Title).trim() === name || String(p.ProjectCode || '').trim() === name) || null;
 }
 
+/** ลำดับนี้ขอรับแจ้งตั้งแต่มีคำขอเข้ามาไหม (เช่น ฝ่ายจัดซื้อ) */
+export const isNotifyEarly = (s) => !!s && (s.NotifyAtSubmit === true || s.NotifyAtSubmit === 'Yes' || s.NotifyAtSubmit === 'ใช่');
+
 /** ลำดับนี้ "ไม่บังคับ" ไหม (ข้ามได้ · ไม่มีผู้อนุมัติจะข้ามให้อัตโนมัติ) */
 export const isOptionalStep = (s) => !!s && (s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่');
 
@@ -291,6 +294,8 @@ export async function buildRoute(req) {
       name: String(s.StepName || s.Title || ''),
       mode: String(s.ApproveMode || ''),
       all: String(s.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน',
+      // แจ้งให้ทราบตั้งแต่ยื่น (ดูอย่างเดียว) แล้วได้การ์ด "ถึงคิวคุณ" อีกครั้งเมื่อถึงลำดับนี้
+      watch: isNotifyEarly(s),
       emails: [...new Set(emails)].join(';'),
     });
   }
@@ -300,7 +305,12 @@ export async function buildRoute(req) {
 /** ช่องที่ต้องเขียนเพื่อให้โฟลว์ส่งการ์ดของลำดับ stepNo */
 export function flowFieldsFor(route, stepNo) {
   const cur = route.find((r) => r.step === +stepNo);
+  // คนที่ขอทราบตั้งแต่ยื่น (ไม่รวมคนที่อยู่ลำดับแรกอยู่แล้ว) — โฟลว์ส่งแจ้งเฉพาะตอนเริ่มลำดับแรก
+  const firstEmails = new Set(String((route[0] && route[0].emails) || '').toLowerCase().split(';').filter(Boolean));
+  const watch = [...new Set(route.filter((r) => r.watch).flatMap((r) => String(r.emails || '').split(';'))
+    .map((e) => e.trim()).filter((e) => e && !firstEmails.has(e.toLowerCase())))];
   return {
+    WatchEmails: watch.join(';'),
     Route: JSON.stringify(route),
     CurrentApprovers: cur ? cur.emails : '',
     // PENDING = ใครคนใดคนหนึ่งกดก็ผ่าน · PENDING_ALL = ต้องกดครบทุกคน

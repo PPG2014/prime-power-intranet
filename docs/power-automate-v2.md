@@ -75,6 +75,34 @@
 
 **Save**
 
+## กล่อง 5.1 — แจ้ง "มีคำขอใหม่ (ดูอย่างเดียว)" ให้ลำดับที่ขอทราบตั้งแต่ยื่น (เช่น ฝ่ายจัดซื้อ)
+> ตั้งที่ จัดการข้อมูล → แบบฟอร์ม → เส้นทางอนุมัติ → ติ๊ก **"แจ้งผู้อนุมัติขั้นนี้ให้ทราบตั้งแต่มีคำขอเข้ามา"**
+> เว็บเขียนอีเมลคนกลุ่มนี้ลงช่อง `WatchEmails` ของคำขอ (ต้องเพิ่มคอลัมน์ `WatchEmails` = Multiple lines of text · Plain text ใน List Requests)
+> แจ้งเฉพาะตอนเริ่มลำดับแรก (ยื่นใหม่/ยื่นแก้ไข) · เมื่อถึงลำดับของเขาจะได้การ์ด "ถึงคิวคุณแล้ว" ตามปกติจากกล่อง 6
+
+**+** (ใต้ lockItem) → **Condition** → Rename `isNewWatch`
+- แถว 1: ซ้าย (fx) `string(triggerOutputs()?['body/CurrentStep'])` · **is equal to** · ขวา (fx)
+  ```
+  string(first(json(if(empty(triggerOutputs()?['body/Route']), '[{}]', triggerOutputs()?['body/Route'])))?['step'])
+  ```
+- **+ New row** (And) · แถว 2: ซ้าย (fx) `empty(coalesce(triggerOutputs()?['body/WatchEmails'], ''))` · **is equal to** · ขวา (fx) `false`
+
+**สาขา True:**
+
+**A) Send an email (V2)**
+- **To** (fx) `triggerOutputs()?['body/WatchEmails']`
+- **Subject** (fx) `concat('แจ้งให้ทราบ: มีคำขอใหม่ ', triggerOutputs()?['body/Title'], ' (ยังไม่ถึงคิวคุณ)')`
+- **Body** (fx)
+```
+concat('มีคำขอใหม่ <b>', triggerOutputs()?['body/Title'], '</b> · ', coalesce(triggerOutputs()?['body/FormName'], ''), '<br>ผู้ยื่น: ', triggerOutputs()?['body/RequesterName'], ' (', coalesce(triggerOutputs()?['body/RequesterDept'], '-'), ')<br><br>👁 <b>ดูได้อย่างเดียว</b> — ยังไม่ถึงคิวอนุมัติของคุณ ระบบจะแจ้งอีกครั้งเมื่อถึงคิว<br><br><a href="https://ppg2014.github.io/prime-power-intranet/#/requests/', triggerOutputs()?['body/ID'], '">เปิดดูคำขอ</a>')
+```
+
+**B) Apply to each** → Rename `watchEach` · From (fx) `split(triggerOutputs()?['body/WatchEmails'], ';')`
+- ข้างใน: **Post message in a chat or channel** (Microsoft Teams) · Post as **Flow bot** · Post in **Chat with Flow bot**
+- **Recipient** (fx) `items('watchEach')` · **Message** (fx) ใช้สูตรเดียวกับ Body ด้านบน
+
+**สาขา False:** ปล่อยว่าง
+
 ---
 
 ## กล่อง 6 — แยกแบบ "ครบทุกคน" หรือ "คนเดียวพอ"
@@ -94,7 +122,7 @@
 >   ```
 >   3. ไม่อนุมัติ
 >   ```
-> - **Title** (fx) `concat('ขออนุมัติ ', triggerOutputs()?['body/Title'])`
+> - **Title** (fx) `concat('ถึงคิวคุณแล้ว — ขออนุมัติ ', triggerOutputs()?['body/Title'])`
 > - **Assigned to** (fx) `triggerOutputs()?['body/CurrentApprovers']`
 > - **Details** (fx)
 >   ```

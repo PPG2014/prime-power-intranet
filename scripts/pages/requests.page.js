@@ -88,6 +88,7 @@ function requestRow(req, opts = {}) {
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
+        ${opts.waiting ? '<span class="rq-wait-flag" title="คุณอยู่ลำดับถัดไป ดูได้อย่างเดียวจนกว่าจะถึงคิว">👁 ยังไม่ถึงคิว</span>' : ''}
         ${opts.unread ? '<span class="rq-new-flag">● มีความเคลื่อนไหว</span>' : ''}
       </div>
     </button>`;
@@ -194,6 +195,7 @@ export async function render(ctx) {
               ${shownGroup.rows.map((r) => requestRow(r, {
                 showRequester: true,
                 canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
+                waiting: roleOnRequest(r, r._steps || [], meIds).waiting,
               })).join('')}
             </div>`
           : `<div class="panel"><div class="empty">
@@ -432,7 +434,7 @@ async function openRequest(req) {
         ${req.PaymentSlip ? renderSlip(req.PaymentSlip) : ''}
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
-          ? '<div class="rq-wait">ยังไม่ถึงคิวของคุณ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : ''}
+          ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>' : ''}
 
         ${requesterActions(req, log)}
         ${state.isAdmin && req.Status === 'รออนุมัติ' ? `<div class="rq-owner-act">
