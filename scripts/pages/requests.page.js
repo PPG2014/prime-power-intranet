@@ -4,7 +4,8 @@ import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
-import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor } from '../services/requests.js';
+import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
@@ -85,6 +86,7 @@ function requestRow(req, opts = {}) {
       <div class="rq-foot">
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
+        ${purchaseStatusOf(req) ? `<span class="rq-pstatus">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
@@ -390,7 +392,8 @@ async function openRequest(req) {
     const now = log.slice(lastRound + 1).filter((l) => l.step === n);
     const rejected = now.find((l) => l.action === 'ไม่อนุมัติ');
     const sentBack = now.find((l) => l.action === 'ส่งกลับแก้ไข');
-    const approved = now.filter((l) => l.action === 'อนุมัติ' || l.action === 'ข้าม');
+    const approved = now.filter((l) => l.action === 'อนุมัติ' || l.action === 'ข้าม'
+      || (l.action === PURCHASE_ACTION && String(l.note || '').startsWith(PURCHASE_DONE)));
     const st = rejected ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
     return `<div class="tl-step tl-${st}">
       <div class="tl-dot"></div>
@@ -403,7 +406,7 @@ async function openRequest(req) {
           return isNaN(h) ? '' : `<div class="tl-waiting">⏳ รออยู่ ${
             h < 24 ? `${h.toFixed(1)} ชม.` : `${(h / 24).toFixed(1)} วัน`}</div>`;
         })() : ''}
-        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : 'ok'}">
+        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : a.action === PURCHASE_ACTION ? 'buy' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>` : ''}</div>`).join('')}
@@ -496,7 +499,35 @@ function renderSlip(raw) {
       : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
 }
 
+/** ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: เลือกสถานะงานจัดซื้อแทนปุ่มอนุมัติ · "ส่งของแล้ว" = ปิดคำขอ */
+function purchaseBox(req, role) {
+  const nowSt = purchaseStatusOf(req);
+  const cur = +req.CurrentStep || 1;
+  const signed = parseLog(req.ApprovalLog).some((l) => l.step === cur && l.action === PURCHASE_ACTION && l.sig);
+  return `
+    <div class="rq-action rq-purchase">
+      <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
+      <label class="rq-note-label" for="rq-pstat">สถานะ</label>
+      <select id="rq-pstat" class="rq-pselect">
+        ${PURCHASE_STATUSES.map((x) => `<option ${x === (nowSt || '-') ? 'selected' : ''}>${esc(x)}</option>`).join('')}
+      </select>
+      <label class="rq-note-label" for="rq-note">หมายเหตุ <span class="dim">(ไม่บังคับ เช่น เลขที่ PO / ผู้ขาย)</span></label>
+      <textarea id="rq-note" rows="2" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+      ${signed ? '' : `<details class="rq-sign" open>
+        <summary><b>✍ ลายเซ็นฝ่ายจัดซื้อ</b> <b class="req">*</b>
+          <span class="dim">— เซ็นครั้งแรกครั้งเดียว ลงช่องฝ่ายจัดซื้อในใบขอสั่งซื้อ</span></summary>
+        ${signaturePad('approver', '', true)}
+      </details>`}
+      <div class="field-error" id="rq-err" hidden></div>
+      <div class="rq-buttons">
+        <span class="dim">เลือก "${PURCHASE_DONE}" = ปิดคำขอ</span>
+        <button class="btn btn-primary" id="rq-psave">💾 บันทึกสถานะ</button>
+      </div>
+    </div>`;
+}
+
 function actionBox(req, role) {
+  if (role.isPurchasing) return purchaseBox(req, role);
   return `
     <div class="rq-action">
       <h4>${role.isFinalStep ? 'ขั้นสุดท้าย — กดอนุมัติแล้วแนบสลิปการโอนเงิน' : 'ดำเนินการ'}</h4>
@@ -560,7 +591,7 @@ let pendingSlip = null;
 function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title: req.FormName }) {
   pendingSlip = null;
   const signFolder = formFolder(formRow, 'ลายเซ็น');
-  if (role.wantsSign) bindSignaturePads(signFolder);
+  if (role.wantsSign || role.isPurchasing) bindSignaturePads(signFolder);
   const err = $('#rq-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
 
@@ -612,6 +643,31 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
   const rj = $('#rq-reject'); if (rj) rj.onclick = () => run('ไม่อนุมัติ');
   const sb = $('#rq-sendback'); if (sb) sb.onclick = () => run('ส่งกลับแก้ไข');
+  // ฝ่ายจัดซื้อ: บันทึกสถานะ (ครั้งแรกต้องเซ็น) · "ส่งของแล้ว" ต้องยืนยันก่อนปิดคำขอ
+  const ps = $('#rq-psave'); if (ps) ps.onclick = async () => {
+    err.hidden = true;
+    const st = $('#rq-pstat').value;
+    if (!st || st === '-') { fail('กรุณาเลือกสถานะ'); return; }
+    if (st === purchaseStatusOf(req) && !note()) { fail(`สถานะเป็น "${st}" อยู่แล้ว`); return; }
+    const needSign = !!document.querySelector('.sig-pad[data-sig="approver"]');
+    if (needSign && !previewSignature('approver')) {
+      fail('กรุณาลงลายเซ็นฝ่ายจัดซื้อก่อนบันทึกครั้งแรก — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"');
+      return;
+    }
+    if (st === PURCHASE_DONE && !confirm(
+      `ยืนยัน "${PURCHASE_DONE}"?\n\nตรวจสอบแล้วว่าส่งของครบถ้วนตามใบขอสั่งซื้อ ${req.Title}\nเมื่อยืนยัน คำขอนี้จะถูกปิด (เสร็จสิ้น) และแก้สถานะไม่ได้อีก`)) return;
+    busy(true); ps.disabled = true;
+    try {
+      const sig = needSign ? await readSignature('approver', signFolder) : '';
+      const extra = note();
+      await decide(req, steps, { action: PURCHASE_ACTION, by: me, note: extra ? `${st} — ${extra}` : st, sig });
+      await done();
+    } catch (e) {
+      busy(false); ps.disabled = false;
+      if (e.name === 'AlreadyActedError') { fail('⚠ ' + e.message); refreshLater(); }
+      else fail('บันทึกไม่สำเร็จ — ' + e.message);
+    }
+  };
   const sk = $('#rq-skip'); if (sk) sk.onclick = () => {
     if (confirm('ข้ามลำดับนี้ไปลำดับถัดไป โดยไม่ลงนามในช่องนี้?')) run('ข้าม');
   };
