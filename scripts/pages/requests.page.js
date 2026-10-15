@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
@@ -394,7 +394,8 @@ async function openRequest(req) {
     const sentBack = now.find((l) => l.action === 'ส่งกลับแก้ไข');
     const approved = now.filter((l) => l.action === 'อนุมัติ' || l.action === 'ข้าม'
       || (l.action === PURCHASE_ACTION && String(l.note || '').startsWith(PURCHASE_DONE)));
-    const st = rejected ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
+    const cancelled = now.find((l) => l.action === PURCHASE_ACTION && String(l.note || '').startsWith(PURCHASE_CANCEL));
+    const st = rejected || cancelled ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
     return `<div class="tl-step tl-${st}">
       <div class="tl-dot"></div>
       <div class="tl-body">
@@ -520,7 +521,7 @@ function purchaseBox(req, role) {
       </details>`}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
-        <span class="dim">เลือก "${PURCHASE_DONE}" = ปิดคำขอ</span>
+        <span class="dim">เลือก "${PURCHASE_DONE}" = ปิดคำขอ (เสร็จสิ้น) · "${PURCHASE_CANCEL}" = ปิดคำขอ (ยกเลิก)</span>
         <button class="btn btn-primary" id="rq-psave">💾 บันทึกสถานะ</button>
       </div>
     </div>`;
@@ -654,6 +655,13 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
       fail('กรุณาลงลายเซ็นฝ่ายจัดซื้อก่อนบันทึกครั้งแรก — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"');
       return;
     }
+    if (st === PURCHASE_CANCEL && !note()) {
+      fail('กรุณาพิมพ์เหตุผลในช่องหมายเหตุก่อนเลือก "Cancel"');
+      $('#rq-note').focus();
+      return;
+    }
+    if (st === PURCHASE_CANCEL && !confirm(
+      `ยืนยันยกเลิกใบขอสั่งซื้อ ${req.Title}?\n\nเหตุผล: ${note()}\nเมื่อยืนยัน คำขอนี้จะถูกปิด (ยกเลิก) และแก้สถานะไม่ได้อีก`)) return;
     if (st === PURCHASE_DONE && !confirm(
       `ยืนยัน "${PURCHASE_DONE}"?\n\nตรวจสอบแล้วว่าส่งของครบถ้วนตามใบขอสั่งซื้อ ${req.Title}\nเมื่อยืนยัน คำขอนี้จะถูกปิด (เสร็จสิ้น) และแก้สถานะไม่ได้อีก`)) return;
     busy(true); ps.disabled = true;

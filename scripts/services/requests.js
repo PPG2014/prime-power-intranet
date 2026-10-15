@@ -152,6 +152,7 @@ async function projectOfRequest(req) {
  */
 export const PURCHASE_ACTION = 'อัปเดตสถานะ';
 export const PURCHASE_DONE = 'ส่งของแล้ว';
+export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
 /** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */
 export const purchaseStatusOf = (req) => {
@@ -391,7 +392,10 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
 
   if (action === PURCHASE_ACTION) {
     // ฝ่ายจัดซื้อ: บันทึกสถานะไว้ในประวัติ · "ส่งของแล้ว" = ปิดคำขอ
-    if (String(note).trim() === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
+    // "ส่งของแล้ว" = ปิดเป็นเสร็จสิ้น · "Cancel" = ปิดเป็นยกเลิก (note อาจมีหมายเหตุต่อท้ายด้วย " — ")
+    const st = String(note).split(' — ')[0].trim();
+    if (st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
+    if (st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
   } else if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
     patch.PAState = 'DONE';
