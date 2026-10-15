@@ -410,7 +410,9 @@ async function openRequest(req) {
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : a.action === PURCHASE_ACTION ? 'buy' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
-          ${a.note ? `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>` : ''}</div>`).join('')}
+          ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
+            ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">📦 สถานะจัดซื้อ</span>${esc(a.note)}</div>`
+            : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}</div>`).join('')}
       </div></div>`;
   }).join('');
 
@@ -503,11 +505,13 @@ function renderSlip(raw) {
 /** ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: เลือกสถานะงานจัดซื้อแทนปุ่มอนุมัติ · "ส่งของแล้ว" = ปิดคำขอ */
 function purchaseBox(req, role) {
   const nowSt = purchaseStatusOf(req);
-  const cur = +req.CurrentStep || 1;
+  const cur = role.actStep || +req.CurrentStep || 1;
+  const early = cur !== (+req.CurrentStep || 1);
   const signed = parseLog(req.ApprovalLog).some((l) => l.step === cur && l.action === PURCHASE_ACTION && l.sig);
   return `
     <div class="rq-action rq-purchase">
       <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
+      ${early ? '<div class="rq-wait">ตอนนี้รอขั้นที่ไม่บังคับ (เช่น ผู้อำนวยการโครงการ) — ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย เมื่อบันทึก ระบบจะข้ามขั้นนั้นให้</div>' : ''}
       <label class="rq-note-label" for="rq-pstat">สถานะ</label>
       <select id="rq-pstat" class="rq-pselect">
         ${PURCHASE_STATUSES.map((x) => `<option ${x === (nowSt || '-') ? 'selected' : ''}>${esc(x)}</option>`).join('')}
@@ -668,7 +672,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     try {
       const sig = needSign ? await readSignature('approver', signFolder) : '';
       const extra = note();
-      await decide(req, steps, { action: PURCHASE_ACTION, by: me, note: extra ? `${st} — ${extra}` : st, sig });
+      await decide(req, steps, { action: PURCHASE_ACTION, by: me, note: extra ? `${st} — ${extra}` : st, sig, actStep: role.actStep });
       await done();
     } catch (e) {
       busy(false); ps.disabled = false;

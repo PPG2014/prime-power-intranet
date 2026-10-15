@@ -250,12 +250,22 @@ export function roleOnRequest(req, steps, userName) {
 
   const isInvolved = myStepNums.length > 0;
   const done = ['อนุมัติแล้ว', 'ไม่อนุมัติ', 'เสร็จสิ้น', 'ยกเลิก', 'ส่งกลับแก้ไข'].includes(req.Status);
-  const canActNow = isInvolved && myStepNums.includes(cur) && !done;
   const lastStep = steps.length ? +steps[steps.length - 1].StepOrder : 1;
+  // ใบขอสั่งซื้อ: ลำดับฝ่ายจัดซื้อ = ชื่อขั้นมีคำว่า "จัดซื้อ" (ไม่มีใช้ลำดับสุดท้าย)
+  const buyStep = signsEveryStep(req.FormCode)
+    ? +((steps.find((s) => /จัดซื้อ/.test(String(s.StepName || ''))) || {}).StepOrder || lastStep) : 0;
+  // ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย ถ้าลำดับที่ค้างอยู่ก่อนถึงจัดซื้อเป็นลำดับ "ไม่บังคับ" ทั้งหมด
+  // (เช่น รอผู้อำนวยการโครงการ ซึ่งบางคำขอไม่ต้องใช้) — บันทึกแล้วข้ามลำดับนั้นให้
+  const early = !!buyStep && !done && cur < buyStep && myStepNums.includes(buyStep)
+    && steps.filter((s) => +s.StepOrder >= cur && +s.StepOrder < buyStep).every(isOptionalStep);
+  const canActNow = isInvolved && !done && (myStepNums.includes(cur) || early);
+  // ลำดับที่ผู้ใช้กำลังดำเนินการ (ปกติ = ลำดับปัจจุบัน · จัดซื้อเริ่มก่อน = ลำดับจัดซื้อ)
+  const actStep = early && !myStepNums.includes(cur) ? buyStep : cur;
 
   return {
     isInvolved,
     canActNow,
+    actStep,
     waiting: isInvolved && !canActNow && !done && Math.min(...myStepNums) > cur,
     // ขั้นสุดท้ายแบบแนบสลิป + ปิดงาน ใช้เฉพาะฟอร์มเบิกจ่ายเงิน
     // ฟอร์มอื่นขั้นสุดท้ายเป็นการอนุมัติปกติ แล้วสถานะเป็น "อนุมัติแล้ว"
@@ -267,8 +277,7 @@ export function roleOnRequest(req, steps, userName) {
     // ลำดับไม่บังคับ — ผู้อนุมัติของลำดับนั้นกด "ข้าม" ได้
     canSkip: canActNow && isOptionalStep(steps.find((s) => +s.StepOrder === cur)),
     // ใบขอสั่งซื้อ ลำดับฝ่ายจัดซื้อ (ชื่อขั้นมีคำว่า "จัดซื้อ" หรือเป็นลำดับสุดท้าย) → ใช้อัปเดตสถานะแทนอนุมัติ
-    isPurchasing: canActNow && signsEveryStep(req.FormCode)
-      && (/จัดซื้อ/.test(String((steps.find((s) => +s.StepOrder === cur) || {}).StepName || '')) || cur === lastStep),
+    isPurchasing: canActNow && !!buyStep && actStep === buyStep,
   };
 }
 
@@ -370,10 +379,18 @@ async function assertFresh(req) {
  * closeAfter = ขั้นสุดท้ายของฟอร์มเบิกเงิน: อนุมัติ + แนบสลิป + ปิดงาน ในการบันทึกครั้งเดียว
  * (เดิมเรียก decide สองครั้ง ครั้งที่สองชนด่านกันอนุมัติซ้ำเสมอ สลิปจึงไม่ถูกบันทึกและไม่ปิดงาน)
  */
-export async function decide(req, steps, { action, by, note = '', slip = null, sig = '', closeAfter = false }) {
+export async function decide(req, steps, { action, by, note = '', slip = null, sig = '', closeAfter = false, actStep = 0 }) {
   req = await assertFresh(req);                // ด่านกันอนุมัติซ้ำ
   const log = parseLog(req.ApprovalLog);
-  const cur = +req.CurrentStep || 1;
+  const reqStep = +req.CurrentStep || 1;
+  // ฝ่ายจัดซื้อเริ่มก่อน: ข้ามลำดับไม่บังคับที่ค้างอยู่ แล้วย้ายคำขอมาที่ลำดับจัดซื้อ
+  const jump = action === PURCHASE_ACTION && +actStep > reqStep;
+  if (jump) {
+    steps.filter((s) => +s.StepOrder >= reqStep && +s.StepOrder < +actStep).forEach((s) => {
+      log.push({ step: +s.StepOrder, action: 'ข้าม', by, note: 'ฝ่ายจัดซื้อเริ่มดำเนินการ (ลำดับไม่บังคับ)', at: new Date().toISOString() });
+    });
+  }
+  const cur = jump ? +actStep : reqStep;
   const step = steps.find((s) => +s.StepOrder === cur);
   const mode = step ? step.ApproveMode : 'คนใดคนหนึ่งอนุมัติก็ผ่าน';
 
@@ -390,6 +407,13 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
 
   const patch = { ApprovalLog: JSON.stringify(log) };
 
+  if (jump) {
+    patch.CurrentStep = cur;
+    let route = routeOf(req);
+    if (!route.length) route = (await buildRoute(req)).route;
+    // ไม่ส่งการ์ดใหม่ให้จัดซื้อ (เขาเริ่มทำในเว็บแล้ว) — การ์ดของลำดับที่ถูกข้ามจะกลายเป็นการ์ดเก่า
+    Object.assign(patch, flowFieldsFor(route, cur), { PAState: 'DONE' });
+  }
   if (action === PURCHASE_ACTION) {
     // ฝ่ายจัดซื้อ: บันทึกสถานะไว้ในประวัติ · "ส่งของแล้ว" = ปิดคำขอ
     // "ส่งของแล้ว" = ปิดเป็นเสร็จสิ้น · "Cancel" = ปิดเป็นยกเลิก (note อาจมีหมายเหตุต่อท้ายด้วย " — ")

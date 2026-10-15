@@ -380,3 +380,7 @@
 .rq-pstatus { font-size: 12px; font-weight: 600; color: #6b4e00; background: #fff4d6; border-radius: 20px; padding: 1px 9px; }
 .rq-purchase .rq-buttons { align-items: center; justify-content: space-between; }
 .tl-act.buy { color: #6b4e00; }
+/* สถานะจัดซื้อในเส้นทางอนุมัติ — ฟ้าพาสเทล (ความเห็นผู้อนุมัติอื่นยังเป็นกรอบแดง) */
+.tl-act.buy { color: #2b6cb0; }
+.tl-note.tl-note-buy { border-color: #9cc8ef; background: #eaf4fd; color: #1f5f99; }
+.tl-note-buy .tl-note-h { color: #3b82c4; }
