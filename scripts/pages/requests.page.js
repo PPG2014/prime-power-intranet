@@ -9,7 +9,7 @@ import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-
 import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
-import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
+import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isUnread, markSeen, refreshBadges } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
 
@@ -502,7 +502,9 @@ function actionBox(req, role) {
         <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
       ${role.wantsSign ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) || isPR(req.FormCode) ? ' open' : ''}>
-        <summary><b>✍ ลายเซ็นผู้อนุมัติ</b> <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span></summary>
+        <summary><b>✍ ลายเซ็นผู้อนุมัติ</b>${isPR(req.FormCode)
+          ? ' <b class="req">*</b> <span class="dim">— จำเป็น: วาดหรืออัปโหลดลายเซ็นก่อนกดอนุมัติ ลงช่องของขั้นนี้ในใบขอสั่งซื้อ</span>'
+          : ' <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span>'}</summary>
         ${signaturePad('approver', '', true)}
       </details>` : ''}
       <div class="field-error" id="rq-err" hidden></div>
@@ -524,9 +526,10 @@ function actionBox(req, role) {
 function watchOthers(req) {
   const sig = (r) => `${r.Status}|${+r.CurrentStep || 1}|${parseLog(r.ApprovalLog).length}`;
   const before = sig(req);
+  const mine = document.querySelector('.rq-action');            // กล่องของหน้าต่างนี้เท่านั้น
   const timer = setInterval(async () => {
-    const box = document.querySelector('.rq-action');
-    if (!box) { clearInterval(timer); return; }                 // ปิดหน้าต่างแล้ว
+    const box = mine && mine.isConnected ? mine : null;
+    if (!box) { clearInterval(timer); return; }                 // ปิดหน้าต่างนี้แล้ว (หรือเปิดใบใหม่แทน)
     if (box.querySelector('button:disabled')) return;           // ผู้ใช้กำลังบันทึกเอง
     let now;
     try { now = await get('requests', req.id); } catch (e) { return; }
@@ -560,6 +563,14 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   const fail = (m) => { err.textContent = m; err.hidden = false; };
 
   const note = () => $('#rq-note').value.trim();
+  // ใบขอสั่งซื้อ: ทุกขั้นต้องวาด/อัปโหลดลายเซ็นก่อนอนุมัติ (ข้ามขั้น/ส่งกลับ/ไม่อนุมัติ ไม่ต้องเซ็น)
+  const signedNow = () => {
+    if (!isPR(req.FormCode) || !role.wantsSign || previewSignature('approver')) return true;
+    fail('กรุณาลงลายเซ็นก่อนกดอนุมัติ — ลากเมาส์/นิ้วเซ็นในกรอบ "ลายเซ็นผู้อนุมัติ" หรือกด "อัปโหลดรูป"');
+    const pad = $('.sig-pad[data-sig="approver"]');
+    if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  };
   const busy = (on) => $$('.rq-buttons button').forEach((b) => { b.disabled = on; });
   // มีคนดำเนินการไปแล้ว: รีเฟรชหน้าให้เห็นสถานะล่าสุดหลังผู้ใช้อ่านข้อความ
   const refreshLater = () => setTimeout(async () => {
@@ -581,6 +592,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
       $('#rq-note').focus();
       return;
     }
+    if (action === 'อนุมัติ' && !signedNow()) return;
     if (action === 'ไม่อนุมัติ' && !confirm('ยืนยันไม่อนุมัติคำขอนี้? คำขอจะสิ้นสุดทันที')) return;
     if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
     busy(true);
@@ -604,6 +616,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   // ขั้นสุดท้าย (บัญชีการเงิน): กดอนุมัติ → หน้าต่างแนบสลิปเด้งขึ้น (เลือกไฟล์ / ลากวาง / Ctrl+V)
   const fn = $('#rq-finish'); if (fn) fn.onclick = async () => {
     err.hidden = true;
+    if (!signedNow()) return;
     const { pickSlip } = await import('../components/slip-dialog.js');
     pendingSlip = await pickSlip({ folder: formFolder(formRow, 'สลิปโอนเงิน') });
     if (!pendingSlip) return;               // ยกเลิก = ยังไม่อนุมัติ
@@ -808,3 +821,5 @@ export function mount(ctx) {
   } else if (!deep) deepOpened = '';
 }
 let deepOpened = '';
+// เปลี่ยนหน้าไปแล้วกลับมาที่ลิงก์เดิม → เปิดคำขอให้อีกครั้ง (กันเปิดซ้ำเฉพาะตอนหน้าเดิมวาดใหม่)
+addEventListener('hashchange', () => { if (location.hash !== deepOpened) deepOpened = ''; });

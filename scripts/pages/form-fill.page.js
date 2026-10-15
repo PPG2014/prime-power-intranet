@@ -184,7 +184,7 @@ export async function render(ctx) {
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
         ${`<section class="q-group q-sign">
-          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) ? ' <b class="req">*</b>' : ''}</h3>
+          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) || isPR(form.FormCode) ? ' <b class="req">*</b>' : ''}</h3>
           <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
             (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
           ${signaturePad('requester', (editSign && editSign.url) || (me && me.SignatureUrl) || '', true)}
@@ -391,6 +391,14 @@ export function mount(ctx) {
     // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
     if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
       err.innerHTML = 'กรุณาลงลายเซ็นผู้เบิกจ่ายก่อนส่ง — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"';
+      err.hidden = false;
+      const pad = $('.sig-pad[data-sig="requester"]');
+      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // ใบขอสั่งซื้อ: ผู้ยื่นต้องวาดหรืออัปโหลดลายเซ็นทุกครั้ง (ลงช่อง ผู้ขอสั่งซื้อ)
+    if (isPR(form.FormCode) && !previewSignature('requester')) {
+      err.innerHTML = 'กรุณาลงลายเซ็นผู้ขอสั่งซื้อก่อนส่ง — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"';
       err.hidden = false;
       const pad = $('.sig-pad[data-sig="requester"]');
       if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
