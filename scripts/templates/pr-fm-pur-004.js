@@ -163,12 +163,24 @@ export function mapSignatures(steps, log, sigOf) {
     if (/จัดซื้อ/.test(n)) return 'purchasing';
     return 'approver';
   };
+  // ชื่อขั้นบอกช่องได้ (ทบทวน/ผู้อำนวยการ/จัดซื้อ) · เส้นทางครบ 4 ขั้นที่ชื่อไม่บอกช่อง
+  // ใช้ตามลำดับ: ผู้ทบทวน → ผู้อนุมัติ → ผู้อำนวยการ → ฝ่ายจัดซื้อ
+  const ORDER = ['reviewer', 'approver', 'director', 'purchasing'];
+  const named = (n) => /ทบทวน|ผู้อำนวยการ|จัดซื้อ/.test(String(n || ''));
+  const taken = new Set(steps.filter((st) => named(st.StepName)).map((st) => slotOf(st.StepName)));
+  const free = ORDER.filter((x) => !taken.has(x));
+  const slotFor = new Map();
+  steps.forEach((st) => {
+    if (named(st.StepName)) slotFor.set(st, slotOf(st.StepName));
+    else slotFor.set(st, steps.length >= 4 && free.length ? free.shift() : 'approver');
+  });
   const out = {};
   steps.forEach((st) => {
-    const slot = slotOf(st.StepName);
+    const slot = slotFor.get(st);
     if (out[slot]) return;                         // ช่องละคนเดียว ใช้ลำดับแรกที่ตรง
     const act = acts.filter((a) => a.step === +st.StepOrder).slice(-1)[0];
-    if (act) out[slot] = { name: act.by, sig: sigOf(act.by) };
+    // ลายเซ็นที่เซ็นตอนอนุมัติ (act.sig) มาก่อน ไม่มีค่อยใช้ลายเซ็นในทะเบียนบุคลากร
+    if (act) out[slot] = { name: act.by, sig: act.sig || sigOf(act.by) };
   });
   return out;
 }

@@ -23,7 +23,13 @@ export const EXEC_TYPES = ['กรรมการผู้จัดการ', '
  *   → ไม่มีทั้งคู่ คงชื่อเดิม (ยังอนุมัติได้เมื่อกลับมา)
  */
 export async function resolveApprovers(step, req) {
-  const names = await resolveRaw(step, req);
+  // ประเภทหลัก + ประเภทเพิ่มเติม (AlsoTypes) รวมกัน เช่น ผู้จัดการฝ่ายวิศวกรรม หรือ ผู้จัดการโครงการ หรือ ผู้รับผิดชอบโครงการ
+  // ประเภทเพิ่มเติมไม่ใช้ชื่อสำรอง (Approvers) ซ้ำ กันชื่อสำรองโผล่ทั้งที่ประเภทหลักหาเจอแล้ว
+  const also = String(step.AlsoTypes || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const names = [...new Set([
+    ...(await resolveRaw(step, req)),
+    ...(await Promise.all(also.map((t) => resolveRaw({ ...step, ApproverType: t, Approvers: [] }, req)))).flat(),
+  ])];
   if (!names.length) return names;
   const dir = await list('directory').catch(() => []);
   const em = String(req.RequesterEmail || '').trim().toLowerCase();
@@ -78,15 +84,7 @@ async function resolveRaw(step, req) {
 
   if (type === 'ผู้รับผิดชอบหลักของโครงการ') {
     // อ่านชื่อโครงการจากคำตอบในฟอร์ม แล้วหา Owner จากทะเบียนโครงการ
-    let projectName = '';
-    try {
-      const d = JSON.parse(req.FormData || '{}');
-      projectName = d.project || d.project_name || d.ProjectName || '';
-    } catch (e) { /* ข้อมูลเสีย */ }
-    if (!projectName) return named;
-
-    const projects = await list('projects').catch(() => []);
-    const proj = projects.find((p) => p.Title === projectName || p.ProjectCode === projectName);
+    const proj = await projectOfRequest(req);
     if (!proj) return named;
 
     // Owner อาจมาเป็นออบเจ็กต์ (Lookup) หรือข้อความ
@@ -94,6 +92,26 @@ async function resolveRaw(step, req) {
       ? (proj.Owner.LookupValue ?? proj.Owner.Title ?? '')
       : proj.Owner;
     return owner ? [owner] : named;
+  }
+
+  // คนในทีมโครงการ (ผู้รับผิดชอบหลัก + ทีมงาน) ที่ตำแหน่งตรง เช่น ผู้จัดการโครงการ / ผู้อำนวยการโครงการ
+  if (type === 'ผู้จัดการโครงการ' || type === 'ผู้อำนวยการโครงการ') {
+    const proj = await projectOfRequest(req);
+    if (!proj) return named;
+    const team = new Set([nameOf(proj.Owner), ...asList(proj.Team).map(nameOf)].filter(Boolean));
+    const re = type === 'ผู้จัดการโครงการ' ? /ผู้จัดการโครงการ/ : /ผู้อำนวยการโครงการ/;
+    const hit = dir.filter((p) => p.IsActive !== false && team.has(String(p.Title).trim()) && re.test(p.Position || ''));
+    return hit.length ? hit.map((p) => p.Title) : named;
+  }
+
+  // ฝ่ายที่ระบุในลำดับนี้ (ApproverDept) — ทุกคนในฝ่าย หรือเฉพาะผู้จัดการ/หัวหน้าฝ่าย
+  if (type === 'ทุกคนในฝ่ายที่ระบุ' || type === 'ผู้จัดการฝ่ายที่ระบุ') {
+    const dept = nameOf(step.ApproverDept);
+    if (!dept) return named;
+    const inDept = dir.filter((p) => p.IsActive !== false && String(p.Department || '').trim() === dept);
+    const hit = type === 'ทุกคนในฝ่ายที่ระบุ' ? inDept
+      : inDept.filter((p) => /ผู้จัดการฝ่าย|หัวหน้าฝ่าย/.test(p.Position || '') || p.Level === 'ผู้จัดการฝ่าย');
+    return hit.length ? hit.map((p) => p.Title) : named;
   }
 
   // ผู้บริหารตามตำแหน่ง — หาจากช่องตำแหน่งในทะเบียนบุคลากร (ต้องตรงทั้งคำ
@@ -113,6 +131,30 @@ async function resolveRaw(step, req) {
 
   return named;
 }
+
+const asList = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\n]/)).map((x) => x).filter(Boolean);
+
+/** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบคืน null */
+async function projectOfRequest(req) {
+  let name = '';
+  try {
+    const d = JSON.parse(req.FormData || '{}');
+    name = String(d.project || d.project_name || d.ProjectName || '').trim();
+  } catch (e) { /* ข้อมูลเสีย */ }
+  if (!name) return null;
+  const projects = await list('projects').catch(() => []);
+  return projects.find((p) => String(p.Title).trim() === name || String(p.ProjectCode || '').trim() === name) || null;
+}
+
+/** ลำดับนี้ขอรับแจ้งตั้งแต่มีคำขอเข้ามาไหม (เช่น ฝ่ายจัดซื้อ) */
+export const isNotifyEarly = (s) => !!s && (s.NotifyAtSubmit === true || s.NotifyAtSubmit === 'Yes' || s.NotifyAtSubmit === 'ใช่');
+
+/** ลำดับนี้ "ไม่บังคับ" ไหม (ข้ามได้ · ไม่มีผู้อนุมัติจะข้ามให้อัตโนมัติ) */
+export const isOptionalStep = (s) => !!s && (s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่');
+
+/** ฟอร์มที่ต้องให้ผู้อนุมัติ "ทุกลำดับ" ลงลายเซ็นในเอกสาร (ไม่ใช่แค่ลำดับสุดท้าย) */
+export const SIGN_EVERY_STEP = ['FM-PUR-004'];
+const signsEveryStep = (code) => SIGN_EVERY_STEP.includes(String(code || '').trim().toUpperCase());
 
 /** อ่านลำดับอนุมัติของฟอร์ม เรียงจากน้อยไปมาก */
 /** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น */
@@ -206,6 +248,10 @@ export function roleOnRequest(req, steps, userName) {
     isFinalStep: canActNow && cur === lastStep && needsSlip(req.FormCode, req.FormName),
     // ลำดับอนุมัติสุดท้าย (ทุกฟอร์ม) — ให้ผู้อนุมัติลงลายเซ็นในเอกสารได้
     isLastStep: canActNow && cur === lastStep,
+    // ช่องลายเซ็นตอนอนุมัติ: ลำดับสุดท้ายทุกฟอร์ม + ทุกลำดับของฟอร์มที่ต้องเซ็นทุกขั้น (ใบขอสั่งซื้อ)
+    wantsSign: canActNow && (cur === lastStep || signsEveryStep(req.FormCode)),
+    // ลำดับไม่บังคับ — ผู้อนุมัติของลำดับนั้นกด "ข้าม" ได้
+    canSkip: canActNow && isOptionalStep(steps.find((s) => +s.StepOrder === cur)),
   };
 }
 
@@ -241,11 +287,15 @@ export async function buildRoute(req) {
     const names = await resolveApprovers(s, req).catch(() => []);
     const emails = names.map(emailOf).filter(Boolean);
     names.forEach((n) => { if (!emailOf(n)) missing.push(n); });
+    // ลำดับไม่บังคับที่หาผู้อนุมัติไม่เจอ ไม่ใส่ในเส้นทาง → โฟลว์ข้ามไปลำดับถัดไปเอง
+    if (isOptionalStep(s) && !emails.length) continue;
     route.push({
       step: +s.StepOrder || route.length + 1,
       name: String(s.StepName || s.Title || ''),
       mode: String(s.ApproveMode || ''),
       all: String(s.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน',
+      // แจ้งให้ทราบตั้งแต่ยื่น (ดูอย่างเดียว) แล้วได้การ์ด "ถึงคิวคุณ" อีกครั้งเมื่อถึงลำดับนี้
+      watch: isNotifyEarly(s),
       emails: [...new Set(emails)].join(';'),
     });
   }
@@ -255,7 +305,12 @@ export async function buildRoute(req) {
 /** ช่องที่ต้องเขียนเพื่อให้โฟลว์ส่งการ์ดของลำดับ stepNo */
 export function flowFieldsFor(route, stepNo) {
   const cur = route.find((r) => r.step === +stepNo);
+  // คนที่ขอทราบตั้งแต่ยื่น (ไม่รวมคนที่อยู่ลำดับแรกอยู่แล้ว) — โฟลว์ส่งแจ้งเฉพาะตอนเริ่มลำดับแรก
+  const firstEmails = new Set(String((route[0] && route[0].emails) || '').toLowerCase().split(';').filter(Boolean));
+  const watch = [...new Set(route.filter((r) => r.watch).flatMap((r) => String(r.emails || '').split(';'))
+    .map((e) => e.trim()).filter((e) => e && !firstEmails.has(e.toLowerCase())))];
   return {
+    WatchEmails: watch.join(';'),
     Route: JSON.stringify(route),
     CurrentApprovers: cur ? cur.emails : '',
     // PENDING = ใครคนใดคนหนึ่งกดก็ผ่าน · PENDING_ALL = ต้องกดครบทุกคน
@@ -323,17 +378,18 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   } else if (action === 'ส่งกลับแก้ไข') {
     patch.Status = 'ส่งกลับแก้ไข';
     patch.PAState = 'DONE';
-  } else if (action === 'อนุมัติ') {
+  } else if (action === 'อนุมัติ' || action === 'ข้าม') {
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
     const approvers = (step && step._resolved) || toArr(step && step.Approvers);
     const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').map((l) => l.by);
     // คนเดิมกดอนุมัติซ้ำในลำดับเดียวกัน ไม่นับเพิ่ม
-    const stepDone = mode === 'ต้องอนุมัติครบทุกคน'
-      ? approvers.every((a) => approvedBy.includes(a))
-      : true;
+    const stepDone = action === 'ข้าม' || mode !== 'ต้องอนุมัติครบทุกคน'
+      || approvers.every((a) => approvedBy.includes(a));
 
     if (stepDone) {
-      const next = steps.filter((s) => +s.StepOrder > cur).map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
+      // ลำดับไม่บังคับที่ไม่มีผู้อนุมัติ (เช่นโครงการไม่มีผู้อำนวยการ) ข้ามให้อัตโนมัติ
+      const next = steps.filter((s) => +s.StepOrder > cur && !(isOptionalStep(s) && Array.isArray(s._resolved) && !s._resolved.length))
+        .map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
       if (next) {
         patch.CurrentStep = next; patch.Status = 'รออนุมัติ';
         // ให้โฟลว์ส่งการ์ดลำดับถัดไป
