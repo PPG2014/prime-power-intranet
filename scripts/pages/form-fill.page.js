@@ -2,7 +2,7 @@ import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
-import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm } from '../components/form-renderer.js';
+import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm, NO_PROJECT } from '../components/form-renderer.js';
 import { buildRoute, flowFieldsFor, stepsOf } from '../services/requests.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
@@ -337,6 +337,42 @@ async function downloadBlankForm(form, fields) {
   document.getElementById('dl-print').onclick = () => printWithNotice('printing-doc');
 }
 
+/** ช่องโครงการของฟอร์ม (ช่องเลือกจากทะเบียนโครงการ) */
+const projectField = () => fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
+
+/**
+ * บอกผู้ยื่นล่วงหน้าว่าใครจะอนุมัติ ตามโครงการที่เลือก
+ * ไม่เกี่ยวกับโครงการ / ไม่ได้อยู่ในทีมโครงการ → ผู้บังคับบัญชาของผู้ยื่นอนุมัติ
+ */
+function bindProjectHint() {
+  const pf = projectField();
+  const input = pf && document.getElementById('q_' + pf.FieldKey);
+  if (!input) return;
+  const hint = document.createElement('div');
+  hint.className = 'q-help q-project-hint';
+  input.insertAdjacentElement('afterend', hint);
+  const show = async () => {
+    const v = input.value.trim();
+    const boss = (me && me.Manager) ? String(typeof me.Manager === 'object' ? (me.Manager.LookupValue ?? me.Manager.Title) : me.Manager) : '';
+    const bossTxt = boss ? `ผู้บังคับบัญชาของคุณ (${boss})` : 'ผู้บังคับบัญชาของคุณ';
+    if (!v) { hint.textContent = `ไม่เกี่ยวกับโครงการใด ให้เลือก "${NO_PROJECT}"`; hint.classList.remove('warn'); return; }
+    if (v === NO_PROJECT) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
+    const proj = (await list('projects').catch(() => [])).find((p) => String(p.Title).trim() === v);
+    if (!proj) { hint.textContent = ''; return; }
+    const name = (me && me.Title) || '';
+    const plain = (x) => String((x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x) || '').trim();
+    const team = [plain(proj.Owner), ...(Array.isArray(proj.Team) ? proj.Team : String(proj.Team || '').split(',')).map(plain)];
+    const mine = (Array.isArray(me && me.Project) ? me.Project : String((me && me.Project) || '').split(',')).map(plain);
+    const inTeam = (!!name && team.filter(Boolean).includes(name)) || mine.filter(Boolean).includes(v);
+    hint.textContent = inTeam ? 'คุณอยู่ในทีมโครงการนี้ · ผู้จัดการ/ผู้รับผิดชอบโครงการจะเป็นผู้อนุมัติ'
+      : `⚠ คุณไม่ได้อยู่ในทีมของโครงการนี้ — คำขอจะส่งให้${bossTxt}อนุมัติด้วย`;
+    hint.classList.toggle('warn', !inTeam);
+  };
+  input.addEventListener('change', show);
+  input.addEventListener('input', show);
+  show();
+}
+
 export function mount(ctx) {
   const again = $('#again');
   if (again) again.onclick = () => setState({ formSent: null, formDraft: null });
@@ -346,6 +382,7 @@ export function mount(ctx) {
 
   bindForm(fields, formFolder(form, 'ไฟล์แนบ'));
   bindSignaturePads(formFolder(form, 'ลายเซ็น'));
+  bindProjectHint();
 
   // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
   if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
@@ -376,6 +413,11 @@ export function mount(ctx) {
     const err = $('#q-error');
     const res = collectForm(fields);
 
+    // ใบขอสั่งซื้อ: ช่องโครงการต้องเลือกเสมอ (โครงการ หรือ "ไม่เกี่ยวกับโครงการ") เพื่อให้ระบบรู้ว่าใครอนุมัติ
+    const pf = projectField();
+    if (isPR(form.FormCode) && pf && !String((res.values || res.partial || {})[pf.FieldKey] || '').trim()) {
+      (res.errors = res.errors || []).push(`${pf.Title} (เลือกโครงการ หรือ "${NO_PROJECT}")`);
+    }
     if (res.errors) {
       err.innerHTML = `กรอกข้อมูลให้ครบก่อนส่ง<br>ยังขาด: ${esc(res.errors.join(', '))}`;
       err.hidden = false;

@@ -47,8 +47,9 @@ Title eq 'FeedbackRecipients'
 **Send an email (V2)** → Rename `mailFeedback`
 - **To** (fx):
 ```
-first(outputs('recipients')?['body/value'])?['Value']
+replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], ''), ' ', ''), ',', ';')
 ```
+> ช่อง To ของ Outlook ต้องคั่นหลายอีเมลด้วย **;** — สูตรนี้แปลงจุลภาคในตั้งค่าระบบให้เอง
 - **Subject** (fx):
 ```
 concat('[ความคิดเห็นใหม่] ', coalesce(triggerOutputs()?['body/Title'], 'ไม่ระบุเรื่อง'))
@@ -66,3 +67,15 @@ concat('มีความคิดเห็นใหม่ส่งเข้า
 - ถ้าผู้ส่งติ๊ก **"ไม่ต้องการระบุชื่อผู้เสนอ"** อีเมลจะขึ้นว่า "ไม่ระบุชื่อ" ตามที่ผู้ส่งเลือก — ระบบไม่เปิดเผยชื่อให้
 - อยากให้ส่งเข้า Teams ด้วย เพิ่ม **Post message in a chat or channel** ต่อท้ายในสาขา True โดยใช้ Recipient สูตรเดียวกับ To
 - ถ้าไม่ได้ตั้งค่า `FeedbackRecipients` โฟลว์จะจบเงียบ ๆ ไม่ error
+
+---
+
+## ส่งความคิดเห็นแล้วไม่ได้รับอีเมล — ตรวจทีละข้อ
+| ตรวจ | ถ้าไม่ใช่ |
+|---|---|
+| 1. เว็บ → จัดการข้อมูล → **ความคิดเห็นที่ได้รับ** มีรายการที่เพิ่งส่ง | ปัญหาอยู่ที่เว็บ/สิทธิ์ List Feedback — ไม่ใช่โฟลว์ |
+| 2. Power Automate → **My flows** มีโฟลว์ `Prime Power - แจ้งเตือนความคิดเห็นใหม่` และสถานะ **On** | ยังไม่ได้สร้าง → ทำตามคู่มือนี้ · ถ้า Off → Turn on |
+| 3. เปิดโฟลว์ → **Run history** มีรอบตรงกับเวลาที่ส่ง | ทริกเกอร์ผิด List — ต้องเป็น List **Feedback** และ "When an item is **created**" |
+| 4. รอบนั้น **Succeeded** | กดเข้าไปดูกล่องที่แดง แล้วส่งภาพมาให้ผู้ดูแลเว็บ |
+| 5. Succeeded แต่ `hasRecipient` ไป **False** | ชื่อค่าใน Settings ต้องสะกด `FeedbackRecipients` ตรงทุกตัว ไม่มีช่องว่างหัวท้าย |
+| 6. Succeeded และส่งเมลแล้ว แต่ไม่เจอ | ดูโฟลเดอร์ **Junk/Other** และ Quarantine ของ Microsoft 365 |
