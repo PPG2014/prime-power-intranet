@@ -183,7 +183,7 @@ export async function render(ctx) {
         ${form.FormNote ? `<div class="form-note-box">
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
-        ${isPR(form.FormCode) ? '' : `<section class="q-group q-sign">
+        ${`<section class="q-group q-sign">
           <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) ? ' <b class="req">*</b>' : ''}</h3>
           <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
             (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
@@ -297,7 +297,8 @@ async function downloadBlankForm(form, fields) {
       values,
       requester: { name: (me && me.Title) || state.user?.name || '', dept: (me && me.Department) || '', position: (me && me.Position) || '' },
       submitted: new Date().toISOString(),
-      sign: { requester: { name: (me && me.Title) || state.user?.name || '' } },
+      sign: { requester: { name: (me && me.Title) || state.user?.name || '',
+        sig: previewSignature('requester') || (editSign && editSign.url) || (me && me.SignatureUrl) || '' } },
     }), 'ดาวน์โหลดแบบฟอร์ม — ใบขอสั่งซื้อ');
   }
   const res = collectForm(fields);
@@ -411,7 +412,7 @@ export function mount(ctx) {
 
     try {
       // ลายเซ็นผู้ยื่น: เซ็นใหม่ → อัปโหลด · ไม่เซ็นใหม่ → ใช้ของเดิม/ลายเซ็นในทะเบียน
-      if (!isPR(form.FormCode)) {
+      {
         const url = await readSignature('requester', formFolder(form, 'ลายเซ็น'))
           || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
         if (url) {

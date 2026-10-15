@@ -388,7 +388,7 @@ async function openRequest(req) {
     const now = log.slice(lastRound + 1).filter((l) => l.step === n);
     const rejected = now.find((l) => l.action === 'ไม่อนุมัติ');
     const sentBack = now.find((l) => l.action === 'ส่งกลับแก้ไข');
-    const approved = now.filter((l) => l.action === 'อนุมัติ');
+    const approved = now.filter((l) => l.action === 'อนุมัติ' || l.action === 'ข้าม');
     const st = rejected ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
     return `<div class="tl-step tl-${st}">
       <div class="tl-dot"></div>
@@ -401,7 +401,7 @@ async function openRequest(req) {
           return isNaN(h) ? '' : `<div class="tl-waiting">⏳ รออยู่ ${
             h < 24 ? `${h.toFixed(1)} ชม.` : `${(h / 24).toFixed(1)} วัน`}</div>`;
         })() : ''}
-        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : 'ok'}">
+        ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>` : ''}</div>`).join('')}
@@ -501,7 +501,7 @@ function actionBox(req, role) {
       <label class="rq-note-label" for="rq-note">เหตุผล / ความเห็น
         <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
-      ${role.isLastStep ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) ? ' open' : ''}>
+      ${role.wantsSign ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) || isPR(req.FormCode) ? ' open' : ''}>
         <summary><b>✍ ลายเซ็นผู้อนุมัติ</b> <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span></summary>
         ${signaturePad('approver', '', true)}
       </details>` : ''}
@@ -509,6 +509,7 @@ function actionBox(req, role) {
       <div class="rq-buttons">
         <button class="btn-mini danger" id="rq-reject">✗ ไม่อนุมัติ</button>
         <button class="btn-mini warn" id="rq-sendback">↩ ส่งกลับแก้ไข</button>
+        ${role.canSkip ? '<button class="btn-mini" id="rq-skip" title="ลำดับนี้ไม่บังคับ — ข้ามไปลำดับถัดไปโดยไม่ลงนาม">⏭ ข้ามขั้นนี้</button>' : ''}
         ${role.isFinalStep
           ? '<button class="btn btn-primary" id="rq-finish">✓ อนุมัติ (แนบสลิปโอนเงิน)</button>'
           : '<button class="btn btn-primary" id="rq-approve">✓ อนุมัติ</button>'}
@@ -554,7 +555,7 @@ let pendingSlip = null;
 function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title: req.FormName }) {
   pendingSlip = null;
   const signFolder = formFolder(formRow, 'ลายเซ็น');
-  if (role.isLastStep) bindSignaturePads(signFolder);
+  if (role.wantsSign) bindSignaturePads(signFolder);
   const err = $('#rq-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
 
@@ -584,7 +585,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
     busy(true);
     try {
-      const sig = action === 'อนุมัติ' && role.isLastStep ? await readSignature('approver', signFolder) : '';
+      const sig = action === 'อนุมัติ' && role.wantsSign ? await readSignature('approver', signFolder) : '';
       await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip, sig });
       await done();
     } catch (e) {
@@ -597,6 +598,9 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
   const rj = $('#rq-reject'); if (rj) rj.onclick = () => run('ไม่อนุมัติ');
   const sb = $('#rq-sendback'); if (sb) sb.onclick = () => run('ส่งกลับแก้ไข');
+  const sk = $('#rq-skip'); if (sk) sk.onclick = () => {
+    if (confirm('ข้ามลำดับนี้ไปลำดับถัดไป โดยไม่ลงนามในช่องนี้?')) run('ข้าม');
+  };
   // ขั้นสุดท้าย (บัญชีการเงิน): กดอนุมัติ → หน้าต่างแนบสลิปเด้งขึ้น (เลือกไฟล์ / ลากวาง / Ctrl+V)
   const fn = $('#rq-finish'); if (fn) fn.onclick = async () => {
     err.hidden = true;
@@ -608,7 +612,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     const teams = await import('../services/teams-notify.js');
     const tokenP = teams.teamsToken().catch((e) => e);
     try {
-      const sig = role.isLastStep ? await readSignature('approver', signFolder) : '';
+      const sig = role.wantsSign ? await readSignature('approver', signFolder) : '';
       const msg = note();
       await decide(req, steps, { action: 'อนุมัติ', by: me, note: msg, sig, slip: pendingSlip, closeAfter: true });
       // แจ้งผู้ยื่นทาง Teams พร้อมรูปสลิป — ไม่สำเร็จก็ไม่กระทบการอนุมัติที่บันทึกแล้ว
@@ -649,7 +653,8 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
       requester: { name: reqName, dept: req.RequesterDept || who.Department || '', position: who.Position || '' },
       submitted: req.SubmittedDate,
       prNo: req.PRNo || '',
-      sign: { requester: { name: reqName, sig: who.SignatureUrl || '' }, ...mapSignatures(steps, log, sigOf) },
+      sign: { requester: { name: reqName, sig: (values._requesterSign && values._requesterSign.url) || who.SignatureUrl || '' },
+        ...mapSignatures(steps, log, sigOf) },
     });
     return openPRWindow(html, `ใบขอสั่งซื้อ — ${req.Title}`);
   }

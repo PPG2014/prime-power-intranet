@@ -12,9 +12,15 @@ import { EXEC_TYPES } from '../services/requests.js';
 export const MAX_STEPS = 5;
 const NAMED = 'ระบุชื่อเจาะจง';
 const PROJECT = 'ผู้รับผิดชอบหลักของโครงการ';
-const BASE_TYPES = [NAMED, 'ผู้บังคับบัญชาของผู้ยื่น', 'ผู้จัดการฝ่ายของผู้ยื่น', PROJECT];
-/** ขั้นที่ 1 ใช้ได้แค่ 4 แบบ · ขั้น 2 ขึ้นไปเลือกผู้บริหารตามตำแหน่งได้ด้วย */
+const DEPT_TYPES = ['ทุกคนในฝ่ายที่ระบุ', 'ผู้จัดการฝ่ายที่ระบุ'];
+const BASE_TYPES = [NAMED, 'ผู้บังคับบัญชาของผู้ยื่น', 'ผู้จัดการฝ่ายของผู้ยื่น', ...DEPT_TYPES,
+  PROJECT, 'ผู้จัดการโครงการ', 'ผู้อำนวยการโครงการ'];
+/** ขั้นที่ 1 ไม่มีผู้บริหารตามตำแหน่ง · ขั้น 2 ขึ้นไปเลือกผู้บริหารตามตำแหน่งได้ด้วย */
 const typesFor = (n) => (n === 1 ? BASE_TYPES : [...BASE_TYPES, ...EXEC_TYPES]);
+/** ประเภทที่รวมเพิ่มในลำดับเดียวกันได้ (ไม่รวมระบุชื่อเจาะจง) */
+const ALSO_TYPES = [...BASE_TYPES.filter((t) => t !== NAMED), ...EXEC_TYPES];
+const yes = (v) => v === true || /^(yes|true|1|ใช่)$/i.test(String(v ?? '').trim());
+const splitList = (v) => String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
 const TYPE_LABEL = { [PROJECT]: 'ผู้รับผิดชอบหลักโครงการ (อ้างอิงหน้าโครงการ)' };
 const MODES = ['คนใดคนหนึ่งอนุมัติก็ผ่าน', 'ต้องอนุมัติครบทุกคน'];
 
@@ -28,6 +34,7 @@ const isOff = (v) => v === false || /^(no|false|0|ไม่)$/i.test(String(v ??
 const names = (v) => (Array.isArray(v) ? v.map(plain) : String(v || '').split(',').map((x) => x.trim())).filter(Boolean);
 
 let staff = [];
+let depts = [];
 let existing = [];      // แถว ApprovalMatrix เดิมของฟอร์มนี้ (ทั้งเปิดและปิดใช้งาน)
 let steps = [];         // ค่าที่กำลังแก้ [{ StepName, ApproverType, Approvers[], ApproveMode }]
 
@@ -57,6 +64,17 @@ function stepHtml(s, i) {
             || '<span class="dim">ยังไม่ได้เลือกผู้อนุมัติ</span>'}</div>
           <input class="ar-q" list="ar-staff" placeholder="พิมพ์ชื่อเพื่อค้นหา แล้วเลือก (เลือกได้หลายคน)" autocomplete="off">
         </div>` : `<div class="ar-auto dim">${esc(hintFor(s.ApproverType))}</div>`}
+      ${[s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) ? `
+        <label class="ar-dept">ฝ่ายที่ระบุ
+          <select data-k="ApproverDept"><option value="">— เลือกฝ่าย —</option>${depts.map((d) =>
+            `<option ${d === s.ApproverDept ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>` : ''}
+      <details class="ar-also"${s.AlsoTypes.length ? ' open' : ''}>
+        <summary>ให้คนจากประเภทอื่นอนุมัติขั้นนี้ได้ด้วย${s.AlsoTypes.length ? ` (${s.AlsoTypes.length})` : ''}</summary>
+        <div class="ar-also-list">${ALSO_TYPES.filter((t) => t !== s.ApproverType).map((t) => `
+          <label><input type="checkbox" data-also value="${esc(t)}" ${s.AlsoTypes.includes(t) ? 'checked' : ''}> ${esc(TYPE_LABEL[t] || t)}</label>`).join('')}</div>
+      </details>
+      <label class="ar-opt"><input type="checkbox" data-opt ${s.Optional ? 'checked' : ''}>
+        ขั้นนี้ไม่บังคับ — ผู้อนุมัติกด "ข้ามขั้นนี้" ได้ · หาผู้อนุมัติไม่เจอ ระบบข้ามให้อัตโนมัติ</label>
     </div>
   </div>`;
 }
@@ -65,6 +83,10 @@ function hintFor(type) {
   if (type === 'ผู้บังคับบัญชาของผู้ยื่น') return 'ระบบใช้ผู้บังคับบัญชาของคนที่ยื่นคำขอ (ช่อง Manager ในทะเบียนบุคลากร)';
   if (type === 'ผู้จัดการฝ่ายของผู้ยื่น') return 'ระบบใช้ผู้จัดการฝ่ายของฝ่ายที่ผู้ยื่นสังกัด';
   if (type === PROJECT) return 'ระบบใช้ผู้รับผิดชอบหลักของโครงการที่เลือกในคำขอ (ตามหน้าโครงการ)';
+  if (type === 'ผู้จัดการโครงการ') return 'ระบบใช้คนในทีมโครงการที่เลือกในคำขอ ที่มีตำแหน่ง "ผู้จัดการโครงการ"';
+  if (type === 'ผู้อำนวยการโครงการ') return 'ระบบใช้คนในทีมโครงการที่เลือกในคำขอ ที่มีตำแหน่ง "ผู้อำนวยการโครงการ"';
+  if (type === 'ทุกคนในฝ่ายที่ระบุ') return 'ทุกคนในฝ่ายที่เลือกด้านล่าง อนุมัติได้';
+  if (type === 'ผู้จัดการฝ่ายที่ระบุ') return 'ผู้จัดการ/หัวหน้าของฝ่ายที่เลือกด้านล่าง';
   if (EXEC_TYPES.includes(type)) {
     const who = staff.filter((p) => p.IsActive !== false && plain(p.Position) === type).map((p) => plain(p.Title));
     return who.length ? `ปัจจุบันคือ ${who.join(', ')} (ดูจากตำแหน่งในทะเบียนบุคลากร)`
@@ -93,6 +115,9 @@ function read() {
   $$('#ar-box .ar-step').forEach((el) => {
     const s = steps[+el.dataset.step];
     $$('[data-k]', el).forEach((c) => { s[c.dataset.k] = c.value.trim(); });
+    if (el.querySelector('[data-also]')) s.AlsoTypes = $$('[data-also]', el).filter((c) => c.checked).map((c) => c.value);
+    const opt = el.querySelector('[data-opt]');
+    if (opt) s.Optional = opt.checked;
   });
 }
 
@@ -100,7 +125,8 @@ function bind() {
   $('#ar-count').onchange = (e) => {
     read();
     const n = +e.target.value;
-    while (steps.length < n) steps.push({ StepName: '', ApproverType: NAMED, Approvers: [], ApproveMode: MODES[0] });
+    while (steps.length < n) steps.push({ StepName: '', ApproverType: NAMED, Approvers: [], ApproveMode: MODES[0],
+      ApproverDept: '', AlsoTypes: [], Optional: false });
     steps.length = n;
     paint();
   };
@@ -108,6 +134,8 @@ function bind() {
     const i = +el.dataset.step;
     // เปลี่ยนประเภท → ล้างชื่อขั้นเดิม ให้ใช้ชื่อตามประเภทใหม่ (แก้เองได้อีกทีในช่องชื่อขั้น)
     el.querySelector('[data-k="ApproverType"]').onchange = () => { read(); steps[i].StepName = ''; paint(); };
+    // ติ๊กประเภทแบบ "ฝ่ายที่ระบุ" → วาดใหม่ให้ช่องเลือกฝ่ายโผล่
+    $$('[data-also]', el).forEach((c) => { c.onchange = () => { read(); paint(); }; });
     const q = el.querySelector('.ar-q');
     if (q) {
       const add = () => {
@@ -131,10 +159,11 @@ function bind() {
 
 /** โหลดเส้นทางเดิมของฟอร์ม แล้ววาดลงกล่อง (เรียกหลังเปิดหน้าต่าง) */
 export async function bindRouteEditor(formCode) {
-  const [dir, matrix] = await Promise.all([
-    list('directory').catch(() => []), list('approvalMatrix').catch(() => []),
+  const [dir, matrix, deptRows] = await Promise.all([
+    list('directory').catch(() => []), list('approvalMatrix').catch(() => []), list('departments').catch(() => []),
   ]);
   staff = dir;
+  depts = deptRows.filter((d) => d.IsActive !== false).map((d) => plain(d.Title)).filter(Boolean);
   const code = plain(formCode);
   existing = code ? matrix.filter((s) => codeOfRow(s) === code)
     .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0)) : [];
@@ -143,6 +172,9 @@ export async function bindRouteEditor(formCode) {
     ApproverType: plain(s.ApproverType) || NAMED,
     Approvers: names(s.Approvers),
     ApproveMode: MODES.includes(plain(s.ApproveMode)) ? plain(s.ApproveMode) : MODES[0],
+    ApproverDept: plain(s.ApproverDept),
+    AlsoTypes: splitList(s.AlsoTypes),
+    Optional: yes(s.Optional),
   }));
   paint();
 }
@@ -152,7 +184,9 @@ export function routeProblems() {
   if (!$('#ar-box')) return '';
   read();
   const bad = steps.map((s, i) => (s.ApproverType === NAMED && !s.Approvers.length ? i + 1 : 0)).filter(Boolean);
-  const msg = bad.length ? `ขั้นที่ ${bad.join(', ')} เลือก "ระบุชื่อเจาะจง" แต่ยังไม่ได้เลือกผู้อนุมัติ` : '';
+  const noDept = steps.map((s, i) => ([s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) && !s.ApproverDept ? i + 1 : 0)).filter(Boolean);
+  const msg = bad.length ? `ขั้นที่ ${bad.join(', ')} เลือก "ระบุชื่อเจาะจง" แต่ยังไม่ได้เลือกผู้อนุมัติ`
+    : noDept.length ? `ขั้นที่ ${noDept.join(', ')} ใช้ประเภท "ฝ่ายที่ระบุ" แต่ยังไม่ได้เลือกฝ่าย` : '';
   const err = $('#ar-err');
   if (err) { err.textContent = msg; err.hidden = !msg; if (msg) err.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   return msg;
@@ -175,6 +209,9 @@ export async function saveRoute(formCode) {
     ApproverType: s.ApproverType,
     ...(s.ApproverType === NAMED ? { Approvers: s.Approvers } : {}),
     ApproveMode: s.ApproveMode,
+    ApproverDept: s.ApproverDept || '',
+    AlsoTypes: s.AlsoTypes.join(', '),
+    Optional: !!s.Optional,
     SortOrder: i + 1,
     IsActive: true,
   }));

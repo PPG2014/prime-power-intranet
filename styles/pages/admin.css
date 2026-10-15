@@ -245,3 +245,11 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .mgr-hint { margin-top: 6px; font-size: 12.5px; color: var(--navy); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .mgr-hint:empty { display: none; }
 .check-list[hidden] { display: none !important; }   /* ช่องติ๊กจริงของ chips ซ่อนไว้ใช้บันทึกอย่างเดียว */
+/* เส้นทางอนุมัติ: ฝ่ายที่ระบุ / ประเภทเพิ่มเติม / ขั้นไม่บังคับ */
+.ar-dept { display: block; margin-top: 8px; font-size: 13px; }
+.ar-dept select { margin-left: 6px; max-width: 100%; }
+.ar-also { margin-top: 8px; font-size: 13px; }
+.ar-also summary { cursor: pointer; color: var(--blue); }
+.ar-also-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; margin-top: 6px; }
+.ar-also-list label, .ar-opt { display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
+.ar-opt { margin-top: 8px; color: var(--muted); }
