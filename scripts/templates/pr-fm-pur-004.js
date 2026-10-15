@@ -155,7 +155,9 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
  */
 export function mapSignatures(steps, log, sigOf) {
   const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
-  const acts = log.slice(lastRound + 1).filter((l) => l.action === 'อนุมัติ' || l.action === 'ปิดงาน');
+  // ฝ่ายจัดซื้อลงนามตอนอัปเดตสถานะครั้งแรก (บรรทัดที่มีลายเซ็น)
+  const acts = log.slice(lastRound + 1).filter((l) => l.action === 'อนุมัติ' || l.action === 'ปิดงาน'
+    || (l.action === 'อัปเดตสถานะ' && l.sig));
   const slotOf = (name) => {
     const n = String(name || '');
     if (/ทบทวน/.test(n)) return 'reviewer';
@@ -178,7 +180,8 @@ export function mapSignatures(steps, log, sigOf) {
   steps.forEach((st) => {
     const slot = slotFor.get(st);
     if (out[slot]) return;                         // ช่องละคนเดียว ใช้ลำดับแรกที่ตรง
-    const act = acts.filter((a) => a.step === +st.StepOrder).slice(-1)[0];
+    const mine = acts.filter((a) => a.step === +st.StepOrder);
+    const act = mine.filter((a) => a.action !== 'อัปเดตสถานะ').slice(-1)[0] || mine[0];
     // ลายเซ็นที่เซ็นตอนอนุมัติ (act.sig) มาก่อน ไม่มีค่อยใช้ลายเซ็นในทะเบียนบุคลากร
     if (act) out[slot] = { name: act.by, sig: act.sig || sigOf(act.by) };
   });

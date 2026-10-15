@@ -146,6 +146,20 @@ async function projectOfRequest(req) {
   return projects.find((p) => String(p.Title).trim() === name || String(p.ProjectCode || '').trim() === name) || null;
 }
 
+/**
+ * ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: แทนปุ่มอนุมัติ/ส่งกลับ/ไม่อนุมัติ ด้วยการอัปเดตสถานะงานจัดซื้อ
+ * เลือก "ส่งของแล้ว" = ปิดคำขอ
+ */
+export const PURCHASE_ACTION = 'อัปเดตสถานะ';
+export const PURCHASE_DONE = 'ส่งของแล้ว';
+export const PURCHASE_CANCEL = 'Cancel';
+export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
+/** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */
+export const purchaseStatusOf = (req) => {
+  const l = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION).slice(-1)[0];
+  return l ? String(l.note || '').split(' — ')[0].trim() : '';   // ตัดหมายเหตุที่ต่อท้ายออก
+};
+
 /** ลำดับนี้ขอรับแจ้งตั้งแต่มีคำขอเข้ามาไหม (เช่น ฝ่ายจัดซื้อ) */
 export const isNotifyEarly = (s) => !!s && (s.NotifyAtSubmit === true || s.NotifyAtSubmit === 'Yes' || s.NotifyAtSubmit === 'ใช่');
 
@@ -252,6 +266,9 @@ export function roleOnRequest(req, steps, userName) {
     wantsSign: canActNow && (cur === lastStep || signsEveryStep(req.FormCode)),
     // ลำดับไม่บังคับ — ผู้อนุมัติของลำดับนั้นกด "ข้าม" ได้
     canSkip: canActNow && isOptionalStep(steps.find((s) => +s.StepOrder === cur)),
+    // ใบขอสั่งซื้อ ลำดับฝ่ายจัดซื้อ (ชื่อขั้นมีคำว่า "จัดซื้อ" หรือเป็นลำดับสุดท้าย) → ใช้อัปเดตสถานะแทนอนุมัติ
+    isPurchasing: canActNow && signsEveryStep(req.FormCode)
+      && (/จัดซื้อ/.test(String((steps.find((s) => +s.StepOrder === cur) || {}).StepName || '')) || cur === lastStep),
   };
 }
 
@@ -364,7 +381,8 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   log.push({ step: cur, action, by, note, at: new Date().toISOString(), ...(sig ? { sig } : {}) });
 
   // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก)
-  const already = parseLog(req.ApprovalLog)
+  // อัปเดตสถานะจัดซื้อทำได้หลายครั้งในลำดับเดียวกัน (รับ PR → ออก PO → ส่งของ) ไม่นับว่าซ้ำ
+  const already = action !== PURCHASE_ACTION && parseLog(req.ApprovalLog)
     .some((l) => l.step === cur && String(l.by) === String(by) && l.action === action);
   if (already) {
     throw new AlreadyActedError(`คุณได้${action}คำขอนี้ในลำดับนี้ไปแล้ว ระบบจึงไม่บันทึกซ้ำ`);
@@ -372,7 +390,13 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
 
   const patch = { ApprovalLog: JSON.stringify(log) };
 
-  if (action === 'ไม่อนุมัติ') {
+  if (action === PURCHASE_ACTION) {
+    // ฝ่ายจัดซื้อ: บันทึกสถานะไว้ในประวัติ · "ส่งของแล้ว" = ปิดคำขอ
+    // "ส่งของแล้ว" = ปิดเป็นเสร็จสิ้น · "Cancel" = ปิดเป็นยกเลิก (note อาจมีหมายเหตุต่อท้ายด้วย " — ")
+    const st = String(note).split(' — ')[0].trim();
+    if (st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
+    if (st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
+  } else if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
     patch.PAState = 'DONE';
   } else if (action === 'ส่งกลับแก้ไข') {
