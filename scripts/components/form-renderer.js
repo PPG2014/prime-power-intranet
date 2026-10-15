@@ -9,6 +9,9 @@ import { list } from '../services/data.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
 
+/** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
+export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
+
 /** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
 let files = [];
 let currentValues = {};
@@ -193,6 +196,7 @@ function control(f, value) {
       return `<input id="${id}" list="${id}_opts" value="${esc(value)}" ${req}
                 placeholder="พิมพ์เพื่อค้นหา${esc(hint)}" autocomplete="off">
         <datalist id="${id}_opts">
+          ${src === 'projects' ? `<option value="${NO_PROJECT}">ใช้งานทั่วไป · ผู้บังคับบัญชาอนุมัติ</option>` : ''}
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}
         </datalist>`;
@@ -307,6 +311,11 @@ export function collectForm(fields) {
     const empty = Array.isArray(v) ? !v.length : !String(v ?? '').trim();
     if (isTrue(f.IsRequired) && empty && f.FieldType !== 'readonly') {
       errors.push(f.Title);
+    }
+    // ช่องโครงการ: ต้องเป็นชื่อจากทะเบียนโครงการ หรือ "ไม่เกี่ยวกับโครงการ" (พิมพ์เองไม่ได้ ระบบจะหาผู้อนุมัติไม่ถูก)
+    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty
+      && v !== NO_PROJECT && !(lookupData.projects || []).some((r) => String(r.Title).trim() === v)) {
+      errors.push(`${f.Title} (เลือกจากรายการ หรือเลือก "${NO_PROJECT}")`);
     }
     out[f.FieldKey] = v;
   }

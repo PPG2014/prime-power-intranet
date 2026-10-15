@@ -30,6 +30,15 @@ export async function resolveApprovers(step, req) {
     ...(await resolveRaw(step, req)),
     ...(await Promise.all(also.map((t) => resolveRaw({ ...step, ApproverType: t, Approvers: [] }, req)))).flat(),
   ])];
+  // ลำดับที่ใช้ผู้อนุมัติจากโครงการ (ผู้จัดการ/ผู้รับผิดชอบโครงการ): ถ้าไม่ได้เลือกโครงการ
+  // หรือผู้ยื่นไม่ได้อยู่ในทีมโครงการที่เลือก → ให้ผู้บังคับบัญชาของผู้ยื่นอนุมัติได้ด้วย (คนใดคนหนึ่ง)
+  if ([step.ApproverType, ...also].some((t) => PROJECT_APPROVER_TYPES.includes(t))) {
+    const proj = await projectOfRequest(req);
+    if (!proj || !(await inProjectTeam(proj, req))) {
+      const boss = await resolveRaw({ ApproverType: 'ผู้บังคับบัญชาของผู้ยื่น', Approvers: [] }, req);
+      boss.forEach((b) => { if (!names.includes(b)) names.unshift(b); });
+    }
+  }
   if (!names.length) return names;
   const dir = await list('directory').catch(() => []);
   const em = String(req.RequesterEmail || '').trim().toLowerCase();
@@ -134,7 +143,23 @@ async function resolveRaw(step, req) {
 
 const asList = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\n]/)).map((x) => x).filter(Boolean);
 
-/** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบคืน null */
+/** ประเภทผู้อนุมัติที่มาจากโครงการ (ไม่รวมผู้อำนวยการโครงการ ซึ่งเป็นขั้นไม่บังคับ) */
+const PROJECT_APPROVER_TYPES = ['ผู้จัดการโครงการ', 'ผู้รับผิดชอบหลักของโครงการ'];
+
+/** ผู้ยื่นอยู่ในทีมโครงการนี้ไหม (ผู้รับผิดชอบหลัก + ทีมงาน + ช่องโครงการในทะเบียนบุคลากร) */
+async function inProjectTeam(proj, req) {
+  const dir = await list('directory').catch(() => []);
+  const em = String(req.RequesterEmail || '').trim().toLowerCase();
+  const me = (em && dir.find((p) => String(p.Email || '').trim().toLowerCase() === em))
+    || dir.find((p) => String(p.Title).trim() === String(req.RequesterName || '').trim());
+  const name = String((me && me.Title) || req.RequesterName || '').trim();
+  const title = String(proj.Title || '').trim();
+  const team = [nameOf(proj.Owner), ...asList(proj.Team).map(nameOf)];
+  const mine = me ? asList(me.Project).map(nameOf) : [];
+  return (!!name && team.filter(Boolean).includes(name)) || (!!title && mine.includes(title));
+}
+
+/** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบ/ไม่เกี่ยวกับโครงการ คืน null */
 async function projectOfRequest(req) {
   let name = '';
   try {

@@ -104,3 +104,4 @@
   padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #f7faff;
 }
 .tpl-label { font-weight: 600; margin-right: auto; }
+.q-project-hint { margin-top: 4px; } .q-project-hint.warn { color: #b26a00; font-weight: 600; }
