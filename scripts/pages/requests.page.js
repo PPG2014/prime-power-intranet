@@ -410,7 +410,9 @@ async function openRequest(req) {
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : a.action === PURCHASE_ACTION ? 'buy' : 'ok'}">
           <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
-          ${a.note ? `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>` : ''}</div>`).join('')}
+          ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
+            ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">📦 สถานะจัดซื้อ</span>${esc(a.note)}</div>`
+            : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}</div>`).join('')}
       </div></div>`;
   }).join('');
 
