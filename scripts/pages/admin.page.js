@@ -78,6 +78,9 @@ export async function render(ctx) {
     loadError = err.message;
   }
 
+  // แบบฟอร์ม: สรุปเส้นทางอนุมัติจาก ApprovalMatrix มาแสดงเป็นคอลัมน์ "ผู้อนุมัติ" (ดูอย่างเดียว)
+  if (key === 'formCatalog' && !loadError) await attachRoutes(rows);
+
   // ชุดที่จัดกลุ่ม เก็บทุกแถวไว้ทำรายการกลุ่ม แล้วแสดงเฉพาะกลุ่มที่เลือก
   allRows = rows;
   let groupList = [];
@@ -186,6 +189,11 @@ export async function render(ctx) {
                   ? '<div class="off-tag" title="ปิดใช้งานอยู่ ไม่แสดงบนหน้าเว็บ">ซ่อนอยู่</div>' : ''}</td>` : ''}
               ${s.columns.map((c) => c === 'PhotoUrl'
                 ? `<td class="col-thumb">${r[c] ? `<img data-photo="${esc(r[c])}" alt="">` : '—'}</td>`
+                : c === '_route'
+                ? `<td data-col="${c}" class="col-route">${(r._steps || []).length
+                    ? `<ol class="route-mini">${r._steps.map((x) => `<li><b>${esc(x.name)}</b>${
+                        x.who && x.who !== x.name ? ` <span>${esc(x.who)}</span>` : ''}${x.opt ? ' <em>(ไม่บังคับ)</em>' : ''}</li>`).join('')}</ol>`
+                    : '<span class="dim">ไม่ต้องอนุมัติ</span>'}</td>`
                 : `<td data-col="${c}">${esc(
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
@@ -219,6 +227,35 @@ export async function render(ctx) {
       </div>
     </div>
   </section>`;
+}
+
+/**
+ * เติมสรุปเส้นทางอนุมัติให้แถวแบบฟอร์ม: r._steps = [{ name, who, opt }] · r._route = ข้อความไว้ค้นหา
+ * who = รายชื่อ (ระบุชื่อเจาะจง) หรือประเภทผู้อนุมัติ (+ ประเภทเพิ่มเติม / ฝ่ายที่ระบุ)
+ */
+async function attachRoutes(forms) {
+  const mx = await list('approvalMatrix').catch(() => []);
+  const plain = (v) => String((v && typeof v === 'object') ? (v.LookupValue ?? v.Value ?? v.Title ?? '') : (v ?? '')).trim();
+  const codeOf = (x) => plain(x.FormCode !== undefined ? x.FormCode
+    : x[Object.keys(x).find((k) => /^FormCode\d*$/i.test(k))]);
+  const off = (v) => v === false || /^(no|false|0|ไม่)$/i.test(String(v ?? '').trim());
+  const yes = (v) => v === true || /^(yes|true|1|ใช่)$/i.test(String(v ?? '').trim());
+  const names = (v) => (Array.isArray(v) ? v.map(plain) : String(v || '').split(',').map((x) => x.trim())).filter(Boolean);
+  forms.forEach((f) => {
+    const code = plain(f.FormCode);
+    const steps = mx.filter((x) => codeOf(x) === code && !off(x.IsActive))
+      .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0));
+    f._steps = steps.map((x) => {
+      const type = plain(x.ApproverType) || 'ระบุชื่อเจาะจง';
+      const dept = plain(x.ApproverDept);
+      const also = String(x.AlsoTypes || '').split(',').map((t) => t.trim()).filter(Boolean);
+      const who = type === 'ระบุชื่อเจาะจง'
+        ? names(x.Approvers).join(', ')
+        : [type + (dept && /ฝ่ายที่ระบุ/.test(type) ? ` (${dept})` : ''), ...also].join(' / ');
+      return { name: plain(x.StepName) || type, who, opt: yes(x.Optional) };
+    });
+    f._route = f._steps.map((x) => `${x.name} ${x.who}`).join(' · ');
+  });
 }
 
 /** ผูกปุ่มนำเข้า CSV และปุ่มดาวน์โหลดไฟล์ตัวอย่าง ในหน้าต่างเพิ่มรายการ */

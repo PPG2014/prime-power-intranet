@@ -170,9 +170,9 @@ export const SCHEMA = {
     title: 'แบบฟอร์ม', icon: '📋', list: 'formCatalog', spName: 'FormCatalog', sortField: 'SortOrder',
     search: true, facets: ['Department', 'Badge'],
     unique: ['Title', 'FormCode'],
-    columns: ['Icon', 'FormCode', 'Title', 'Department', 'Badge'],
+    columns: ['Icon', 'FormCode', 'Title', 'Department', '_route', 'Badge'],
     labels: { Icon: 'ไอคอน', FormCode: 'รหัส', Title: 'ชื่อแบบฟอร์ม',
-              Department: 'ฝ่าย', Badge: 'ป้ายกำกับ' },
+              Department: 'ฝ่าย', _route: 'ผู้อนุมัติ (ตามลำดับ)', Badge: 'ป้ายกำกับ' },
     fields: [
       { key: 'Title', label: 'ชื่อแบบฟอร์ม', type: 'text', required: true },
       { key: 'FormCode', label: 'รหัสฟอร์มภายในระบบ', type: 'text', required: true,
