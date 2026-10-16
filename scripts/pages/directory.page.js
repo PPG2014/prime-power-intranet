@@ -110,21 +110,6 @@ const card = (p, cls = '') => `
     </div>
   </article>`;
 
-/** การ์ดย่อ ใช้กับชั้นที่มีหลายคนในแถวเดียว เช่นผู้จัดการแผนก 5 คน */
-const miniCard = (p) => `
-  <article class="mini-card is-clickable" data-person="${p.id}"
-           role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
-    <div class="mini-photo">${p.PhotoUrl
-      ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
-      : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
-    <div class="mini-name">${esc(p.Title)}</div>
-    ${p.Nickname ? `<div class="mini-nick">(${esc(p.Nickname)})</div>` : ''}
-    <div class="mini-pos">${esc(p.Section || p.Position)}</div>
-    <div class="mini-foot">
-      <span>ต่อ ${p.Extension ? esc(p.Extension) : '—'}</span>
-      ${p.Email ? `<a href="mailto:${esc(p.Email)}" title="${esc(p.Email)}">✉</a>` : ''}
-    </div>
-  </article>`;
 
 /**
  * วาดผังของหนึ่งฝ่าย
@@ -140,10 +125,10 @@ function orgChart(people, secOrderList = [], groupKey = 'Section') {
   const rows = tiers
     .map((group, i) => {
       if (!group.length) return '';
-      // สามคนขึ้นไปในชั้นเดียวกัน ใช้การ์ดย่อเพื่อให้อยู่แถวเดียวได้
-      const mini = group.length >= 3;
-      return `<div class="org-tier tier-${i + 1}${mini ? ' is-mini' : ''}">
-        ${group.map((p) => (mini ? miniCard(p) : card(p, 'is-lead'))).join('')}</div>`;
+      // สามคนขึ้นไปในชั้นเดียวกัน เรียงเป็นตารางการ์ดขนาดเท่าการ์ดบุคลากรทั่วไป (ไม่ใช้การ์ดย่อแล้ว)
+      const multi = group.length >= 3;
+      return `<div class="org-tier tier-${i + 1}${multi ? ' is-multi' : ''}">
+        ${group.map((p) => card(p, 'is-lead')).join('')}</div>`;
     })
     .filter(Boolean)
     .join('<div class="org-link" aria-hidden="true"></div>');

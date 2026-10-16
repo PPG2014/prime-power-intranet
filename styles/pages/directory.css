@@ -207,3 +207,8 @@
 .office-chips .chip b { font-size: 12px; opacity: .7; margin-left: 2px; }
 .office-tag { display: inline-block; margin-top: 6px; font-size: 12px; color: #1e7f4f; background: #e9f7ef;
   border-radius: 999px; padding: 1px 10px; }
+
+/* ชั้นที่มี 3 คนขึ้นไป: ตารางการ์ดเต็มขนาด เท่ากับการ์ดบุคลากรด้านล่าง */
+.org-tier.is-multi { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--gap-sm); width: 100%; }
+.org-tier.is-multi .staff-card { width: auto; }
