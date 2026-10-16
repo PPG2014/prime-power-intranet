@@ -104,6 +104,7 @@ export async function render(ctx) {
   me = (mePerson && mePerson.Title) || state.user?.name || '';
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
+  const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
   // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด" (ดึงทั้ง List)
@@ -149,7 +150,7 @@ export async function render(ctx) {
 
   // คำขอที่ผู้ใช้เกี่ยวข้องในฐานะผู้อนุมัติ (แอดมินเห็นทุกใบ)
   const toReview = allRequests.filter((r) => {
-    if (isAdmin) return true;
+    if (seeAll) return true;
     const role = roleOnRequest(r, r._steps || [], meIds);
     return role.isInvolved;
   });
@@ -169,7 +170,7 @@ export async function render(ctx) {
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
-  const solo = !isAdmin && !toReview.length;
+  const solo = !seeAll && !toReview.length;
 
   const actableCount = toReview.filter((r) =>
     roleOnRequest(r, r._steps || [], meIds).canActNow).length;
@@ -182,7 +183,7 @@ export async function render(ctx) {
       <div class="rq-layout${solo ? ' solo' : ''}">
         ${solo ? '' : `<main class="rq-review">
           <div class="rq-head-row">
-            <h2>${isAdmin ? 'คำขอทั้งหมด' : 'คำขอที่ต้องดำเนินการ'}</h2>
+            <h2>${seeAll ? 'คำขอทั้งหมด' : 'คำขอที่ต้องดำเนินการ'}</h2>
             ${actableCount ? `<span class="rq-badge">${actableCount} รายการถึงคิวคุณ</span>` : ''}
           </div>
 
@@ -201,7 +202,7 @@ export async function render(ctx) {
               })).join('')}
             </div>`
           : `<div class="panel"><div class="empty">
-              ${isAdmin ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
+              ${seeAll ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
             </div></div>`}
         </main>`}
 
@@ -440,7 +441,9 @@ async function openRequest(req) {
         ${req.PaymentSlip ? renderSlip(req.PaymentSlip) : ''}
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
-          ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>' : ''}
+          ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>'
+          : (state.isViewer && !state.isAdmin && !role.isInvolved && req.Status === 'รออนุมัติ'
+            ? '<div class="rq-wait">👁 ดูได้อย่างเดียว (ผู้บริหาร) · คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>' : '')}
 
         ${requesterActions(req, log)}
         ${state.isAdmin && req.Status === 'รออนุมัติ' ? `<div class="rq-owner-act">
@@ -885,7 +888,7 @@ export function mount(ctx) {
     if (r) openRequest(r);
     else get('requests', deep).then((x) => {
       if (!x) return;
-      const mineOk = state.isAdmin || String(x.RequesterEmail || '').toLowerCase() === String(state.user?.email || '').toLowerCase();
+      const mineOk = state.isAdmin || state.isViewer || String(x.RequesterEmail || '').toLowerCase() === String(state.user?.email || '').toLowerCase();
       if (mineOk) openRequest({ ...x, FormCode: formCodeOf(x) });
     }).catch(() => {});
   } else if (!deep) deepOpened = '';

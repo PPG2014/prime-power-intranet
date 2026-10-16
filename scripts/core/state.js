@@ -6,7 +6,8 @@ export const state = {
   params: {},
   user: null,        // { name, email, isAdmin }
   isAdmin: false,
-  isHR: false,       // ฝ่ายบุคคล (รวมผู้ดูแลระบบ) — Settings → HR
+  isHR: false,
+  isViewer: false,   // ผู้บริหาร — ดูคำขอได้ทุกใบ (Settings → RequestViewers)       // ฝ่ายบุคคล (รวมผู้ดูแลระบบ) — Settings → HR
   overlay: null,     // { type:'form'|'reader'|'popup', ... }
 };
 

@@ -13,6 +13,12 @@ import { settings, settingsFailed } from './settings.js';
 export const ADMIN_KEY = 'Admins';
 /** ฝ่ายบุคคล: ทำงานระบบประเมินได้ทั้งหมด แต่ไม่เห็นข้อมูลชุดอื่นในหน้าจัดการข้อมูล */
 export const HR_KEY = 'HR';
+/**
+ * ผู้บริหาร: ดูคำขอได้ทุกใบ ทุกสถานะ ในหน้าติดตามสถานะ (ดูอย่างเดียว · อนุมัติได้เฉพาะใบที่มีชื่อในเส้นทาง)
+ * ตั้งค่าใน Settings คีย์ RequestViewers (อีเมลคั่นด้วยจุลภาค) · ยังไม่ตั้ง ใช้รายชื่อเริ่มต้นด้านล่าง
+ */
+export const VIEWER_KEY = 'RequestViewers';
+const DEFAULT_VIEWERS = 'pairach.kh@primepower.co.th, arthid.ko@primepower.co.th, khanthida.sa@primepower.co.th';
 
 const emails = (raw) => String(raw || '').toLowerCase()
   .split(',').map((x) => x.trim()).filter(Boolean);
@@ -22,13 +28,14 @@ export async function resolveAdmin(email) {
   const raw = cfg[ADMIN_KEY];
 
   // อ่านตั้งค่าไม่ได้ (เน็ตสะดุด/ไม่มีสิทธิ์) → ไม่มีใครเป็นผู้ดูแล ปิดไว้ก่อนเพื่อความปลอดภัย
-  if (settingsFailed()) return { isAdmin: false, isHR: false, unconfigured: false };
+  if (settingsFailed()) return { isAdmin: false, isHR: false, isViewer: false, unconfigured: false };
 
   if (raw === undefined) {
-    return { isAdmin: true, isHR: true, unconfigured: true };
+    return { isAdmin: true, isHR: true, isViewer: true, unconfigured: true };
   }
 
   const me = String(email || '').toLowerCase();
   const isAdmin = emails(raw).includes(me);
-  return { isAdmin, isHR: isAdmin || emails(cfg[HR_KEY]).includes(me), unconfigured: false };
+  const isViewer = isAdmin || emails(cfg[VIEWER_KEY] ?? DEFAULT_VIEWERS).includes(me);
+  return { isAdmin, isHR: isAdmin || emails(cfg[HR_KEY]).includes(me), isViewer, unconfigured: false };
 }

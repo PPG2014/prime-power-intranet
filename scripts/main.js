@@ -37,10 +37,10 @@ async function enter(user) {
 
   // โหมดข้อมูลตัวอย่างให้เป็นผู้ดูแลเสมอ จะได้ทดสอบหน้าจัดการข้อมูลได้
   const role = CONFIG.dataSource === 'mock'
-    ? { isAdmin: true, isHR: true, unconfigured: false }
+    ? { isAdmin: true, isHR: true, isViewer: true, unconfigured: false }
     : await resolveAdmin(user.email);
 
-  setState({ user, isAdmin: role.isAdmin, isHR: role.isHR, adminUnconfigured: role.unconfigured }, { silent: true });
+  setState({ user, isAdmin: role.isAdmin, isHR: role.isHR, isViewer: role.isViewer, adminUnconfigured: role.unconfigured }, { silent: true });
 
   $('#topbar-actions').innerHTML = `
     ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}
