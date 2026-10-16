@@ -44,7 +44,10 @@ async function client() {
     cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
   });
   await msal.initialize();
-  await msal.handleRedirectPromise();   // รับผลกลับมาหลังเด้งไปล็อกอิน
+  // รับผลกลับมาหลังเด้งไปล็อกอิน · บัญชีที่เพิ่งล็อกอิน = บัญชีที่ใช้งาน
+  // (เดิมหยิบบัญชีแรกในแคช ถ้าเครื่องเคยล็อกอินหลายบัญชี ชื่อในบันทึกการใช้งานอาจเป็นอีกคน)
+  const back = await msal.handleRedirectPromise();
+  if (back && back.account) msal.setActiveAccount(back.account);
   return msal;
 }
 
@@ -66,7 +69,9 @@ export async function currentUser() {
   const found = app.getAllAccounts();
   if (!found.length) return null;
 
-  account = found[0];
+  // มีหลายบัญชีค้างในเบราว์เซอร์และไม่รู้ว่าใครเป็นคนล็อกอินล่าสุด → ให้เลือกบัญชีใหม่ ไม่เดาเอาบัญชีแรก
+  account = app.getActiveAccount() || (found.length === 1 ? found[0] : null);
+  if (!account) return null;
   app.setActiveAccount(account);
 
   const email = (account.username || '').toLowerCase();
