@@ -41,6 +41,7 @@
   font: inherit; font-size: 15px; background: var(--surface); }
 .sr-hint, .sr-count { color: var(--muted); font-size: 13.5px; margin-bottom: 12px; }
 .sr-group { margin-bottom: var(--gap); }
+.sr-group .panel-head h2 { margin: 0; color: #fff; font-size: 15px; font-weight: 600; }
 .sr-list { list-style: none; margin: 0; padding: 4px 16px 10px; }
 .sr-list li { padding: 9px 0; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 2px; }
 .sr-list li:last-child { border-bottom: 0; }
