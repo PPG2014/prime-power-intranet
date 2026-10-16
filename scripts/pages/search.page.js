@@ -58,10 +58,10 @@ export async function render() {
           p.Owner, toArray(p.Team).join(' '))).map((p) => ({
         html: `<a href="#/projects">${esc(p.Title)}</a>`,
         sub: [p.ProjectCode, p.Status, p.Owner && `ผู้รับผิดชอบ ${p.Owner}`].filter(Boolean).join(' · ') })) },
-      { title: '📨 คำขอ', rows: reqs.filter((r) => (state.isAdmin || norm(r.RequesterEmail) === me)
+      { title: '📨 คำขอ', rows: reqs.filter((r) => (state.isAdmin || state.isViewer || norm(r.RequesterEmail) === me)
           && hit(q, r.Title, r.FormName, formCodeOf(r), r.RequesterName, r.Status)).map((r) => ({
         html: `<a href="#/requests/${esc(r.id)}">${esc(r.Title)}</a>`,
-        sub: [r.FormName, r.Status, state.isAdmin && r.RequesterName].filter(Boolean).join(' · ') })) },
+        sub: [r.FormName, r.Status, (state.isAdmin || state.isViewer) && r.RequesterName].filter(Boolean).join(' · ') })) },
     ].filter((g) => g.rows.length);
 
     const total = groups.reduce((n, g) => n + g.rows.length, 0);
