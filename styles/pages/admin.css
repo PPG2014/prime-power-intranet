@@ -253,3 +253,10 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .ar-also-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; margin-top: 6px; }
 .ar-also-list label, .ar-opt { display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
 .ar-opt { margin-top: 8px; color: var(--muted); }
+/* แบบฟอร์ม: คอลัมน์ผู้อนุมัติ (สรุปเส้นทาง) */
+.col-route { min-width: 260px; max-width: 420px; }
+.route-mini { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }
+.route-mini b { font-weight: 600; color: var(--navy); }
+.route-mini span { color: var(--muted); }
+.route-mini em { font-style: normal; color: var(--warn, #b26a00); font-size: 11.5px; }
+td[data-col="Badge"] { white-space: nowrap; }

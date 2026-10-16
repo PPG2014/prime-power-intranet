@@ -226,7 +226,17 @@ export async function bindCycleGrid(record = {}) {
   let t = 0;
   const later = () => { clearTimeout(t); t = setTimeout(() => paint(title), 0); };
   const box = $('#f_Members');
-  if (box) { box.addEventListener('change', later); box.addEventListener('click', later); }
+  // ติ๊กเลือกรายชื่อแล้ว = ประเมินเฉพาะคนที่เลือก → เปลี่ยนช่อง "ผู้ถูกประเมิน" ให้เอง
+  // (เดิมยังเป็น "บุคลากรทุกคน" ตารางด้านล่างจึงขึ้นทุกคนทั้งที่เลือกรายชื่อแล้ว)
+  const toPicked = () => {
+    const scope = $('#f_Scope');
+    if (scope && scope.value !== 'เฉพาะรายชื่อที่ระบุ' && $$('#f_Members input:checked').length) {
+      scope.value = 'เฉพาะรายชื่อที่ระบุ';
+      scope.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    later();
+  };
+  if (box) { box.addEventListener('change', toPicked); box.addEventListener('click', toPicked); }
 
   // เปลี่ยนครั้งที่หรือวันที่ประเมินครั้งนี้ → ใส่วันนั้นลงช่องของครั้งนี้ให้ทุกคน
   let prev = current();
