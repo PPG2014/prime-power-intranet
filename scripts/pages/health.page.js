@@ -76,6 +76,8 @@ async function runChecks() {
   active.forEach((f) => {
     const code = clean(f.FormCode);
     const steps = matrix.filter((m) => clean(m.FormCode) === code);
+    // ฟอร์มที่เป็นลิงก์ไประบบภายนอก (เช่น PPG e-Service) ไม่ได้ยื่นผ่านเว็บนี้ ไม่ต้องมีเส้นทางอนุมัติ
+    if (!steps.length && clean(f.ExternalUrl)) return;
     if (!steps.length) {
       add('stop', 'เส้นทางอนุมัติ', `ฟอร์ม ${code} ยังไม่มีเส้นทางอนุมัติ`,
         clean(f.Title), 'ยื่นแล้วจะไม่มีใครได้รับคำขอ');
