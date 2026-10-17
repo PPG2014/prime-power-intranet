@@ -37,8 +37,8 @@ const withOther = (main, other) => {
  * @param {object} p
  *   values     คำตอบในฟอร์ม (FormData)
  *   requester  { name, dept, position }
- *   submitted  วันที่ส่งคำร้อง (ใช้เป็นวันที่ออก PR)
- *   prNo       เลขที่ PR (ฝ่ายจัดซื้อกรอก เว้นว่างได้)
+ *   submitted  วันที่ส่งคำร้อง (ไม่ใช้บนฟอร์มแล้ว — วันที่ออก PR มาจาก values.pr_date)
+ *   prNo       เลขที่ PR (ฝ่ายจัดซื้อกรอก เว้นว่างได้ · ปกติอ่านจาก values.pr_no)
  *   sign       { approver, reviewer, director, purchasing } แต่ละช่อง { name, sig }
  */
 export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '', sign = {} }) {
@@ -55,7 +55,7 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
   ];
   const right = [
     ['PR No.', clean(prNo || values.pr_no)],
-    ['วันที่ออก PR', thaiNumDate(submitted)],
+    ['วันที่ออก PR', thaiNumDate(values.pr_date)],   // ฝ่ายจัดซื้อกรอกพร้อมเลข PR
     ['ฝ่าย', clean(requester.dept)],
     ['ผู้ขอ', clean(requester.name)],
     ['เบอร์ติดต่อ', clean(values.phone)],
@@ -144,7 +144,8 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
     </div>`;
   };
 
-  return `<div class="pr-doc">${Array.from({ length: pages }, (_, p) => page(p)).join('')}</div>`;
+  // lang="en": ฟอนต์ TH Sarabun จะเปลี่ยนเลขเป็นเลขไทยเองเมื่อหน้าเป็นภาษาไทย (OpenType locl) — ฟอร์มนี้ใช้เลขอารบิก
+  return `<div class="pr-doc" lang="en">${Array.from({ length: pages }, (_, p) => page(p)).join('')}</div>`;
 }
 
 /**

@@ -377,6 +377,13 @@
 .rq-wait-flag { font-size: 11.5px; color: var(--muted); background: var(--canvas); border: 1px solid var(--line); border-radius: 20px; padding: 1px 8px; }
 /* ฝ่ายจัดซื้อ: อัปเดตสถานะแทนอนุมัติ */
 .rq-pselect { width: 100%; max-width: 320px; padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; margin-bottom: 10px; }
+.rq-prno { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; max-width: 560px; margin-bottom: 4px; }
+.rq-prno input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; background: #fff; margin-bottom: 10px; }
+.rq-prno input:focus { outline: 2px solid #9ecbf0; outline-offset: 0; }
+.rq-purchase .field-error { white-space: pre-line; }
+.rq-prline { margin: 6px 0 0; font-size: 13.5px; }
+.rq-prline b { color: var(--navy); }
+@media (max-width: 560px) { .rq-prno { grid-template-columns: 1fr; gap: 0; } }
 .rq-pstatus { font-size: 12px; font-weight: 600; color: #6b4e00; background: #fff4d6; border-radius: 20px; padding: 1px 9px; }
 .rq-purchase .rq-buttons { align-items: center; justify-content: space-between; }
 .tl-act.buy { color: #6b4e00; }
