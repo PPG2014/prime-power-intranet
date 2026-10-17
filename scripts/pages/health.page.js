@@ -52,7 +52,9 @@ async function runChecks() {
       noEmail.slice(0, 8).map((p) => clean(p.Title)).join(', ') + (noEmail.length > 8 ? ' …' : ''),
       'คนที่ไม่มีอีเมลจะไม่ได้รับการ์ดอนุมัติทาง Teams/อีเมล');
   }
-  const noMgr = dir.filter((p) => p.IsActive !== false && !clean(p.Manager));
+  // ผู้บริหารสูงสุด (ประธาน/กรรมการบริษัท) ไม่มีผู้บังคับบัญชาเป็นเรื่องปกติ ไม่ต้องเตือน
+  const isTop = (p) => clean(p.Level) === 'ผู้บริหาร' || /ประธาน|กรรมการ/.test(clean(p.Position));
+  const noMgr = dir.filter((p) => p.IsActive !== false && !clean(p.Manager) && !isTop(p));
   if (noMgr.length) {
     add('warn', 'บุคลากร', `ไม่ได้กำหนดผู้บังคับบัญชา ${noMgr.length} คน`,
       noMgr.slice(0, 8).map((p) => clean(p.Title)).join(', ') + (noMgr.length > 8 ? ' …' : ''),
