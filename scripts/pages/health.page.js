@@ -52,7 +52,9 @@ async function runChecks() {
       noEmail.slice(0, 8).map((p) => clean(p.Title)).join(', ') + (noEmail.length > 8 ? ' …' : ''),
       'คนที่ไม่มีอีเมลจะไม่ได้รับการ์ดอนุมัติทาง Teams/อีเมล');
   }
-  const noMgr = dir.filter((p) => p.IsActive !== false && !clean(p.Manager));
+  // ผู้บริหารสูงสุด (ประธาน/กรรมการบริษัท) ไม่มีผู้บังคับบัญชาเป็นเรื่องปกติ ไม่ต้องเตือน
+  const isTop = (p) => clean(p.Level) === 'ผู้บริหาร' || /ประธาน|กรรมการ/.test(clean(p.Position));
+  const noMgr = dir.filter((p) => p.IsActive !== false && !clean(p.Manager) && !isTop(p));
   if (noMgr.length) {
     add('warn', 'บุคลากร', `ไม่ได้กำหนดผู้บังคับบัญชา ${noMgr.length} คน`,
       noMgr.slice(0, 8).map((p) => clean(p.Title)).join(', ') + (noMgr.length > 8 ? ' …' : ''),
@@ -76,6 +78,8 @@ async function runChecks() {
   active.forEach((f) => {
     const code = clean(f.FormCode);
     const steps = matrix.filter((m) => clean(m.FormCode) === code);
+    // ฟอร์มที่เป็นลิงก์ไประบบภายนอก (เช่น PPG e-Service) ไม่ได้ยื่นผ่านเว็บนี้ ไม่ต้องมีเส้นทางอนุมัติ
+    if (!steps.length && clean(f.ExternalUrl)) return;
     if (!steps.length) {
       add('stop', 'เส้นทางอนุมัติ', `ฟอร์ม ${code} ยังไม่มีเส้นทางอนุมัติ`,
         clean(f.Title), 'ยื่นแล้วจะไม่มีใครได้รับคำขอ');
