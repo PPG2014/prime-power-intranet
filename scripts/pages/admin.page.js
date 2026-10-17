@@ -101,6 +101,8 @@ export async function render(ctx) {
       ${state.isAdmin ? `<div class="admin-quick">
         <a class="btn-mini" href="#/health">🩺 ตรวจสุขภาพระบบ</a>
         <span class="dim">ตรวจว่าข้อมูลตั้งต้นครบไหม เช่น อีเมล ผู้บังคับบัญชา เส้นทางอนุมัติ คอลัมน์ใน SharePoint</span>
+        <a class="btn-mini" href="#/access">🔐 ตรวจสิทธิ์เข้าถึงเว็บ</a>
+        <span class="dim">ใครมีสิทธิ์ใน SharePoint บ้าง · หาคนลาออก คนนอก หรือคนที่ไม่อยู่ในทะเบียน</span>
       </div>` : ''}
       ${state.adminUnconfigured ? `<div class="mock-warning">
         <b>⚠ ยังไม่ได้กำหนดว่าใครเป็นผู้ดูแลระบบ</b>

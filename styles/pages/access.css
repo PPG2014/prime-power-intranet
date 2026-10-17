@@ -1,0 +1,25 @@
+/* ตรวจสิทธิ์เข้าถึงเว็บ (ใช้การ์ดสรุปร่วมกับ health.css) */
+.ac-nav { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0 4px; flex-wrap: wrap; }
+.ac-h2 { font-size: 18px; margin: 22px 0 10px; }
+.ac-tools { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 10px; }
+.ac-tools input { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; min-width: 240px; }
+.ac-scroll { overflow-x: auto; }
+.ac-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 860px; }
+.ac-table th { background: #eef3f9; color: var(--navy); text-align: left; padding: 9px 10px; font-weight: 600; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ac-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.ac-table tr.ac-stop td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+.ac-table tr.ac-warn td:first-child { box-shadow: inset 3px 0 0 #d69e2e; }
+.ac-mail { white-space: nowrap; }
+.ac-sub { display: block; font-size: 12px; color: var(--muted); }
+.ac-scope { font-size: 11.5px; padding: 1px 6px; border-radius: 999px; background: #fef6e7; color: #8a5a00; white-space: nowrap; }
+.ac-st { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; }
+.ac-st-ok { background: #eaf7ef; color: #17733d; }
+.ac-st-info { background: #eef2f7; color: #4a5a6d; }
+.ac-st-warn { background: #fef6e7; color: #8a5a00; }
+.ac-st-stop { background: #fdf3f2; color: var(--danger); font-weight: 600; }
+.ac-help { padding: 18px 20px; margin-top: 12px; }
+.ac-help h3 { margin-bottom: 8px; }
+.ac-help ol { margin: 8px 0 10px 20px; display: grid; gap: 8px; }
+.ac-help code { background: #eef2f7; padding: 1px 6px; border-radius: 4px; font-size: .92em; }
+.ac-err { background: #fdf3f2; border: 1px solid #f0c9c5; color: var(--danger); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+@media (max-width: 640px) { .ac-tools input { min-width: 0; width: 100%; } }
