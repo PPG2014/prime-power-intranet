@@ -16,9 +16,26 @@
   size-adjust: 53%;
 }
 
+/* ตัวเลข 0-9 ใช้ Sarabun ที่ฝังมากับเว็บเสมอ — TH SarabunPSK บางรุ่นในเครื่อง (และ TH SarabunIT๙)
+   วาดเลขอารบิกเป็นเลขไทยไว้ในตัวฟอนต์ ตั้งภาษาหรือ font-feature แก้ไม่ได้ · ฟอร์มนี้ต้องเป็นเลขอารบิก */
+@font-face {
+  font-family: 'PR Digits';
+  src: url('../../assets/fonts/Sarabun-Regular.ttf') format('truetype');
+  font-weight: 400;
+  size-adjust: 53%;
+  unicode-range: U+0030-0039;
+}
+@font-face {
+  font-family: 'PR Digits';
+  src: url('../../assets/fonts/Sarabun-Bold.ttf') format('truetype');
+  font-weight: 700;
+  size-adjust: 53%;
+  unicode-range: U+0030-0039;
+}
+
 .pr-doc {
-  font-family: 'TH SarabunPSK', 'TH Sarabun PSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif;
-  font-feature-settings: 'locl' 0;   /* เลขอารบิกเสมอ ไม่ให้ฟอนต์แปลงเป็นเลขไทย */
+  font-family: 'PR Digits', 'TH SarabunPSK', 'TH Sarabun PSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif;
+  font-feature-settings: 'locl' 0;
   color: #000;
   background: #e9edf2;
   padding: 8mm 0;
