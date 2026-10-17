@@ -18,6 +18,7 @@
 
 .pr-doc {
   font-family: 'TH SarabunPSK', 'TH Sarabun PSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif;
+  font-feature-settings: 'locl' 0;   /* เลขอารบิกเสมอ ไม่ให้ฟอนต์แปลงเป็นเลขไทย */
   color: #000;
   background: #e9edf2;
   padding: 8mm 0;
@@ -51,7 +52,7 @@
 .pr-left  { left: 16.6mm; width: 99.1mm; }
 .pr-left th  { width: 29.4mm; }
 .pr-right { left: 134.5mm; width: 60.1mm; }
-.pr-right th { width: 19mm; }
+.pr-right th { width: 22.5mm; font-size: 13.5pt; letter-spacing: -0.1pt; }
 .pr-right tr.first th, .pr-right tr.first td { border-bottom: 0.3mm solid #000; }
 
 /* ตารางรายการ 20 แถว */

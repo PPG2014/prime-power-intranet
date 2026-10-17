@@ -6,7 +6,8 @@ import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
   PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
-import { isPR, renderPR, mapSignatures, openPRWindow } from '../templates/pr-fm-pur-004.js';
+import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
+import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
@@ -87,6 +88,7 @@ function requestRow(req, opts = {}) {
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
         ${purchaseStatusOf(req) ? `<span class="rq-pstatus">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
+        ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
@@ -178,7 +180,10 @@ export async function render(ctx) {
   return `
   <section class="page page-requests">
     <div class="wrap">
-      <h1 class="page-title">${esc(meta.title)}</h1>
+      <div class="rq-title-row">
+        <h1 class="page-title">${esc(meta.title)}</h1>
+        <a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>
+      </div>
 
       <div class="rq-layout${solo ? ' solo' : ''}">
         ${solo ? '' : `<main class="rq-review">
@@ -425,6 +430,8 @@ async function openRequest(req) {
         <div class="rq-detail-head">
           ${statusPill(req.Status)}
           <span class="dim">ยื่นโดย ${esc(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
+          ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-prline">PR No. <b>${esc(prValues(req).pr_no)}</b>${
+            prValues(req).pr_date ? ` · ออก ${esc(thaiNumDate(prValues(req).pr_date))}` : ''}</span>` : ''}
         </div>
 
         <div class="rq-cols">
@@ -511,10 +518,17 @@ function purchaseBox(req, role) {
   const cur = role.actStep || +req.CurrentStep || 1;
   const early = cur !== (+req.CurrentStep || 1);
   const signed = parseLog(req.ApprovalLog).some((l) => l.step === cur && l.action === PURCHASE_ACTION && l.sig);
+  const pv = prValues(req);
   return `
     <div class="rq-action rq-purchase">
       <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
       ${early ? '<div class="rq-wait">ตอนนี้รอขั้นที่ไม่บังคับ (เช่น ผู้อำนวยการโครงการ) — ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย เมื่อบันทึก ระบบจะข้ามขั้นนั้นให้</div>' : ''}
+      <div class="rq-prno">
+        <div><label class="rq-note-label" for="rq-prno">PR No. <span class="dim">(ฝ่ายจัดซื้อกรอก · ห้ามซ้ำ)</span></label>
+          <input id="rq-prno" type="text" maxlength="40" autocomplete="off" value="${esc(pv.pr_no || '')}" placeholder="เช่น PR6910-001"></div>
+        <div><label class="rq-note-label" for="rq-prdate">วันที่ออก PR</label>
+          <input id="rq-prdate" type="date" value="${esc(String(pv.pr_date || '').slice(0, 10) || todayISO())}"></div>
+      </div>
       <label class="rq-note-label" for="rq-pstat">สถานะ</label>
       <select id="rq-pstat" class="rq-pselect">
         ${PURCHASE_STATUSES.map((x) => `<option ${x === (nowSt || '-') ? 'selected' : ''}>${esc(x)}</option>`).join('')}
@@ -655,8 +669,17 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   const ps = $('#rq-psave'); if (ps) ps.onclick = async () => {
     err.hidden = true;
     const st = $('#rq-pstat').value;
-    if (!st || st === '-') { fail('กรุณาเลือกสถานะ'); return; }
-    if (st === purchaseStatusOf(req) && !note()) { fail(`สถานะเป็น "${st}" อยู่แล้ว`); return; }
+    const pv = prValues(req);
+    const prNo = $('#rq-prno').value.trim();
+    const prDate = prNo ? ($('#rq-prdate').value || todayISO()) : '';
+    const prChanged = normPR(prNo) !== normPR(pv.pr_no) || (prNo && prDate !== String(pv.pr_date || '').slice(0, 10));
+    const curSt = purchaseStatusOf(req);
+    const stChanged = !!st && st !== '-' && st !== curSt;
+    if (!stChanged && !prChanged && !note()) {
+      fail(curSt ? `สถานะเป็น "${curSt}" อยู่แล้ว — เปลี่ยนสถานะ เลข PR หรือพิมพ์หมายเหตุ` : 'กรุณาเลือกสถานะ หรือกรอกเลข PR');
+      return;
+    }
+    if (pv.pr_no && !prNo && !confirm(`ลบเลข PR "${pv.pr_no}" ออกจากใบขอสั่งซื้อนี้?`)) return;
     const needSign = !!document.querySelector('.sig-pad[data-sig="approver"]');
     if (needSign && !previewSignature('approver')) {
       fail('กรุณาลงลายเซ็นฝ่ายจัดซื้อก่อนบันทึกครั้งแรก — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"');
@@ -673,9 +696,23 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
       `ยืนยัน "${PURCHASE_DONE}"?\n\nตรวจสอบแล้วว่าส่งของครบถ้วนตามใบขอสั่งซื้อ ${req.Title}\nเมื่อยืนยัน คำขอนี้จะถูกปิด (เสร็จสิ้น) และแก้สถานะไม่ได้อีก`)) return;
     busy(true); ps.disabled = true;
     try {
+      // กันเลข PR ซ้ำ: อ่านทะเบียนสดก่อนบันทึก ซ้ำแล้วไม่บันทึก พร้อมบอกว่าซ้ำกับใบไหน
+      if (prNo && normPR(prNo) !== normPR(pv.pr_no)) {
+        const dup = await findDuplicatePR(prNo, req.id);
+        if (dup) {
+          busy(false); ps.disabled = false;
+          fail(duplicateMessage(prNo, dup));
+          alert(duplicateMessage(prNo, dup) + '\n\nกรุณาตรวจสอบและใช้เลข PR อื่น');
+          $('#rq-prno').focus();
+          return;
+        }
+      }
       const sig = needSign ? await readSignature('approver', signFolder) : '';
       const extra = note();
-      await decide(req, steps, { action: PURCHASE_ACTION, by: me, note: extra ? `${st} — ${extra}` : st, sig, actStep: role.actStep });
+      const parts = [stChanged || (!prChanged && st && st !== '-') ? st : '',
+        prChanged ? (prNo ? `PR No. ${prNo} (ออก ${thaiNumDate(prDate)})` : 'ลบเลข PR') : '', extra].filter(Boolean);
+      await decide(req, steps, { action: PURCHASE_ACTION, by: me, note: parts.join(' — '), sig, actStep: role.actStep,
+        formPatch: prChanged ? { pr_no: prNo, pr_date: prDate } : null });
       await done();
     } catch (e) {
       busy(false); ps.disabled = false;

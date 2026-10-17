@@ -9,6 +9,9 @@ import { state } from '../core/state.js';
 import { toArray, toFiles } from '../admin/entity-form.js';
 import { openPerson } from './directory.page.js';
 import { formCodeOf } from './requests.page.js';
+import { prValues } from '../services/pr.js';
+
+const prNoOf = (r) => prValues(r).pr_no || '';
 
 export const meta = { route: 'search', title: 'ค้นหาทั้งเว็บ', nav: false, order: 99, adminOnly: false };
 
@@ -59,7 +62,7 @@ export async function render() {
         html: `<a href="#/projects">${esc(p.Title)}</a>`,
         sub: [p.ProjectCode, p.Status, p.Owner && `ผู้รับผิดชอบ ${p.Owner}`].filter(Boolean).join(' · ') })) },
       { title: '📨 คำขอ', rows: reqs.filter((r) => (state.isAdmin || state.isViewer || norm(r.RequesterEmail) === me)
-          && hit(q, r.Title, r.FormName, formCodeOf(r), r.RequesterName, r.Status)).map((r) => ({
+          && hit(q, r.Title, r.FormName, formCodeOf(r), r.RequesterName, r.Status, prNoOf(r))).map((r) => ({
         html: `<a href="#/requests/${esc(r.id)}">${esc(r.Title)}</a>`,
         sub: [r.FormName, r.Status, (state.isAdmin || state.isViewer) && r.RequesterName].filter(Boolean).join(' · ') })) },
     ].filter((g) => g.rows.length);

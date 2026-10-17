@@ -181,8 +181,10 @@ export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
 /** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */
 export const purchaseStatusOf = (req) => {
-  const l = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION).slice(-1)[0];
-  return l ? String(l.note || '').split(' — ')[0].trim() : '';   // ตัดหมายเหตุที่ต่อท้ายออก
+  // ตัดหมายเหตุที่ต่อท้ายออก · บันทึกที่แก้แค่เลข PR (ไม่ได้เปลี่ยนสถานะ) ไม่นับ
+  const sts = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION)
+    .map((x) => String(x.note || '').split(' — ')[0].trim()).filter((x) => PURCHASE_STATUSES.includes(x) && x !== '-');
+  return sts.slice(-1)[0] || '';
 };
 
 /** ลำดับนี้ขอรับแจ้งตั้งแต่มีคำขอเข้ามาไหม (เช่น ฝ่ายจัดซื้อ) */
@@ -404,7 +406,7 @@ async function assertFresh(req) {
  * closeAfter = ขั้นสุดท้ายของฟอร์มเบิกเงิน: อนุมัติ + แนบสลิป + ปิดงาน ในการบันทึกครั้งเดียว
  * (เดิมเรียก decide สองครั้ง ครั้งที่สองชนด่านกันอนุมัติซ้ำเสมอ สลิปจึงไม่ถูกบันทึกและไม่ปิดงาน)
  */
-export async function decide(req, steps, { action, by, note = '', slip = null, sig = '', closeAfter = false, actStep = 0 }) {
+export async function decide(req, steps, { action, by, note = '', slip = null, sig = '', closeAfter = false, actStep = 0, formPatch = null }) {
   req = await assertFresh(req);                // ด่านกันอนุมัติซ้ำ
   const log = parseLog(req.ApprovalLog);
   const reqStep = +req.CurrentStep || 1;
@@ -477,6 +479,12 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   }
 
   if (slip) patch.PaymentSlip = JSON.stringify(slip);
+  // ช่องเพิ่มในคำตอบของฟอร์ม (เช่น เลข PR ที่ฝ่ายจัดซื้อกรอก) · รวมกับข้อมูลสดล่าสุด ไม่ทับช่องอื่น
+  if (formPatch) {
+    let data = {};
+    try { data = JSON.parse(req.FormData || '{}') || {}; } catch (e) { data = {}; }
+    patch.FormData = JSON.stringify({ ...data, ...formPatch });
+  }
   if (action === 'ปิดงาน') { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
   if (closeAfter && action === 'อนุมัติ' && patch.Status === 'อนุมัติแล้ว') {
     log.push({ step: 999, action: 'ปิดงาน', by, note: slip ? 'แนบสลิปการโอนเงิน' : '', at: new Date().toISOString() });
