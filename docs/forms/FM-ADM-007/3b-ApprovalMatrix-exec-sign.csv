@@ -1,0 +1,3 @@
+﻿FormCode,StepOrder,StepName,ApproverType,ApproverDept,ApproveMode,ExtraApprovers,ConditionField,ConditionValues,Optional,NotifyAtSubmit,IsActive,SortOrder
+FM-ADM-007,5,รองกรรมการผู้จัดการด้านการเงิน,ระบุชื่อเจาะจง,,คนใดคนหนึ่งอนุมัติก็ผ่าน,กานต์ธิดา ใสสะอาด,,,No,No,Yes,5
+FM-ADM-007,6,กรรมการผู้จัดการ,ระบุชื่อเจาะจง,,คนใดคนหนึ่งอนุมัติก็ผ่าน,ไพรัช เขียนเขว้า,,,No,No,Yes,6

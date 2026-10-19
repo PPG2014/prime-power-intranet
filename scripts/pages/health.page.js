@@ -88,11 +88,12 @@ async function runChecks() {
     steps.forEach((m) => {
       const type = clean(m.ApproverType) || 'ระบุชื่อเจาะจง';
       const people = toArray(m.Approvers).map(clean).filter(Boolean);
-      if (type === 'ระบุชื่อเจาะจง' && !people.length) {
+      const extra = String(m.ExtraApprovers || '').split(',').map((x) => x.trim()).filter(Boolean);
+      if (type === 'ระบุชื่อเจาะจง' && !people.length && !extra.length) {
         add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ไม่มีผู้อนุมัติ`,
           clean(m.StepName), 'ขั้นแบบระบุชื่อต้องกรอกรายชื่อผู้อนุมัติ');
       }
-      String(m.ExtraApprovers || '').split(',').map((x) => x.trim()).filter(Boolean).forEach((n) => {
+      extra.forEach((n) => {
         if (!names.has(n)) add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ชื่อที่ระบุเพิ่มไม่อยู่ในทะเบียน`,
           n, 'แก้ที่หน้าแก้ไขแบบฟอร์ม → เส้นทางอนุมัติ (เลือกชื่อจากช่องค้นหา)');
       });
