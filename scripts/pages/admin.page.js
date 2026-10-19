@@ -425,6 +425,10 @@ async function openEditor(key, record) {
       const multiOff = (res && res.skipped || []).filter((x) => /Allow multiple values/.test(x));
       if (multiOff.length) notes.push('บันทึกแล้วแต่ไม่ครบทุกค่า\n  ' + multiOff.join('\n  '));
       if (res && res.skipped) res.skipped = res.skipped.filter((x) => !/Allow multiple values/.test(x));
+      // ค่าที่ไม่อยู่ในตัวเลือกของคอลัมน์ Choice (คอลัมน์มีอยู่แล้ว แค่ขาดตัวเลือก)
+      const badChoice = (res && res.skipped || []).filter((x) => /ยังไม่มีในตัวเลือก/.test(x));
+      if (badChoice.length) notes.push('บันทึกแล้ว แต่บางช่องยังไม่ถูกบันทึก\n  ' + badChoice.join('\n  '));
+      if (res && res.skipped) res.skipped = res.skipped.filter((x) => !/ยังไม่มีในตัวเลือก/.test(x));
       if (res && res.skipped && res.skipped.length) {
         notes.push('ยังไม่มีคอลัมน์เหล่านี้ใน List "' + (s.spName || s.list) + '"\n  '
           + res.skipped.join('\n  '));
