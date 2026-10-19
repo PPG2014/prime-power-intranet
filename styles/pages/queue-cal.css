@@ -23,6 +23,8 @@
   border-left: 3px solid #1e7f4f;
 }
 .qc-ev.wait { border-left-color: #d69e2e; }
+.qc-ev.back { border-left-color: #dd6b20; }
+.qc-ev.dead { border-left-color: #b8c0ca; opacity: .6; text-decoration: line-through; }
 .qc-ev b { font-weight: 700; }
 .qc-more { font-size: .72em; color: var(--muted, #6b7280); }
 .qc-cell.qc-blank { background: none; cursor: default; }
@@ -49,6 +51,10 @@
 .qc-st { font-size: .9em; }
 .qc-st.wait { color: #b7791f; }
 .qc-st.ok { color: #1e7f4f; }
+.qc-st.back { color: #c05621; }
+.qc-st.dead { color: #8a96a5; }
+.qc-dead { opacity: .55; }
+.qc-dead b, .qc-dead .qc-time { text-decoration: line-through; }
 
 /* รายการคิวทั้งเดือน (เห็นชื่อและช่วงเวลาเต็ม) */
 .qc-ev { text-align: center; font-weight: 600; }
@@ -82,6 +88,10 @@ body.qcf-open { overflow: hidden; }
 .qcf-legend i.ok, .qcf-ev.ok { --tone: #1e7f4f; }
 .qcf-legend i.wait, .qcf-ev.wait { --tone: #d69e2e; }
 .qcf-legend i.done, .qcf-ev.done { --tone: #8a96a5; }
+.qcf-legend i.back, .qcf-ev.back { --tone: #dd6b20; }
+.qcf-legend i.dead, .qcf-ev.dead { --tone: #c3cad3; }
+.qcf-ev.dead { opacity: .6; text-decoration: line-through; }
+.qcf-st { font-size: .9em; color: var(--tone); font-weight: 600; }
 .qcf-legend i { background: var(--tone); }
 .qcf-dow, .qcf-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .qcf-dow span { text-align: center; font-weight: 600; color: var(--muted); font-size: 13px; padding-bottom: 4px; }
