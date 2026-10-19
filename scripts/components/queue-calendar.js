@@ -7,6 +7,7 @@
 import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { QUEUE_FIELDS } from '../services/booking.js';
+import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -17,6 +18,8 @@ let ym = null;          // เดือนที่กำลังดู { y, m 
 let picked = '';        // วันที่ที่เลือกดู (YYYY-MM-DD)
 let bookings = [];      // คิวทั้งหมดของฟอร์มนี้
 let formCode = '';      // รหัสฟอร์ม (หรือหลายรหัส) ที่กำลังแสดงคิว
+let kind = 'queue';     // 'queue' = คิวรายวัน (Messenger) · 'car' = จองรถ (ข้ามวันได้ มีทะเบียนรถ)
+const dateField = () => (kind === 'car' ? CAR_FIELDS.dateFrom : QUEUE_FIELDS.date);
 
 /** เวลาแบบ 9:00 ต้องเติม 0 ก่อนเทียบ ไม่งั้น "10:00" จะมาก่อน "9:00" */
 const hhmm = (t) => String(t || '').trim().padStart(5, '0');
@@ -26,6 +29,7 @@ const todayKey = () => new Date().toLocaleDateString('sv-SE');
 /** โหลดคิวทั้งหมดของฟอร์มนี้ (ไม่รวมใบที่ยกเลิก/ไม่อนุมัติ) */
 async function load(code) {
   formCode = code;
+  if (kind === 'car') { bookings = await loadCars(code); return; }
   const codes = (Array.isArray(code) ? code : [code]).map((c) => String(c).trim());
   const rows = await list('requests').catch(() => []);
   bookings = rows
@@ -48,6 +52,27 @@ async function load(code) {
     })
     .filter(Boolean)
     .sort((a, b) => a.day.localeCompare(b.day) || hhmm(a.from).localeCompare(hhmm(b.from)));
+}
+
+/** จองรถ: หนึ่งคำขอแสดงทุกวันที่อยู่ในช่วง (วันแรกเริ่มตามเวลา · วันสุดท้ายถึงเวลา · วันกลางทั้งวัน) */
+async function loadCars(code) {
+  const out = [];
+  (await carBookings(code)).forEach((b) => {
+    const last = localDay(b.end);
+    for (let d = new Date(b.start.getFullYear(), b.start.getMonth(), b.start.getDate()); localDay(d) <= last; d.setDate(d.getDate() + 1)) {
+      const day = localDay(d);
+      const hm = (x) => `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}`;
+      out.push({
+        day,
+        from: day === localDay(b.start) ? hm(b.start) : '00:00',
+        to: day === last ? hm(b.end) : '24:00',
+        by: b.by, place: b.place, plate: b.plate,
+        status: b.returned ? 'คืนรถแล้ว' : b.status,
+        title: b.req.Title || '',
+      });
+    }
+  });
+  return out.sort((a, b) => a.day.localeCompare(b.day) || hhmm(a.from).localeCompare(hhmm(b.from)));
 }
 
 function grid() {
@@ -86,7 +111,7 @@ function dayList() {
   if (!picked) return '<div class="qc-hint">คลิกวันที่เพื่อดูคิวของวันนั้น</div>';
   const rows = bookings.filter((b) => b.day === picked);
   // ปุ่มเติมวันลงฟอร์มมีเฉพาะตอนเปิดจากหน้ากรอกฟอร์ม (เปิดจากหน้าแรกเป็นแค่ดูคิว)
-  const use = $('#q_' + QUEUE_FIELDS.date)
+  const use = $('#q_' + dateField())
     ? `<button class="btn-mini" data-qcuse="${picked}">ใช้วันนี้ในฟอร์ม</button>` : '';
   if (!rows.length) {
     return `<div class="qc-free">✓ ${esc(thaiDay(picked))} ยังไม่มีคิว ${use}</div>`;
@@ -95,6 +120,7 @@ function dayList() {
     <ul class="qc-list">${rows.map((b) => `<li>
       <span class="qc-time">${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</span>
       <span class="qc-by">${esc(b.by)}</span>
+      ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
       ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
       <span class="qc-st ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}">${esc(b.status)}</span>
     </li>`).join('')}</ul>`;
@@ -115,6 +141,7 @@ function monthList() {
       ${byDay[d].map((b) => `<div class="qc-mrow">
         <span class="qc-time">${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</span>
         <span class="qc-by">${esc(b.by)}</span>
+        ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
         ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
         <span class="qc-st ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}">${esc(b.status)}</span>
       </div>`).join('')}
@@ -136,7 +163,7 @@ function html() {
         <b>${TH_MONTH[m]} ${y + 543}</b>
         <button class="btn-mini" data-qcmove="1">›</button>
       </div>
-      <div class="qc-meta">คิวเดือนนี้ ${total} รายการ</div>
+      <div class="qc-meta">${kind === 'car' ? 'การจองรถ' : 'คิว'}เดือนนี้ ${total} รายการ</div>
       <div class="qc-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qc-grid">${grid()}</div>
       <div class="qc-day">${dayList()}</div>
@@ -164,10 +191,13 @@ function paint(box) {
   });
   $$('[data-qcuse]', box).forEach((b) => {
     b.onclick = () => {
-      const input = $('#q_' + QUEUE_FIELDS.date);
+      const input = $('#q_' + dateField());
       if (!input) return;
       input.value = b.dataset.qcuse;
       input.dispatchEvent(new Event('change', { bubbles: true }));   // ให้ระบบตรวจคิวชนทันที
+      // จองรถ: วันที่สิ้นสุดยังว่างหรือก่อนวันเริ่ม → ตั้งเป็นวันเดียวกัน
+      const to = kind === 'car' ? $('#q_' + CAR_FIELDS.dateTo) : null;
+      if (to && (!to.value || to.value < input.value)) { to.value = input.value; to.dispatchEvent(new Event('change', { bubbles: true })); }
       input.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
   });
@@ -177,7 +207,8 @@ function paint(box) {
  * เรียกหลังหน้าแบบฟอร์มวาดเสร็จ — สร้างปฏิทินในกล่อง #queue-cal
  * code เป็นรหัสฟอร์มเดียว หรือหลายรหัสก็ได้ (หน้าแรกรวมคิวทุกฟอร์มจองคิว Messenger)
  */
-export async function mountQueueCalendar(code) {
+export async function mountQueueCalendar(code, opts = {}) {
+  kind = opts.kind || 'queue';
   const box = $('#queue-cal');
   if (!box) return;
   box.innerHTML = '<div class="panel qc-panel"><div class="qc-hint">กำลังโหลดคิว…</div></div>';

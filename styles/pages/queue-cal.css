@@ -45,6 +45,7 @@
 .qc-list li { display: grid; gap: 1px; padding: 6px 8px; background: #f7f9fc; border-radius: 8px; font-size: .84em; }
 .qc-time { font-weight: 600; }
 .qc-place { color: var(--muted, #6b7280); }
+.qc-plate { font-weight: 600; color: var(--navy); white-space: nowrap; }
 .qc-st { font-size: .9em; }
 .qc-st.wait { color: #b7791f; }
 .qc-st.ok { color: #1e7f4f; }

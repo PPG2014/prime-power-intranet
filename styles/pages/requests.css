@@ -391,3 +391,16 @@
 .tl-act.buy { color: #2b6cb0; }
 .tl-note.tl-note-buy { border-color: #9cc8ef; background: #eaf4fd; color: #1f5f99; }
 .tl-note-buy .tl-note-h { color: #3b82c4; }
+/* จองรถยนต์บริษัทฯ */
+.rq-car-pick { margin: 6px 0 10px; }
+.rq-car-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.rq-car-row .rq-pselect { margin-bottom: 0; }
+.rq-car-row input, .rq-car-box input[type="text"] { flex: 1 1 220px; padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; }
+.rq-car-row input[hidden] { display: none; }
+.rq-car-box { display: grid; gap: 14px; }
+.rq-car-box input[type="text"] { width: 100%; margin: 6px 0 8px; }
+.rq-car-return { padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.rq-car-return:last-child { border-bottom: 0; padding-bottom: 0; }
+.rq-carline a { font-weight: 600; }
+.rq-returned { color: #17733d; }
+.car-map { display: inline-block; margin-top: 6px; text-decoration: none; }
