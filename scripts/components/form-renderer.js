@@ -247,6 +247,14 @@ function control(f, value) {
 /** วาดฟอร์มทั้งใบ จัดกลุ่มตามหัวข้อที่ระบุไว้ในช่อง Section */
 export function renderForm(fields, me, values = {}) {
   files = [];
+  // แก้ไขคำขอเดิม (เช่น ถูกส่งกลับแก้ไข): ดึงไฟล์แนบเดิมกลับมา ไม่ต้องแนบใหม่ · ลบหรือเพิ่มได้ตามปกติ
+  const seen = new Set();
+  fields.filter((f) => f.FieldType === 'file').forEach((f) => {
+    (Array.isArray(values && values[f.FieldKey]) ? values[f.FieldKey] : []).forEach((x) => {
+      const k = x && typeof x === 'object' && x.url ? `${x.url}|${x.name || ''}` : '';
+      if (k && !seen.has(k)) { seen.add(k); files.push(x); }
+    });
+  });
   currentValues = values || {};
   const groups = [];
   fields.forEach((f) => {
