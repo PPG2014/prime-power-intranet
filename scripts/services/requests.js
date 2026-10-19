@@ -246,6 +246,19 @@ const codeOfRow = (s) => {
   return k ? plainCode(s[k]) : '';
 };
 
+/**
+ * รหัสฟอร์มของคำขอ — คอลัมน์ FormCode ใน Requests อาจเป็น Lookup/ว่าง/ชื่อภายในแปลก (FormCode0)
+ * ถ้าหาไม่ได้กู้จากเลขที่เอกสาร (FM-XXX-000-nnn-yyyy) · ใช้ทุกครั้งก่อนหาเส้นทางอนุมัติของคำขอ
+ */
+export function reqCode(req) {
+  let c = plainCode(req && req.FormCode);
+  if (c) return c;
+  const k = Object.keys(req || {}).find((x) => /^FormCode\d+$/i.test(x) || /^Form_x0020_Code/i.test(x));
+  if (k) { c = plainCode(req[k]); if (c) return c; }
+  const m = String((req && req.Title) || '').match(/^([A-Za-z]+-[A-Za-z]+-\d+)/);
+  return m ? m[1] : '';
+}
+
 /** IsActive ปิดเฉพาะเมื่อตั้งเป็น "ไม่" ชัดเจน ค่าว่างถือว่าใช้งาน */
 const isOff = (v) => v === false || /^(no|false|0|ไม่)$/i.test(String(v ?? '').trim());
 
@@ -355,7 +368,7 @@ export const needsSlip = (code, name = '') => SLIP_FORMS.includes(String(code ||
  *   PAState          = PENDING / PENDING_ALL (ให้โฟลว์ส่งการ์ด) / WAITING / DONE / NOAPPROVER
  * ───────────────────────────────────────────────────────────── */
 export async function buildRoute(req) {
-  const steps = applicableSteps(await stepsOf(req.FormCode), req);
+  const steps = applicableSteps(await stepsOf(reqCode(req)), req);
   const dir = await list('directory').catch(() => []);
   const emailOf = (name) => {
     const p = dir.find((x) => String(x.Title).trim() === String(name).trim());
@@ -430,7 +443,7 @@ export function nextStepAfter(steps, cur, route) {
 export async function stalledAdvance(req, steps) {
   if (String(req.Status || '').trim() !== 'รออนุมัติ') return null;
   const cur = +req.CurrentStep || 1;
-  const all = steps && steps.length ? steps : await loadResolved((await stepsOf(req.FormCode)).map((x) => ({ ...x })), req);
+  const all = steps && steps.length ? steps : await loadResolved((await stepsOf(reqCode(req))).map((x) => ({ ...x })), req);
   const step = all.find((s) => +s.StepOrder === cur);
   if (!step || !stepProgress(step, parseLog(req.ApprovalLog)).done) return null;
   const route = (await buildRoute(req)).route;
@@ -449,7 +462,7 @@ export async function stalledAdvance(req, steps) {
 export async function diagnoseRoute(req) {
   const { route } = await buildRoute(req);
   let n = +req.CurrentStep || (route[0] && route[0].step) || 1;
-  const steps = applicableSteps(await stepsOf(req.FormCode), req);
+  const steps = applicableSteps(await stepsOf(reqCode(req)), req);
   const s = steps.find((x) => +x.StepOrder === n);
   if (!route.some((r) => r.step === n)) {
     const next = route.find((r) => r.step > n);
@@ -500,6 +513,8 @@ async function assertFresh(req) {
   if (!all) return req;                        // อ่านไม่ได้ ปล่อยผ่าน ไม่บล็อกงาน
   const now = all.find((r) => String(r.id) === String(req.id));
   if (!now) return req;
+  // ข้อมูลสดจาก SharePoint: FormCode อาจว่าง/เป็น Lookup → ใส่รหัสที่หาได้ ไม่งั้นคำนวณเส้นทางถัดไปไม่เจอ
+  if (!plainCode(now.FormCode)) now.FormCode = reqCode(now) || reqCode(req);
 
   const same = String(now.Status) === String(req.Status)
     && (+now.CurrentStep || 1) === (+req.CurrentStep || 1)
