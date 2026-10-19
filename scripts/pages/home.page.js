@@ -6,6 +6,8 @@ import { toFiles } from '../admin/entity-form.js';
 import { renderDashboard, mountDashboard } from './projects.page.js';
 import { attachedFiles } from '../components/form-renderer.js';
 import { companySocial } from '../components/company-social.js';
+import { codeOf, stTone, DEAD } from '../services/booking.js';
+import { localDay } from '../services/car.js';
 
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
@@ -19,7 +21,7 @@ export async function render(ctx) {
   ]);
 
   // คำขอจองคิว Messenger ของวันนี้ ดึงวันที่ที่ขอใช้จากคำตอบในฟอร์ม
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay(new Date().toISOString());   // วันที่ตามเวลาไทย
   // หารหัสฟอร์มจองคิว Messenger จากทะเบียนแบบฟอร์มเอง เผื่อรหัส ISO เปลี่ยน
   const msgCodes = new Set(forms
     .filter((f) => /messenger|จองคิว/i.test(`${f.Title} ${f.Description || ''}`))
@@ -27,12 +29,11 @@ export async function render(ctx) {
   ['FM-ADM-006', 'FM-HR-003'].forEach((c) => msgCodes.add(c));
   msgCodeList = [...msgCodes].filter(Boolean);
 
-  // แสดงคิวของวันนี้ทุกคำขอ ไม่ว่าใครเป็นคนจอง ยกเว้นใบที่ยกเลิก/ไม่อนุมัติ
+  // แสดงคิวของวันนี้ทุกคำขอ ไม่ว่าใครเป็นคนจอง พร้อมสถานะล่าสุด ยกเว้นใบที่ยกเลิก/ไม่อนุมัติ
   const messengerToday = requests
-    .filter((r) => msgCodes.has(String(r.FormCode || '').trim())
-      && !['ยกเลิก', 'ไม่อนุมัติ'].includes(String(r.Status || '').trim()))
+    .filter((r) => msgCodes.has(codeOf(r)) && !DEAD.includes(String(r.Status || '').trim()))
     .map((r) => { try { return { r, d: JSON.parse(r.FormData || '{}') }; } catch (e) { return null; } })
-    .filter((x) => x && String(x.d.service_date || '').slice(0, 10) === today)
+    .filter((x) => x && localDay(x.d.service_date) === today)
     // เติม 0 หน้าเวลาก่อนเทียบ ไม่งั้น "10:00" จะมาก่อน "9:00"
     .sort((a, b) => String(a.d.time_from || a.d.time_slot || '').padStart(5, '0')
       .localeCompare(String(b.d.time_from || b.d.time_slot || '').padStart(5, '0')));
@@ -105,7 +106,7 @@ export async function render(ctx) {
                   <span class="st">${esc(d.place || d.job_detail || 'ไม่ระบุสถานที่')}</span>
                 </div>
                 <div class="msg-by">${esc(d.requester || r.RequesterName || '')}${
-                  r.Status ? ` · <span class="dim">${esc(r.Status)}</span>` : ''}</div>
+                  r.Status ? ` <span class="msg-st ${stTone(String(r.Status).trim())}">${esc(r.Status)}</span>` : ''}</div>
               </li>`).join('')}</ul>`
               : '<div class="side-empty">วันนี้ยังไม่มีการจองคิว</div>'}
           </div>

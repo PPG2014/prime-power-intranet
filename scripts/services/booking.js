@@ -6,16 +6,28 @@
  * ไม่นับใบที่ยกเลิกหรือไม่อนุมัติ
  */
 import { list } from './data.js';
+import { localDay } from './car.js';
 
 /** ช่องที่ใช้ตรวจ ถ้าฟอร์มไหนมีครบสามช่องนี้ ระบบจะตรวจคิวชนให้อัตโนมัติ */
 export const QUEUE_FIELDS = { date: 'service_date', from: 'time_from', to: 'time_to' };
 
-const DEAD = ['ยกเลิก', 'ไม่อนุมัติ'];
+export const DEAD = ['ยกเลิก', 'ไม่อนุมัติ'];
+
+/** รหัสฟอร์มของคำขอ (คอลัมน์อาจเป็น Lookup หรือว่าง → ดูจากเลขที่เอกสาร FM-XXX-000-nnn-yyyy) */
+export const codeOf = (r) => {
+  const v = r.FormCode;
+  const c = String((v && typeof v === 'object') ? (v.LookupValue ?? v.Title ?? '') : (v ?? '')).trim();
+  return c || (String(r.Title || '').match(/^([A-Z]+-[A-Z]+-\d+)-/) || [])[1] || '';
+};
+
+/** สีตามสถานะ: wait รออนุมัติ · back ส่งกลับแก้ไข · ok อนุมัติแล้ว/เสร็จสิ้น · done คืนรถแล้ว · dead ยกเลิก/ไม่อนุมัติ */
+export const stTone = (s) => (s === 'รออนุมัติ' ? 'wait' : s === 'ส่งกลับแก้ไข' ? 'back' : s === 'คืนรถแล้ว' ? 'done'
+  : DEAD.includes(s) ? 'dead' : 'ok');
 const mins = (t) => {
   const m = String(t || '').match(/^(\d{1,2}):(\d{2})/);
   return m ? (+m[1]) * 60 + (+m[2]) : null;
 };
-const dayOf = (v) => String(v || '').slice(0, 10);
+const dayOf = localDay;   // ช่องวันที่เก็บเป็น ISO เที่ยงคืนเวลาไทย ตัด 10 ตัวแรกจะได้วันก่อนหน้า
 
 /** ฟอร์มนี้ต้องตรวจคิวชนไหม (ดูจากช่องกรอกที่มี) */
 export const isQueueForm = (fields = []) => {
@@ -33,7 +45,7 @@ export async function queueConflicts({ formCode, date, from, to, excludeId = nul
 
   const rows = await list('requests').catch(() => []);
   return rows
-    .filter((r) => String(r.FormCode || '').trim() === String(formCode || '').trim())
+    .filter((r) => codeOf(r) === String(formCode || '').trim())
     .filter((r) => !DEAD.includes(String(r.Status || '').trim()))
     .filter((r) => String(r.id) !== String(excludeId))
     .map((r) => {

@@ -5,14 +5,14 @@
  * คลิกวันไหนจะเห็นคิวของวันนั้น และเติมวันที่ลงในฟอร์มให้เลย
  */
 import { esc, $, $$ } from '../core/dom.js';
-import { list } from '../services/data.js';
-import { QUEUE_FIELDS } from '../services/booking.js';
+import { list, clearDataCache } from '../services/data.js';
 import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
+import { QUEUE_FIELDS, DEAD, codeOf, stTone } from '../services/booking.js';
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const TH_DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
-const DEAD = ['ยกเลิก', 'ไม่อนุมัติ'];
+const live = (b) => !DEAD.includes(b.status);   // นับเป็นคิว (ไม่รวมยกเลิก/ไม่อนุมัติ)
 
 let ym = null;          // เดือนที่กำลังดู { y, m }
 let picked = '';        // วันที่ที่เลือกดู (YYYY-MM-DD)
@@ -26,19 +26,20 @@ const hhmm = (t) => String(t || '').trim().padStart(5, '0');
 const key = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const todayKey = () => new Date().toLocaleDateString('sv-SE');
 
-/** โหลดคิวทั้งหมดของฟอร์มนี้ (ไม่รวมใบที่ยกเลิก/ไม่อนุมัติ) */
+/** โหลดคิวทั้งหมดของฟอร์มนี้ ทุกสถานะ (ใบที่ยกเลิก/ไม่อนุมัติเรียงไว้ท้ายวัน) */
 async function load(code) {
   formCode = code;
   if (kind === 'car') { bookings = await loadCars(code); return; }
   const codes = (Array.isArray(code) ? code : [code]).map((c) => String(c).trim());
   const rows = await list('requests').catch(() => []);
+  // แสดงทุกสถานะ (รออนุมัติ / อนุมัติแล้ว / ส่งกลับแก้ไข / เสร็จสิ้น / ยกเลิก / ไม่อนุมัติ) — ใบที่ยกเลิก/ไม่อนุมัติขีดฆ่าไว้ ไม่นับเป็นคิว
   bookings = rows
-    .filter((r) => codes.includes(String(r.FormCode || '').trim()))
-    .filter((r) => !DEAD.includes(String(r.Status || '').trim()))
+    .filter((r) => codes.includes(codeOf(r)))
     .map((r) => {
       let d = {};
       try { d = JSON.parse(r.FormData || '{}'); } catch (e) { return null; }
-      const day = String(d[QUEUE_FIELDS.date] || '').slice(0, 10);
+      // วันที่เก็บเป็น ISO ของเที่ยงคืนเวลาไทย → ต้องแปลงเป็นวันท้องถิ่น (ตัด 10 ตัวแรกจะได้วันก่อนหน้า)
+      const day = localDay(d[QUEUE_FIELDS.date]);
       if (!day) return null;
       return {
         day,
@@ -51,7 +52,7 @@ async function load(code) {
       };
     })
     .filter(Boolean)
-    .sort((a, b) => a.day.localeCompare(b.day) || hhmm(a.from).localeCompare(hhmm(b.from)));
+    .sort((a, b) => a.day.localeCompare(b.day) || live(b) - live(a) || hhmm(a.from).localeCompare(hhmm(b.from)));
 }
 
 /** จองรถ: หนึ่งคำขอแสดงทุกวันที่อยู่ในช่วง (วันแรกเริ่มตามเวลา · วันสุดท้ายถึงเวลา · วันกลางทั้งวัน) */
@@ -86,16 +87,17 @@ function grid() {
   for (let i = 0; i < first; i += 1) cells.push('<div class="qc-cell qc-blank"></div>');
   for (let d = 1; d <= days; d += 1) {
     const k = key(y, m, d);
-    const items = byDay[k] || [];
+    const all = byDay[k] || [];
+    const items = all.filter(live).concat(all.filter((b) => !live(b)));   // ยกเลิกไว้ท้าย
     const cls = [
       'qc-cell',
-      items.length ? 'has' : '',
+      items.some(live) ? 'has' : '',
       k === todayKey() ? 'today' : '',
       k === picked ? 'on' : '',
     ].filter(Boolean).join(' ');
 
     // แสดงคิวในช่องวันเลย สูงสุด 3 รายการ ที่เหลือบอกเป็นจำนวน
-    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}"
+    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${stTone(b.status)}"
         title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}`)}">${esc(b.from)}</span>`).join('');
 
     cells.push(`<button class="${cls}" data-qcday="${k}">
@@ -116,13 +118,13 @@ function dayList() {
   if (!rows.length) {
     return `<div class="qc-free">✓ ${esc(thaiDay(picked))} ยังไม่มีคิว ${use}</div>`;
   }
-  return `<div class="qc-daytitle">${esc(thaiDay(picked))} · ${rows.length} คิว ${use}</div>
-    <ul class="qc-list">${rows.map((b) => `<li>
+  return `<div class="qc-daytitle">${esc(thaiDay(picked))} · ${rows.filter(live).length} คิว ${use}</div>
+    <ul class="qc-list">${rows.map((b) => `<li class="${live(b) ? '' : 'qc-dead'}">
       <span class="qc-time">${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</span>
       <span class="qc-by">${esc(b.by)}</span>
       ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
       ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-      <span class="qc-st ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}">${esc(b.status)}</span>
+      <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
     </li>`).join('')}</ul>`;
 }
 
@@ -138,12 +140,12 @@ function monthList() {
 
   return `<ul class="qc-mlist">${Object.keys(byDay).sort().map((d) => `<li>
       <button class="qc-mday${d === picked ? ' on' : ''}" data-qcday="${d}">${esc(thaiDay(d))}</button>
-      ${byDay[d].map((b) => `<div class="qc-mrow">
+      ${byDay[d].map((b) => `<div class="qc-mrow${live(b) ? '' : ' qc-dead'}">
         <span class="qc-time">${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</span>
         <span class="qc-by">${esc(b.by)}</span>
         ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
         ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-        <span class="qc-st ${b.status === 'รออนุมัติ' ? 'wait' : 'ok'}">${esc(b.status)}</span>
+        <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
       </div>`).join('')}
     </li>`).join('')}</ul>`;
 }
@@ -155,7 +157,7 @@ const thaiDay = (k) => {
 
 function html() {
   const { y, m } = ym;
-  const total = bookings.filter((b) => b.day.slice(0, 7) === `${y}-${String(m + 1).padStart(2, '0')}`).length;
+  const total = bookings.filter((b) => live(b) && b.day.slice(0, 7) === `${y}-${String(m + 1).padStart(2, '0')}`).length;
   return `
     <div class="panel qc-panel">
       <div class="qc-head">
@@ -175,7 +177,7 @@ function html() {
         <div class="qc-monthtitle">คิวทั้งเดือน ${TH_MONTH[m]}</div>
         ${monthList()}
       </div>
-      <div class="panel-note">ข้อมูลจากคำขอในระบบ ไม่รวมใบที่ยกเลิกหรือไม่อนุมัติ</div>
+      <div class="panel-note">ข้อมูลจากคำขอในระบบ แสดงสถานะล่าสุดทุกใบ · ใบที่ยกเลิก/ไม่อนุมัติขีดฆ่าไว้และไม่นับเป็นคิว</div>
     </div>`;
 }
 
@@ -222,6 +224,7 @@ export async function mountQueueCalendar(code, opts = {}) {
   const id = String(code);
   ym = ym && ym.code === id ? ym : { y: now.getFullYear(), m: now.getMonth(), code: id };
   picked = todayKey();
+  clearDataCache('requests');   // อ่านสถานะล่าสุดทุกครั้งที่เปิดปฏิทิน
   await load(code);
   paint(box);
 }
@@ -239,7 +242,7 @@ export async function refreshQueueCalendar() {
 
 const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : 'ตารางคิว Messenger');
 const monthKey = () => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
-const tone = (b) => (b.status === 'รออนุมัติ' ? 'wait' : b.status === 'คืนรถแล้ว' ? 'done' : 'ok');
+const tone = (b) => stTone(b.status);
 
 /** ปฏิทินเต็มจอ: ทุกวันแสดงรายการครบ (เวลา ผู้จอง ทะเบียนรถ สถานที่) */
 function openFull(sideBox) {
@@ -257,15 +260,15 @@ function openFull(sideBox) {
       const k = key(y, m, d);
       const items = byDay[k] || [];
       cells.push(`<div class="qcf-cell${k === todayKey() ? ' today' : ''}${items.length ? ' has' : ''}">
-        <div class="qcf-d">${d}${items.length ? `<span>${items.length} ${kind === 'car' ? 'รายการ' : 'คิว'}</span>` : ''}</div>
-        ${items.map((b) => `<div class="qcf-ev ${tone(b)}">
-          <b>${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</b> ${esc(b.by)}
+        <div class="qcf-d">${d}${items.filter(live).length ? `<span>${items.filter(live).length} ${kind === 'car' ? 'รายการ' : 'คิว'}</span>` : ''}</div>
+        ${items.map((b) => `<div class="qcf-ev ${tone(b)}" title="${esc(b.status)}">
+          <b>${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</b> ${esc(b.by)} <span class="qcf-st">${esc(b.status)}</span>
           ${b.plate ? `<span class="qcf-plate">🚗 ${esc(b.plate)}</span>` : ''}
           ${b.place ? `<span class="qcf-place">${esc(b.place)}</span>` : ''}
         </div>`).join('')}
       </div>`);
     }
-    const total = bookings.filter((b) => b.day.startsWith(monthKey())).length;
+    const total = bookings.filter((b) => live(b) && b.day.startsWith(monthKey())).length;
     host.innerHTML = `<div class="qcf-wrap" role="dialog" aria-label="${esc(calTitle())}">
       <div class="qcf-head">
         <div><h2>${esc(calTitle())}</h2><span>${TH_MONTH[m]} ${y + 543} · ${total} รายการ</span></div>
@@ -276,7 +279,7 @@ function openFull(sideBox) {
           <button class="btn-mini" data-qcfclose="1" aria-label="ปิด">✕ ปิด</button>
         </div>
       </div>
-      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว <i class="wait"></i>รออนุมัติ${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ''}</div>
+      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว/เสร็จสิ้น <i class="wait"></i>รออนุมัติ <i class="back"></i>ส่งกลับแก้ไข${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ' <i class="dead"></i>ยกเลิก/ไม่อนุมัติ'}</div>
       <div class="qcf-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qcf-grid">${cells.join('')}</div>
     </div>`;
@@ -308,7 +311,7 @@ async function exportPng() {
   try { await document.fonts.ready; } catch (e) { /* ไม่เป็นไร */ }
   const F = (size, w = 400) => `${w} ${size}px ${font}`;
   const NAVY = '#0b3b7a', INK = '#1d2733', MUTED = '#6b7787', LINE = '#dbe3ee';
-  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', done: '#8a96a5' };
+  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', back: '#dd6b20', done: '#8a96a5', dead: '#b0b8c4' };
   const fit = (text, max) => {               // ตัดข้อความให้พอดีความกว้าง
     let t = String(text || '');
     if (g.measureText(t).width <= max) return t;
@@ -318,7 +321,7 @@ async function exportPng() {
   const round = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
 
   const { y, m } = ym;
-  const rows = bookings.filter((b) => b.day.startsWith(monthKey()));
+  const rows = bookings.filter((b) => live(b) && b.day.startsWith(monthKey()));
 
   // พื้นหลัง + หัว
   g.fillStyle = '#f3f6fa'; g.fillRect(0, 0, W, H);
@@ -400,7 +403,7 @@ async function exportPng() {
   g.fillStyle = '#fff'; g.font = F(22, 600);
   g.fillText('Prime Power Group · ระบบ Intranet', 40, H - 24);
   g.textAlign = 'right'; g.fillStyle = '#b9cde6'; g.font = F(20);
-  g.fillText('🟩 อนุมัติแล้ว   🟨 รออนุมัติ' + (kind === 'car' ? '   ⬜ คืนรถแล้ว' : ''), W - 40, H - 24);
+  g.fillText('🟩 อนุมัติแล้ว  🟨 รออนุมัติ  🟧 ส่งกลับแก้ไข' + (kind === 'car' ? '  ⬜ คืนรถแล้ว' : ''), W - 40, H - 24);
   g.textAlign = 'left';
 
   const blob = await new Promise((res) => c.toBlob(res, 'image/png'));

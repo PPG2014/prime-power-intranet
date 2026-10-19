@@ -9,7 +9,7 @@ import { esc, $, $$ } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { EXEC_TYPES } from '../services/requests.js';
 
-export const MAX_STEPS = 5;
+export const MAX_STEPS = 8;
 const NAMED = 'ระบุชื่อเจาะจง';
 const PROJECT = 'ผู้รับผิดชอบหลักของโครงการ';
 const DEPT_TYPES = ['ทุกคนในฝ่ายที่ระบุ', 'ผู้จัดการฝ่ายที่ระบุ'];
@@ -231,7 +231,9 @@ export async function bindRouteEditor(formCode) {
   steps = existing.filter((s) => !isOff(s.IsActive)).slice(0, MAX_STEPS).map((s) => ({
     StepName: plain(s.StepName),
     ApproverType: plain(s.ApproverType) || NAMED,
-    Approvers: names(s.Approvers),
+    // ขั้นแบบระบุชื่อที่นำเข้าจาก CSV ใส่ชื่อไว้ใน ExtraApprovers (ช่อง Approvers เป็น Lookup นำเข้าตรง ๆ ไม่ได้) → รวมเป็นผู้อนุมัติ
+    Approvers: (plain(s.ApproverType) || NAMED) === NAMED
+      ? [...new Set([...names(s.Approvers), ...splitList(s.ExtraApprovers)])] : names(s.Approvers),
     ApproveMode: MODES.includes(plain(s.ApproveMode)) ? plain(s.ApproveMode) : MODES[0],
     ApproverDept: plain(s.ApproverDept),
     AlsoTypes: splitList(s.AlsoTypes),
