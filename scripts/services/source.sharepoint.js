@@ -256,7 +256,10 @@ async function keepKnown(name, fields) {
         const col = cols.get(k);
         skipped.push(k + (col && col.thumbnail
           ? ' (คอลัมน์ชนิด Image เขียนผ่านระบบไม่ได้)'
-          : ' (ค่าไม่ตรงกับตัวเลือกที่ตั้งไว้ใน SharePoint)'));
+          : ` — ค่า "${String(v ?? '').trim()}" ยังไม่มีในตัวเลือกของคอลัมน์นี้ใน SharePoint`
+            + ` (ตอนนี้มี: ${((col && col.choice && col.choice.choices) || []).join(' / ')})`
+            + `\n     วิธีแก้: SharePoint → List นี้ → List settings → คอลัมน์ ${k} → เพิ่ม "${String(v ?? '').trim()}" ในช่อง choices`
+            + ' (หรือติ๊ก Can add values manually) แล้วบันทึกรายการนี้อีกครั้ง'));
       }
       else out[k] = cv;
     } else if (cols.has(baseKey)) {

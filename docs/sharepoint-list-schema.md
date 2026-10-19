@@ -442,12 +442,12 @@ Attachments/แบบฟอร์ม/ฝ่ายบัญชีและกา�
 
 ### L09 — Documents (คู่มือและไฟล์ดาวน์โหลด)
 
-รวมสองแท็บไว้ใน List เดียว แยกด้วยช่อง DocType
+รวมสามแท็บไว้ใน List เดียว แยกด้วยช่อง DocType
 
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
 | Title | Single line of text | ชื่อเอกสาร |
-| DocType | Choice | คู่มือ / ไฟล์ดาวน์โหลด |
+| DocType | Choice | คู่มือ / เอกสาร ISO / ไฟล์ดาวน์โหลด (ต้องมีครบทั้ง 3 ค่า ไม่งั้นบันทึกประเภทที่ขาดไม่ได้) |
 | Department | Lookup → L01.Title | ฝ่ายเจ้าของ |
 | Icon | Single line of text | อิโมจิ ใช้กับคู่มือ |
 | Description | Multiple lines (plain) | |
