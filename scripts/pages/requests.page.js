@@ -8,6 +8,7 @@ import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, lo
   PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
+import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE } from '../services/car.js';
 import { standardLabel, withStandard } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
@@ -66,6 +67,9 @@ function statusPill(s) {
   return `<span class="rq-status st-${STATUS_TONE[s] || 'gray'}">${esc(s || '')}</span>`;
 }
 
+/** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
+const SYSTEM_LABEL = { pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
+
 function summaryLine(req) {
   try {
     const d = JSON.parse(req.FormData || '{}');
@@ -89,6 +93,7 @@ function requestRow(req, opts = {}) {
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
         ${purchaseStatusOf(req) ? `<span class="rq-pstatus">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
+        ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
@@ -347,7 +352,9 @@ async function openRequest(req) {
     .filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))
     .map(([k, v]) => {
       const f = fields.find((x) => x.FieldKey === k);
-      const label = (f ? f.Title : null) || standardLabel(k) || k;
+      const label = (f ? f.Title : null) || standardLabel(k) || SYSTEM_LABEL[k] || k;
+      // เวลาคืนรถ: แสดงทั้งวันและเวลา
+      if (k === 'car_returned_at') return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(thaiDateTime(v))}</b></div>`;
       if (f && f.FieldType === 'lineitems' && Array.isArray(v)) {
         const cols = String(f.Options||'').split('\n').map(x=>x.split('|'));
         return `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
@@ -355,7 +362,7 @@ async function openRequest(req) {
           ${v.map(row=>`<tr>${cols.map(c=>`<td>${esc(row[c[0].trim()]||'')}</td>`).join('')}</tr>`).join('')}
           </table></div>`;
       }
-      const isDate = (f && f.FieldType === 'date') || k === 'std_date'
+      const isDate = (f && f.FieldType === 'date') || k === 'std_date' || k === 'pr_date'
         || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
       // ไฟล์แนบ: กดเปิดได้ (รูปภาพโชว์ตัวอย่างด้วย)
       if (Array.isArray(v) && v.some((x) => x && typeof x === 'object' && x.url)) {
@@ -420,8 +427,9 @@ async function openRequest(req) {
             ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">📦 สถานะจัดซื้อ</span>${esc(a.note)}</div>`
             : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}</div>`).join('')}
       </div></div>`;
-  }).join('');
+  }).join('') + carTimeline(log);
 
+  role.carPlates = isCarRequest(req) ? await carPlates() : [];
   openModal({
     title: `${req.Title} · ${req.FormName || ''}`,   // openModal escape ให้เองแล้ว
     wide: true,
@@ -432,6 +440,7 @@ async function openRequest(req) {
           <span class="dim">ยื่นโดย ${esc(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
           ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-prline">PR No. <b>${esc(prValues(req).pr_no)}</b>${
             prValues(req).pr_date ? ` · ออก ${esc(thaiNumDate(prValues(req).pr_date))}` : ''}</span>` : ''}
+          ${isCarRequest(req) ? carLine(req) : ''}
         </div>
 
         <div class="rq-cols">
@@ -453,6 +462,7 @@ async function openRequest(req) {
             ? '<div class="rq-wait">👁 ดูได้อย่างเดียว (ผู้บริหาร) · คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>' : '')}
 
         ${requesterActions(req, log)}
+        ${isCarRequest(req) ? carManageBox(req, role) : ''}
         ${state.isAdmin && req.Status === 'รออนุมัติ' ? `<div class="rq-owner-act">
           <span>แอดมิน: สถานะแจ้งอนุมัติอัตโนมัติ = <b>${esc(req.PAState || 'ยังไม่ตั้ง')}</b>
           · กดเพื่อคำนวณผู้อนุมัติใหม่และส่งการ์ดลำดับปัจจุบันอีกครั้ง</span>
@@ -480,6 +490,38 @@ async function openRequest(req) {
       const { render: rr } = await import('../core/render.js'); rr();
     } catch (e) { alert('ยกเลิกไม่สำเร็จ — ' + e.message); }
   });
+
+  // จองรถ: คืนรถ / เปลี่ยนรถ / ยกเลิกการจอง
+  if (isCarRequest(req)) {
+    bindPlatePicker('car-plate');
+    const meName = () => state.user?.name || '';
+    const after = async () => { closeModal(); const { render: rr } = await import('../core/render.js'); rr(); };
+    const carErr = (m) => { const e = $('#car-err'); if (e) { e.textContent = m; e.hidden = !m; } else if (m) alert(m); };
+    onClick('carreturn', async (_, btn) => {
+      if (!confirm('ยืนยันคืนรถ? ระบบจะบันทึกเวลาคืนเป็นตอนนี้ และปิดคำขอ')) return;
+      btn.disabled = true;
+      try { await returnCar(req, meName(), ($('#car-ret-note') || {}).value || ''); await after(); }
+      catch (e) { btn.disabled = false; alert('คืนรถไม่สำเร็จ — ' + e.message); }
+    });
+    onClick('carplate', async (_, btn) => {
+      const plate = pickedPlate('car-plate');
+      if (!plate) { carErr('กรุณาเลือกทะเบียนรถ'); return; }
+      if (plate === carData(req).car_plate) { carErr(`ใช้รถ ${plate} อยู่แล้ว`); return; }
+      const clash = await plateClash(req, plate);
+      if (clash.length && !confirm(`รถ ${plate} ถูกจองช่วงเวลาทับกันอยู่แล้ว\n\n${clash.map((b) => `• ${spanText(b)} ${b.by} (${b.req.Title})`).join('\n')}\n\nยืนยันเปลี่ยนเป็นรถคันนี้หรือไม่`)) return;
+      btn.disabled = true;
+      try { await changePlate(req, meName(), plate, ($('#car-mg-note') || {}).value || ''); await after(); }
+      catch (e) { btn.disabled = false; carErr('บันทึกไม่สำเร็จ — ' + e.message); }
+    });
+    onClick('carcancel', async (_, btn) => {
+      const why = (($('#car-mg-note') || {}).value || '').trim();
+      if (!why) { carErr('กรุณาพิมพ์เหตุผลก่อนยกเลิกการจอง'); $('#car-mg-note').focus(); return; }
+      if (!confirm(`ยืนยันยกเลิกการจองรถ ${req.Title}?\n\nเหตุผล: ${why}`)) return;
+      btn.disabled = true;
+      try { await cancelCar(req, meName(), why); await after(); }
+      catch (e) { btn.disabled = false; carErr('ยกเลิกไม่สำเร็จ — ' + e.message); }
+    });
+  }
 
   onClick('reqresend', async () => {
     try {
@@ -548,6 +590,86 @@ function purchaseBox(req, role) {
     </div>`;
 }
 
+/* ───── จองรถยนต์บริษัทฯ ───── */
+/** เลือกทะเบียนรถ (รายการจากตั้งค่าระบบ CarPlates) + กรอกเองได้ เผื่อยืมรถฝ่ายอื่น */
+function platePicker(plates, cur = '', id = 'rq-plate') {
+  const known = plates.includes(cur);
+  return `<div class="rq-car-pick">
+    <label class="rq-note-label" for="${id}">🚗 ทะเบียนรถที่ให้ใช้ <b class="req">*</b> <span class="dim">— ต้องเลือกก่อนกดอนุมัติ</span></label>
+    <div class="rq-car-row">
+      <select id="${id}" class="rq-pselect">
+        <option value="">— เลือกรถ —</option>
+        ${plates.map((p) => `<option ${p === cur ? 'selected' : ''}>${esc(p)}</option>`).join('')}
+        <option value="__other" ${cur && !known ? 'selected' : ''}>อื่น ๆ (กรอกทะเบียนเอง เช่น ยืมรถฝ่ายอื่น)</option>
+      </select>
+      <input id="${id}-other" type="text" placeholder="พิมพ์ทะเบียนรถ เช่น 7 กข 1234 (ฝ่ายขาย)" value="${cur && !known ? esc(cur) : ''}"
+        ${cur && !known ? '' : 'hidden'} autocomplete="off">
+    </div>
+  </div>`;
+}
+const pickedPlate = (id = 'rq-plate') => {
+  const sel = $('#' + id);
+  if (!sel) return null;
+  return sel.value === '__other' ? ($('#' + id + '-other').value || '').trim() : sel.value.trim();
+};
+const bindPlatePicker = (id = 'rq-plate') => {
+  const sel = $('#' + id); const other = $('#' + id + '-other');
+  if (sel && other) sel.onchange = () => { other.hidden = sel.value !== '__other'; if (!other.hidden) other.focus(); };
+};
+
+/** หลังอนุมัติ: เปลี่ยนรถ / ยกเลิกการจอง / คืนรถ ต่อท้ายเส้นทางอนุมัติ */
+function carTimeline(log) {
+  const acts = log.filter((l) => l.step === 999 && ['คืนรถ', 'เปลี่ยนรถ', 'ยกเลิก'].includes(l.action));
+  if (!acts.length) return '';
+  return `<div class="tl-step tl-ok"><div class="tl-dot"></div><div class="tl-body">
+    <div class="tl-name">🚗 การใช้รถ</div>
+    ${acts.map((a) => `<div class="tl-act ${a.action === 'ยกเลิก' ? 'bad' : 'buy'}">
+      <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}</span>
+      ${a.note ? `<div class="tl-note tl-note-buy">${esc(a.note)}</div>` : ''}</div>`).join('')}
+  </div></div>`;
+}
+
+/** บรรทัดสรุปบนหัวรายละเอียดคำขอ: ช่วงเวลา · ทะเบียนรถ · คืนรถ */
+function carLine(req) {
+  const d = carData(req);
+  const sp = spanOf(d);
+  const link = mapLink(d[CAR_PLACE]);
+  return `<span class="rq-prline rq-carline">🚗 ${sp ? esc(spanText(sp)) : ''}${
+    d.car_plate ? ` · ทะเบียน <b>${esc(d.car_plate)}</b>` : ' · <span class="dim">ยังไม่ได้กำหนดรถ</span>'}${
+    d.car_returned_at ? ` · <b class="rq-returned">คืนรถแล้ว ${esc(thaiDateTime(d.car_returned_at))}</b>` : ''}${
+    link ? ` · <a href="${esc(link)}" target="_blank" rel="noopener">🗺 แผนที่</a>` : ''}</span>`;
+}
+
+/**
+ * หลังอนุมัติ (ยังไม่คืนรถ):
+ *   ผู้ยื่น → ปุ่มคืนรถ · ผู้อนุมัติในเส้นทาง/แอดมิน → เปลี่ยนรถ หรือยกเลิกการจอง ได้ทุกเมื่อ
+ */
+function carManageBox(req, role) {
+  const d = carData(req);
+  if (req.Status !== 'อนุมัติแล้ว' || d.car_returned_at) return '';
+  const mine = req.RequesterEmail && req.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase();
+  const manager = role.isInvolved || state.isAdmin;
+  if (!mine && !manager) return '';
+  return `<div class="rq-action rq-car-box">
+    ${mine ? `<div class="rq-car-return">
+      <h4>🔑 คืนรถ</h4>
+      <p class="dim">ใช้งานเสร็จแล้ว กดคืนรถ ระบบบันทึกวันเวลาที่คืนและปิดคำขอ · รถจะว่างให้คนอื่นจองทันที</p>
+      <input id="car-ret-note" type="text" placeholder="หมายเหตุ (ไม่บังคับ) เช่น เลขไมล์ / น้ำมันคงเหลือ / จุดจอด" autocomplete="off">
+      <div class="rq-buttons"><button class="btn btn-primary" data-carreturn="1">🔑 คืนรถ</button></div>
+    </div>` : ''}
+    ${manager ? `<div class="rq-car-manage">
+      <h4>🚗 จัดการการจองรถ <span class="dim">(ผู้อนุมัติ)</span></h4>
+      ${platePicker(role.carPlates || [], d.car_plate, 'car-plate')}
+      <input id="car-mg-note" type="text" placeholder="หมายเหตุ / เหตุผล (จำเป็นเมื่อยกเลิก)" autocomplete="off">
+      <div class="field-error" id="car-err" hidden></div>
+      <div class="rq-buttons">
+        <button class="btn-mini danger" data-carcancel="1">✗ ยกเลิกการจอง</button>
+        <button class="btn btn-primary" data-carplate="1">💾 บันทึกการเปลี่ยนรถ</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
 function actionBox(req, role) {
   if (role.isPurchasing) return purchaseBox(req, role);
   return `
@@ -556,6 +678,7 @@ function actionBox(req, role) {
       <label class="rq-note-label" for="rq-note">เหตุผล / ความเห็น
         <span class="dim">(จำเป็นเมื่อกด ส่งกลับแก้ไข หรือ ไม่อนุมัติ)</span></label>
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
+      ${isCarRequest(req) && role.isLastStep ? platePicker(role.carPlates, carData(req).car_plate, 'rq-plate') : ''}
       ${role.wantsSign ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) || isPR(req.FormCode) ? ' open' : ''}>
         <summary><b>✍ ลายเซ็นผู้อนุมัติ</b>${isPR(req.FormCode)
           ? ' <b class="req">*</b> <span class="dim">— จำเป็น: วาดหรืออัปโหลดลายเซ็นก่อนกดอนุมัติ ลงช่องของขั้นนี้ในใบขอสั่งซื้อ</span>'
@@ -648,12 +771,20 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
       return;
     }
     if (action === 'อนุมัติ' && !signedNow()) return;
+    // จองรถ: ผู้อนุมัติขั้นสุดท้ายต้องเลือกทะเบียนรถก่อน · รถคันเดียวกันถูกจองช่วงเวลาทับกัน → ถามยืนยัน
+    const plate = action === 'อนุมัติ' ? pickedPlate() : null;
+    if (plate === '') { fail('กรุณาเลือกทะเบียนรถก่อนกดอนุมัติ (หรือเลือก "อื่น ๆ" แล้วพิมพ์ทะเบียน)'); $('#rq-plate').focus(); return; }
+    if (plate) {
+      const clash = await plateClash(req, plate);
+      if (clash.length && !confirm(`รถ ${plate} ถูกจองช่วงเวลาทับกันอยู่แล้ว\n\n${clash.map((b) => `• ${spanText(b)} ${b.by} (${b.req.Title})`).join('\n')}\n\nยืนยันใช้รถคันนี้หรือไม่`)) return;
+    }
     if (action === 'ไม่อนุมัติ' && !confirm('ยืนยันไม่อนุมัติคำขอนี้? คำขอจะสิ้นสุดทันที')) return;
     if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
     busy(true);
     try {
       const sig = action === 'อนุมัติ' && role.wantsSign ? await readSignature('approver', signFolder) : '';
-      await decide(req, steps, { action, by: me, note: note(), slip: pendingSlip, sig });
+      await decide(req, steps, { action, by: me, note: plate ? [note(), `🚗 ${plate}`].filter(Boolean).join(' — ') : note(),
+        slip: pendingSlip, sig, formPatch: plate ? { car_plate: plate } : null });
       await done();
     } catch (e) {
       busy(false);
@@ -662,6 +793,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     }
   };
 
+  bindPlatePicker('rq-plate');
   const ap = $('#rq-approve'); if (ap) ap.onclick = () => run('อนุมัติ');
   const rj = $('#rq-reject'); if (rj) rj.onclick = () => run('ไม่อนุมัติ');
   const sb = $('#rq-sendback'); if (sb) sb.onclick = () => run('ส่งกลับแก้ไข');

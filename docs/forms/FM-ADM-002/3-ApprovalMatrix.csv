@@ -1,0 +1,2 @@
+﻿FormCode,StepOrder,StepName,ApproverType,ApproverDept,ApproveMode,Optional,NotifyAtSubmit,IsActive,SortOrder
+FM-ADM-002,1,ผู้ดูแลรถ (ฝ่ายประสานงานและอำนวยการ),ทุกคนในฝ่ายที่ระบุ,ฝ่ายประสานงานและอำนวยการ,คนใดคนหนึ่งอนุมัติก็ผ่าน,No,No,Yes,1

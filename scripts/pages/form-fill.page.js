@@ -9,6 +9,9 @@ import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
+import { isCarForm, CAR_FIELDS, CAR_PLACE, carProblem, mapLink } from '../services/car.js';
+/** ฟอร์มที่มีปฏิทินด้านข้าง: คิวรายวัน (Messenger) หรือจองรถ */
+const hasCal = (fields) => isQueueForm(fields) || isCarForm(fields);
 import { mountQueueCalendar } from '../components/queue-calendar.js';
 import { confirmSubmit } from '../components/submit-confirm.js';
 import { printWithNotice } from '../components/eta-notice.js';
@@ -155,8 +158,8 @@ export async function render(ctx) {
   }
 
   return `
-  <section class="page page-form${isQueueForm(fields) ? ' has-queue-cal' : ''}">
-    <div class="wrap${isQueueForm(fields) ? '' : ' narrow'}">
+  <section class="page page-form${hasCal(fields) ? ' has-queue-cal' : ''}">
+    <div class="wrap${hasCal(fields) ? '' : ' narrow'}">
       <a class="back-link" href="#/forms">← แบบฟอร์มทั้งหมด</a>
 
       <div class="form-head">
@@ -169,7 +172,7 @@ export async function render(ctx) {
       </div>
       ${templateButtons(form)}
 
-      <div class="${isQueueForm(fields) ? 'form-layout' : ''}">
+      <div class="${hasCal(fields) ? 'form-layout' : ''}">
       <div>
 
       ${me ? '' : `<div class="mock-warning">
@@ -199,7 +202,7 @@ export async function render(ctx) {
         </div>
       </div>
       </div>
-      ${isQueueForm(fields) ? '<aside class="form-aside" id="queue-cal"></aside>' : ''}
+      ${hasCal(fields) ? '<aside class="form-aside" id="queue-cal"></aside>' : ''}
       </div>
     </div>
   </section>`;
@@ -286,6 +289,38 @@ async function queueProblem(form, fields, values, excludeId) {
     + (free.length
       ? `<br><br>ช่วงเวลาที่ยังว่างของวันนี้: ${free.slice(0, 12).map(esc).join(' · ')}${free.length > 12 ? ' …' : ''}`
       : '<br><br>วันนี้คิวเต็มแล้ว กรุณาเลือกวันอื่น');
+}
+
+/**
+ * จองรถ: เตือนทันทีเมื่อเลือกวัน/เวลาแล้วรถเต็ม · วันที่สิ้นสุดตามวันเริ่มให้เอง · ปุ่มค้นสถานที่ใน Google Maps
+ */
+function bindCarForm(form, fields) {
+  const box = $('#q-error');
+  const els = Object.values(CAR_FIELDS).map((k) => $('#q_' + k)).filter(Boolean);
+  const from = $('#q_' + CAR_FIELDS.dateFrom); const to = $('#q_' + CAR_FIELDS.dateTo);
+  let timer = null;
+  const check = async () => {
+    const vals = {};
+    els.forEach((el) => { vals[el.id.replace('q_', '')] = el.value; });
+    if (!vals[CAR_FIELDS.dateFrom] || !vals[CAR_FIELDS.timeFrom] || !vals[CAR_FIELDS.timeTo]) return;
+    const msg = await carProblem(form.FormCode, vals, editId);
+    box.innerHTML = esc(msg).replace(/\n/g, '<br>');
+    box.hidden = !msg;
+  };
+  els.forEach((el) => el.addEventListener('change', () => {
+    if (el === from && to && (!to.value || to.value < from.value)) to.value = from.value;
+    clearTimeout(timer); timer = setTimeout(check, 250);
+  }));
+  // สถานที่: พิมพ์ชื่อหรือวางลิงก์ Google Maps · ปุ่มเปิดแผนที่ในแท็บใหม่
+  const place = $('#q_' + CAR_PLACE);
+  if (place && !$('#car-map')) {
+    const a = document.createElement('a');
+    a.id = 'car-map'; a.className = 'btn-mini car-map'; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = '🗺 เปิดในแผนที่';
+    const sync = () => { const u = mapLink(place.value); a.href = u || 'https://www.google.com/maps'; };
+    place.addEventListener('input', sync); sync();
+    place.insertAdjacentElement('afterend', a);
+  }
 }
 
 /** ดาวน์โหลดแบบฟอร์มเป็นเอกสาร A4 หน้าตาเหมือนหน้ากรอก กรอกค่าที่พิมพ์ไว้ให้ถ้ามี */
@@ -386,6 +421,10 @@ export function mount(ctx) {
 
   // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
   if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
+  if (isCarForm(fields)) {
+    mountQueueCalendar(form.FormCode, { kind: 'car' });
+    bindCarForm(form, fields);
+  }
 
   const dl = $('#q-download');
   if (dl) dl.onclick = () => downloadBlankForm(form, fields);
@@ -424,6 +463,11 @@ export function mount(ctx) {
       return;
     }
 
+    // จองรถ: รถว่างไม่พอในช่วงเวลานั้น (จองครบทุกคันแล้ว) → ห้ามส่ง ให้ติดต่อผู้ดูแลโดยตรง
+    if (isCarForm(fields)) {
+      const msg = await carProblem(form.FormCode, res.values, editId);
+      if (msg) { err.innerHTML = esc(msg).replace(/\n/g, '<br>'); err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    }
     // ฟอร์มที่จองเป็นช่วงเวลา (เช่น จองคิว Messenger) ต้องไม่ชนกับคิวที่มีอยู่
     if (isQueueForm(fields)) {
       const v = res.values;
