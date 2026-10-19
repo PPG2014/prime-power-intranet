@@ -104,6 +104,7 @@ function requestRow(req, opts = {}) {
 }
 
 export async function render(ctx) {
+  const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ชื่อที่ใช้เทียบ/บันทึก = ชื่อในทะเบียนบุคลากร (หาด้วยอีเมล) ถ้าไม่เจอใช้ชื่อจาก Microsoft 365
   const dirAll = await list('directory').catch(() => []);
   const myEmail = String(state.user?.email || '').trim().toLowerCase();
@@ -187,7 +188,7 @@ export async function render(ctx) {
     <div class="wrap">
       <div class="rq-title-row">
         <h1 class="page-title">${esc(meta.title)}</h1>
-        <a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>
+        ${prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
       </div>
 
       <div class="rq-layout${solo ? ' solo' : ''}">

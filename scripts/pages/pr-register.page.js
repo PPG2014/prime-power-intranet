@@ -36,7 +36,8 @@ const f = {             // ตัวกรองปัจจุบัน (คง
   project: '', status: '', q: '',
 };
 
-async function canSeeAll() {
+/** เห็นทะเบียน PR ได้: ผู้ดูแลระบบ · ผู้บริหาร (RequestViewers) · บุคลากรฝ่ายจัดซื้อและคลังสินค้า */
+export async function canSeePRRegister() {
   if (state.isAdmin || state.isViewer) return true;
   const em = norm(state.user?.email);
   if (!em) return false;
@@ -130,9 +131,14 @@ function exportXlsx() {
 
 export async function render() {
   const all = await list('requests').catch(() => []);
-  seeAll = await canSeeAll();
-  const me = norm(state.user?.email);
-  rows = all.filter((r) => isPRRequest(r) && (seeAll || norm(r.RequesterEmail) === me)).map(prHeader);
+  seeAll = await canSeePRRegister();
+  if (!seeAll) {
+    rows = [];
+    return `<section class="page"><div class="wrap"><h1 class="page-title">${meta.title}</h1>
+      <div class="panel"><div class="empty">หน้านี้สำหรับผู้ดูแลระบบ ผู้บริหาร และฝ่ายจัดซื้อและคลังสินค้าเท่านั้น<br>
+      ดูใบขอสั่งซื้อของคุณได้ที่เมนู <a href="#/requests">ติดตามสถานะ</a></div></div></div></section>`;
+  }
+  rows = all.filter(isPRRequest).map(prHeader);
   const projects = [...new Set(rows.map((r) => r.project).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
   const statuses = [...new Set(rows.map((r) => r.status).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
   if (f.project && !projects.includes(f.project)) f.project = '';
@@ -169,6 +175,7 @@ export async function render() {
 }
 
 export function mount() {
+  if (!$('#prr-body')) return;   // ไม่มีสิทธิ์ดู
   const redraw = () => { $('#prr-body').innerHTML = tableHtml(); };
   const bindWhen = () => {
     const day = $('#prr-day'); if (day) day.onchange = () => { f.day = day.value || f.day; redraw(); };

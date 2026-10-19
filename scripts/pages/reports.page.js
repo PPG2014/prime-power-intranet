@@ -22,6 +22,7 @@ let snapshot = { rows: [], perStep: [], perPerson: [] };
 
 export async function render(ctx) {
   const days = state.reportPeriod || '90';
+  const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ช่วงเวลาจำกัด → ให้ SharePoint กรองมาเฉพาะช่วงนั้น (+ ใบที่ยังรออนุมัติ) ไม่ต้องดึงทั้ง List
   const all = await (days === 'all' ? list('requests')
     : listRecent('requests', { days: +days, statuses: ['รออนุมัติ'] })).catch(() => []);
@@ -127,7 +128,7 @@ export async function render(ctx) {
           `<button class="chip" data-period="${k}" aria-pressed="${days === k}">${esc(v)}</button>`).join('')}
         <span class="toolbar-meta">${rows.length} คำขอ</span>
         <button class="btn-mini" id="rr-csv">⬇ ส่งออก CSV</button>
-        <a class="btn-mini" href="#/pr-register">📋 ทะเบียน PR (Excel)</a>
+        ${prRegisterOk ? '<a class="btn-mini" href="#/pr-register">📋 ทะเบียน PR (Excel)</a>' : ''}
       </div>
 
       <div class="rr-kpis">
