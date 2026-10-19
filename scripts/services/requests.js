@@ -400,6 +400,47 @@ export function flowFieldsFor(route, stepNo) {
 
 
 /**
+ * ความคืบหน้าของลำดับหนึ่งในรอบล่าสุด (หลังการยื่นใหม่ครั้งล่าสุด)
+ * คืน { all, approvedBy, need, left, done } · done = ลำดับนี้ผ่านแล้วตามเงื่อนไขการผ่าน
+ */
+export function stepProgress(step, log) {
+  const n = +step.StepOrder;
+  const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
+  const now = log.slice(lastRound + 1).filter((l) => l.step === n);
+  const approvedBy = [...new Set(now.filter((l) => l.action === 'อนุมัติ').map((l) => String(l.by).trim()))];
+  const all = String(step.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน';
+  const need = all ? [...new Set((step._resolved || toArr(step.Approvers)).map((x) => String(x).trim()))] : [];
+  const left = need.filter((a) => !approvedBy.includes(a));
+  const done = now.some((l) => l.action === 'ข้าม') || (approvedBy.length > 0 && (!all || !left.length));
+  return { all, approvedBy, need, left, done };
+}
+
+/** ลำดับถัดไปหลัง cur (ข้ามลำดับไม่บังคับที่ไม่มีผู้อนุมัติ) · ไม่มี = ลำดับสุดท้ายแล้ว */
+export function nextStepAfter(steps, cur, route) {
+  const inRoute = new Set(route.map((r) => r.step));
+  return steps.filter((s) => +s.StepOrder > cur && !(isOptionalStep(s)
+    && ((Array.isArray(s._resolved) && !s._resolved.length) || !inRoute.has(+s.StepOrder))))
+    .map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
+}
+
+/**
+ * คำขอที่ลำดับปัจจุบันผ่านครบแล้ว แต่ CurrentStep ไม่ได้เลื่อน (เช่น อนุมัติจากการ์ดแล้วโฟลว์ไม่อัปเดต)
+ * คืน fields ที่ต้องเขียนเพื่อเลื่อนไปลำดับถัดไป หรือ null ถ้าไม่ได้ค้างแบบนี้
+ */
+export async function stalledAdvance(req, steps) {
+  if (String(req.Status || '').trim() !== 'รออนุมัติ') return null;
+  const cur = +req.CurrentStep || 1;
+  const all = steps && steps.length ? steps : await loadResolved((await stepsOf(req.FormCode)).map((x) => ({ ...x })), req);
+  const step = all.find((s) => +s.StepOrder === cur);
+  if (!step || !stepProgress(step, parseLog(req.ApprovalLog)).done) return null;
+  const route = (await buildRoute(req)).route;
+  const next = nextStepAfter(all, cur, route);
+  return next
+    ? { step: next, fields: { ...flowFieldsFor(route, next), CurrentStep: next, Status: 'รออนุมัติ' } }
+    : { step: 0, fields: { Status: 'อนุมัติแล้ว', PAState: 'DONE' } };
+}
+
+/**
  * วิเคราะห์คำขอที่ค้างสถานะ NOAPPROVER ว่าติดเพราะอะไร และคำนวณเส้นทางใหม่
  * คืน { ok, step, stepName, reason, fields }
  *   ok = ตอนนี้หาผู้อนุมัติได้แล้ว → เขียน fields ลงคำขอเพื่อให้โฟลว์ส่งการ์ดใหม่
@@ -538,10 +579,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
       // ลำดับไม่บังคับที่ไม่มีผู้อนุมัติ (เช่นโครงการไม่มีผู้อำนวยการ) ข้ามให้อัตโนมัติ
       // เส้นทางคำนวณใหม่ ไม่ใช้ Route เก่าที่เก็บไว้ตอนยื่น · ลำดับไม่บังคับที่ไม่มีอีเมลผู้อนุมัติไม่อยู่ใน route
       const route = (await buildRoute(req)).route;
-      const inRoute = new Set(route.map((r) => r.step));
-      const next = steps.filter((s) => +s.StepOrder > cur && !(isOptionalStep(s)
-        && ((Array.isArray(s._resolved) && !s._resolved.length) || !inRoute.has(+s.StepOrder))))
-        .map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
+      const next = nextStepAfter(steps, cur, route);
       if (next) {
         patch.CurrentStep = next; patch.Status = 'รออนุมัติ';
         // ให้โฟลว์ส่งการ์ดลำดับถัดไป

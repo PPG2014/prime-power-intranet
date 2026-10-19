@@ -177,13 +177,30 @@ async function runChecks() {
     const { diagnoseRoute } = await import('../services/requests.js');
     const diag = await Promise.all(noApprover.map(async (r) => ({ r,
       d: await diagnoseRoute(r).catch((e) => ({ ok: false, step: r.CurrentStep, stepName: '', reason: 'ตรวจไม่ได้: ' + e.message })) })));
-    fixable = diag.filter((x) => x.d.ok);
+    fixable.push(...diag.filter((x) => x.d.ok));
     add('stop', 'คำขอ', `หาผู้อนุมัติไม่ได้ ${noApprover.length} ใบ`,
       diag.map(({ r, d }) => `• ${clean(r.Title)} (${clean(r.RequesterName)}) · ลำดับ ${d.step}${d.stepName ? ' ' + d.stepName : ''}\n   ${d.ok ? '✓ ' : '✗ '}${d.reason}`).join('\n'),
       fixable.length
         ? `${fixable.length} ใบแก้ได้แล้ว กดปุ่ม "↻ ส่งแจ้งอนุมัติใหม่" ด้านล่าง · ใบที่ยังขึ้น ✗ ให้แก้ตามสาเหตุก่อนแล้วตรวจอีกครั้ง`
         : 'แก้ตามสาเหตุของแต่ละใบ (ทะเบียนบุคลากร/เส้นทางอนุมัติ) แล้วกด ↻ ตรวจอีกครั้ง',
       fixable.length ? 'resend' : '');
+  }
+
+  // อนุมัติครบลำดับแล้วแต่ CurrentStep ไม่เลื่อน (เช่น กดจากการ์ดแล้วโฟลว์ไม่อัปเดตลำดับ)
+  {
+    const { stalledAdvance } = await import('../services/requests.js');
+    const stalled = [];
+    for (const r of waiting.filter((x) => clean(x.PAState) !== 'NOAPPROVER')) {
+      const a = await stalledAdvance(r).catch(() => null);
+      if (a) stalled.push({ r, d: { ok: true, fields: a.fields, step: a.step } });
+    }
+    if (stalled.length) {
+      fixable.push(...stalled);
+      add('stop', 'คำขอ', `อนุมัติแล้วแต่ไม่เลื่อนไปลำดับถัดไป ${stalled.length} ใบ`,
+        stalled.map(({ r, d }) => `• ${clean(r.Title)} (${clean(r.RequesterName)}) · ค้างที่ลำดับ ${clean(r.CurrentStep) || 1}`
+          + ` → ${d.step ? `ลำดับ ${d.step}` : 'ปิดคำขอ (อนุมัติแล้ว)'}`).join('\n'),
+        'ผู้อนุมัติลำดับถัดไปยังกดไม่ได้ · กดปุ่มด้านล่างเพื่อเลื่อนลำดับและส่งแจ้งผู้อนุมัติ', 'resend');
+    }
   }
 
   // ── คอลัมน์ที่ระบบใหม่ต้องใช้ ────────────────────────────
@@ -262,7 +279,7 @@ export async function render(ctx) {
       <div class="hl-issue">${esc(f.issue)}</div>
       ${f.detail ? `<div class="hl-detail">${esc(f.detail)}</div>` : ''}
       <div class="hl-fix">→ ${esc(f.fix)}</div>
-      ${f.action === 'resend' ? `<button class="btn btn-primary hl-act" id="hl-resend">↻ ส่งแจ้งอนุมัติใหม่ ${fixable.length} ใบ</button>` : ''}
+      ${f.action === 'resend' ? `<button class="btn btn-primary hl-act" data-hlresend="1">↻ ส่งแจ้งอนุมัติใหม่ทุกใบที่แก้ได้ (${fixable.length} ใบ)</button>` : ''}
     </div>`;
 
   return `
@@ -297,8 +314,7 @@ export function mount(ctx) {
       rerender();
     };
   }
-  const resend = $('#hl-resend');
-  if (resend) {
+  document.querySelectorAll('[data-hlresend]').forEach((resend) => {
     resend.onclick = async () => {
       resend.disabled = true; resend.textContent = 'กำลังส่ง…';
       const { update, clearDataCache } = await import('../services/data.js');
@@ -311,7 +327,7 @@ export function mount(ctx) {
       const { render: rerender } = await import('../core/render.js');
       rerender();
     };
-  }
+  });
   const csv = $('#hl-csv');
   if (csv) {
     csv.onclick = () => {

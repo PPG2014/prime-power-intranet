@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE } from '../services/car.js';
@@ -410,7 +410,10 @@ async function openRequest(req) {
     const approved = now.filter((l) => l.action === 'อนุมัติ' || l.action === 'ข้าม'
       || (l.action === PURCHASE_ACTION && String(l.note || '').startsWith(PURCHASE_DONE)));
     const cancelled = now.find((l) => l.action === PURCHASE_ACTION && String(l.note || '').startsWith(PURCHASE_CANCEL));
-    const st = rejected || cancelled ? 'bad' : sentBack ? 'back' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
+    // ลำดับปัจจุบันที่ต้องอนุมัติครบทุกคน: มีคนอนุมัติบางส่วนแล้วยังไม่ถือว่าผ่าน
+    const prog = stepProgress(s, log);
+    const partial = n === cur && req.Status === 'รออนุมัติ' && prog.all && !prog.done && prog.approvedBy.length;
+    const st = rejected || cancelled ? 'bad' : sentBack ? 'back' : partial ? 'now' : approved.length ? 'ok' : n === cur ? 'now' : 'wait';
     return `<div class="tl-step tl-${st}">
       <div class="tl-dot"></div>
       <div class="tl-body">
@@ -423,9 +426,13 @@ async function openRequest(req) {
             return `<div class="tl-people"><span class="dim">${s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่'
               ? '— ไม่มีผู้อนุมัติ · ข้ามขั้นนี้อัตโนมัติ —' : '— หาผู้อนุมัติไม่พบ —'}</span></div>`;
           }
-          return who.some((x) => meIds.includes(x)) && !acts.length
-            ? '<div class="tl-people tl-me">คุณเป็นผู้อนุมัติขั้นนี้</div>' : '';
+          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => meIds.includes(String(a.by).trim()))) return '';
+          if (req.Status !== 'รออนุมัติ') return '';
+          return n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
+            : n > cur ? '<div class="tl-people tl-me tl-later">คุณเป็นผู้อนุมัติขั้นนี้ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : '';
         })()}
+        ${partial ? `<div class="tl-people tl-partial">ต้องอนุมัติครบทุกคน · อนุมัติแล้ว ${prog.approvedBy.length}/${prog.need.length} คน · รออีก ${prog.left.length} คน</div>` : ''}
+        ${n === cur && req.Status === 'รออนุมัติ' && prog.done ? '<div class="tl-people tl-stuck">⚠ ลำดับนี้อนุมัติแล้ว แต่ระบบยังไม่เลื่อนไปลำดับถัดไป — แจ้งแอดมินกด ↻ ส่งแจ้งอนุมัติใหม่</div>' : ''}
         ${st === 'now' && req.Status === 'รออนุมัติ' ? (() => {
           const base = sortedActs.length ? new Date(sortedActs[sortedActs.length - 1].at) : new Date(req.SubmittedDate);
           const h = (Date.now() - base) / 3600000;
@@ -538,6 +545,16 @@ async function openRequest(req) {
   onClick('reqresend', async () => {
     try {
       const { update } = await import('../services/data.js');
+      // ลำดับปัจจุบันผ่านครบแล้วแต่ไม่ได้เลื่อน → เลื่อนไปลำดับถัดไปก่อน
+      const { stalledAdvance } = await import('../services/requests.js');
+      const adv = await stalledAdvance(req, steps).catch(() => null);
+      if (adv) {
+        await update('requests', req.id, adv.fields);
+        alert(adv.step ? `เลื่อนไปลำดับ ${adv.step} แล้ว · ส่งแจ้งผู้อนุมัติ: ${adv.fields.CurrentApprovers || '(ไม่พบอีเมล)'}`
+          : 'ลำดับสุดท้ายอนุมัติครบแล้ว → ปิดคำขอเป็น "อนุมัติแล้ว"');
+        setState({});
+        return;
+      }
       const { route, missing } = await buildRoute(req);
       let f = flowFieldsFor(route, +req.CurrentStep || (route[0] && route[0].step) || 1);
       // ลำดับปัจจุบันไม่อยู่ในเส้นทางแล้ว (ไม่บังคับ/ไม่เข้าเงื่อนไข) → เลื่อนไปลำดับถัดไปที่มีผู้อนุมัติ
