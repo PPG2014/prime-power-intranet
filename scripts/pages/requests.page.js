@@ -29,6 +29,16 @@ let stepCache = {};
 let me = '';
 let meIds = [];
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
+let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดตามได้ทุกใบตามฝ่าย (ดูอย่างเดียวถ้าไม่ได้อยู่ในเส้นทาง)
+
+/**
+ * ฟอร์มที่บุคลากรในฝ่ายหนึ่งดูได้ทุกคำขอเพื่อตรวจสอบสถานะ (กดอนุมัติได้เฉพาะลำดับที่ตัวเองอยู่ในเส้นทาง)
+ * ฝ่าย → รหัสฟอร์ม
+ */
+export const DEPT_WATCH_FORMS = {
+  'ฝ่ายบัญชีและการเงิน': ['FM-ACC-002', 'FM-ACC-003', 'FM-ACC-004'],   // เงินทดรองจ่าย · เงินสำรองโครงการ · ค่าแรงผู้รับเหมา
+};
+const deptName = (v) => String((v && typeof v === 'object' ? (v.LookupValue ?? v.Title) : v) || '').trim();
 
 /**
  * หา FormCode ของคำขอให้ได้เป็นข้อความเสมอ เผื่อคอลัมน์เป็น Lookup/ออบเจ็กต์
@@ -113,6 +123,7 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
+  watchForms = DEPT_WATCH_FORMS[deptName(mePerson && mePerson.Department)] || [];
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
   // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด" (ดึงทั้ง List)
@@ -158,7 +169,7 @@ export async function render(ctx) {
 
   // คำขอที่ผู้ใช้เกี่ยวข้องในฐานะผู้อนุมัติ (แอดมินเห็นทุกใบ)
   const toReview = allRequests.filter((r) => {
-    if (seeAll) return true;
+    if (seeAll || watchForms.includes(r.FormCode)) return true;
     const role = roleOnRequest(r, r._steps || [], meIds);
     return role.isInvolved;
   });
@@ -194,7 +205,7 @@ export async function render(ctx) {
       <div class="rq-layout${solo ? ' solo' : ''}">
         ${solo ? '' : `<main class="rq-review">
           <div class="rq-head-row">
-            <h2>${seeAll ? 'คำขอทั้งหมด' : 'คำขอที่ต้องดำเนินการ'}</h2>
+            <h2>${seeAll ? 'คำขอทั้งหมด' : watchForms.length ? 'คำขอที่ต้องดำเนินการ / ติดตาม' : 'คำขอที่ต้องดำเนินการ'}</h2>
             ${actableCount ? `<span class="rq-badge">${actableCount} รายการถึงคิวคุณ</span>` : ''}
           </div>
 
@@ -478,7 +489,9 @@ async function openRequest(req) {
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>'
           : (state.isViewer && !state.isAdmin && !role.isInvolved && req.Status === 'รออนุมัติ'
-            ? '<div class="rq-wait">👁 ดูได้อย่างเดียว (ผู้บริหาร) · คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>' : '')}
+            ? '<div class="rq-wait">👁 ดูได้อย่างเดียว (ผู้บริหาร) · คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>'
+            : (!state.isAdmin && !role.isInvolved && watchForms.includes(req.FormCode)
+              ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ติดตามสถานะตามฝ่าย — คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>' : ''))}
 
         ${requesterActions(req, log)}
         ${isCarRequest(req) ? carManageBox(req, role) : ''}
