@@ -226,7 +226,11 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
   background: #e6f0fb; color: var(--navy); font-size: 13px; font-weight: 600; }
 .ar-chip button { width: 20px; height: 20px; border-radius: 50%; line-height: 1; color: var(--navy); font-size: 15px; }
 .ar-chip button:hover { background: #cfe0f5; }
-.ar-q { width: 100%; box-sizing: border-box; }
+.ar-q, .ar-xq { width: 100%; box-sizing: border-box; }
+.ar-xq { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.ar-extra { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; background: #fbfcfe; }
+.ar-extra-h { font-size: 12.5px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+.ar-extra .ar-chips:empty { display: none; }
 .ar-auto { margin-top: 8px; font-size: 12.5px; }
 .ar-none { padding: 14px; color: var(--dim); font-size: 13px; }
 @media (max-width: 720px) { .ar-row { grid-template-columns: 1fr; } }

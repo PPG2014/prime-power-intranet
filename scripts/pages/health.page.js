@@ -92,6 +92,10 @@ async function runChecks() {
         add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ไม่มีผู้อนุมัติ`,
           clean(m.StepName), 'ขั้นแบบระบุชื่อต้องกรอกรายชื่อผู้อนุมัติ');
       }
+      String(m.ExtraApprovers || '').split(',').map((x) => x.trim()).filter(Boolean).forEach((n) => {
+        if (!names.has(n)) add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ชื่อที่ระบุเพิ่มไม่อยู่ในทะเบียน`,
+          n, 'แก้ที่หน้าแก้ไขแบบฟอร์ม → เส้นทางอนุมัติ (เลือกชื่อจากช่องค้นหา)');
+      });
       if (type !== 'ระบุชื่อเจาะจง') return;   // ประเภทตามตำแหน่ง ไม่ใช้ชื่อในช่อง Approvers แล้ว
       people.forEach((n) => {
         if (!names.has(n)) {
@@ -188,12 +192,12 @@ async function runChecks() {
         }
       });
       // เส้นทางอนุมัติแบบมีเงื่อนไข (ใช้ลำดับนี้เฉพาะเมื่อ…) ต้องมีคอลัมน์สองตัวนี้ใน ApprovalMatrix
-      if (matrix.some((m) => m.ConditionField !== undefined || m.ConditionValues !== undefined) === false) {
+      if (!matrix.some((m) => m.ConditionValues !== undefined) || !matrix.some((m) => m.ExtraApprovers !== undefined)) {
         const mcols = await schemaOf('approvalMatrix').catch(() => null);
-        const lack = mcols ? ['ConditionField', 'ConditionValues'].filter((c) => !mcols.has(c)) : [];
+        const lack = mcols ? ['ConditionField', 'ConditionValues', 'ExtraApprovers'].filter((c) => !mcols.has(c)) : [];
         if (lack.length) add('warn', 'คอลัมน์ SharePoint', `ApprovalMatrix ยังไม่มีคอลัมน์ ${lack.join(', ')}`,
-          'ใช้สำหรับเงื่อนไข "ใช้ขั้นนี้เฉพาะเมื่อ…" เช่น แบบฟอร์มแจ้งซ่อมที่ส่งไปคนละฝ่ายตามประเภทงานซ่อม',
-          'สร้างใน List ApprovalMatrix ชนิด Single line of text ทั้งสองคอลัมน์');
+          'ConditionField/ConditionValues = เงื่อนไข "ใช้ขั้นนี้เฉพาะเมื่อ…" · ExtraApprovers = ชื่อบุคคลที่อนุมัติขั้นนี้ได้ด้วย',
+          'สร้างใน List ApprovalMatrix: Condition* = Single line of text · ExtraApprovers = Multiple lines of text (Plain text)');
       }
       // ชนิดคอลัมน์ที่ผิดจะทำให้เขียนไม่ลงแบบเงียบ ๆ
       ['Status', 'FormCode'].forEach((col) => {
