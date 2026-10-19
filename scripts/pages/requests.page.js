@@ -104,6 +104,7 @@ function requestRow(req, opts = {}) {
 }
 
 export async function render(ctx) {
+  const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ชื่อที่ใช้เทียบ/บันทึก = ชื่อในทะเบียนบุคลากร (หาด้วยอีเมล) ถ้าไม่เจอใช้ชื่อจาก Microsoft 365
   const dirAll = await list('directory').catch(() => []);
   const myEmail = String(state.user?.email || '').trim().toLowerCase();
@@ -187,7 +188,7 @@ export async function render(ctx) {
     <div class="wrap">
       <div class="rq-title-row">
         <h1 class="page-title">${esc(meta.title)}</h1>
-        <a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>
+        ${prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
       </div>
 
       <div class="rq-layout${solo ? ' solo' : ''}">
@@ -642,7 +643,8 @@ function carLine(req) {
 
 /**
  * หลังอนุมัติ (ยังไม่คืนรถ):
- *   ผู้ยื่น → ปุ่มคืนรถ · ผู้อนุมัติในเส้นทาง/แอดมิน → เปลี่ยนรถ หรือยกเลิกการจอง ได้ทุกเมื่อ
+ *   ผู้ยื่น และผู้อนุมัติในเส้นทาง/แอดมิน → ปุ่มคืนรถ (ผู้ดูแลกดแทนได้เมื่อรถกลับมาแล้ว)
+ *   ผู้อนุมัติในเส้นทาง/แอดมิน → เปลี่ยนรถ หรือยกเลิกการจอง ได้ทุกเมื่อ
  */
 function carManageBox(req, role) {
   const d = carData(req);
@@ -651,9 +653,9 @@ function carManageBox(req, role) {
   const manager = role.isInvolved || state.isAdmin;
   if (!mine && !manager) return '';
   return `<div class="rq-action rq-car-box">
-    ${mine ? `<div class="rq-car-return">
-      <h4>🔑 คืนรถ</h4>
-      <p class="dim">ใช้งานเสร็จแล้ว กดคืนรถ ระบบบันทึกวันเวลาที่คืนและปิดคำขอ · รถจะว่างให้คนอื่นจองทันที</p>
+    ${mine || manager ? `<div class="rq-car-return">
+      <h4>🔑 คืนรถ${mine ? '' : ' <span class="dim">(ผู้ดูแลกดแทนผู้ยื่น)</span>'}</h4>
+      <p class="dim">${mine ? 'ใช้งานเสร็จแล้ว กดคืนรถ' : `เมื่อ ${esc(carData(req).car_user || req.RequesterName || 'ผู้ยื่น')} นำรถมาคืนแล้ว กดคืนรถแทนได้`} ระบบบันทึกวันเวลาที่คืนและปิดคำขอ · รถจะว่างให้คนอื่นจองทันที</p>
       <input id="car-ret-note" type="text" placeholder="หมายเหตุ (ไม่บังคับ) เช่น เลขไมล์ / น้ำมันคงเหลือ / จุดจอด" autocomplete="off">
       <div class="rq-buttons"><button class="btn btn-primary" data-carreturn="1">🔑 คืนรถ</button></div>
     </div>` : ''}
