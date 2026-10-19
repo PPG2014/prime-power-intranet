@@ -92,10 +92,7 @@ async function runChecks() {
         add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ไม่มีผู้อนุมัติ`,
           clean(m.StepName), 'ขั้นแบบระบุชื่อต้องกรอกรายชื่อผู้อนุมัติ');
       }
-      if (type !== 'ระบุชื่อเจาะจง' && !people.length) {
-        add('warn', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ไม่มีรายชื่อสำรอง`,
-          `${clean(m.StepName)} (${type})`, 'ถ้าหาผู้อนุมัติตามตำแหน่งไม่เจอ จะไม่มีใครได้รับคำขอ');
-      }
+      if (type !== 'ระบุชื่อเจาะจง') return;   // ประเภทตามตำแหน่ง ไม่ใช้ชื่อในช่อง Approvers แล้ว
       people.forEach((n) => {
         if (!names.has(n)) {
           add('stop', 'เส้นทางอนุมัติ', `${code} ลำดับ ${m.StepOrder} ชื่อผู้อนุมัติไม่อยู่ในทะเบียน`,
