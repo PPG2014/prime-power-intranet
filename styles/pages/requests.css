@@ -412,3 +412,6 @@
 .rq-returned { color: #17733d; }
 .car-map { display: inline-block; margin-top: 6px; text-decoration: none; }
 .tl-people.tl-me { color: var(--blue); font-weight: 600; }
+.tl-people.tl-later { color: var(--muted); font-weight: 500; }
+.tl-people.tl-partial { color: #b7791f; font-weight: 600; }
+.tl-people.tl-stuck { color: #c05621; font-weight: 600; }

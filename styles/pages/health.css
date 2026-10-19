@@ -17,5 +17,6 @@
 .hl-warn .hl-tag { background: #fef6e7; color: #b7791f; }
 .hl-area { color: var(--muted, #6b7280); }
 .hl-issue { font-weight: 600; }
-.hl-detail { font-size: .9em; color: var(--muted, #6b7280); margin-top: 2px; word-break: break-word; }
+.hl-detail { font-size: .9em; color: var(--muted, #6b7280); margin-top: 2px; word-break: break-word; white-space: pre-line; }
 .hl-fix { font-size: .88em; margin-top: 6px; }
+.hl-act { margin-top: 10px; }
