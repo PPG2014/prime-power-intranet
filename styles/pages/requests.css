@@ -129,6 +129,10 @@
 .fd-checks { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .fd-check { white-space: nowrap; }
 .fd-files { margin: 0; padding-left: 20px; }
+.fd-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fd-photo { margin: 0; border: 1px solid #c9d2de; border-radius: 4px; padding: 4px; text-align: center; break-inside: avoid; page-break-inside: avoid; }
+.fd-photo img { display: block; width: 100%; height: 150px; object-fit: contain; background: #fafbfc; }
+.fd-photo figcaption { font-size: 10.5px; color: #555; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-li { width: 100%; border-collapse: collapse; font-size: 12px; }
 .fd-li th, .fd-li td { border: 1px solid #9aa7b8; padding: 4px 6px; height: 24px; }
 .fd-li th { background: #eef2f7; font-weight: 600; text-align: center; }
@@ -256,6 +260,9 @@
 .wf-table tbody tr:hover, .tv-table tbody tr:hover, .fd-li tbody tr:hover { background: none; }
 
 @media print {
+  /* พื้นหลังเว็บเป็นสีเทา — ตอนพิมพ์ต้องเป็นขาว ไม่งั้นส่วนที่เอกสารไม่เต็มหน้าจะเป็นกรอบเทา */
+  html, body { background: #fff !important; }
+  .fd-photo img { height: 52mm; }
   body.printing-doc .topbar, body.printing-doc header, body.printing-doc footer,
   body.printing-doc #app, body.printing-doc .modal-head, body.printing-doc .modal-foot { display: none !important; }
   body.printing-doc .mask { position: static; background: none; padding: 0; display: block; }

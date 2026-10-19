@@ -45,8 +45,15 @@ function valueHtml(f, v) {
     case 'textarea': return v ? `<div class="fd-text">${esc(v)}</div>` : '<div class="fd-text">&nbsp;</div>';
     case 'file': {
       const arr = Array.isArray(v) ? v : [];
-      return arr.length ? `<ol class="fd-files">${arr.map((x) => `<li>${esc(x.name || x)}</li>`).join('')}</ol>`
-        : '<span class="dim">— ไม่มีไฟล์แนบ —</span>';
+      if (!arr.length) return '<span class="dim">— ไม่มีไฟล์แนบ —</span>';
+      // รูปภาพแสดงเป็นภาพย่อในเอกสาร (รูปใน SharePoint ใช้ data-photo ให้ hydratePhotos แนบ token) · ไฟล์อื่นแสดงชื่อ
+      const isImg = (x) => x && typeof x === 'object' && x.url && x.url !== '#'
+        && (/^(JPG|JPEG|PNG|GIF|WEBP|HEIC)$/i.test(x.kind || '') || /\.(jpe?g|png|gif|webp)$/i.test(x.name || ''));
+      const imgs = arr.filter(isImg); const others = arr.filter((x) => !isImg(x));
+      return `${imgs.length ? `<div class="fd-photos">${imgs.map((x) => `<figure class="fd-photo">
+          ${/^data:/.test(x.url) ? `<img src="${esc(x.url)}" alt="${esc(x.name || '')}">` : `<img data-photo="${esc(x.url)}" alt="${esc(x.name || '')}">`}
+          <figcaption>${esc(x.name || '')}</figcaption></figure>`).join('')}</div>` : ''}${
+        others.length ? `<ol class="fd-files">${others.map((x) => `<li>${esc(x.name || x)}</li>`).join('')}</ol>` : ''}`;
     }
     case 'lineitems': {
       const cols = lineCols(f);
