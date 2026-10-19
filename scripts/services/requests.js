@@ -68,11 +68,15 @@ export function isAway(p, now = new Date()) {
 
 async function resolveRaw(step, req) {
   const type = step.ApproverType || 'ระบุชื่อเจาะจง';
-  const named = Array.isArray(step.Approvers)
+  const listed = Array.isArray(step.Approvers)
     ? step.Approvers.map((x) => (x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x)).filter(Boolean)
     : String(step.Approvers || '').split(',').map((x) => x.trim()).filter(Boolean);
 
-  if (type === 'ระบุชื่อเจาะจง') return named;
+  if (type === 'ระบุชื่อเจาะจง') return listed;
+  // ประเภทตามตำแหน่ง/ฝ่าย/โครงการ: ไม่ใช้ชื่อในช่อง Approvers เป็นตัวสำรองแล้ว
+  // (ช่องนี้แก้ได้เฉพาะตอนเป็น "ระบุชื่อเจาะจง" — เปลี่ยนประเภทแล้วชื่อเดิมค้างอยู่ ทำให้คำขอไปหาคนเก่าโดยมองไม่เห็น)
+  // หาไม่เจอ = ไม่มีผู้อนุมัติ → ขั้นไม่บังคับข้ามให้เอง · ขั้นบังคับ ตรวจสุขภาพระบบ/หน้าคำขอจะแจ้ง
+  const named = [];
 
   const dir = await list('directory').catch(() => []);
   // หาตัวผู้ยื่นด้วยอีเมลก่อน (ชื่อจาก Microsoft 365 มักเป็นภาษาอังกฤษ ไม่ตรงกับชื่อไทยในทะเบียน)

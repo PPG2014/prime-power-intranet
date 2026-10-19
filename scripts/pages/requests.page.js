@@ -324,7 +324,8 @@ async function openRequest(req) {
       row.querySelector('.rq-new-flag')?.remove();
     });
   }
-  const steps = req._steps || applicableSteps(stepCache[req.FormCode] || [], req);
+  // ผู้อนุมัติจริงของคำขอนี้ (ตามผู้ยื่น/โครงการ/เงื่อนไข) — เปิดจากลิงก์ตรงอาจยังไม่ได้คำนวณไว้
+  const steps = req._steps || await loadResolved((stepCache[req.FormCode] || await stepsOf(req.FormCode).catch(() => [])).map((x) => ({ ...x })), req);
   const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
@@ -414,7 +415,9 @@ async function openRequest(req) {
       <div class="tl-dot"></div>
       <div class="tl-body">
         <div class="tl-name">${esc(s.StepName || 'ลำดับ ' + n)}</div>
-        <div class="tl-people">${esc((Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers]).filter(Boolean).join(', '))}</div>
+        <div class="tl-people">${esc((Array.isArray(s._resolved) ? s._resolved
+          : (Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers])).filter(Boolean).join(', ')) || `<span class="dim">${s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่'
+            ? '— ไม่มีผู้อนุมัติ · ข้ามขั้นนี้อัตโนมัติ —' : '— หาผู้อนุมัติไม่พบ —'}</span>`}</div>
         ${st === 'now' && req.Status === 'รออนุมัติ' ? (() => {
           const base = sortedActs.length ? new Date(sortedActs[sortedActs.length - 1].at) : new Date(req.SubmittedDate);
           const h = (Date.now() - base) / 3600000;
