@@ -3,7 +3,7 @@ import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
 import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm, NO_PROJECT } from '../components/form-renderer.js';
-import { buildRoute, flowFieldsFor, stepsOf } from '../services/requests.js';
+import { buildRoute, flowFieldsFor, stepsOf, applicableSteps } from '../services/requests.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
@@ -304,7 +304,7 @@ async function downloadBlankForm(form, fields) {
   const res = collectForm(fields);
   const values = res.values || res.partial || {};
   const sig = previewSignature('requester') || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
-  const steps = await stepsOf(form.FormCode).catch(() => []);
+  const steps = applicableSteps(await stepsOf(form.FormCode).catch(() => []), { FormData: values });
   const html = renderFormDoc({
     form, fields, values,
     requester: { name: (me && me.Title) || state.user?.name || '', sig },

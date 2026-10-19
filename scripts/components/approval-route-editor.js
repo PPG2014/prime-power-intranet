@@ -37,6 +37,7 @@ let staff = [];
 let depts = [];
 let existing = [];      // แถว ApprovalMatrix เดิมของฟอร์มนี้ (ทั้งเปิดและปิดใช้งาน)
 let steps = [];         // ค่าที่กำลังแก้ [{ StepName, ApproverType, Approvers[], ApproveMode }]
+let condFields = [];    // ช่องตัวเลือกของฟอร์มนี้ ใช้ตั้งเงื่อนไข "ใช้ขั้นนี้เฉพาะเมื่อ…" [{ key, title, options[] }]
 
 export const routeHost = () => '<div class="ar-box" id="ar-box"></div>';
 
@@ -75,10 +76,30 @@ function stepHtml(s, i) {
       </details>
       <label class="ar-opt"><input type="checkbox" data-opt ${s.Optional ? 'checked' : ''}>
         ขั้นนี้ไม่บังคับ — ผู้อนุมัติกด "ข้ามขั้นนี้" ได้ · หาผู้อนุมัติไม่เจอ ระบบข้ามให้อัตโนมัติ</label>
+      ${condHtml(s)}
       ${n > 1 ? `<label class="ar-opt"><input type="checkbox" data-early ${s.NotifyAtSubmit ? 'checked' : ''}>
         แจ้งผู้อนุมัติขั้นนี้ให้ทราบตั้งแต่มีคำขอเข้ามา (ดูได้อย่างเดียว) แล้วแจ้งอีกครั้งเมื่อถึงคิว</label>` : ''}
     </div>
   </div>`;
+}
+
+/** เงื่อนไขของขั้น: ใช้ขั้นนี้เฉพาะเมื่อช่องตัวเลือกในฟอร์มเป็นค่าที่ติ๊กไว้ (เช่น ประเภทงานซ่อม = อาคาร-สถานที่) */
+function condHtml(s) {
+  const fields = condFields.some((f) => f.key === s.ConditionField) || !s.ConditionField ? condFields
+    : [...condFields, { key: s.ConditionField, title: `${s.ConditionField} (ไม่พบช่องนี้ในฟอร์มแล้ว)`, options: s.ConditionValues }];
+  if (!fields.length) return '';
+  const f = fields.find((x) => x.key === s.ConditionField);
+  const opts = f ? [...new Set([...f.options, ...s.ConditionValues])] : [];
+  return `<details class="ar-also ar-cond"${s.ConditionField ? ' open' : ''}>
+    <summary>ใช้ขั้นนี้เฉพาะเมื่อ…${s.ConditionField && s.ConditionValues.length
+      ? ` <b>${esc(f ? f.title : s.ConditionField)} = ${esc(s.ConditionValues.join(' / '))}</b>` : ''}</summary>
+    <label class="ar-dept">ช่องในฟอร์ม
+      <select data-k="ConditionField" data-condfield><option value="">— ทุกคำขอ (ไม่มีเงื่อนไข) —</option>${fields.map((x) =>
+        `<option value="${esc(x.key)}" ${x.key === s.ConditionField ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></label>
+    ${f ? `<div class="ar-also-list">${opts.map((o) => `
+      <label><input type="checkbox" data-cond value="${esc(o)}" ${s.ConditionValues.includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>
+      <div class="dim ar-cond-hint">ผู้ยื่นเลือกค่าที่ติ๊กไว้ → คำขอมาที่ขั้นนี้ · ไม่ตรง → ข้ามขั้นนี้ไปเลย (ไม่แสดงในเส้นทาง)</div>` : ''}
+  </details>`;
 }
 
 function hintFor(type) {
@@ -122,6 +143,7 @@ function read() {
     if (opt) s.Optional = opt.checked;
     const early = el.querySelector('[data-early]');
     s.NotifyAtSubmit = !!(early && early.checked);
+    if (el.querySelector('[data-condfield]')) s.ConditionValues = s.ConditionField ? $$('[data-cond]', el).filter((c) => c.checked).map((c) => c.value) : [];
   });
 }
 
@@ -130,7 +152,7 @@ function bind() {
     read();
     const n = +e.target.value;
     while (steps.length < n) steps.push({ StepName: '', ApproverType: NAMED, Approvers: [], ApproveMode: MODES[0],
-      ApproverDept: '', AlsoTypes: [], Optional: false, NotifyAtSubmit: false });
+      ApproverDept: '', AlsoTypes: [], Optional: false, NotifyAtSubmit: false, ConditionField: '', ConditionValues: [] });
     steps.length = n;
     paint();
   };
@@ -140,6 +162,9 @@ function bind() {
     el.querySelector('[data-k="ApproverType"]').onchange = () => { read(); steps[i].StepName = ''; paint(); };
     // ติ๊กประเภทแบบ "ฝ่ายที่ระบุ" → วาดใหม่ให้ช่องเลือกฝ่ายโผล่
     $$('[data-also]', el).forEach((c) => { c.onchange = () => { read(); paint(); }; });
+    // เปลี่ยนช่องเงื่อนไข → ล้างค่าที่ติ๊กไว้ แล้ววาดตัวเลือกของช่องใหม่
+    const cf = el.querySelector('[data-condfield]');
+    if (cf) cf.onchange = () => { read(); steps[i].ConditionValues = []; paint(); };
     const q = el.querySelector('.ar-q');
     if (q) {
       const add = () => {
@@ -163,12 +188,20 @@ function bind() {
 
 /** โหลดเส้นทางเดิมของฟอร์ม แล้ววาดลงกล่อง (เรียกหลังเปิดหน้าต่าง) */
 export async function bindRouteEditor(formCode) {
-  const [dir, matrix, deptRows] = await Promise.all([
+  const [dir, matrix, deptRows, ffRows] = await Promise.all([
     list('directory').catch(() => []), list('approvalMatrix').catch(() => []), list('departments').catch(() => []),
+    list('formFields').catch(() => []),
   ]);
   staff = dir;
   depts = deptRows.filter((d) => d.IsActive !== false).map((d) => plain(d.Title)).filter(Boolean);
   const code = plain(formCode);
+  condFields = ffRows.filter((f) => codeOfRow(f) === code && !isOff(f.IsActive)
+      && ['choice', 'multichoice', 'yesno'].includes(plain(f.FieldType)))
+    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0))
+    .map((f) => ({ key: plain(f.FieldKey), title: plain(f.Title) || plain(f.FieldKey),
+      options: plain(f.FieldType) === 'yesno' ? ['true', 'false']
+        : String(f.Options || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean) }))
+    .filter((f) => f.key);
   existing = code ? matrix.filter((s) => codeOfRow(s) === code)
     .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0)) : [];
   steps = existing.filter((s) => !isOff(s.IsActive)).slice(0, MAX_STEPS).map((s) => ({
@@ -180,6 +213,8 @@ export async function bindRouteEditor(formCode) {
     AlsoTypes: splitList(s.AlsoTypes),
     Optional: yes(s.Optional),
     NotifyAtSubmit: yes(s.NotifyAtSubmit),
+    ConditionField: plain(s.ConditionField),
+    ConditionValues: splitList(s.ConditionValues),
   }));
   paint();
 }
@@ -190,8 +225,10 @@ export function routeProblems() {
   read();
   const bad = steps.map((s, i) => (s.ApproverType === NAMED && !s.Approvers.length ? i + 1 : 0)).filter(Boolean);
   const noDept = steps.map((s, i) => ([s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) && !s.ApproverDept ? i + 1 : 0)).filter(Boolean);
+  const noCond = steps.map((s, i) => (s.ConditionField && !s.ConditionValues.length ? i + 1 : 0)).filter(Boolean);
   const msg = bad.length ? `ขั้นที่ ${bad.join(', ')} เลือก "ระบุชื่อเจาะจง" แต่ยังไม่ได้เลือกผู้อนุมัติ`
-    : noDept.length ? `ขั้นที่ ${noDept.join(', ')} ใช้ประเภท "ฝ่ายที่ระบุ" แต่ยังไม่ได้เลือกฝ่าย` : '';
+    : noDept.length ? `ขั้นที่ ${noDept.join(', ')} ใช้ประเภท "ฝ่ายที่ระบุ" แต่ยังไม่ได้เลือกฝ่าย`
+    : noCond.length ? `ขั้นที่ ${noCond.join(', ')} ตั้งเงื่อนไขแล้วแต่ยังไม่ได้ติ๊กค่า — ติ๊กค่าที่ต้องการ หรือเลือก "ทุกคำขอ"` : '';
   const err = $('#ar-err');
   if (err) { err.textContent = msg; err.hidden = !msg; if (msg) err.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   return msg;
@@ -218,6 +255,8 @@ export async function saveRoute(formCode) {
     AlsoTypes: s.AlsoTypes.join(', '),
     Optional: !!s.Optional,
     NotifyAtSubmit: !!s.NotifyAtSubmit,
+    ConditionField: s.ConditionField || '',
+    ConditionValues: (s.ConditionValues || []).join(', '),
     SortOrder: i + 1,
     IsActive: true,
   }));

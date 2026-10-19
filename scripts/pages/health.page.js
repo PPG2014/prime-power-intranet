@@ -190,6 +190,14 @@ async function runChecks() {
             'สร้างใน List Requests ตามคู่มือ (ข้อความหลายบรรทัดต้องเป็น Plain text)');
         }
       });
+      // เส้นทางอนุมัติแบบมีเงื่อนไข (ใช้ลำดับนี้เฉพาะเมื่อ…) ต้องมีคอลัมน์สองตัวนี้ใน ApprovalMatrix
+      if (matrix.some((m) => m.ConditionField !== undefined || m.ConditionValues !== undefined) === false) {
+        const mcols = await schemaOf('approvalMatrix').catch(() => null);
+        const lack = mcols ? ['ConditionField', 'ConditionValues'].filter((c) => !mcols.has(c)) : [];
+        if (lack.length) add('warn', 'คอลัมน์ SharePoint', `ApprovalMatrix ยังไม่มีคอลัมน์ ${lack.join(', ')}`,
+          'ใช้สำหรับเงื่อนไข "ใช้ขั้นนี้เฉพาะเมื่อ…" เช่น แบบฟอร์มแจ้งซ่อมที่ส่งไปคนละฝ่ายตามประเภทงานซ่อม',
+          'สร้างใน List ApprovalMatrix ชนิด Single line of text ทั้งสองคอลัมน์');
+      }
       // ชนิดคอลัมน์ที่ผิดจะทำให้เขียนไม่ลงแบบเงียบ ๆ
       ['Status', 'FormCode'].forEach((col) => {
         const c = cols.get(col);

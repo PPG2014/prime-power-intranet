@@ -197,11 +197,31 @@ export const isOptionalStep = (s) => !!s && (s.Optional === true || s.Optional =
 export const SIGN_EVERY_STEP = ['FM-PUR-004'];
 const signsEveryStep = (code) => SIGN_EVERY_STEP.includes(String(code || '').trim().toUpperCase());
 
-/** อ่านลำดับอนุมัติของฟอร์ม เรียงจากน้อยไปมาก */
-/** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น */
+/**
+ * ลำดับนี้ใช้กับคำขอนี้ไหม — ตามเงื่อนไขในเส้นทางอนุมัติ
+ *   ConditionField  = ชื่อช่องในฟอร์ม (FieldKey) เช่น repair_type
+ *   ConditionValues = ค่าที่ทำให้ใช้ลำดับนี้ คั่นด้วยจุลภาค เช่น คอมพิวเตอร์/อุปกรณ์ IT
+ * ไม่ได้ตั้งเงื่อนไข = ใช้ทุกคำขอ · ช่องเลือกได้หลายข้อ = ติ๊กค่าใดค่าหนึ่งก็ใช้
+ * ไม่สนช่องว่าง (อื่นๆ = อื่น ๆ)
+ */
+const condNorm = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+export function stepApplies(step, req) {
+  const field = String((step && step.ConditionField) || '').trim();
+  const want = String((step && step.ConditionValues) || '').split(',').map(condNorm).filter(Boolean);
+  if (!field || !want.length) return true;
+  let data = {};
+  try { data = (typeof req.FormData === 'string' ? JSON.parse(req.FormData || '{}') : req.FormData) || {}; } catch (e) { data = {}; }
+  const got = data[field];
+  return (Array.isArray(got) ? got : [got]).map(condNorm).some((g) => g && want.includes(g));
+}
+/** ลำดับที่ใช้กับคำขอนี้ (ตัดลำดับที่เงื่อนไขไม่ตรงออก) */
+export const applicableSteps = (steps, req) => steps.filter((s) => stepApplies(s, req));
+
+/** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น · ลำดับที่เงื่อนไขไม่ตรงถูกตัดออก */
 export async function loadResolved(steps, req) {
-  for (const s of steps) s._resolved = await resolveApprovers(s, req);
-  return steps;
+  const use = applicableSteps(steps, req);
+  for (const s of use) s._resolved = await resolveApprovers(s, req);
+  return use;
 }
 
 /** ทำให้ค่าเป็นข้อความล้วน ตัดช่องว่าง เผื่อ FormCode มาเป็นออบเจ็กต์หรือมีช่องว่างเกิน */
@@ -328,7 +348,7 @@ export const needsSlip = (code, name = '') => SLIP_FORMS.includes(String(code ||
  *   PAState          = PENDING / PENDING_ALL (ให้โฟลว์ส่งการ์ด) / WAITING / DONE / NOAPPROVER
  * ───────────────────────────────────────────────────────────── */
 export async function buildRoute(req) {
-  const steps = await stepsOf(req.FormCode);
+  const steps = applicableSteps(await stepsOf(req.FormCode), req);
   const dir = await list('directory').catch(() => []);
   const emailOf = (name) => {
     const p = dir.find((x) => String(x.Title).trim() === String(name).trim());
