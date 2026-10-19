@@ -154,7 +154,10 @@ export function showIfMatches(rule, values) {
   if (!rule) return true;
   return String(rule).split('|').some((part) => {
     const [key, ...rest] = part.split('=');
-    return String(values[key.trim()] ?? '') === rest.join('=').trim();
+    const want = rest.join('=').trim();
+    const got = values[key.trim()];
+    // ช่องเลือกได้หลายข้อ (multichoice) = แสดงเมื่อติ๊กตัวเลือกนั้นไว้
+    return Array.isArray(got) ? got.map((x) => String(x).trim()).includes(want) : String(got ?? '') === want;
   });
 }
 
@@ -432,7 +435,9 @@ export function bindForm(fields, folder) {
     const current = {};
     fields.forEach((f) => {
       const el = $('#q_' + f.FieldKey);
-      if (el) current[f.FieldKey] = f.FieldType === 'yesno' ? el.checked : (el.value ?? '');
+      if (el) current[f.FieldKey] = f.FieldType === 'yesno' ? el.checked
+        : f.FieldType === 'multichoice' ? [...el.querySelectorAll('input:checked')].map((c) => c.value)
+        : (el.value ?? '');
     });
     conditional.forEach((f) => {
       const box = $(`[data-q="${f.FieldKey}"]`);

@@ -20,6 +20,7 @@
   gap: var(--gap); }
 .q-grid > * { min-width: 0; }
 .q-field { display: flex; flex-direction: column; min-width: 0; }
+.q-field[hidden] { display: none; }   /* ช่องที่ "แสดงเมื่อ" ยังไม่ตรงเงื่อนไข — display:flex ด้านบนทับ hidden ไว้ */
 .q-full { grid-column: 1 / -1; }
 .q-field label { font-size: 13.5px; font-weight: 600; margin-bottom: 5px; }
 .q-field label .req { color: var(--danger); }

@@ -54,10 +54,18 @@ replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], 
 ```
 concat('[ความคิดเห็นใหม่] ', coalesce(triggerOutputs()?['body/Title'], 'ไม่ระบุเรื่อง'))
 ```
-- **Body** (fx):
+- **Body**: เลือก **Outputs** ของกล่อง `bodyHtml` จาก Dynamic content (สร้างในข้อ 4.1 ด้านล่าง)
+  > ⚠ **อย่าวางสูตรยาวลงช่อง Body ตรง ๆ** — ช่อง Body เป็นตัวแก้ไขแบบ HTML จะแปลง `<br>` `<b>` ในสูตรเป็นรหัส HTML
+  > แล้วขึ้น error *"The input parameter(s) of operation 'mailFeedback' contains invalid expression(s)"*
+
+### 4.1 — ประกอบเนื้อหาอีเมล (ทำก่อนกล่อง mailFeedback)
+ในสาขา True กด **+** เหนือ `mailFeedback` → **Compose** (Data Operation) → Rename `bodyHtml`
+- **Inputs** (fx):
 ```
-concat('มีความคิดเห็นใหม่ส่งเข้ามาในระบบ<br><br><b>เรื่อง:</b> ', coalesce(triggerOutputs()?['body/Title'], '-'), '<br><b>ผู้เสนอ:</b> ', if(empty(triggerOutputs()?['body/SubmittedBy']), 'ไม่ระบุชื่อ', triggerOutputs()?['body/SubmittedBy']), '<br><b>อีเมล:</b> ', coalesce(triggerOutputs()?['body/SubmittedEmail'], '-'), '<br><b>ส่งเมื่อ:</b> ', formatDateTime(triggerOutputs()?['body/Created'], 'dd/MM/yyyy HH:mm'), '<br><br><b>รายละเอียด</b><br>', replace(coalesce(triggerOutputs()?['body/Content'], '-'), decodeUriComponent('%0A'), '<br>'), '<br><br>เปิดดูและบันทึกการดำเนินการได้ที่ <a href="https://ppg2014.github.io/prime-power-intranet/#/admin">หน้าจัดการข้อมูล → ความคิดเห็นที่ได้รับ</a>')
+concat('มีความคิดเห็นใหม่ส่งเข้ามาในระบบ<br><br><b>เรื่อง:</b> ', coalesce(triggerOutputs()?['body/Title'], '-'), '<br><b>ผู้เสนอ:</b> ', if(empty(triggerOutputs()?['body/SubmittedBy']), 'ไม่ระบุชื่อ', triggerOutputs()?['body/SubmittedBy']), '<br><b>อีเมล:</b> ', coalesce(triggerOutputs()?['body/SubmittedEmail'], '-'), '<br><b>ส่งเมื่อ:</b> ', formatDateTime(triggerOutputs()?['body/Created'], 'dd/MM/yyyy HH:mm'), '<br><br><b>รายละเอียด</b><br>', replace(coalesce(triggerOutputs()?['body/Content'], '-'), decodeUriComponent('%0A'), '<br>'), '<br><br>เปิดดูและบันทึกการดำเนินการได้ที่หน้าจัดการข้อมูล: https://ppg2014.github.io/prime-power-intranet/#/admin')
 ```
+
+> สูตรทุกตัวต้องใช้เครื่องหมาย `'` ตรง ๆ — ถ้าคัดลอกจากแอปที่เปลี่ยนเป็น ‘ ’ (ตัวโค้ง) สูตรจะ error · วางในแท็บ **fx** แล้วกด Add/Update
 
 **Save** แล้วกด **Test → Manually** → ไปหน้าติดต่อในเว็บ ส่งความคิดเห็นทดสอบ 1 ใบ → ตรวจกล่องจดหมาย
 
@@ -76,6 +84,7 @@ concat('มีความคิดเห็นใหม่ส่งเข้า
 | 1. เว็บ → จัดการข้อมูล → **ความคิดเห็นที่ได้รับ** มีรายการที่เพิ่งส่ง | ปัญหาอยู่ที่เว็บ/สิทธิ์ List Feedback — ไม่ใช่โฟลว์ |
 | 2. Power Automate → **My flows** มีโฟลว์ `Prime Power - แจ้งเตือนความคิดเห็นใหม่` และสถานะ **On** | ยังไม่ได้สร้าง → ทำตามคู่มือนี้ · ถ้า Off → Turn on |
 | 3. เปิดโฟลว์ → **Run history** มีรอบตรงกับเวลาที่ส่ง | ทริกเกอร์ผิด List — ต้องเป็น List **Feedback** และ "When an item is **created**" |
+| 3.1 กด Save แล้วขึ้น *contains invalid expression(s)* | ย้ายสูตร Body ไปไว้ใน Compose `bodyHtml` ตามข้อ 4.1 · ตรวจว่า `'` ไม่ใช่ตัวโค้ง ‘ ’ |
 | 4. รอบนั้น **Succeeded** | กดเข้าไปดูกล่องที่แดง แล้วส่งภาพมาให้ผู้ดูแลเว็บ |
 | 5. Succeeded แต่ `hasRecipient` ไป **False** | ชื่อค่าใน Settings ต้องสะกด `FeedbackRecipients` ตรงทุกตัว ไม่มีช่องว่างหัวท้าย |
 | 6. Succeeded และส่งเมลแล้ว แต่ไม่เจอ | ดูโฟลเดอร์ **Junk/Other** และ Quarantine ของ Microsoft 365 |

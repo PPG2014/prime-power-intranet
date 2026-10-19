@@ -1,0 +1,18 @@
+﻿FormCode,FieldKey,Title,FieldType,Options,IsRequired,DefaultValue,HelpText,Section,ColumnWidth,ShowIf,IsActive,SortOrder
+FM-ADM-007,reporter_position,ตำแหน่ง,readonly,,No,{me.Position},,ข้อมูลผู้ยื่น,half,,Yes,1
+FM-ADM-007,site,โครงการ / หน้างาน (ถ้ามี),text,,No,,ถ้าแจ้งจากหน้างานโครงการ ระบุชื่อโครงการ · แจ้งจากสำนักงานเว้นว่างได้,ข้อมูลผู้ยื่น,half,,Yes,2
+FM-ADM-007,asset_code,รหัสเครื่องมือ-อุปกรณ์,text,,Yes,,ดูจากป้ายรหัสที่ติดบนเครื่อง · ถ้าไม่มีรหัส ใส่ -,รายละเอียดแจ้งซ่อม,half,,Yes,10
+FM-ADM-007,asset_name,ชื่อเครื่องมือ-อุปกรณ์,text,,Yes,,เช่น เครื่องพิมพ์ HP ชั้น 2 · สว่านไฟฟ้า · แอร์ห้องประชุม,รายละเอียดแจ้งซ่อม,half,,Yes,11
+FM-ADM-007,request_type,ประเภทคำขอ,multichoice,"ซ่อม
+เปลี่ยนอะไหล่
+ตรวจเช็ค
+ติดตั้ง
+อื่นๆ",Yes,,เลือกได้มากกว่า 1 ข้อ,รายละเอียดแจ้งซ่อม,full,,Yes,12
+FM-ADM-007,request_type_other,ระบุประเภทคำขออื่นๆ,text,,Yes,,,รายละเอียดแจ้งซ่อม,full,request_type=อื่นๆ,Yes,13
+FM-ADM-007,repair_type,ประเภทงานซ่อม,choice,"คอมพิวเตอร์/อุปกรณ์ IT
+อุปกรณ์ เครื่องมือวัด/เครื่องมือช่าง
+อาคาร-สถานที่
+อื่นๆ",Yes,,เลือกแล้วระบบส่งคำขอไปยังฝ่ายที่รับผิดชอบให้เอง,รายละเอียดแจ้งซ่อม,half,,Yes,14
+FM-ADM-007,repair_type_other,ระบุประเภทงานซ่อมอื่นๆ,text,,Yes,,,รายละเอียดแจ้งซ่อม,half,repair_type=อื่นๆ,Yes,15
+FM-ADM-007,symptom,รายละเอียดอาการที่เสีย,textarea,,Yes,,อาการ เกิดขึ้นเมื่อไร ใช้งานได้บางส่วนหรือใช้ไม่ได้เลย,รายละเอียดแจ้งซ่อม,full,,Yes,16
+FM-ADM-007,damage_photo,ภาพความเสียหาย,file,,Yes,,ถ่ายรูปจุดที่เสียหาย แนบได้หลายรูป,รายละเอียดแจ้งซ่อม,full,,Yes,17

@@ -296,6 +296,8 @@ function bindImport(s) {
         const f = s.fields.find((x) => x.key === h) || (h === s.sortField ? { key: h, type: 'number' } : null);
         if (f) item[h] = castValue(f, line[i]);
       });
+      // เส้นทางอนุมัติไม่มีช่อง Title ในไฟล์ → ตั้งให้แบบเดียวกับที่หน้าแก้ไขแบบฟอร์มตั้ง (SharePoint บังคับ Title)
+      if (s.list === 'approvalMatrix' && !item.Title && item.FormCode) item.Title = `${item.FormCode} · ลำดับ ${item.StepOrder || ''}`.trim();
       // ซ้ำกับของเดิม หรือซ้ำกับแถวก่อนหน้าในไฟล์เดียวกัน → ข้าม
       const clash = findDuplicates(s, item, [...allRows, ...items]).length > 0;
       (clash ? dups : items).push(item);

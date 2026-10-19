@@ -4,7 +4,7 @@ import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
-import { stepsOf, stepDiag, roleOnRequest, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
+import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
   PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
@@ -318,7 +318,7 @@ async function openRequest(req) {
       row.querySelector('.rq-new-flag')?.remove();
     });
   }
-  const steps = req._steps || stepCache[req.FormCode] || [];
+  const steps = req._steps || applicableSteps(stepCache[req.FormCode] || [], req);
   const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;
