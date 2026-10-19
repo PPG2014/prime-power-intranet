@@ -65,3 +65,40 @@
   padding: 5px 8px; background: #f7f9fc; border-radius: 8px; font-size: .84em; margin-bottom: 4px;
 }
 .qc-mrow .qc-place { grid-column: 1 / -1; font-size: .92em; }
+
+/* ปุ่มขยาย / บันทึกรูป */
+.qc-tools { display: flex; gap: 6px; justify-content: flex-end; margin: 6px 0 2px; }
+
+/* ปฏิทินเต็มจอ */
+body.qcf-open { overflow: hidden; }
+#qc-full { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 30, 55, .55); display: flex; padding: 16px; }
+.qcf-wrap { background: var(--surface, #fff); border-radius: 14px; flex: 1; display: flex; flex-direction: column; padding: 16px 18px; overflow: hidden; }
+.qcf-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.qcf-head h2 { font-size: 22px; margin: 0; }
+.qcf-head span { color: var(--muted); font-size: 14px; }
+.qcf-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.qcf-legend { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--muted); margin: 8px 0; }
+.qcf-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.qcf-legend i.ok, .qcf-ev.ok { --tone: #1e7f4f; }
+.qcf-legend i.wait, .qcf-ev.wait { --tone: #d69e2e; }
+.qcf-legend i.done, .qcf-ev.done { --tone: #8a96a5; }
+.qcf-legend i { background: var(--tone); }
+.qcf-dow, .qcf-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.qcf-dow span { text-align: center; font-weight: 600; color: var(--muted); font-size: 13px; padding-bottom: 4px; }
+.qcf-grid { flex: 1; grid-auto-rows: minmax(110px, 1fr); overflow: auto; }
+.qcf-cell { background: #f5f7fa; border-radius: 10px; padding: 6px 7px; overflow: auto; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.qcf-cell.blank { background: none; }
+.qcf-cell.has { background: #e6f0ff; }
+.qcf-cell.today { outline: 2px solid var(--navy); }
+.qcf-d { font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+.qcf-d span { font-size: 11.5px; font-weight: 600; color: var(--navy); }
+.qcf-ev { background: #fff; border-left: 4px solid var(--tone); border-radius: 6px; padding: 3px 6px; font-size: 12.5px; line-height: 1.35; }
+.qcf-ev b { white-space: nowrap; }
+.qcf-plate { display: block; font-weight: 600; color: var(--navy); }
+.qcf-place { display: block; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  #qc-full { padding: 0; }
+  .qcf-wrap { border-radius: 0; padding: 12px; }
+  .qcf-grid { grid-auto-rows: minmax(90px, auto); }
+  .qcf-ev { font-size: 11px; }
+}

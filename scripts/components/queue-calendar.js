@@ -163,6 +163,10 @@ function html() {
         <b>${TH_MONTH[m]} ${y + 543}</b>
         <button class="btn-mini" data-qcmove="1">›</button>
       </div>
+      <div class="qc-tools">
+        <button class="btn-mini" data-qcfull="1" title="ดูปฏิทินเต็มจอ เห็นทุกรายการ">⛶ ขยายเต็มจอ</button>
+        <button class="btn-mini" data-qcpng="1" title="บันทึกเป็นรูปแนวตั้ง 1080×1920 สำหรับส่งในกลุ่ม">⬇ PNG</button>
+      </div>
       <div class="qc-meta">${kind === 'car' ? 'การจองรถ' : 'คิว'}เดือนนี้ ${total} รายการ</div>
       <div class="qc-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qc-grid">${grid()}</div>
@@ -189,6 +193,8 @@ function paint(box) {
   $$('[data-qcday]', box).forEach((b) => {
     b.onclick = () => { picked = b.dataset.qcday; paint(box); };
   });
+  $$('[data-qcfull]', box).forEach((b) => { b.onclick = () => openFull(box); });
+  $$('[data-qcpng]', box).forEach((b) => { b.onclick = () => exportPng(); });
   $$('[data-qcuse]', box).forEach((b) => {
     b.onclick = () => {
       const input = $('#q_' + dateField());
@@ -226,4 +232,181 @@ export async function refreshQueueCalendar() {
   if (!box || !formCode) return;
   await load(formCode);
   paint(box);
+}
+
+
+/* ───────────── ปฏิทินเต็มจอ + บันทึกเป็นรูป ───────────── */
+
+const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : 'ตารางคิว Messenger');
+const monthKey = () => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
+const tone = (b) => (b.status === 'รออนุมัติ' ? 'wait' : b.status === 'คืนรถแล้ว' ? 'done' : 'ok');
+
+/** ปฏิทินเต็มจอ: ทุกวันแสดงรายการครบ (เวลา ผู้จอง ทะเบียนรถ สถานที่) */
+function openFull(sideBox) {
+  let host = document.getElementById('qc-full');
+  if (!host) { host = document.createElement('div'); host.id = 'qc-full'; document.body.appendChild(host); }
+  const draw = () => {
+    const { y, m } = ym;
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const byDay = {};
+    bookings.forEach((b) => { (byDay[b.day] = byDay[b.day] || []).push(b); });
+    const cells = [];
+    for (let i = 0; i < first; i += 1) cells.push('<div class="qcf-cell blank"></div>');
+    for (let d = 1; d <= days; d += 1) {
+      const k = key(y, m, d);
+      const items = byDay[k] || [];
+      cells.push(`<div class="qcf-cell${k === todayKey() ? ' today' : ''}${items.length ? ' has' : ''}">
+        <div class="qcf-d">${d}${items.length ? `<span>${items.length} ${kind === 'car' ? 'รายการ' : 'คิว'}</span>` : ''}</div>
+        ${items.map((b) => `<div class="qcf-ev ${tone(b)}">
+          <b>${esc(b.from)}${b.to ? `–${esc(b.to)}` : ''}</b> ${esc(b.by)}
+          ${b.plate ? `<span class="qcf-plate">🚗 ${esc(b.plate)}</span>` : ''}
+          ${b.place ? `<span class="qcf-place">${esc(b.place)}</span>` : ''}
+        </div>`).join('')}
+      </div>`);
+    }
+    const total = bookings.filter((b) => b.day.startsWith(monthKey())).length;
+    host.innerHTML = `<div class="qcf-wrap" role="dialog" aria-label="${esc(calTitle())}">
+      <div class="qcf-head">
+        <div><h2>${esc(calTitle())}</h2><span>${TH_MONTH[m]} ${y + 543} · ${total} รายการ</span></div>
+        <div class="qcf-btns">
+          <button class="btn-mini" data-qcfm="-1">‹ เดือนก่อน</button>
+          <button class="btn-mini" data-qcfm="1">เดือนถัดไป ›</button>
+          <button class="btn btn-primary" data-qcfpng="1">⬇ บันทึกเป็น PNG (1080×1920)</button>
+          <button class="btn-mini" data-qcfclose="1" aria-label="ปิด">✕ ปิด</button>
+        </div>
+      </div>
+      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว <i class="wait"></i>รออนุมัติ${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ''}</div>
+      <div class="qcf-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
+      <div class="qcf-grid">${cells.join('')}</div>
+    </div>`;
+    $$('[data-qcfm]', host).forEach((b) => { b.onclick = () => {
+      const d = new Date(ym.y, ym.m + (+b.dataset.qcfm), 1);
+      ym = { ...ym, y: d.getFullYear(), m: d.getMonth() };
+      draw(); if (sideBox) paint(sideBox);
+    }; });
+    $('[data-qcfpng]', host).onclick = () => exportPng();
+    $('[data-qcfclose]', host).onclick = close;
+  };
+  const close = () => { host.remove(); document.removeEventListener('keydown', onKey); document.body.classList.remove('qcf-open'); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  document.body.classList.add('qcf-open');
+  draw();
+}
+
+/**
+ * บันทึกปฏิทินเดือนที่ดูอยู่เป็นรูป PNG แนวตั้ง 1080×1920 (ขนาดสตอรี่/หน้าจอมือถือ)
+ * วาดลง canvas เอง (ไม่ใช้ไลบรารีภายนอก) ใช้ฟอนต์เดียวกับหน้าเว็บ
+ */
+async function exportPng() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const font = (getComputedStyle(document.body).fontFamily || 'sans-serif');
+  try { await document.fonts.ready; } catch (e) { /* ไม่เป็นไร */ }
+  const F = (size, w = 400) => `${w} ${size}px ${font}`;
+  const NAVY = '#0b3b7a', INK = '#1d2733', MUTED = '#6b7787', LINE = '#dbe3ee';
+  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', done: '#8a96a5' };
+  const fit = (text, max) => {               // ตัดข้อความให้พอดีความกว้าง
+    let t = String(text || '');
+    if (g.measureText(t).width <= max) return t;
+    while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1);
+    return t + '…';
+  };
+  const round = (x, y, w, h, r) => { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); };
+
+  const { y, m } = ym;
+  const rows = bookings.filter((b) => b.day.startsWith(monthKey()));
+
+  // พื้นหลัง + หัว
+  g.fillStyle = '#f3f6fa'; g.fillRect(0, 0, W, H);
+  g.fillStyle = NAVY; g.fillRect(0, 0, W, 230);
+  const logo = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = 'assets/img/logo-ppg.png'; });
+  if (logo) {
+    const lh = 70, lw = logo.width * (lh / logo.height);
+    g.fillStyle = '#fff'; round(40, 36, lw + 36, lh + 24, 16); g.fill();
+    g.drawImage(logo, 58, 48, lw, lh);
+  }
+  g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+  g.font = F(54, 700); g.fillText(fit(calTitle(), W - 80), 40, 182);
+  g.font = F(30, 600); g.textAlign = 'right';
+  g.fillText(`${TH_MONTH[m]} ${y + 543}`, W - 40, 82);
+  g.font = F(22); g.fillStyle = '#b9cde6';
+  const now = new Date();
+  g.fillText(`${rows.length} รายการ · ข้อมูล ณ ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear() + 543} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`, W - 40, 120);
+  g.textAlign = 'left';
+
+  // ปฏิทิน
+  const X0 = 30, CW = (W - 60) / 7, Y0 = 260;
+  g.font = F(24, 600); g.fillStyle = MUTED; g.textAlign = 'center';
+  TH_DOW.forEach((d, i) => g.fillText(d, X0 + CW * i + CW / 2, Y0 + 26));
+  g.textAlign = 'left';
+  const first = new Date(y, m, 1).getDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const weeks = Math.ceil((first + days) / 7);
+  const RH = weeks > 5 ? 136 : 160, GY = Y0 + 44;
+  const byDay = {};
+  rows.forEach((b) => { (byDay[b.day] = byDay[b.day] || []).push(b); });
+  for (let d = 1; d <= days; d += 1) {
+    const i = first + d - 1, cx = X0 + CW * (i % 7), cy = GY + RH * Math.floor(i / 7);
+    const k = key(y, m, d), items = byDay[k] || [];
+    g.fillStyle = items.length ? '#e6f0ff' : '#ffffff';
+    round(cx + 3, cy + 3, CW - 6, RH - 6, 12); g.fill();
+    if (k === todayKey()) { g.strokeStyle = NAVY; g.lineWidth = 3; g.stroke(); }
+    g.fillStyle = INK; g.font = F(26, 700); g.fillText(String(d), cx + 12, cy + 34);
+    const per = RH > 140 ? 3 : 2;
+    items.slice(0, per).forEach((b, j) => {
+      const ey = cy + 46 + j * 32;
+      g.fillStyle = '#fff'; round(cx + 8, ey, CW - 16, 28, 6); g.fill();
+      g.fillStyle = TONE[tone(b)]; g.fillRect(cx + 8, ey, 5, 28);
+      g.fillStyle = INK; g.font = F(19, 600);
+      g.fillText(fit(`${b.from} ${String(b.by).split(' ')[0]}`, CW - 30), cx + 18, ey + 21);
+    });
+    if (items.length > per) { g.fillStyle = MUTED; g.font = F(18, 600); g.fillText(`+${items.length - per} รายการ`, cx + 12, cy + RH - 14); }
+  }
+
+  // รายการทั้งเดือน (ถ้ายาวเกินหน้า เริ่มจากวันนี้)
+  let ly = GY + RH * weeks + 34;
+  g.fillStyle = NAVY; g.font = F(30, 700); g.fillText(`รายการเดือน${TH_MONTH[m]}`, 40, ly); ly += 18;
+  const LH = 46, room = Math.floor((H - 90 - ly) / LH);
+  let list = rows;
+  if (list.length > room) {
+    const from = rows.findIndex((b) => b.day >= todayKey());
+    list = rows.slice(Math.max(0, Math.min(from < 0 ? 0 : from, rows.length - room)));
+  }
+  const more = list.length - room;
+  list.slice(0, more > 0 ? room - 1 : room).forEach((b, i) => {
+    const yy = ly + i * LH;
+    g.fillStyle = i % 2 ? '#ffffff' : '#eef3f9'; round(30, yy, W - 60, LH - 6, 8); g.fill();
+    g.fillStyle = TONE[tone(b)]; g.fillRect(30, yy, 6, LH - 6);
+    const [, mm, dd] = b.day.split('-').map(Number);
+    g.fillStyle = INK; g.font = F(22, 700);
+    g.fillText(`${dd} ${TH_MONTH[mm - 1].slice(0, 3)}.`, 48, yy + 29);
+    g.fillText(`${b.from}–${b.to}`, 150, yy + 29);
+    g.font = F(22);
+    g.fillText(fit(b.by, 230), 310, yy + 29);
+    g.fillStyle = NAVY; g.font = F(21, 600);
+    g.fillText(fit(b.plate ? `🚗 ${b.plate}` : b.place, 300), 550, yy + 29);
+    g.fillStyle = TONE[tone(b)]; g.font = F(20, 600); g.textAlign = 'right';
+    g.fillText(b.status, W - 46, yy + 29); g.textAlign = 'left';
+  });
+  if (more > 0) { g.fillStyle = MUTED; g.font = F(22, 600); g.fillText(`…และอีก ${more + 1} รายการ ดูทั้งหมดในระบบ Intranet`, 48, ly + (room - 1) * LH + 29); }
+  if (!rows.length) { g.fillStyle = MUTED; g.font = F(24); g.fillText('เดือนนี้ยังไม่มีรายการ', 48, ly + 32); }
+
+  // ท้ายภาพ
+  g.fillStyle = NAVY; g.fillRect(0, H - 64, W, 64);
+  g.fillStyle = '#fff'; g.font = F(22, 600);
+  g.fillText('Prime Power Group · ระบบ Intranet', 40, H - 24);
+  g.textAlign = 'right'; g.fillStyle = '#b9cde6'; g.font = F(20);
+  g.fillText('🟩 อนุมัติแล้ว   🟨 รออนุมัติ' + (kind === 'car' ? '   ⬜ คืนรถแล้ว' : ''), W - 40, H - 24);
+  g.textAlign = 'left';
+
+  const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${kind === 'car' ? 'car' : 'queue'}-calendar-${monthKey()}.png`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
