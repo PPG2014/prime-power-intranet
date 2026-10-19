@@ -398,7 +398,6 @@ export function flowFieldsFor(route, stepNo) {
   };
 }
 
-const routeOf = (req) => { try { const a = JSON.parse(req.Route || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
 
 /** ข้อผิดพลาดเมื่อมีคนอื่นดำเนินการไปก่อนแล้ว (กันอนุมัติซ้ำข้ามช่องทาง) */
 export class AlreadyActedError extends Error {
@@ -463,8 +462,9 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
 
   if (jump) {
     patch.CurrentStep = cur;
-    let route = routeOf(req);
-    if (!route.length) route = (await buildRoute(req)).route;
+    // คำนวณเส้นทางใหม่ทุกครั้งที่เลื่อนลำดับ — ใช้ผู้อนุมัติ/ชื่อที่เพิ่ม/ผู้ปฏิบัติแทนล่าสุด
+    // (ไม่ใช้ Route ที่เก็บไว้ตอนยื่น ซึ่งอาจเก่าแล้วถ้าแอดมินแก้เส้นทางระหว่างทาง)
+    const route = (await buildRoute(req)).route;
     // ไม่ส่งการ์ดใหม่ให้จัดซื้อ (เขาเริ่มทำในเว็บแล้ว) — การ์ดของลำดับที่ถูกข้ามจะกลายเป็นการ์ดเก่า
     Object.assign(patch, flowFieldsFor(route, cur), { PAState: 'DONE' });
   }
@@ -495,8 +495,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
       if (next) {
         patch.CurrentStep = next; patch.Status = 'รออนุมัติ';
         // ให้โฟลว์ส่งการ์ดลำดับถัดไป
-        let route = routeOf(req);
-        if (!route.length) route = (await buildRoute(req)).route;
+        const route = (await buildRoute(req)).route;   // คำนวณใหม่ ไม่ใช้ Route เก่าที่เก็บไว้ตอนยื่น
         Object.assign(patch, flowFieldsFor(route, next));
       } else {
         patch.Status = 'อนุมัติแล้ว';
