@@ -64,7 +64,13 @@ function stepHtml(s, i) {
             <button type="button" data-rm="${esc(p)}" aria-label="เอา ${esc(p)} ออก">×</button></span>`).join('')
             || '<span class="dim">ยังไม่ได้เลือกผู้อนุมัติ</span>'}</div>
           <input class="ar-q" list="ar-staff" placeholder="พิมพ์ชื่อเพื่อค้นหา แล้วเลือก (เลือกได้หลายคน)" autocomplete="off">
-        </div>` : `<div class="ar-auto dim">${esc(hintFor(s.ApproverType))}</div>`}
+        </div>` : `<div class="ar-auto dim">${esc(hintFor(s.ApproverType))}</div>
+        <div class="ar-people ar-extra">
+          <div class="ar-extra-h">+ ชื่อบุคคลที่อนุมัติขั้นนี้ได้ด้วย <span class="dim">(ทางเลือก — นอกเหนือจากที่ระบบหาเอง)</span></div>
+          <div class="ar-chips">${s.Extra.map((p) => `<span class="ar-chip">${esc(p)}
+            <button type="button" data-xrm="${esc(p)}" aria-label="เอา ${esc(p)} ออก">×</button></span>`).join('')}</div>
+          <input class="ar-xq" list="ar-staff" placeholder="พิมพ์ชื่อเพื่อค้นหา แล้วเลือก (เลือกได้หลายคน)" autocomplete="off">
+        </div>`}
       ${[s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) ? `
         <label class="ar-dept">ฝ่ายที่ระบุ
           <select data-k="ApproverDept"><option value="">— เลือกฝ่าย —</option>${depts.map((d) =>
@@ -152,7 +158,7 @@ function bind() {
     read();
     const n = +e.target.value;
     while (steps.length < n) steps.push({ StepName: '', ApproverType: NAMED, Approvers: [], ApproveMode: MODES[0],
-      ApproverDept: '', AlsoTypes: [], Optional: false, NotifyAtSubmit: false, ConditionField: '', ConditionValues: [] });
+      ApproverDept: '', AlsoTypes: [], Optional: false, NotifyAtSubmit: false, ConditionField: '', ConditionValues: [], Extra: [] });
     steps.length = n;
     paint();
   };
@@ -180,6 +186,24 @@ function bind() {
       q.onchange = add;
       q.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
     }
+    // ชื่อบุคคลที่ระบุเพิ่ม (ขั้นแบบตามตำแหน่ง/ฝ่าย/โครงการ)
+    const xq = el.querySelector('.ar-xq');
+    if (xq) {
+      const addX = () => {
+        const v = xq.value.trim();
+        if (!staff.find((p) => plain(p.Title) === v)) return;
+        read();
+        if (!steps[i].Extra.includes(v)) steps[i].Extra.push(v);
+        paint();
+        const again = $(`#ar-box .ar-step[data-step="${i}"] .ar-xq`);
+        if (again) again.focus();
+      };
+      xq.onchange = addX;
+      xq.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addX(); } };
+    }
+    $$('[data-xrm]', el).forEach((b) => {
+      b.onclick = () => { read(); steps[i].Extra = steps[i].Extra.filter((x) => x !== b.dataset.xrm); paint(); };
+    });
     $$('[data-rm]', el).forEach((b) => {
       b.onclick = () => { read(); steps[i].Approvers = steps[i].Approvers.filter((x) => x !== b.dataset.rm); paint(); };
     });
@@ -215,6 +239,7 @@ export async function bindRouteEditor(formCode) {
     NotifyAtSubmit: yes(s.NotifyAtSubmit),
     ConditionField: plain(s.ConditionField),
     ConditionValues: splitList(s.ConditionValues),
+    Extra: splitList(s.ExtraApprovers),
   }));
   paint();
 }
@@ -255,6 +280,8 @@ export async function saveRoute(formCode) {
     AlsoTypes: s.AlsoTypes.join(', '),
     Optional: !!s.Optional,
     NotifyAtSubmit: !!s.NotifyAtSubmit,
+    // ขั้นแบบระบุชื่อเจาะจงใช้ช่อง Approvers อยู่แล้ว ไม่ต้องมีชื่อเพิ่ม
+    ExtraApprovers: s.ApproverType === NAMED ? '' : (s.Extra || []).join(', '),
     ConditionField: s.ConditionField || '',
     ConditionValues: (s.ConditionValues || []).join(', '),
     SortOrder: i + 1,

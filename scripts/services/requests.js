@@ -39,6 +39,9 @@ export async function resolveApprovers(step, req) {
       boss.forEach((b) => { if (!names.includes(b)) names.unshift(b); });
     }
   }
+  // ชื่อบุคคลที่ระบุเพิ่ม (ExtraApprovers) อนุมัติขั้นนี้ได้เสมอ นอกจากคนที่ระบบหาเองตามตำแหน่ง/ฝ่าย/โครงการ
+  String(step.ExtraApprovers || '').split(',').map((x) => x.trim()).filter(Boolean)
+    .forEach((n) => { if (!names.includes(n)) names.push(n); });
   if (!names.length) return names;
   const dir = await list('directory').catch(() => []);
   const em = String(req.RequesterEmail || '').trim().toLowerCase();
