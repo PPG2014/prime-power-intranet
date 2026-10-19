@@ -38,6 +38,8 @@ let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดต�
 export const DEPT_WATCH_FORMS = {
   'ฝ่ายบัญชีและการเงิน': ['FM-ACC-002', 'FM-ACC-003', 'FM-ACC-004'],   // เงินทดรองจ่าย · เงินสำรองโครงการ · ค่าแรงผู้รับเหมา
 };
+/** ขั้นที่ไม่แสดงรายชื่อผู้มีสิทธิ์อนุมัติ (ชื่อขึ้นเมื่อมีคนกดแล้ว) — ขั้นผู้ทบทวนที่ส่งให้ทั้งฝ่าย */
+const HIDE_NAMES_STEP = /ผู้ทบทวน/;
 const deptName = (v) => String((v && typeof v === 'object' ? (v.LookupValue ?? v.Title) : v) || '').trim();
 
 /**
@@ -430,17 +432,19 @@ async function openRequest(req) {
       <div class="tl-body">
         <div class="tl-name">${esc(s.StepName || 'ลำดับ ' + n)}</div>
         ${(() => {
-          // ไม่แสดงรายชื่อผู้มีสิทธิ์อนุมัติ — ชื่อขึ้นเมื่อมีคนกดอนุมัติแล้วเท่านั้น (ดูรายการด้านล่าง)
           const who = (Array.isArray(s._resolved) ? s._resolved
             : (Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers])).filter(Boolean).map((x) => String(x).trim());
           if (!who.length) {
             return `<div class="tl-people"><span class="dim">${s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่'
               ? '— ไม่มีผู้อนุมัติ · ข้ามขั้นนี้อัตโนมัติ —' : '— หาผู้อนุมัติไม่พบ —'}</span></div>`;
           }
-          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => meIds.includes(String(a.by).trim()))) return '';
-          if (req.Status !== 'รออนุมัติ') return '';
-          return n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
-            : n > cur ? '<div class="tl-people tl-me tl-later">คุณเป็นผู้อนุมัติขั้นนี้ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : '';
+          // แสดงรายชื่อผู้มีสิทธิ์อนุมัติของขั้นที่ยังไม่มีคนกด · ยกเว้นขั้นผู้ทบทวน (รายชื่อยาวทั้งฝ่าย)
+          const names = !acts.length && !HIDE_NAMES_STEP.test(String(s.StepName || ''))
+            ? `<div class="tl-people">${esc(who.join(', '))}</div>` : '';
+          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => meIds.includes(String(a.by).trim()))
+            || req.Status !== 'รออนุมัติ') return names;
+          return names + (n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
+            : n > cur ? '<div class="tl-people tl-me tl-later">คุณเป็นผู้อนุมัติขั้นนี้ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : '');
         })()}
         ${partial ? `<div class="tl-people tl-partial">ต้องอนุมัติครบทุกคน · อนุมัติแล้ว ${prog.approvedBy.length}/${prog.need.length} คน · รออีก ${prog.left.length} คน</div>` : ''}
         ${n === cur && req.Status === 'รออนุมัติ' && prog.done ? '<div class="tl-people tl-stuck">⚠ ลำดับนี้อนุมัติแล้ว แต่ระบบยังไม่เลื่อนไปลำดับถัดไป — แจ้งแอดมินกด ↻ ส่งแจ้งอนุมัติใหม่</div>' : ''}
