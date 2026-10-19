@@ -415,9 +415,17 @@ async function openRequest(req) {
       <div class="tl-dot"></div>
       <div class="tl-body">
         <div class="tl-name">${esc(s.StepName || 'ลำดับ ' + n)}</div>
-        <div class="tl-people">${esc((Array.isArray(s._resolved) ? s._resolved
-          : (Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers])).filter(Boolean).join(', ')) || `<span class="dim">${s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่'
-            ? '— ไม่มีผู้อนุมัติ · ข้ามขั้นนี้อัตโนมัติ —' : '— หาผู้อนุมัติไม่พบ —'}</span>`}</div>
+        ${(() => {
+          // ไม่แสดงรายชื่อผู้มีสิทธิ์อนุมัติ — ชื่อขึ้นเมื่อมีคนกดอนุมัติแล้วเท่านั้น (ดูรายการด้านล่าง)
+          const who = (Array.isArray(s._resolved) ? s._resolved
+            : (Array.isArray(s.Approvers) ? s.Approvers : [s.Approvers])).filter(Boolean).map((x) => String(x).trim());
+          if (!who.length) {
+            return `<div class="tl-people"><span class="dim">${s.Optional === true || s.Optional === 'Yes' || s.Optional === 'ใช่'
+              ? '— ไม่มีผู้อนุมัติ · ข้ามขั้นนี้อัตโนมัติ —' : '— หาผู้อนุมัติไม่พบ —'}</span></div>`;
+          }
+          return who.some((x) => meIds.includes(x)) && !acts.length
+            ? '<div class="tl-people tl-me">คุณเป็นผู้อนุมัติขั้นนี้</div>' : '';
+        })()}
         ${st === 'now' && req.Status === 'รออนุมัติ' ? (() => {
           const base = sortedActs.length ? new Date(sortedActs[sortedActs.length - 1].at) : new Date(req.SubmittedDate);
           const h = (Date.now() - base) / 3600000;
@@ -939,7 +947,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     const n = +st.StepOrder;
     const act = log.filter((l) => l.step === n).slice(-1)[0];
     const role = st.StepName || 'ลำดับ ' + n;
-    if (!act) return { role, name: (st._resolved || [])[0] || '', wait: 'รออนุมัติ' };
+    if (!act) return { role, name: '', wait: 'รออนุมัติ' };   // ชื่อขึ้นเมื่อมีคนกดอนุมัติแล้วเท่านั้น
     const own = n === last && act.action === 'อนุมัติ' && data._approverSign && data._approverSign.url;
     return {
       role, name: act.by, note: act.note, at: act.at,
