@@ -7,6 +7,8 @@ export const meta = { route: 'health', title: 'ตรวจสุขภาพร
 
 /** ผลตรวจล่าสุด เก็บไว้ระดับโมดูลเพื่อให้ปุ่มส่งออกใช้ได้ */
 let findings = [];
+/** คำขอที่หาผู้อนุมัติได้แล้ว รอส่งแจ้งใหม่ [{ r, d }] */
+let fixable = [];
 
 const clean = (v) => (v && typeof v === 'object'
   ? String(v.LookupValue ?? v.Title ?? v.Value ?? '')
@@ -17,6 +19,7 @@ const clean = (v) => (v && typeof v === 'object'
  * ระดับ: stop = ระบบทำงานผิดแน่นอน · warn = ควรแก้ · info = ข้อสังเกต
  */
 async function runChecks() {
+  fixable = [];
   const [dir, matrix, catalog, fields, projects, rooms, settings, requests] = await Promise.all([
     list('directory').catch(() => []),
     list('approvalMatrix').catch(() => []),
@@ -29,7 +32,7 @@ async function runChecks() {
   ]);
 
   const out = [];
-  const add = (level, area, issue, detail, fix) => out.push({ level, area, issue, detail, fix });
+  const add = (level, area, issue, detail, fix, action = '') => out.push({ level, area, issue, detail, fix, action });
 
   const names = new Set(dir.map((p) => clean(p.Title)).filter(Boolean));
   const emailOf = (name) => {
@@ -170,9 +173,17 @@ async function runChecks() {
   }
   const noApprover = waiting.filter((r) => clean(r.PAState) === 'NOAPPROVER');
   if (noApprover.length) {
+    // วิเคราะห์ทีละใบว่าติดที่ลำดับไหน เพราะอะไร · ใบที่ตอนนี้หาผู้อนุมัติได้แล้วส่งแจ้งใหม่ได้จากหน้านี้
+    const { diagnoseRoute } = await import('../services/requests.js');
+    const diag = await Promise.all(noApprover.map(async (r) => ({ r,
+      d: await diagnoseRoute(r).catch((e) => ({ ok: false, step: r.CurrentStep, stepName: '', reason: 'ตรวจไม่ได้: ' + e.message })) })));
+    fixable = diag.filter((x) => x.d.ok);
     add('stop', 'คำขอ', `หาผู้อนุมัติไม่ได้ ${noApprover.length} ใบ`,
-      noApprover.slice(0, 8).map((r) => clean(r.Title)).join(', ') + (noApprover.length > 8 ? ' …' : ''),
-      'แก้อีเมล/ผู้บังคับบัญชาให้ครบ แล้วกด ↻ ส่งแจ้งอนุมัติใหม่');
+      diag.map(({ r, d }) => `• ${clean(r.Title)} (${clean(r.RequesterName)}) · ลำดับ ${d.step}${d.stepName ? ' ' + d.stepName : ''}\n   ${d.ok ? '✓ ' : '✗ '}${d.reason}`).join('\n'),
+      fixable.length
+        ? `${fixable.length} ใบแก้ได้แล้ว กดปุ่ม "↻ ส่งแจ้งอนุมัติใหม่" ด้านล่าง · ใบที่ยังขึ้น ✗ ให้แก้ตามสาเหตุก่อนแล้วตรวจอีกครั้ง`
+        : 'แก้ตามสาเหตุของแต่ละใบ (ทะเบียนบุคลากร/เส้นทางอนุมัติ) แล้วกด ↻ ตรวจอีกครั้ง',
+      fixable.length ? 'resend' : '');
   }
 
   // ── คอลัมน์ที่ระบบใหม่ต้องใช้ ────────────────────────────
@@ -251,6 +262,7 @@ export async function render(ctx) {
       <div class="hl-issue">${esc(f.issue)}</div>
       ${f.detail ? `<div class="hl-detail">${esc(f.detail)}</div>` : ''}
       <div class="hl-fix">→ ${esc(f.fix)}</div>
+      ${f.action === 'resend' ? `<button class="btn btn-primary hl-act" id="hl-resend">↻ ส่งแจ้งอนุมัติใหม่ ${fixable.length} ใบ</button>` : ''}
     </div>`;
 
   return `
@@ -281,6 +293,21 @@ export function mount(ctx) {
   const again = $('#hl-again');
   if (again) {
     again.onclick = async () => {
+      const { render: rerender } = await import('../core/render.js');
+      rerender();
+    };
+  }
+  const resend = $('#hl-resend');
+  if (resend) {
+    resend.onclick = async () => {
+      resend.disabled = true; resend.textContent = 'กำลังส่ง…';
+      const { update, clearDataCache } = await import('../services/data.js');
+      const fail = [];
+      for (const { r, d } of fixable) {
+        try { await update('requests', r.id, d.fields); } catch (e) { fail.push(`${clean(r.Title)}: ${e.message}`); }
+      }
+      clearDataCache('requests');
+      alert(fail.length ? `ส่งไม่สำเร็จ ${fail.length} ใบ\n${fail.join('\n')}` : `ส่งแจ้งอนุมัติใหม่แล้ว ${fixable.length} ใบ`);
       const { render: rerender } = await import('../core/render.js');
       rerender();
     };

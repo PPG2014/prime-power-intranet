@@ -399,6 +399,52 @@ export function flowFieldsFor(route, stepNo) {
 }
 
 
+/**
+ * วิเคราะห์คำขอที่ค้างสถานะ NOAPPROVER ว่าติดเพราะอะไร และคำนวณเส้นทางใหม่
+ * คืน { ok, step, stepName, reason, fields }
+ *   ok = ตอนนี้หาผู้อนุมัติได้แล้ว → เขียน fields ลงคำขอเพื่อให้โฟลว์ส่งการ์ดใหม่
+ *   ถ้าลำดับปัจจุบันไม่อยู่ในเส้นทางแล้ว (ไม่บังคับ/ไม่เข้าเงื่อนไข) → เลื่อนไปลำดับถัดไปที่มีผู้อนุมัติ
+ */
+export async function diagnoseRoute(req) {
+  const { route } = await buildRoute(req);
+  let n = +req.CurrentStep || (route[0] && route[0].step) || 1;
+  const steps = applicableSteps(await stepsOf(req.FormCode), req);
+  const s = steps.find((x) => +x.StepOrder === n);
+  if (!route.some((r) => r.step === n)) {
+    const next = route.find((r) => r.step > n);
+    if (next && next.emails) {
+      return { ok: true, step: next.step, stepName: next.name,
+        reason: `ลำดับ ${n} ${s ? 'ไม่มีผู้อนุมัติและไม่บังคับ' : 'ไม่อยู่ในเส้นทางแล้ว'} → เลื่อนไปลำดับ ${next.step} ${next.name}`,
+        fields: { ...flowFieldsFor(route, next.step), CurrentStep: next.step } };
+    }
+    if (!next) return { ok: false, step: n, stepName: '', reason: `ลำดับ ${n} ไม่อยู่ในเส้นทางอนุมัติแล้ว และไม่มีลำดับถัดไป` };
+    n = next.step;
+  }
+  const cur = route.find((r) => r.step === n);
+  const st = steps.find((x) => +x.StepOrder === n) || {};
+  const stepName = cur ? cur.name : String(st.StepName || '');
+  if (cur && cur.emails) {
+    return { ok: true, step: n, stepName, reason: 'ตอนนี้หาผู้อนุมัติได้แล้ว', fields: flowFieldsFor(route, n) };
+  }
+  // หาสาเหตุ: ไม่มีชื่อเลย หรือมีชื่อแต่ไม่มีอีเมล
+  const names = await resolveApprovers(st, req).catch(() => []);
+  const dir = await list('directory').catch(() => []);
+  const person = (nm) => dir.find((x) => String(x.Title).trim() === String(nm).trim());
+  let reason;
+  if (names.length) {
+    reason = `ผู้อนุมัติไม่มีอีเมลในทะเบียนบุคลากร: ${names.filter((x) => !(person(x) && person(x).Email)).join(', ')}`;
+  } else if ((st.ApproverType || '') === 'ผู้บังคับบัญชาของผู้ยื่น') {
+    reason = `ผู้ยื่น ${req.RequesterName || ''} ยังไม่ได้กำหนดผู้บังคับบัญชา (ช่อง Manager) ในทะเบียนบุคลากร`;
+  } else if (/ฝ่ายที่ระบุ/.test(st.ApproverType || '')) {
+    reason = `ไม่พบคนใน ${st.ApproverDept || 'ฝ่ายที่ระบุ'} ตามประเภท "${st.ApproverType}"`;
+  } else if (/โครงการ/.test(st.ApproverType || '')) {
+    reason = `โครงการที่เลือกไม่มี${st.ApproverType} — ตั้งที่หน้าโครงการ หรือตั้งลำดับนี้เป็นไม่บังคับ`;
+  } else {
+    reason = `หาผู้อนุมัติตามประเภท "${st.ApproverType || 'ระบุชื่อเจาะจง'}" ไม่พบ`;
+  }
+  return { ok: false, step: n, stepName, reason };
+}
+
 /** ข้อผิดพลาดเมื่อมีคนอื่นดำเนินการไปก่อนแล้ว (กันอนุมัติซ้ำข้ามช่องทาง) */
 export class AlreadyActedError extends Error {
   constructor(msg) { super(msg); this.name = 'AlreadyActedError'; }
@@ -490,12 +536,15 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
 
     if (stepDone) {
       // ลำดับไม่บังคับที่ไม่มีผู้อนุมัติ (เช่นโครงการไม่มีผู้อำนวยการ) ข้ามให้อัตโนมัติ
-      const next = steps.filter((s) => +s.StepOrder > cur && !(isOptionalStep(s) && Array.isArray(s._resolved) && !s._resolved.length))
+      // เส้นทางคำนวณใหม่ ไม่ใช้ Route เก่าที่เก็บไว้ตอนยื่น · ลำดับไม่บังคับที่ไม่มีอีเมลผู้อนุมัติไม่อยู่ใน route
+      const route = (await buildRoute(req)).route;
+      const inRoute = new Set(route.map((r) => r.step));
+      const next = steps.filter((s) => +s.StepOrder > cur && !(isOptionalStep(s)
+        && ((Array.isArray(s._resolved) && !s._resolved.length) || !inRoute.has(+s.StepOrder))))
         .map((s) => +s.StepOrder).sort((a, b) => a - b)[0];
       if (next) {
         patch.CurrentStep = next; patch.Status = 'รออนุมัติ';
         // ให้โฟลว์ส่งการ์ดลำดับถัดไป
-        const route = (await buildRoute(req)).route;   // คำนวณใหม่ ไม่ใช้ Route เก่าที่เก็บไว้ตอนยื่น
         Object.assign(patch, flowFieldsFor(route, next));
       } else {
         patch.Status = 'อนุมัติแล้ว';

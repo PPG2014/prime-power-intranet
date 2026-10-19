@@ -539,11 +539,20 @@ async function openRequest(req) {
     try {
       const { update } = await import('../services/data.js');
       const { route, missing } = await buildRoute(req);
-      const f = flowFieldsFor(route, +req.CurrentStep || (route[0] && route[0].step) || 1);
+      let f = flowFieldsFor(route, +req.CurrentStep || (route[0] && route[0].step) || 1);
+      // ลำดับปัจจุบันไม่อยู่ในเส้นทางแล้ว (ไม่บังคับ/ไม่เข้าเงื่อนไข) → เลื่อนไปลำดับถัดไปที่มีผู้อนุมัติ
+      let why = '';
+      if (f.PAState === 'NOAPPROVER') {
+        const { diagnoseRoute } = await import('../services/requests.js');
+        const d = await diagnoseRoute(req).catch(() => null);
+        if (d && d.ok) f = d.fields;
+        else if (d) why = d.reason;
+      }
       await update('requests', req.id, f);
       alert(String(f.PAState).startsWith('PENDING')
         ? 'ส่งแจ้งแล้ว ผู้อนุมัติ: ' + f.CurrentApprovers
         : 'ยังส่งไม่ได้ — ไม่พบอีเมลผู้อนุมัติของลำดับนี้'
+          + (why ? '\nสาเหตุ: ' + why : '')
           + (missing.length ? '\nชื่อที่ไม่มีอีเมล/ไม่พบ: ' + missing.join(', ') : '')
           + '\nตรวจช่อง Manager และ Email ในทะเบียนบุคลากร หรือช่อง Approvers ใน ApprovalMatrix');
       setState({});
