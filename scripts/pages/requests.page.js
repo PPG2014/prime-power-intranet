@@ -8,7 +8,7 @@ import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, lo
   PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
-import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE } from '../services/car.js';
+import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
 import { standardLabel, withStandard, NO_PROJECT } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
@@ -121,6 +121,32 @@ export async function formFieldsOf(code) {
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 }
 
+/** ฟอร์มที่แสดงวันที่ต้องการใช้เงินบนแถวคำขอ: ใกล้ถึง (≤ NEED_SOON_DAYS วัน) สีเหลือง · ถึงวัน/เลยกำหนด สีแดง */
+const NEED_DATE_FORMS = ['FM-ACC-002', 'FM-ACC-003'];
+const NEED_SOON_DAYS = 3;
+const needField = {};
+async function loadNeedFields() {
+  await Promise.all(NEED_DATE_FORMS.filter((c) => !needField[c]).map(async (code) => {
+    const fields = (await formFieldsOf(code).catch(() => [])).filter((f) => f.FieldType === 'date');
+    const f = fields.find((x) => x.FieldKey === 'use_date')
+      || fields.find((x) => /ต้องการใช้|ขอใช้/.test(x.Title || '')) || fields[0];
+    needField[code] = f ? { key: f.FieldKey, label: f.Title || 'วันที่ต้องการใช้' } : { key: 'use_date', label: 'วันที่ต้องการใช้' };
+  }));
+}
+function needChip(req) {
+  const nf = needField[req.FormCode];
+  if (!nf) return '';
+  const day = localDay(prValues(req)[nf.key]);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  const [y, m, d] = day.split('-').map(Number);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const diff = Math.round((new Date(y, m - 1, d) - t) / 86400000);
+  const open = ['รออนุมัติ', 'ส่งกลับแก้ไข'].includes(String(req.Status || '').trim());
+  const tone = !open ? '' : diff <= 0 ? ' due' : diff <= NEED_SOON_DAYS ? ' soon' : '';
+  const when = !open ? '' : diff < 0 ? ` · เลยกำหนด ${-diff} วัน` : diff === 0 ? ' · วันนี้' : ` · อีก ${diff} วัน`;
+  return `<span class="rq-need${tone}" title="${esc(nf.label)}">📅 ${esc(nf.label)} ${esc(thaiDateShort(new Date(y, m - 1, d)))}${when}</span>`;
+}
+
 function summaryLine(req) {
   try {
     const d = JSON.parse(req.FormData || '{}');
@@ -152,6 +178,7 @@ function requestRow(req, opts = {}) {
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
         ${purchaseStatusOf(req) ? `<span class="rq-pstatus${purchaseStatusOf(req) === PURCHASE_CANCEL ? ' bad' : ''}">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
+        ${needChip(req)}
         ${(() => { const pj = projectText(prValues(req)); return pj ? `<span class="rq-proj${pj === NO_PROJECT ? ' none' : ''}" title="โครงการ">🏗 ${esc(pj)}</span>` : ''; })()}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
@@ -205,6 +232,7 @@ export async function render(ctx) {
   allRequests.forEach((r) => { r.FormCode = formCodeOf(r); });
   await loadSteps([...new Set(allRequests.map((r) => r.FormCode).filter(Boolean))]);
   await resolveFor(allRequests);
+  await loadNeedFields();
   loadedAt = Date.now(); loadedAll = !!state.showAllRequests;
   }
 
