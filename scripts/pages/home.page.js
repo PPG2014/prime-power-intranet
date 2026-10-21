@@ -69,7 +69,7 @@ export async function render(ctx) {
                   ? `<a href="${esc(f.ExternalUrl)}" target="_blank" rel="noopener">
                       <span class="si">${f.Icon || '📄'}</span>
                       <span class="st">${esc(f.Title)}</span><span class="sx">↗</span></a>`
-                  : `<a href="#/forms"><span class="si">${f.Icon || '📄'}</span>
+                  : `<a href="${f.FormCode ? `#/form/${esc(String(f.FormCode).trim())}` : '#/forms'}"><span class="si">${f.Icon || '📄'}</span>
                       <span class="st">${esc(f.Title)}</span></a>`}
               </li>`).join('')}</ul>`
               : '<div class="side-empty">ยังไม่มีแบบฟอร์มที่ติดป้ายใช้บ่อย</div>'}

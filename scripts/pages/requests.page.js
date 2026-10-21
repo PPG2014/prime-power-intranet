@@ -133,6 +133,25 @@ async function loadNeedFields() {
     needField[code] = f ? { key: f.FieldKey, label: f.Title || 'วันที่ต้องการใช้' } : { key: 'use_date', label: 'วันที่ต้องการใช้' };
   }));
 }
+/** ช่อง "ชื่อโครงการ (กรณีไม่มีในรายการ)" ของแต่ละฟอร์ม — ใช้แสดงแทนเมื่อไม่ได้เลือกโครงการจากรายการ */
+const OTHER_PROJECT_KEYS = ['project_other', 'other_project', 'project_name', 'project_custom'];
+const otherProjField = {};
+async function loadOtherProjFields(codes) {
+  await Promise.all(codes.filter((c) => c && !(c in otherProjField)).map(async (code) => {
+    const fields = await formFieldsOf(code).catch(() => []);
+    const f = fields.find((x) => x.FieldKey !== 'project' && /ไม่มีในรายการ|กรอกชื่อโครงการ|ระบุชื่อโครงการ|โครงการอื่น/.test(x.Title || ''));
+    otherProjField[code] = f ? f.FieldKey : '';
+  }));
+}
+function projectOf(req) {
+  const v = prValues(req);
+  const pj = projectText(v);
+  if (pj && pj !== NO_PROJECT) return pj;
+  const key = otherProjField[req.FormCode];
+  const other = String((key && v[key]) || OTHER_PROJECT_KEYS.map((k) => v[k]).find((x) => String(x || '').trim()) || '').trim();
+  return other || pj;
+}
+
 function needChip(req) {
   const nf = needField[req.FormCode];
   if (!nf) return '';
@@ -158,7 +177,7 @@ function summaryLine(req) {
 function searchText(req) {
   const v = prValues(req);
   return [req.Title, req.FormName, req.FormCode, summaryLine(req), req.RequesterName,
-    projectText(v), v.om_site, v.pr_no, carData(req).car_plate].filter(Boolean).join(' ').toLowerCase();
+    projectText(v), projectOf(req), v.om_site, v.pr_no, carData(req).car_plate].filter(Boolean).join(' ').toLowerCase();
 }
 const matchQ = (req, q) => q.split(/\s+/).every((w) => searchText(req).includes(w));
 
@@ -171,6 +190,7 @@ function requestRow(req, opts = {}) {
       <div class="rq-main">
         <span class="rq-no">${esc(req.Title)}</span>
         <span class="rq-form">${esc(req.FormName || req.FormCode)}</span>
+        ${(() => { const pj = projectOf(req); return pj ? `<span class="rq-proj${pj === NO_PROJECT ? ' none' : ''}" title="โครงการ">🏗 ${esc(pj)}</span>` : ''; })()}
       </div>
       <div class="rq-sub">${esc(summaryLine(req)) || '<span class="dim">ไม่มีหัวข้อ</span>'}</div>
       <div class="rq-foot">
@@ -179,7 +199,6 @@ function requestRow(req, opts = {}) {
         ${purchaseStatusOf(req) ? `<span class="rq-pstatus${purchaseStatusOf(req) === PURCHASE_CANCEL ? ' bad' : ''}">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
         ${needChip(req)}
-        ${(() => { const pj = projectText(prValues(req)); return pj ? `<span class="rq-proj${pj === NO_PROJECT ? ' none' : ''}" title="โครงการ">🏗 ${esc(pj)}</span>` : ''; })()}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
@@ -233,6 +252,7 @@ export async function render(ctx) {
   await loadSteps([...new Set(allRequests.map((r) => r.FormCode).filter(Boolean))]);
   await resolveFor(allRequests);
   await loadNeedFields();
+  await loadOtherProjFields([...new Set(allRequests.map((r) => r.FormCode))]);
   loadedAt = Date.now(); loadedAll = !!state.showAllRequests;
   }
 
