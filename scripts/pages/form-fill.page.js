@@ -517,6 +517,13 @@ export function mount(ctx) {
       if (editId) {
         // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
         const orig = (await list('requests').catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
+        // ช่องที่ระบบ/ผู้อนุมัติเติมเอง (เลข PR ทะเบียนรถ ฯลฯ) ไม่อยู่ในฟอร์มที่ผู้ยื่นแก้ → เก็บค่าเดิมไว้
+        try {
+          const od = JSON.parse(orig.FormData || '{}') || {};
+          ['pr_no', 'pr_date', 'car_plate', 'car_returned_at'].forEach((k) => {
+            if (od[k] !== undefined && res.values[k] === undefined) res.values[k] = od[k];
+          });
+        } catch (e) { /* FormData เดิมอ่านไม่ได้ ข้าม */ }
         const rq = { ...orig, FormCode: form.FormCode, FormData: JSON.stringify(res.values) };
         const { route, missing } = await buildRoute(rq);
         const first = route.length ? route[0].step : 1;
@@ -543,6 +550,13 @@ export function mount(ctx) {
         if (!route.length) w1.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
         setState({ formSent: 'แก้ไขแล้ว', formDraft: null, formWarn: w1.length ? w1 : null });
         return;
+      }
+
+      // ใบขอสั่งซื้อ: ออกเลข PR อัตโนมัติ (PRyyMMnnn) ตอนยื่น · ตรวจซ้ำอีกครั้งหลังบันทึก
+      const prMod = isPR(form.FormCode) ? await import('../services/pr.js') : null;
+      if (prMod && !res.values.pr_no) {
+        res.values.pr_no = prMod.nextPRNo(await list('requests').catch(() => []), { start: await prMod.prStart() });
+        res.values.pr_date = prMod.todayISO();
       }
 
       const base = {
@@ -583,7 +597,13 @@ export function mount(ctx) {
       const warn = [...problems];
       if (missing.length) warn.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
       if (!route.length) warn.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
-      setState({ formSent: r.no, formDraft: null, formWarn: warn.length ? warn : null });
+      let sentNo = r.no;
+      if (prMod) {
+        const row = (await list('requests').catch(() => [])).find((x) => String(x.Title) === String(r.no));
+        const prNo = row ? await prMod.assignPRNo(row.id).catch(() => res.values.pr_no) : res.values.pr_no;
+        if (prNo) sentNo = `${r.no} · PR No. ${prNo}`;
+      }
+      setState({ formSent: sentNo, formDraft: null, formWarn: warn.length ? warn : null });
     } catch (e) {
       console.error(e);
       err.innerHTML = `ส่งคำขอไม่สำเร็จ<br>${esc(e.message).replace(/\n/g, '<br>')}`;
