@@ -424,3 +424,12 @@
 .rq-stfilter button[aria-pressed="true"] { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; font-weight: 700; }
 .rq-stfilter button[data-rqst=""][aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
 .rq-stfilter .tab-badge { position: static; margin-left: 2px; }
+.rq-pfilter { margin-top: -6px; align-items: center; }
+.rq-pf-label { font-size: 13px; color: var(--muted); margin-right: 2px; }
+.rq-tools { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin: -4px 0 var(--gap); }
+.rq-tools .dim { margin-right: auto; font-size: 13px; }
+.rq-stfilter button[data-rqpst=""][aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.rq-stfilter button.st-red { color: var(--danger); }
+.rq-stfilter button.st-amber { color: #b7791f; }
+.rq-stfilter button.st-green { color: var(--ok); }
+.rq-stfilter button.st-blue { color: var(--blue); }
