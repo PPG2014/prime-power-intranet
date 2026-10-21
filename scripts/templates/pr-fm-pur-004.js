@@ -8,6 +8,7 @@
  * รายการเกิน 20 แถว จะขึ้นหน้าใหม่ด้วยฟอร์มเดิมทั้งใบ และเลขหน้ามุมขวาบนนับให้อัตโนมัติ
  */
 import { esc } from '../core/dom.js';
+import { projectText } from '../services/om.js';
 
 export const PR_CODE = 'FM-PUR-004';
 export const isPR = (code) => String(code || '').trim().toUpperCase() === PR_CODE;
@@ -47,7 +48,7 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
   const pages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
 
   const left = [
-    ['โครงการ', clean(values.project)],
+    ['โครงการ', clean(projectText(values))],
     ['ประเภทงาน', withOther(values.work_type, values.work_type_other)],
     ['วันที่ต้องการใช้', thaiNumDate(values.need_date)],
     ['กรณีด่วนระบุเหตุผล', clean(values.urgent_reason)],

@@ -111,7 +111,7 @@ export async function render(ctx) {
   // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
   fields = withStandard(own, form);
 
-  await loadLookups(fields);   // ช่องที่ดึงตัวเลือกจาก List อื่นต้องโหลดก่อนวาด
+  await loadLookups(fields, { formCode: form && form.FormCode });   // ช่องที่ดึงตัวเลือกจาก List อื่นต้องโหลดก่อนวาด
 
   // โหมดแก้ไข: ดึงคำขอเดิมมาเติมในฟอร์ม
   let editData = null;

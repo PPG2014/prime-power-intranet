@@ -86,7 +86,7 @@ function statusPill(s) {
 }
 
 /** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
-const SYSTEM_LABEL = { pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
+const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
 export async function formFieldsOf(code) {

@@ -7,6 +7,7 @@
 import { list, clearDataCache } from './data.js';
 import { isPR } from '../templates/pr-fm-pur-004.js';
 import { purchaseStatusOf } from './requests.js';
+import { projectText } from './om.js';
 
 const clean = (v) => (v && typeof v === 'object'
   ? String(v.LookupValue ?? v.Title ?? v.Value ?? '') : String(v ?? '')).trim();
@@ -102,7 +103,7 @@ export async function findDuplicatePR(prNo, selfId) {
     req: hit,
     no: clean(hit.Title),
     subject: clean(v.std_subject || v.subject || v.reason),
-    project: clean(v.project),
+    project: clean(projectText(v)),
     requester: clean(hit.RequesterName),
     status: clean(hit.Status),
   };
@@ -134,7 +135,7 @@ export function prHeader(r) {
     prDate: clean(v.pr_date),
     submitted: r.SubmittedDate || '',
     needDate: clean(v.need_date),
-    project: clean(v.project),
+    project: clean(projectText(v)),
     workType: withOther(v.work_type, v.work_type_other),
     category: withOther(v.category, v.category_other),
     dept: clean(r.RequesterDept),

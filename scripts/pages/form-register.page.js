@@ -15,6 +15,7 @@ import { stepsOf, loadResolved, roleOnRequest, reqCode } from '../services/reque
 import { withStandard } from '../components/form-renderer.js';
 import { findMe, myEmails } from '../services/me.js';
 import { downloadXlsx } from '../utils/xlsx.js';
+import { projectText } from '../services/om.js';
 import { formFieldsOf, DEPT_WATCH_FORMS } from './requests.page.js';
 
 export const meta = { route: 'register', title: 'ทะเบียนคำขอ', nav: false, order: 99, adminOnly: false };
@@ -57,8 +58,8 @@ function filtered() {
       if (f.period === 'year' && String(t.getFullYear()) !== f.year) return false;
     }
     if (f.status && plain(r.Status) !== f.status) return false;
-    if (f.project && plain(d.project) !== f.project) return false;
-    if (q && !q.split(' ').every((w) => [r.Title, r.RequesterName, plain(r.RequesterDept), subjectOf(d), plain(d.project)]
+    if (f.project && plain(projectText(d)) !== f.project) return false;
+    if (q && !q.split(' ').every((w) => [r.Title, r.RequesterName, plain(r.RequesterDept), subjectOf(d), plain(projectText(d))]
       .some((v) => norm(v).includes(w)))) return false;
     return true;
   }).sort((a, b) => (toDate(b.r.SubmittedDate) || 0) - (toDate(a.r.SubmittedDate) || 0));
@@ -88,7 +89,7 @@ function tableHtml() {
   $('#frg-count').textContent = `พบ ${shown.length} ใบ`;
   $('#frg-xlsx').disabled = !shown.length;
   if (!shown.length) return '<div class="empty">ไม่พบคำขอตามเงื่อนไขนี้</div>';
-  const hasProject = rows.some(({ d }) => plain(d.project));
+  const hasProject = rows.some(({ d }) => plain(projectText(d)));
   return `<div class="prr-scroll"><table class="prr-table">
     <thead><tr><th>เลขที่คำขอ</th><th>วันที่ยื่น</th><th>ผู้ยื่น / ฝ่าย</th><th>เรื่อง</th>${hasProject ? '<th>โครงการ</th>' : ''}<th>สถานะ</th></tr></thead>
     <tbody>${shown.map(({ r, d, wait }) => `<tr>
@@ -96,7 +97,7 @@ function tableHtml() {
       <td>${esc(thaiNumDate(r.SubmittedDate))}</td>
       <td>${esc(r.RequesterName || '')}<span class="prr-sub">${esc(plain(r.RequesterDept))}</span></td>
       <td>${esc(subjectOf(d)) || '<span class="dim">—</span>'}</td>
-      ${hasProject ? `<td>${esc(plain(d.project))}</td>` : ''}
+      ${hasProject ? `<td>${esc(plain(projectText(d)))}</td>` : ''}
       <td><span class="prr-st${/^(ยกเลิก|ไม่อนุมัติ)$/.test(plain(r.Status)) ? ' bad' : ''}">${esc(plain(r.Status))}</span>${
         wait ? `<span class="prr-sub">รอ: ${esc(wait)}</span>` : ''}</td>
     </tr>`).join('')}</tbody></table></div>`;
@@ -170,7 +171,7 @@ export async function render() {
     rows.push({ r, d, wait });
   }
   const statuses = STATUS_ORDER.filter((s) => rows.some(({ r }) => plain(r.Status) === s));
-  const projects = [...new Set(rows.map(({ d }) => plain(d.project)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+  const projects = [...new Set(rows.map(({ d }) => plain(projectText(d))).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
   if (f.status && !statuses.includes(f.status)) f.status = '';
   if (f.project && !projects.includes(f.project)) f.project = '';
 
