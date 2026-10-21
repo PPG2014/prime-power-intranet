@@ -12,29 +12,79 @@ import * as spo from './source.sharepoint.js';
 const src = () => (CONFIG.dataSource === 'sharepoint' ? spo : mock);
 
 /**
- * แคชผลการอ่านรายการไว้ชั่วคราว
- * เดิมทุกครั้งที่เปลี่ยนหน้าจะยิงขอข้อมูลใหม่หมด ทำให้กดแล้วรู้สึกหน่วง
- * เก็บเป็น Promise จึงรวมคำขอที่เกิดพร้อมกันให้เหลือครั้งเดียวด้วย
- * ทุกครั้งที่มีการเขียนข้อมูล แคชของชุดนั้นจะถูกล้างทันที ข้อมูลจึงไม่ค้าง
+ * แคชผลการอ่านรายการ (stale-while-revalidate)
+ * - ภายใน FRESH (60 วินาที) ใช้ของในแคชเลย
+ * - เก่ากว่านั้นแต่ไม่เกิน STALE_MAX → คืนของเดิมทันที (กดเมนูแล้วขึ้นเลย) แล้วดึงใหม่เบื้องหลัง
+ *   ถ้าข้อมูลเปลี่ยน ส่งอีเวนต์ 'data:updated' ให้หน้าที่เปิดอยู่วาดใหม่ (core/render.js)
+ * - เก็บเป็น Promise จึงรวมคำขอที่เกิดพร้อมกันให้เหลือครั้งเดียว
+ * - ทุกครั้งที่มีการเขียนข้อมูล แคชของชุดนั้นถูกล้างทันที ข้อมูลจึงไม่ค้าง
  */
-const TTL = 60000;            // อายุแคช 60 วินาที
-const cache = new Map();      // name → { at, p }
+const FRESH = 60000;
+const STALE_MAX = 30 * 60000;
+const cache = new Map();      // key → { at, p, data?, refreshing? }
+
+/** ชุดคำขอที่ใช้ร่วมกันทุกหน้า (หน้าแรก ติดตามสถานะ ตัวเลขเตือน) → ดึงครั้งเดียวใช้ทุกที่ */
+export const RECENT_REQUESTS = { days: 183, statuses: ['รออนุมัติ', 'ส่งกลับแก้ไข'] };
+
+/** ชื่อชุดข้อมูลที่หน้าปัจจุบันอ่าน — ใช้ตัดสินว่าข้อมูลที่อัปเดตเบื้องหลังเกี่ยวกับหน้านี้ไหม */
+let reads = new Set();
+export function startReadTracking() { reads = new Set(); return reads; }
 
 export function clearDataCache(name) {
   if (!name) { cache.clear(); return; }
   [...cache.keys()].forEach((k) => { if (k === name || k.startsWith(name + '|')) cache.delete(k); });
 }
 
-export function list(name) {
-  const hit = cache.get(name);
-  if (hit && Date.now() - hit.at < TTL) return hit.p;
+/** ลายเซ็นย่อของข้อมูล ไว้เทียบว่าดึงใหม่แล้วเปลี่ยนไหม */
+function sig(rows) {
+  if (!Array.isArray(rows)) return JSON.stringify(rows);
+  if (rows.length && rows.every((r) => r && r.Modified)) return rows.length + '|' + rows.map((r) => r.id + ':' + r.Modified).join(',');
+  return JSON.stringify(rows);
+}
 
-  const p = src().list(name).catch((err) => {
-    cache.delete(name);       // อ่านไม่สำเร็จ อย่าจำค่าเสียไว้
+/** ดึงชุดนี้ใหม่เบื้องหลัง ระหว่างนั้นยังใช้ของเดิมได้ · เปลี่ยนจริงค่อยแจ้งหน้าให้วาดใหม่ */
+function refresh(key, hit) {
+  if (!hit.refreshing) {
+    hit.refreshing = hit.fetch().then((rows) => {
+      if (cache.get(key) !== hit) return;             // มีคนล้าง/ดึงใหม่ไปแล้ว
+      cache.set(key, { at: Date.now(), name: hit.name, fetch: hit.fetch, p: Promise.resolve(rows), data: rows });
+      if (sig(rows) !== sig(hit.data)) dispatchEvent(new CustomEvent('data:updated', { detail: { name: hit.name } }));
+    }).catch(() => { hit.refreshing = null; });
+  }
+  return hit.refreshing;
+}
+
+/** ดึงใหม่เบื้องหลังโดยไม่ล้างของเดิม (หน้าที่กดเข้าไประหว่างนั้นยังขึ้นทันที) — รอจนได้ข้อมูลใหม่ */
+export function revalidate(name) {
+  return Promise.all([...cache.entries()]
+    .filter(([k, e]) => (k === name || k.startsWith(name + '|')) && e.data)
+    .map(([k, e]) => refresh(k, e)));
+}
+
+function cached(key, name, fetcher, { fresh = false } = {}) {
+  reads.add(name);
+  const hit = cache.get(key);
+  const age = hit ? Date.now() - hit.at : Infinity;
+  if (hit && age < FRESH) return hit.p;
+  if (hit && hit.data && age < STALE_MAX && !fresh) {
+    refresh(key, hit);
+    return hit.p;
+  }
+  const entry = { at: Date.now(), name, fetch: fetcher };
+  entry.p = fetcher().then((rows) => { entry.data = rows; return rows; }).catch((err) => {
+    if (cache.get(key) === entry) cache.delete(key);  // อ่านไม่สำเร็จ อย่าจำค่าเสียไว้
     throw err;
   });
-  cache.set(name, { at: Date.now(), p });
-  return p;
+  cache.set(key, entry);
+  return entry.p;
+}
+
+/**
+ * opts.fresh = true → ต้องได้ข้อมูลไม่เก่ากว่า 60 วินาที (รอดึงใหม่ ไม่ใช้ของค้าง)
+ * ใช้กับงานที่ข้อมูลเก่าทำให้ผิด เช่น ออกเลขที่เอกสาร ตรวจคิว/รถชนกัน ตรวจสถานะก่อนอนุมัติ
+ */
+export function list(name, opts) {
+  return cached(name, name, () => src().list(name), opts);
 }
 
 /**
@@ -44,22 +94,17 @@ export function list(name) {
  */
 export function listRecent(name, { days = 183, statuses = [] } = {}) {
   const key = `${name}|recent|${days}|${statuses.join(',')}`;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return hit.p;
-  const since = new Date(Date.now() - days * 86400000);
-  const local = async () => (await list(name)).filter((r) => {
-    const m = new Date(r.Modified || r.SubmittedDate || r.Created || 0);
-    return statuses.includes(String(r.Status || '').trim()) || isNaN(m) || m >= since;
-  });
-  const p = (async () => {
+  return cached(key, name, async () => {
+    const since = new Date(Date.now() - days * 86400000);
     if (src().listRecent) {
       const rows = await src().listRecent(name, { since, statuses });
       if (rows) return Object.assign(rows, { partial: true });
     }
-    return local();
-  })().catch((err) => { cache.delete(key); throw err; });
-  cache.set(key, { at: Date.now(), p });
-  return p;
+    return (await list(name)).filter((r) => {
+      const m = new Date(r.Modified || r.SubmittedDate || r.Created || 0);
+      return statuses.includes(String(r.Status || '').trim()) || isNaN(m) || m >= since;
+    });
+  });
 }
 
 /** ล้างแคชของชุดที่เพิ่งเขียน (และชุดอ้างอิงที่อาจเปลี่ยนตาม) */

@@ -6,7 +6,7 @@
  * "เปิดอ่านแล้ว" จำไว้ในเบราว์เซอร์ของผู้ใช้ (localStorage) แยกตามอีเมล
  * เปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์ ระบบจะเริ่มนับใหม่จากสถานะปัจจุบัน ไม่เด้งเตือนย้อนหลังทั้งหมด
  */
-import { list, listRecent } from './data.js';
+import { list, listRecent, RECENT_REQUESTS } from './data.js';
 import { findMe } from './me.js';
 import { state, setState } from '../core/state.js';
 import { stepsOf, loadResolved, roleOnRequest, parseLog } from './requests.js';
@@ -60,7 +60,9 @@ async function myIds() {
 
 async function countRequests(ids) {
   // เฉพาะใบที่ยังรออนุมัติ หรือเคลื่อนไหวใน 6 เดือน (ใบเก่าที่ปิดไปแล้วไม่มีอะไรให้เตือน)
-  const all = await listRecent('requests', { days: 183, statuses: LIVE }).catch(() => []);
+  const since = Date.now() - 183 * 86400000;
+  const all = (await listRecent('requests', RECENT_REQUESTS).catch(() => []))   // ชุดเดียวกับหน้าติดตามสถานะ ไม่ต้องดึงซ้ำ
+    .filter((r) => LIVE.includes(String(r.Status || '').trim()) || !(new Date(r.Modified || r.SubmittedDate || 0) < since));
   const email = low(state.user?.email);
 
   // ครั้งแรกบนเบราว์เซอร์นี้: ถือว่าทุกใบที่มีอยู่อ่านแล้ว ไม่เด้งเตือนย้อนหลัง

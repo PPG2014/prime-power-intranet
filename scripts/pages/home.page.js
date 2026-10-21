@@ -1,5 +1,5 @@
 import { esc, $, onClick } from '../core/dom.js';
-import { list } from '../services/data.js';
+import { list, listRecent, RECENT_REQUESTS } from '../services/data.js';
 import { thaiDateShort } from '../utils/format.js';
 import { openModal } from '../components/modal.js';
 import { toFiles } from '../admin/entity-form.js';
@@ -17,7 +17,7 @@ let msgCodeList = [];   // รหัสฟอร์มจองคิว Messeng
 export async function render(ctx) {
   const [forms, news, docs, requests, dashboard] = await Promise.all([
     list('formCatalog'), list('news'), list('documents'),
-    list('requests').catch(() => []), renderDashboard(),
+    listRecent('requests', RECENT_REQUESTS).catch(() => []), renderDashboard(),
   ]);
 
   // คำขอจองคิว Messenger ของวันนี้ ดึงวันที่ที่ขอใช้จากคำตอบในฟอร์ม
@@ -69,7 +69,7 @@ export async function render(ctx) {
                   ? `<a href="${esc(f.ExternalUrl)}" target="_blank" rel="noopener">
                       <span class="si">${f.Icon || '📄'}</span>
                       <span class="st">${esc(f.Title)}</span><span class="sx">↗</span></a>`
-                  : `<a href="#/forms"><span class="si">${f.Icon || '📄'}</span>
+                  : `<a href="${f.FormCode ? `#/form/${esc(String(f.FormCode).trim())}` : '#/forms'}"><span class="si">${f.Icon || '📄'}</span>
                       <span class="st">${esc(f.Title)}</span></a>`}
               </li>`).join('')}</ul>`
               : '<div class="side-empty">ยังไม่มีแบบฟอร์มที่ติดป้ายใช้บ่อย</div>'}
@@ -151,7 +151,7 @@ export function mount(ctx) {
     openModal({ title: '🏍 คิว Messenger ทั้งหมด', wide: true, dismissable: true,
       body: '<div id="queue-cal"></div>' });
     const { mountQueueCalendar } = await import('../components/queue-calendar.js');
-    await mountQueueCalendar(msgCodeList);
+    await mountQueueCalendar(msgCodeList, { fresh: false });
   });
 
   onClick('news', (id) => {

@@ -62,7 +62,7 @@ async function createWithDocNo(formCode, payload) {
   let attempt = 0;
 
   while (attempt < 5) {
-    const existing = await list('requests').catch(() => []);
+    const existing = await list('requests', { fresh: true }).catch(() => []);
     const seq = nextSeq(existing, formCode, year) + attempt;
     const no = docNo(formCode, seq, year);
 
@@ -73,7 +73,7 @@ async function createWithDocNo(formCode, payload) {
       const meta = await create('requests', { ...payload, Title: no });
       const info = { skipped: meta?.skipped || [], dropped: meta?.dropped || [] };
       // กันชั้นสอง อ่านซ้ำหลังบันทึก ถ้ามีเลขนี้มากกว่าหนึ่งรายการ แปลว่าชนกัน
-      const after = await list('requests').catch(() => []);
+      const after = await list('requests', { fresh: true }).catch(() => []);
       const dup = after.filter((r) => String(r.Title) === no);
       if (dup.length > 1) {
         // คนที่ id มากกว่า (บันทึกทีหลัง) เป็นฝ่ายต้องแก้เลข
@@ -116,7 +116,7 @@ export async function render(ctx) {
   // โหมดแก้ไข: ดึงคำขอเดิมมาเติมในฟอร์ม
   let editData = null;
   if (editId) {
-    const all = await list('requests').catch(() => []);
+    const all = await list('requests', { fresh: true }).catch(() => []);
     const orig = all.find((r) => String(r.id) === String(editId));
     if (orig) { try { editData = JSON.parse(orig.FormData || '{}'); } catch (e) {} }
   }
@@ -530,7 +530,7 @@ export function mount(ctx) {
       }
       if (editId) {
         // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
-        const orig = (await list('requests').catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
+        const orig = (await list('requests', { fresh: true }).catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
         // ช่องที่ระบบ/ผู้อนุมัติเติมเอง (เลข PR ทะเบียนรถ ฯลฯ) ไม่อยู่ในฟอร์มที่ผู้ยื่นแก้ → เก็บค่าเดิมไว้
         try {
           const od = JSON.parse(orig.FormData || '{}') || {};
@@ -569,7 +569,7 @@ export function mount(ctx) {
       // ใบขอสั่งซื้อ: ออกเลข PR อัตโนมัติ (PRyyMMnnn) ตอนยื่น · ตรวจซ้ำอีกครั้งหลังบันทึก
       const prMod = isPR(form.FormCode) ? await import('../services/pr.js') : null;
       if (prMod && !res.values.pr_no) {
-        res.values.pr_no = prMod.nextPRNo(await list('requests').catch(() => []), { start: await prMod.prStart() });
+        res.values.pr_no = prMod.nextPRNo(await list('requests', { fresh: true }).catch(() => []), { start: await prMod.prStart() });
         res.values.pr_date = prMod.todayISO();
       }
 
@@ -613,7 +613,7 @@ export function mount(ctx) {
       if (!route.length) warn.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
       let sentNo = r.no;
       if (prMod) {
-        const row = (await list('requests').catch(() => [])).find((x) => String(x.Title) === String(r.no));
+        const row = (await list('requests', { fresh: true }).catch(() => [])).find((x) => String(x.Title) === String(r.no));
         const prNo = row ? await prMod.assignPRNo(row.id).catch(() => res.values.pr_no) : res.values.pr_no;
         if (prNo) sentNo = `${r.no} · PR No. ${prNo}`;
       }

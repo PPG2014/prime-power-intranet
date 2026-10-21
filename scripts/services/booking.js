@@ -55,7 +55,7 @@ export async function queueConflicts({ formCode, date, from, to, excludeId = nul
   const a1 = mins(from); const a2 = mins(to);
   if (!date || a1 == null || a2 == null) return [];
 
-  const rows = await list('requests').catch(() => []);
+  const rows = await list('requests', { fresh: true }).catch(() => []);
   return rows
     .filter((r) => codeOf(r) === String(formCode || '').trim())
     .filter((r) => !DEAD.includes(String(r.Status || '').trim()))

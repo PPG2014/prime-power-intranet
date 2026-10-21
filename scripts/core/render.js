@@ -2,6 +2,7 @@ import { state, subscribe } from './state.js';
 import { pages, pageByRoute } from '../pages/index.js';
 import { $, esc } from './dom.js';
 import { CONFIG } from './config.js';
+import { startReadTracking } from '../services/data.js';
 
 /** ตัวเลขเตือนบนเมนู (นับใน services/badges.js) */
 const NAV_BADGE = { requests: 'requests', appraisal: 'appraisal' };
@@ -47,10 +48,23 @@ function busy(on) {
 }
 
 let renderSeq = 0;
+let dirty = false;        // ผู้ใช้พิมพ์/เลือกค่าในหน้าแล้ว → ห้ามวาดใหม่เองเบื้องหลัง (ค่าที่กรอกจะหาย)
+let pageReads = new Set();
 
-export async function render() {
+/** หน้าที่วาดใหม่เองได้เมื่อข้อมูลเบื้องหลังเปลี่ยน (หน้ากรอกข้อมูล/แอดมิน/ประเมิน ไม่วาดเอง) */
+const AUTO_REFRESH = new Set(['home', 'policies', 'forms', 'requests', 'rooms', 'documents', 'directory', 'reports', 'contact', 'projects']);
+
+/** โครงหน้าชั่วคราว ขึ้นทันทีที่กดเมนู ระหว่างรอข้อมูลครั้งแรก */
+const skeleton = (title) => `<section class="page page-skel" aria-busy="true"><div class="wrap">
+  <h1 class="page-title">${esc(title)}</h1>
+  <div class="skel-line w40"></div><div class="skel-card"></div><div class="skel-card"></div><div class="skel-card short"></div>
+</div></section>`;
+
+export async function render({ quiet = false } = {}) {
   const page = pageByRoute(state.route) || pageByRoute('home');
   const ctx = { state, config: CONFIG };
+  const seq = ++renderSeq;
+  const sameRoute = $('#app').dataset.route === page.meta.route;
 
   // จำช่องค้นหาที่กำลังพิมพ์อยู่ เพื่อคืนโฟกัสและตำแหน่งเคอร์เซอร์หลังวาดใหม่
   const act = document.activeElement;
@@ -58,20 +72,35 @@ export async function render() {
   const caret = keepId ? act.selectionStart : null;
 
   // เปลี่ยนแถบเมนูทันทีที่กด แล้วค่อยรอข้อมูล จะได้ไม่รู้สึกว่าไม่ตอบสนอง
-  renderNav();
+  if (!quiet) renderNav();
   document.body.classList.remove('rb-open');   // ออกจากหน้าประเมิน แผงเกณฑ์ต้องไม่ดันหน้าอื่นค้าง
-  busy(true);
+  if (!quiet) busy(true);
+  const scrollY = window.scrollY;
+  // ข้อมูลยังไม่มาใน 120ms (โหลดครั้งแรก) → ขึ้นโครงหน้าใหม่ทันที ไม่ค้างอยู่หน้าเดิม
+  const skelTimer = !quiet && !sameRoute ? setTimeout(() => {
+    if (seq === renderSeq) { $('#app').innerHTML = skeleton(page.meta.title); $('#app').dataset.route = ''; }
+  }, 120) : null;
+  let html;
   try {
-    $('#app').innerHTML = await page.render(ctx);
+    const reads = startReadTracking();
+    html = await page.render(ctx);
+    if (seq !== renderSeq) return;               // กดเมนูอื่นไปแล้ว ผลของหน้านี้ทิ้งได้
+    pageReads = reads;
+    $('#app').innerHTML = html;
+    $('#app').dataset.route = page.meta.route;
+    dirty = false;
     page.mount?.(ctx);
   } finally {
-    busy(false);
+    clearTimeout(skelTimer);
+    if (seq === renderSeq) busy(false);
   }
-  // นับตัวเลขเตือนบนเมนูใหม่หลังเปลี่ยนหน้า/ทำรายการ (ทำเบื้องหลัง ไม่ขวางหน้า)
-  import('../services/badges.js').then((m) => m.refreshBadges()).catch(() => {});
-
-  document.title =
-    (page.meta.route === 'home' ? '' : page.meta.title + ' — ') + CONFIG.appName;
+  if (quiet) window.scrollTo(0, scrollY);
+  else {
+    // นับตัวเลขเตือนบนเมนูใหม่หลังเปลี่ยนหน้า/ทำรายการ (ทำเบื้องหลัง ไม่ขวางหน้า)
+    import('../services/badges.js').then((m) => m.refreshBadges()).catch(() => {});
+    document.title =
+      (page.meta.route === 'home' ? '' : page.meta.title + ' — ') + CONFIG.appName;
+  }
 
   if (keepId) {
     const again = document.getElementById(keepId);
@@ -81,11 +110,26 @@ export async function render() {
     } else {
       $('#app').focus({ preventScroll: true });
     }
-  } else {
+  } else if (!quiet) {
     $('#app').focus({ preventScroll: true });
   }
 }
 
 export function startRendering() {
-  subscribe(render);
+  subscribe(() => render());
+  // ผู้ใช้กรอก/เลือกค่าในหน้า (ไม่นับช่องค้นหาที่จำค่าใน state) → หน้านี้ไม่วาดใหม่เอง
+  const mark = (e) => { if (!e.target.closest('input[data-keepfocus]')) dirty = true; };
+  $('#app').addEventListener('input', mark);
+  $('#app').addEventListener('change', mark);
+  // ข้อมูลที่หน้านี้ใช้ถูกอัปเดตเบื้องหลัง → วาดใหม่เงียบ ๆ ถ้าไม่รบกวนผู้ใช้
+  let t;
+  addEventListener('data:updated', (e) => {
+    if (!pageReads.has(e.detail.name)) return;
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const busyUser = dirty || document.querySelector('#overlay-root')?.children.length
+        || !AUTO_REFRESH.has(state.route || 'home') || document.hidden;
+      if (!busyUser) render({ quiet: true });
+    }, 300);
+  });
 }
