@@ -192,6 +192,7 @@ details.qa > div { padding: 0 16px 12px 36px; }
   .chapter.cover { page-break-before: auto; }
   figure.shot { page-break-inside: avoid; }
   figure.shot img { cursor: auto; }
-  .box, .example, table.t { page-break-inside: avoid; }
+  .box, .example { page-break-inside: avoid; }
+  table.t tr { page-break-inside: avoid; }
   details.qa > div { display: block !important; }
 }
