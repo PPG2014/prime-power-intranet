@@ -1,6 +1,6 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { state, setState } from '../core/state.js';
-import { list, clearDataCache } from '../services/data.js';
+import { list } from '../services/data.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 import {
   STAGES, DONE, activeCycle, openCycles, cycleOfSheet, criteria, scoreOf, sheets, mineOf, teamOf,
@@ -79,9 +79,7 @@ const who = () => ({ email: myEmail, person: me, isAdmin: state.isAdmin, isHR: s
 
 export async function render(ctx) {
   myEmail = String(state.user?.email || '').toLowerCase();
-  // เปิดหน้านี้ทุกครั้งดึงรอบและใบประเมินล่าสุด — รอบที่เพิ่งสร้างขึ้นทันทีไม่ต้องรีเฟรช
-  clearDataCache('appraisalCycles');
-  clearDataCache('appraisals');
+  // ใช้ข้อมูลในแคชวาดทันที · startWatch() ดึงรอบ/ใบประเมินล่าสุดตอนเปิดหน้า ถ้าต่างจากที่วาดไว้จะวาดใหม่เอง
   const dir = await list('directory').catch(() => []);
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
@@ -120,6 +118,7 @@ export async function render(ctx) {
   // ประวัติการประเมินของฉันทุกรอบ รวมรอบที่แสดงอยู่ด้านบน — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
   allCycles = await list('appraisalCycles').catch(() => []);
   shownId = mineMain ? mineMain.id : null;
+  lastSig = sigOf(allCycles, await list('appraisals').catch(() => []));   // ของที่ใช้วาดรอบนี้ ไว้เทียบกับข้อมูลสด
   myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
     .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
 
@@ -635,8 +634,7 @@ function startWatch() {
   const check = async () => {
     if (state.route !== 'appraisal') { clearInterval(watchTimer); watchTimer = null; return; }
     if (document.hidden || document.querySelector('#overlay-root .mask, .eta-mask')) return;
-    clearDataCache('appraisalCycles'); clearDataCache('appraisals');
-    const [cs, ss] = await Promise.all([list('appraisalCycles').catch(() => []), list('appraisals').catch(() => [])]);
+    const [cs, ss] = await Promise.all([list('appraisalCycles', { fresh: true }).catch(() => []), list('appraisals', { fresh: true }).catch(() => [])]);
     const sig = sigOf(cs, ss);
     if (lastSig && sig !== lastSig) {
       const { render: r } = await import('../core/render.js');
