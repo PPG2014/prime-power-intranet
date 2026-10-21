@@ -496,7 +496,8 @@ async function openRequest(req) {
             h < 24 ? `${h.toFixed(1)} ชม.` : `${(h / 24).toFixed(1)} วัน`}</div>`;
         })() : ''}
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : a.action === PURCHASE_ACTION ? 'buy' : 'ok'}">
-          <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
+          <b>${esc(a.action)}</b> · ${esc(a.by)}${isPR(req.FormCode) && a.action === 'อนุมัติ' && !a.sig
+            ? ' <span class="tl-nosig" title="อนุมัติจากการ์ด Teams/อีเมล จึงไม่มีลายเซ็นในขั้นนี้">⚠ ไม่มีลายเซ็น</span>' : ''}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
             ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">📦 สถานะจัดซื้อ</span>${esc(a.note)}</div>`
@@ -880,6 +881,10 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     busy(true);
     try {
       const sig = action === 'อนุมัติ' && role.wantsSign ? await readSignature('approver', signFolder) : '';
+      // ใบขอสั่งซื้อ: อัปโหลดลายเซ็นไม่สำเร็จ = ห้ามอนุมัติ
+      if (action === 'อนุมัติ' && isPR(req.FormCode) && role.wantsSign && !sig) {
+        busy(false); fail('บันทึกลายเซ็นไม่สำเร็จ กรุณาเซ็นหรืออัปโหลดลายเซ็นใหม่ แล้วกดอนุมัติอีกครั้ง'); return;
+      }
       await decide(req, steps, { action, by: me, note: plate ? [note(), `🚗 ${plate}`].filter(Boolean).join(' — ') : note(),
         slip: pendingSlip, sig, formPatch: plate ? { car_plate: plate } : null });
       await done();
@@ -937,6 +942,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
         }
       }
       const sig = needSign ? await readSignature('approver', signFolder) : '';
+      if (needSign && !sig) { busy(false); ps.disabled = false; fail('บันทึกลายเซ็นไม่สำเร็จ กรุณาเซ็นหรืออัปโหลดลายเซ็นใหม่'); return; }
       const extra = note();
       const parts = [stChanged || (!prChanged && st && st !== '-') ? st : '',
         prChanged ? (prNo ? `PR No. ${prNo} (ออก ${thaiNumDate(prDate)})` : 'ลบเลข PR') : '', extra].filter(Boolean);

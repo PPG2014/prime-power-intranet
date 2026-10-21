@@ -433,3 +433,4 @@
 .rq-stfilter button.st-amber { color: #b7791f; }
 .rq-stfilter button.st-green { color: var(--ok); }
 .rq-stfilter button.st-blue { color: var(--blue); }
+.tl-nosig { color: #c05621; font-weight: 600; font-size: .92em; }
