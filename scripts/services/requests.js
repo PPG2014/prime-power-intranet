@@ -390,6 +390,8 @@ export async function buildRoute(req) {
       // แจ้งให้ทราบตั้งแต่ยื่น (ดูอย่างเดียว) แล้วได้การ์ด "ถึงคิวคุณ" อีกครั้งเมื่อถึงลำดับนี้
       watch: isNotifyEarly(s),
       emails: [...new Set(emails)].join(';'),
+      // ฟอร์มที่ต้องเซ็นทุกขั้น (ใบขอสั่งซื้อ): ให้โฟลว์ส่งแค่แจ้งเตือนพร้อมลิงก์ ไม่ส่งการ์ดที่มีปุ่มอนุมัติ
+      ...(signsEveryStep(reqCode(req)) ? { sign: true } : {}),
     });
   }
   return { route, missing: [...new Set(missing)] };
@@ -407,7 +409,8 @@ export function flowFieldsFor(route, stepNo) {
     Route: JSON.stringify(route),
     CurrentApprovers: cur ? cur.emails : '',
     // PENDING = ใครคนใดคนหนึ่งกดก็ผ่าน · PENDING_ALL = ต้องกดครบทุกคน
-    PAState: !(cur && cur.emails) ? 'NOAPPROVER' : (cur.all ? 'PENDING_ALL' : 'PENDING'),
+    // PENDING_SIGN = ต้องเซ็นในเว็บ (ใบขอสั่งซื้อ) โฟลว์ส่งแจ้งเตือนพร้อมลิงก์ ไม่มีปุ่มอนุมัติในการ์ด
+    PAState: !(cur && cur.emails) ? 'NOAPPROVER' : cur.sign ? 'PENDING_SIGN' : (cur.all ? 'PENDING_ALL' : 'PENDING'),
   };
 }
 

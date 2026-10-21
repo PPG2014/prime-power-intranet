@@ -105,6 +105,34 @@ concat('มีคำขอใหม่ <b>', triggerOutputs()?['body/Title'], '<
 
 ---
 
+## กล่อง 5.2 — ใบขอสั่งซื้อ: แจ้งให้เข้าเว็บเพื่อเซ็นและอนุมัติ (ไม่ส่งการ์ดที่มีปุ่มอนุมัติ)
+> ใบขอสั่งซื้อ (FM-PUR-004) ต้องเซ็นลายเซ็นทุกขั้นก่อนอนุมัติ ซึ่งทำได้เฉพาะในเว็บ
+> เว็บจึงตั้ง **PAState = `PENDING_SIGN`** ให้ใบขอสั่งซื้อ · ถ้ายังไม่ทำกล่องนี้ โฟลว์จะส่งการ์ดแบบเดิม (กดอนุมัติในการ์ดได้โดยไม่มีลายเซ็น — หน้าเว็บจะขึ้นป้าย "⚠ ไม่มีลายเซ็น")
+
+**+** (ใต้ isNewWatch นอกกรอบ) → **Condition** → Rename `needWebSign`
+- ซ้าย (fx) `triggerOutputs()?['body/PAState']` · **is equal to** · ขวา (พิมพ์) `PENDING_SIGN`
+
+**สาขา True:**
+
+**A) Send an email (V2)**
+- **To** (fx) `triggerOutputs()?['body/CurrentApprovers']`
+- **Subject** (fx) `concat('ถึงคิวคุณแล้ว — กรุณาเซ็นและอนุมัติ ', triggerOutputs()?['body/Title'])`
+- **Body** (fx)
+```
+concat('ใบขอสั่งซื้อ <b>', triggerOutputs()?['body/Title'], '</b> ถึงคิวอนุมัติของคุณ<br>ผู้ยื่น: ', triggerOutputs()?['body/RequesterName'], ' (', coalesce(triggerOutputs()?['body/RequesterDept'], '-'), ')<br><br>✍ ใบขอสั่งซื้อต้อง<b>เซ็นลายเซ็นก่อนอนุมัติ</b> — กรุณาเปิดคำขอในเว็บ เซ็นในกรอบ "ลายเซ็นผู้อนุมัติ" แล้วกดอนุมัติ<br><br><a href="https://ppg2014.github.io/prime-power-intranet/#/requests/', triggerOutputs()?['body/ID'], '">เปิดคำขอเพื่อเซ็นและอนุมัติ</a>')
+```
+
+**B) Apply to each** → Rename `signEach` · From (fx) `split(triggerOutputs()?['body/CurrentApprovers'], ';')`
+- ข้างใน: **Post message in a chat or channel** (Microsoft Teams) · Post as **Flow bot** · Post in **Chat with Flow bot**
+- **Recipient** (fx) `items('signEach')` · **Message** (fx) ใช้สูตรเดียวกับ Body ด้านบน
+
+**C) Terminate** → Status **Succeeded**
+> จบรอบนี้เลย ไม่ไปกล่อง 6 · เมื่อผู้อนุมัติกดในเว็บ เว็บจะเลื่อนลำดับและตั้ง PAState ใหม่ โฟลว์จะแจ้งลำดับถัดไปเอง
+
+**สาขา False:** ปล่อยว่าง (ฟอร์มอื่นไปกล่อง 6 ตามเดิม)
+
+---
+
 ## กล่อง 6 — แยกแบบ "ครบทุกคน" หรือ "คนเดียวพอ"
 **+** → **Condition** → Rename `isAll`
 - ซ้าย (fx) `triggerOutputs()?['body/PAState']` · **is equal to** · ขวา (พิมพ์) `PENDING_ALL`
@@ -262,7 +290,7 @@ string(union(json(if(empty(outputs('latest')?['body/ApprovalLog']), '[]', output
   - **CurrentStep** (fx) `first(body('nextSteps'))?['step']`
   - **CurrentApprovers** (fx) `first(body('nextSteps'))?['emails']`
   - **ApprovalLog** (fx) `outputs('newLog')`
-  - **PAState** (fx) `if(empty(first(body('nextSteps'))?['emails']), 'NOAPPROVER', if(equals(first(body('nextSteps'))?['all'], true), 'PENDING_ALL', 'PENDING'))`
+  - **PAState** (fx) `if(empty(first(body('nextSteps'))?['emails']), 'NOAPPROVER', if(equals(first(body('nextSteps'))?['sign'], true), 'PENDING_SIGN', if(equals(first(body('nextSteps'))?['all'], true), 'PENDING_ALL', 'PENDING')))`
   > โฟลว์เริ่มรอบใหม่เอง ส่งการ์ดให้ลำดับถัดไป
 - **False** → **Update item** → Rename `finish`
   - Id, Title · **Status** (พิมพ์) `อนุมัติแล้ว` · **ApprovalLog** (fx) `outputs('newLog')` · **PAState** (พิมพ์) `DONE`

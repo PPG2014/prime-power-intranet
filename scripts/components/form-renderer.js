@@ -8,6 +8,7 @@ import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
+import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
 export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
@@ -23,8 +24,13 @@ let lookupData = {};
  * โหลดตัวเลือกของช่องชนิด lookup และ person ล่วงหน้า
  * ช่อง Options ใส่ชื่อ List เช่น projects หรือ directory
  */
-export async function loadLookups(fields) {
+export async function loadLookups(fields, { formCode = '' } = {}) {
   lookupData = {};
+  // แบบฟอร์มเบิกเงิน/ใบขอสั่งซื้อ: ช่องโครงการมีตัวเลือก "งาน O&M" + รายชื่อโครงการ O&M
+  if (OM_FORMS.includes(String(formCode).trim())
+    && fields.some((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects')) {
+    lookupData._om = await omSites();
+  }
   const names = [...new Set(fields
     .filter((f) => f.FieldType === 'lookup' || f.FieldType === 'person')
     .map((f) => (f.FieldType === 'person' ? 'directory' : String(f.Options || '').trim()))
@@ -200,9 +206,11 @@ function control(f, value) {
                 placeholder="พิมพ์เพื่อค้นหา${esc(hint)}" autocomplete="off">
         <datalist id="${id}_opts">
           ${src === 'projects' ? `<option value="${NO_PROJECT}">ใช้งานทั่วไป · ผู้บังคับบัญชาอนุมัติ</option>` : ''}
+          ${src === 'projects' && lookupData._om && !rows.some((r) => String(r.Title).trim() === OM_PROJECT)
+            ? `<option value="${OM_PROJECT}">งานบำรุงรักษา · เลือกโครงการ O&amp;M ต่อ</option>` : ''}
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}
-        </datalist>`;
+        </datalist>${src === 'projects' && lookupData._om ? omBox(value) : ''}`;
     }
     case 'lineitems': {
       /**
@@ -245,6 +253,23 @@ function control(f, value) {
 }
 
 /** วาดฟอร์มทั้งใบ จัดกลุ่มตามหัวข้อที่ระบุไว้ในช่อง Section */
+/** ช่องเลือกโครงการ O&M (แสดงเมื่อช่องโครงการเป็น "งาน O&M") */
+function omBox(project) {
+  const site = String(currentValues.om_site || '').trim();
+  const known = (lookupData._om || []).some(([, names]) => names.includes(site));
+  return `<div class="q-om" id="q_om_box" ${project === OM_PROJECT ? '' : 'hidden'}>
+    <label for="q_om_site">โครงการ O&amp;M <b class="req">*</b></label>
+    <select id="q_om_site">
+      <option value="">— เลือกโครงการ O&amp;M —</option>
+      ${(lookupData._om || []).map(([g, names]) => `<optgroup label="${esc(g)}">${names.map((n) =>
+        `<option value="${esc(n)}" data-group="${esc(g)}" ${n === site ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}
+      <option value="__other" ${site && !known ? 'selected' : ''}>➕ ${OM_OTHER} — เพิ่มโครงการที่ไม่มีในรายการ</option>
+    </select>
+    <input id="q_om_other" type="text" maxlength="120" placeholder="พิมพ์ชื่อโครงการ O&amp;M" autocomplete="off"
+      value="${esc(site && !known ? site : '')}" ${site && !known ? '' : 'hidden'}>
+  </div>`;
+}
+
 export function renderForm(fields, me, values = {}) {
   files = [];
   // แก้ไขคำขอเดิม (เช่น ถูกส่งกลับแก้ไข): ดึงไฟล์แนบเดิมกลับมา ไม่ต้องแนบใหม่ · ลบหรือเพิ่มได้ตามปกติ
@@ -324,9 +349,21 @@ export function collectForm(fields) {
       errors.push(f.Title);
     }
     // ช่องโครงการ: ต้องเป็นชื่อจากทะเบียนโครงการ หรือ "ไม่เกี่ยวกับโครงการ" (พิมพ์เองไม่ได้ ระบบจะหาผู้อนุมัติไม่ถูก)
-    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty
+    const isOm = !!lookupData._om && v === OM_PROJECT;
+    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty && !isOm
       && v !== NO_PROJECT && !(lookupData.projects || []).some((r) => String(r.Title).trim() === v)) {
       errors.push(`${f.Title} (เลือกจากรายการ หรือเลือก "${NO_PROJECT}")`);
+    }
+    // งาน O&M: ต้องเลือกโครงการ O&M (หรือพิมพ์เองเมื่อเลือก อื่นๆ)
+    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._om) {
+      if (isOm) {
+        const sel = $('#q_om_site');
+        const opt = sel && sel.selectedOptions[0];
+        const site = sel && sel.value === '__other' ? String(($('#q_om_other') || {}).value || '').trim() : (sel ? sel.value : '');
+        if (!site) errors.push('โครงการ O&M (เลือกจากรายการ หรือเลือก "อื่นๆ" แล้วพิมพ์ชื่อ)');
+        out.om_site = site;
+        out.om_group = sel && sel.value === '__other' ? OM_OTHER : ((opt && opt.dataset.group) || '');
+      } else { out.om_site = ''; out.om_group = ''; }
     }
     out[f.FieldKey] = v;
   }
@@ -435,6 +472,21 @@ export function bindForm(fields, folder) {
     };
   });
 
+  // งาน O&M: เลือกในช่องโครงการแล้วแสดงช่องโครงการ O&M · เลือก อื่นๆ แล้วแสดงช่องพิมพ์ชื่อ
+  const omBoxEl = $('#q_om_box');
+  if (omBoxEl) {
+    const pf = fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
+    const pEl = pf && $('#q_' + pf.FieldKey);
+    const sel = $('#q_om_site'); const other = $('#q_om_other');
+    const sync = () => {
+      omBoxEl.hidden = !(pEl && pEl.value.trim() === OM_PROJECT);
+      other.hidden = sel.value !== '__other';
+      if (!other.hidden && !omBoxEl.hidden && document.activeElement === sel) other.focus();
+    };
+    if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
+    sel.addEventListener('change', sync);
+  }
+
   // ช่องที่แสดงตามเงื่อนไข ต้องอัปเดตทันทีเมื่อค่าที่อ้างถึงเปลี่ยน
   const conditional = fields.filter((f) => f.ShowIf);
   if (!conditional.length) return;
@@ -503,6 +555,8 @@ export function summarizeForm(fields, values, opts = {}) {
     }
     if (Array.isArray(v)) return v.map((x) => esc(typeof x === 'object' ? (x.Title || x.LookupValue || '') : x)).join(', ');
     if (typeof v === 'object') return esc(v.Title || v.LookupValue || '');
+    // งาน O&M: ต่อท้ายชื่อโครงการ O&M
+    if (v === OM_PROJECT && values && values.om_site) return esc(`${v} · ${values.om_site}`);
     if (f.FieldType === 'currency') {
       const n = Number(v);
       return isNaN(n) ? esc(v) : n.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + ' บาท';
