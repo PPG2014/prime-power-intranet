@@ -19,6 +19,8 @@ import { findMe, myEmails } from '../services/me.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
+/** ลำดับตัวกรองสถานะในหน้าติดตามสถานะ */
+const STATUS_FILTERS = ['รออนุมัติ', 'ส่งกลับแก้ไข', 'อนุมัติแล้ว', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก'];
 const STATUS_TONE = {
   'ร่าง': 'gray', 'รออนุมัติ': 'blue', 'อนุมัติแล้ว': 'green',
   'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'red',
@@ -126,7 +128,7 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
-  notInDir = !mePerson;
+  notInDir = !mePerson && !state.isAdmin;   // บัญชีแอดมินกลาง (เช่น Intranet Prime) ไม่ต้องอยู่ในทะเบียน
   watchForms = DEPT_WATCH_FORMS[deptName(mePerson && mePerson.Department)] || [];
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
@@ -191,6 +193,8 @@ export async function render(ctx) {
   const activeTab = (groups.some((g) => g.code === state.reviewTab) && state.reviewTab)
     || (groups[0] && groups[0].code) || '';
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
+  const reviewStatus = state.reviewStatus || '';
+  const shownRows = shownGroup ? shownGroup.rows.filter((r) => !reviewStatus || String(r.Status || '').trim() === reviewStatus) : [];
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -222,8 +226,19 @@ export async function render(ctx) {
                 ${esc(g.name)} <b>${g.rows.length}</b>${g.act
                   ? `<span class="tab-badge" title="ถึงคิวคุณ ${g.act} ใบ">${g.act}</span>` : ''}</button>`).join('')}
             </div>
+            ${(() => {
+              // ตัวกรองสถานะของฟอร์มที่เลือก · รออนุมัติมีตัวเลขเตือน
+              const cnt = (st) => shownGroup.rows.filter((r) => String(r.Status || '').trim() === st).length;
+              const chips = STATUS_FILTERS.filter((st) => cnt(st) || st === reviewStatus);
+              return `<div class="rq-stfilter" role="group" aria-label="กรองตามสถานะ">
+                <button data-rqst="" aria-pressed="${!reviewStatus}">ทั้งหมด <b>${shownGroup.rows.length}</b></button>
+                ${chips.map((st) => `<button data-rqst="${esc(st)}" class="st-${STATUS_TONE[st] || 'gray'}" aria-pressed="${st === reviewStatus}">${esc(st)}${
+                  st === 'รออนุมัติ' && cnt(st) ? ` <span class="tab-badge" title="รออนุมัติ ${cnt(st)} ใบ">${cnt(st)}</span>` : ` <b>${cnt(st)}</b>`}</button>`).join('')}
+              </div>`;
+            })()}
             <div class="rq-list">
-              ${shownGroup.rows.map((r) => requestRow(r, {
+              ${shownRows.length ? '' : '<div class="panel"><div class="empty">ไม่มีคำขอสถานะนี้ในแบบฟอร์มนี้</div></div>'}
+              ${shownRows.map((r) => requestRow(r, {
                 showRequester: true,
                 canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
                 waiting: roleOnRequest(r, r._steps || [], meIds).waiting,
@@ -1087,6 +1102,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 
 export function mount(ctx) {
   onClick('tab', (code) => setState({ reviewTab: code }));
+  onClick('rqst', (st) => setState({ reviewStatus: st || '' }));
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
