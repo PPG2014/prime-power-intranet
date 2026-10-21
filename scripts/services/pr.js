@@ -29,11 +29,11 @@ export const todayISO = () => {
 };
 
 /**
- * เลข PR อัตโนมัติ: PR + ปี ค.ศ. 2 หลัก + เดือน 2 หลัก + ลำดับ 3 หลัก เช่น PR2610174
+ * เลข PR อัตโนมัติ: PR + ปี ค.ศ. 2 หลัก + เดือน 2 หลัก + ลำดับ 3 หลัก เช่น PR2610175
  * ลำดับเริ่ม 001 ใหม่ทุกเดือน · เดือนที่เปิดใช้ระบบเริ่มต่อจากเลขเดิมของฝ่ายจัดซื้อ (PR_START)
  * ตั้งค่าแทนได้ที่ ตั้งค่าระบบ → PRNoStart (เช่น PR2611050)
  */
-export const PR_START = 'PR2610174';
+export const PR_START = 'PR2610175';
 export const prPeriod = (d = new Date()) =>
   `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, '0')}`;
 
