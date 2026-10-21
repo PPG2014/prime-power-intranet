@@ -2,7 +2,7 @@ import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
-import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm, NO_PROJECT } from '../components/form-renderer.js';
+import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStandard, summarizeForm, NO_PROJECT, OFFICE_PROJECTS } from '../components/form-renderer.js';
 import { buildRoute, flowFieldsFor, stepsOf, applicableSteps } from '../services/requests.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
@@ -395,6 +395,8 @@ function bindProjectHint() {
     if (!v) { hint.textContent = `ไม่เกี่ยวกับโครงการใด ให้เลือก "${NO_PROJECT}"`; hint.classList.remove('warn'); return; }
     if (v === NO_PROJECT) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
     const proj = (await list('projects').catch(() => [])).find((p) => String(p.Title).trim() === v);
+    // สำนักงานใหญ่ / สำนักงานชลบุรี / งาน O&M (ไม่ได้อยู่ในทะเบียนโครงการ) → ผู้บังคับบัญชาอนุมัติ
+    if (!proj && (OFFICE_PROJECTS.includes(v) || v === 'งาน O&M')) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
     if (!proj) { hint.textContent = ''; return; }
     const name = (me && me.Title) || '';
     const plain = (x) => String((x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x) || '').trim();
