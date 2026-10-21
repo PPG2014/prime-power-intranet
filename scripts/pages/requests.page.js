@@ -621,8 +621,8 @@ function purchaseBox(req, role) {
       <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
       ${early ? '<div class="rq-wait">ตอนนี้รอขั้นที่ไม่บังคับ (เช่น ผู้อำนวยการโครงการ) — ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย เมื่อบันทึก ระบบจะข้ามขั้นนั้นให้</div>' : ''}
       <div class="rq-prno">
-        <div><label class="rq-note-label" for="rq-prno">PR No. <span class="dim">(ฝ่ายจัดซื้อกรอก · ห้ามซ้ำ)</span></label>
-          <input id="rq-prno" type="text" maxlength="40" autocomplete="off" value="${esc(pv.pr_no || '')}" placeholder="เช่น PR6910-001"></div>
+        <div><label class="rq-note-label" for="rq-prno">PR No. <span class="dim">(ระบบออกให้อัตโนมัติตอนยื่น · แก้ได้ · ห้ามซ้ำ)</span></label>
+          <input id="rq-prno" type="text" maxlength="40" autocomplete="off" value="${esc(pv.pr_no || '')}" placeholder="เช่น PR2610174"></div>
         <div><label class="rq-note-label" for="rq-prdate">วันที่ออก PR</label>
           <input id="rq-prdate" type="date" value="${esc(String(pv.pr_date || '').slice(0, 10) || todayISO())}"></div>
       </div>
