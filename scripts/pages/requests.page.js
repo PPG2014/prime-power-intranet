@@ -9,13 +9,14 @@ import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, lo
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE } from '../services/car.js';
-import { standardLabel, withStandard } from '../components/form-renderer.js';
+import { standardLabel, withStandard, NO_PROJECT } from '../components/form-renderer.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isUnread, markSeen, refreshBadges } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
 import { findMe, myEmails } from '../services/me.js';
+import { projectText } from '../services/om.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -130,6 +131,7 @@ function requestRow(req, opts = {}) {
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
         ${purchaseStatusOf(req) ? `<span class="rq-pstatus${purchaseStatusOf(req) === PURCHASE_CANCEL ? ' bad' : ''}">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
+        ${(() => { const pj = projectText(prValues(req)); return pj ? `<span class="rq-proj${pj === NO_PROJECT ? ' none' : ''}" title="โครงการ">🏗 ${esc(pj)}</span>` : ''; })()}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
