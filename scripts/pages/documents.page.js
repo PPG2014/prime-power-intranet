@@ -12,9 +12,11 @@ let rows = [];
 
 export async function render(ctx) {
   const tab = state.docTab || 'คู่มือ';
-  const all = (await list('documents')).filter((d) => d.IsActive !== false);
+  // เรียงตามลำดับที่จัดไว้ในหน้าจัดการข้อมูล · กลุ่มฝ่ายเรียงตามเอกสารแรกของฝ่ายนั้น
+  const all = (await list('documents')).filter((d) => d.IsActive !== false)
+    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   rows = all.filter((d) => d.DocType === tab);
-  const groups = await groupByDepartment(rows);
+  const groups = await groupByDepartment(rows, 'Department', { byRows: true });
   const tabs = ['คู่มือ', 'เอกสาร ISO', 'ไฟล์ดาวน์โหลด'];
 
   return `

@@ -436,3 +436,12 @@
 .tl-nosig { color: #c05621; font-weight: 600; font-size: .92em; }
 .rq-proj { font-size: 12px; font-weight: 600; color: #1f4e79; background: #e8f1fb; border-radius: 20px; padding: 1px 9px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rq-proj.none { color: var(--muted); background: #eef2f6; font-weight: 500; }
+
+/* ค้นหาคำขอฝั่งซ้าย: ชื่อโครงการ / ชื่อพนักงาน / เลขที่ */
+.rq-search { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+.rq-search input {
+  flex: 1 1 320px; max-width: 560px; padding: 9px 14px; border: 1px solid var(--line);
+  border-radius: 10px; font: inherit; box-sizing: border-box; background: #fff;
+}
+.rq-search input:focus { outline: 2px solid var(--brand, #0b3a75); outline-offset: -1px; }
+.rq-search .dim { font-size: 13px; }
