@@ -7,11 +7,13 @@
 import { esc, $, $$ } from '../core/dom.js';
 import { list, clearDataCache } from '../services/data.js';
 import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
-import { QUEUE_FIELDS, DEAD, codeOf, stTone } from '../services/booking.js';
+import { QUEUE_FIELDS, DEAD, codeOf, stTone, markClashes } from '../services/booking.js';
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const TH_DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+/** สีของคิวในปฏิทิน: คิวที่เวลาชนกันใช้สีม่วง นอกนั้นตามสถานะ */
+const evTone = (b) => (b.clash && !DEAD.includes(b.status) ? 'clash' : stTone(b.status));
 const live = (b) => !DEAD.includes(b.status);   // นับเป็นคิว (ไม่รวมยกเลิก/ไม่อนุมัติ)
 
 let ym = null;          // เดือนที่กำลังดู { y, m }
@@ -53,6 +55,8 @@ async function load(code) {
     })
     .filter(Boolean)
     .sort((a, b) => a.day.localeCompare(b.day) || live(b) - live(a) || hhmm(a.from).localeCompare(hhmm(b.from)));
+  // คิวที่เวลาชนกัน (ผู้ยื่นยืนยันจองทับ) แสดงเป็นอีกสี
+  markClashes(bookings, { live });
 }
 
 /** จองรถ: หนึ่งคำขอแสดงทุกวันที่อยู่ในช่วง (วันแรกเริ่มตามเวลา · วันสุดท้ายถึงเวลา · วันกลางทั้งวัน) */
@@ -97,8 +101,8 @@ function grid() {
     ].filter(Boolean).join(' ');
 
     // แสดงคิวในช่องวันเลย สูงสุด 3 รายการ ที่เหลือบอกเป็นจำนวน
-    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${stTone(b.status)}"
-        title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}`)}">${esc(b.from)}</span>`).join('');
+    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${evTone(b)}"
+        title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}${b.clash ? ' · ⚠ เวลาชนกับคิวอื่น' : ''}`)}">${esc(b.from)}</span>`).join('');
 
     cells.push(`<button class="${cls}" data-qcday="${k}">
       <span class="qc-d">${d}</span>
@@ -124,7 +128,7 @@ function dayList() {
       <span class="qc-by">${esc(b.by)}</span>
       ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
       ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-      <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
+      <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>${b.clash && live(b) ? '<span class="qc-clash">⚠ เวลาชนกัน</span>' : ''}
     </li>`).join('')}</ul>`;
 }
 
@@ -145,7 +149,7 @@ function monthList() {
         <span class="qc-by">${esc(b.by)}</span>
         ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
         ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-        <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
+        <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>${b.clash && live(b) ? '<span class="qc-clash">⚠ เวลาชนกัน</span>' : ''}
       </div>`).join('')}
     </li>`).join('')}</ul>`;
 }
@@ -242,7 +246,7 @@ export async function refreshQueueCalendar() {
 
 const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : 'ตารางคิว Messenger');
 const monthKey = () => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
-const tone = (b) => stTone(b.status);
+const tone = (b) => (b.clash && live(b) ? 'clash' : stTone(b.status));
 
 /** ปฏิทินเต็มจอ: ทุกวันแสดงรายการครบ (เวลา ผู้จอง ทะเบียนรถ สถานที่) */
 function openFull(sideBox) {
@@ -279,7 +283,7 @@ function openFull(sideBox) {
           <button class="btn-mini" data-qcfclose="1" aria-label="ปิด">✕ ปิด</button>
         </div>
       </div>
-      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว/เสร็จสิ้น <i class="wait"></i>รออนุมัติ <i class="back"></i>ส่งกลับแก้ไข${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ' <i class="dead"></i>ยกเลิก/ไม่อนุมัติ'}</div>
+      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว/เสร็จสิ้น <i class="wait"></i>รออนุมัติ <i class="back"></i>ส่งกลับแก้ไข${kind === 'car' ? '' : ' <i class="clash"></i>เวลาชนกัน (จองทับ)'}${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ' <i class="dead"></i>ยกเลิก/ไม่อนุมัติ'}</div>
       <div class="qcf-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qcf-grid">${cells.join('')}</div>
     </div>`;
@@ -311,7 +315,7 @@ async function exportPng() {
   try { await document.fonts.ready; } catch (e) { /* ไม่เป็นไร */ }
   const F = (size, w = 400) => `${w} ${size}px ${font}`;
   const NAVY = '#0b3b7a', INK = '#1d2733', MUTED = '#6b7787', LINE = '#dbe3ee';
-  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', back: '#dd6b20', done: '#8a96a5', dead: '#b0b8c4' };
+  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', back: '#dd6b20', done: '#8a96a5', dead: '#b0b8c4', clash: '#805ad5' };
   const fit = (text, max) => {               // ตัดข้อความให้พอดีความกว้าง
     let t = String(text || '');
     if (g.measureText(t).width <= max) return t;
@@ -403,7 +407,7 @@ async function exportPng() {
   g.fillStyle = '#fff'; g.font = F(22, 600);
   g.fillText('Prime Power Group · ระบบ Intranet', 40, H - 24);
   g.textAlign = 'right'; g.fillStyle = '#b9cde6'; g.font = F(20);
-  g.fillText('🟩 อนุมัติแล้ว  🟨 รออนุมัติ  🟧 ส่งกลับแก้ไข' + (kind === 'car' ? '  ⬜ คืนรถแล้ว' : ''), W - 40, H - 24);
+  g.fillText('🟩 อนุมัติแล้ว  🟨 รออนุมัติ  🟧 ส่งกลับแก้ไข' + (kind === 'car' ? '  ⬜ คืนรถแล้ว' : '  🟪 เวลาชนกัน'), W - 40, H - 24);
   g.textAlign = 'left';
 
   const blob = await new Promise((res) => c.toBlob(res, 'image/png'));

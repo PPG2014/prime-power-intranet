@@ -106,3 +106,4 @@
 }
 .tpl-label { font-weight: 600; margin-right: auto; }
 .q-project-hint { margin-top: 4px; } .q-project-hint.warn { color: #b26a00; font-weight: 600; }
+.field-error.q-warn { background: #fff8ec; border-color: #f0c36d; color: #7b4a00; }

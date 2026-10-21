@@ -3,7 +3,7 @@
  *
  * ถือว่าชนเมื่อ "วันเดียวกัน" และ "ช่วงเวลาเหลื่อมกัน" แม้จะไม่ตรงกันเป๊ะ
  * เช่น 09:00–10:00 ชนกับ 09:30–10:30 แต่ไม่ชนกับ 10:00–11:00 (ต่อท้ายพอดี)
- * ไม่นับใบที่ยกเลิกหรือไม่อนุมัติ
+ * ไม่นับใบที่ยกเลิกหรือไม่อนุมัติ · ชนแล้วยังจองทับได้หลังผู้ยื่นยืนยัน (ปฏิทินแสดงเป็นสีคิวชน)
  */
 import { list } from './data.js';
 import { localDay } from './car.js';
@@ -28,6 +28,18 @@ const mins = (t) => {
   return m ? (+m[1]) * 60 + (+m[2]) : null;
 };
 const dayOf = localDay;   // ช่องวันที่เก็บเป็น ISO เที่ยงคืนเวลาไทย ตัด 10 ตัวแรกจะได้วันก่อนหน้า
+
+/** คิวที่เวลาเหลื่อมกับคิวอื่นในวันเดียวกัน (ไม่นับใบยกเลิก/ไม่อนุมัติ) → ตั้ง b.clash = true */
+export function markClashes(list, { day = (b) => b.day, from = (b) => b.from, to = (b) => b.to, live = () => true } = {}) {
+  const byDay = {};
+  list.filter(live).forEach((b) => { (byDay[day(b)] = byDay[day(b)] || []).push(b); });
+  Object.values(byDay).forEach((xs) => xs.forEach((a) => {
+    const a1 = mins(from(a)); const a2 = mins(to(a));
+    if (a1 == null || a2 == null) return;
+    a.clash = xs.some((b) => b !== a && mins(from(b)) != null && mins(to(b)) != null && a1 < mins(to(b)) && a2 > mins(from(b)));
+  }));
+  return list;
+}
 
 /** ฟอร์มนี้ต้องตรวจคิวชนไหม (ดูจากช่องกรอกที่มี) */
 export const isQueueForm = (fields = []) => {
@@ -56,7 +68,8 @@ export async function queueConflicts({ formCode, date, from, to, excludeId = nul
     .filter(Boolean)
     .filter(({ d }) => dayOf(d[QUEUE_FIELDS.date]) === dayOf(date))
     .map(({ r, d }) => ({
-      title: r.Title, by: d.requester || r.RequesterName || '',
+      title: r.Title, by: d.requester || r.RequesterName || '', status: String(r.Status || '').trim(),
+      what: String(d.std_subject || d.job_detail || d.subject || '').trim(), place: String(d.place || '').trim(),
       from: d[QUEUE_FIELDS.from], to: d[QUEUE_FIELDS.to],
       f: mins(d[QUEUE_FIELDS.from]), t: mins(d[QUEUE_FIELDS.to]),
     }))
