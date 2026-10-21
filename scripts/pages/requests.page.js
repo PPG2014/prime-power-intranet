@@ -15,12 +15,13 @@ import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isUnread, markSeen, refreshBadges } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
+import { findMe, myEmails } from '../services/me.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
 const STATUS_TONE = {
   'ร่าง': 'gray', 'รออนุมัติ': 'blue', 'อนุมัติแล้ว': 'green',
-  'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'gray',
+  'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'red',
   'ส่งกลับแก้ไข': 'amber',
 };
 
@@ -29,6 +30,7 @@ let stepCache = {};
 let me = '';
 let meIds = [];
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
+let notInDir = false; // หาผู้ใช้ในทะเบียนบุคลากรไม่เจอ → ระบบไม่รู้ว่าเป็นผู้อนุมัติใบไหน
 let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดตามได้ทุกใบตามฝ่าย (ดูอย่างเดียวถ้าไม่ได้อยู่ในเส้นทาง)
 
 /**
@@ -103,7 +105,7 @@ function requestRow(req, opts = {}) {
       <div class="rq-foot">
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
-        ${purchaseStatusOf(req) ? `<span class="rq-pstatus">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
+        ${purchaseStatusOf(req) ? `<span class="rq-pstatus${purchaseStatusOf(req) === PURCHASE_CANCEL ? ' bad' : ''}">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
@@ -119,12 +121,12 @@ export async function render(ctx) {
   const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ชื่อที่ใช้เทียบ/บันทึก = ชื่อในทะเบียนบุคลากร (หาด้วยอีเมล) ถ้าไม่เจอใช้ชื่อจาก Microsoft 365
   const dirAll = await list('directory').catch(() => []);
-  const myEmail = String(state.user?.email || '').trim().toLowerCase();
-  const mePerson = dirAll.find((p) => String(p.Email || '').trim().toLowerCase() === myEmail);
+  const mePerson = findMe(dirAll);
   me = (mePerson && mePerson.Title) || state.user?.name || '';
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
+  notInDir = !mePerson;
   watchForms = DEPT_WATCH_FORMS[deptName(mePerson && mePerson.Department)] || [];
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
@@ -204,6 +206,8 @@ export async function render(ctx) {
         ${prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
       </div>
 
+      ${notInDir ? `<div class="rq-dir-warn">⚠ ไม่พบอีเมลที่คุณใช้ล็อกอิน (<b>${esc(myEmails().join(', '))}</b>) ในทะเบียนบุคลากร
+        ระบบจึงไม่รู้ว่าคุณเป็นผู้อนุมัติของคำขอใด และคุณจะไม่ได้รับการ์ดอนุมัติ — แจ้งผู้ดูแลให้แก้ช่องอีเมลของคุณในหน้าบุคลากรให้ตรงกับอีเมลนี้</div>` : ''}
       <div class="rq-layout${solo ? ' solo' : ''}">
         ${solo ? '' : `<main class="rq-review">
           <div class="rq-head-row">
@@ -618,7 +622,7 @@ function purchaseBox(req, role) {
   const pv = prValues(req);
   return `
     <div class="rq-action rq-purchase">
-      <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
+      <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus${nowSt === PURCHASE_CANCEL ? ' bad' : ''}">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
       ${early ? '<div class="rq-wait">ตอนนี้รอขั้นที่ไม่บังคับ (เช่น ผู้อำนวยการโครงการ) — ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย เมื่อบันทึก ระบบจะข้ามขั้นนั้นให้</div>' : ''}
       <div class="rq-prno">
         <div><label class="rq-note-label" for="rq-prno">PR No. <span class="dim">(ระบบออกให้อัตโนมัติตอนยื่น · แก้ได้ · ห้ามซ้ำ)</span></label>
@@ -1005,7 +1009,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   const finalSign = () => (data._approverSign && data._approverSign.url ? data._approverSign
     : lastAct ? { name: lastAct.by, sig: lastAct.sig || sigOf(lastAct.by) } : null);
   const finished = !!lastAct || ['อนุมัติแล้ว', 'เสร็จสิ้น'].includes(String(req.Status || '').trim());
-  const myName = (dir.find((p) => String(p.Email || '').toLowerCase() === String(state.user?.email || '').toLowerCase()) || {}).Title
+  const myName = (findMe(dir) || {}).Title
     || state.user?.name || '';
   const isFinalApprover = finished && !!myName
     && ((lastAct && lastAct.by === myName) || (lastStep._resolved || []).includes(myName));

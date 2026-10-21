@@ -16,6 +16,7 @@ import { mountQueueCalendar } from '../components/queue-calendar.js';
 import { confirmSubmit } from '../components/submit-confirm.js';
 import { printWithNotice } from '../components/eta-notice.js';
 import { formFolder } from '../services/photos.js';
+import { findMe } from '../services/me.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -121,8 +122,7 @@ export async function render(ctx) {
   }
   editSign = (editData && editData._requesterSign) || null;
 
-  me = people.find((p) => p.Email && state.user
-    && p.Email.toLowerCase() === String(state.user.email).toLowerCase()) || null;
+  me = findMe(people);
 
   if (!form) {
     return `<section class="page"><div class="wrap">

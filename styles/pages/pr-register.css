@@ -26,3 +26,4 @@
   .prr-when { flex: 1 1 100%; }
   .prr-when select, .prr-when input { flex: 1; }
 }
+.prr-st.bad { background: #fdf3f2; color: var(--danger); }

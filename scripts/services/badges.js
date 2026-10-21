@@ -7,6 +7,7 @@
  * เปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์ ระบบจะเริ่มนับใหม่จากสถานะปัจจุบัน ไม่เด้งเตือนย้อนหลังทั้งหมด
  */
 import { list, listRecent } from './data.js';
+import { findMe } from './me.js';
 import { state, setState } from '../core/state.js';
 import { stepsOf, loadResolved, roleOnRequest, parseLog } from './requests.js';
 import { openCycles, sheets, appraisalTodo, clean } from './appraisal.js';
@@ -53,8 +54,7 @@ export function markSeen(r) {
 /* ───── นับ ───── */
 async function myIds() {
   const dir = await list('directory').catch(() => []);
-  const email = low(state.user?.email);
-  const person = dir.find((p) => low(p.Email) === email) || null;
+  const person = findMe(dir);
   return { person, ids: [person && person.Title, state.user?.name, state.user?.email].filter(Boolean) };
 }
 

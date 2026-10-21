@@ -101,7 +101,7 @@ function tableHtml() {
       <td>${esc(r.requester)}<span class="prr-sub">${esc(r.dept)}</span></td>
       <td>${r.items.length ? `${esc(r.items[0].detail)}${r.items.length > 1 ? ` <span class="prr-more">+${r.items.length - 1} รายการ</span>` : ''}` : '<span class="dim">—</span>'}</td>
       <td>${esc(thaiNumDate(r.prDate))}</td>
-      <td><span class="prr-st">${esc(r.status)}</span></td>
+      <td><span class="prr-st${/^(Cancel|ยกเลิก|ไม่อนุมัติ)$/.test(r.status) ? ' bad' : ''}">${esc(r.status)}</span></td>
     </tr>`).join('')}</tbody></table></div>`;
 }
 

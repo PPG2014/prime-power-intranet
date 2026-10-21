@@ -40,6 +40,11 @@ async function enter(user) {
     ? { isAdmin: true, isHR: true, isViewer: true, unconfigured: false }
     : await resolveAdmin(user.email);
 
+  // อีเมลอื่นของบัญชี (ใช้จับคู่กับทะเบียนบุคลากรเมื่ออีเมลที่ล็อกอินไม่ตรงกับช่อง Email)
+  if (CONFIG.dataSource !== 'mock') {
+    const { loadMyEmails } = await import('./services/me.js');
+    user.emails = await loadMyEmails(user);
+  }
   setState({ user, isAdmin: role.isAdmin, isHR: role.isHR, isViewer: role.isViewer, adminUnconfigured: role.unconfigured }, { silent: true });
 
   $('#topbar-actions').innerHTML = `
