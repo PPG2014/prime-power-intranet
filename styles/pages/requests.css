@@ -445,3 +445,10 @@
 }
 .rq-search input:focus { outline: 2px solid var(--brand, #0b3a75); outline-offset: -1px; }
 .rq-search .dim { font-size: 13px; }
+
+/* วันที่ต้องการใช้เงิน (เบิกสำรอง/ทดรองจ่าย): ใกล้ถึงสีเหลือง · ถึงวัน/เลยกำหนดสีแดง */
+.rq-need { font-size: 12px; font-weight: 600; color: #44546a; background: #eef2f6; border-radius: 20px; padding: 1px 9px; white-space: nowrap; }
+.rq-need.soon { color: #7a5200; background: #fff1c2; border: 1px solid #f2d272; }
+.rq-need.due { color: #fff; background: #d92d20; }
+.rq-row:has(.rq-need.due) { border-left: 4px solid #d92d20; }
+.rq-row:has(.rq-need.soon) { border-left: 4px solid #f0b400; }
