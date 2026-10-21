@@ -34,9 +34,6 @@ let stepCache = {};
 let me = '';
 let meIds = [];
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
-let shownRowsForExport = [];   // รายการที่แสดงอยู่ในแท็บปัจจุบัน (ตามตัวกรอง) ใช้ส่งออก Excel
-let shownCodeForExport = '';
-let shownNameForExport = '';
 let notInDir = false; // หาผู้ใช้ในทะเบียนบุคลากรไม่เจอ → ระบบไม่รู้ว่าเป็นผู้อนุมัติใบไหน
 let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดตามได้ทุกใบตามฝ่าย (ดูอย่างเดียวถ้าไม่ได้อยู่ในเส้นทาง)
 
@@ -92,7 +89,7 @@ function statusPill(s) {
 const SYSTEM_LABEL = { pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
-async function formFieldsOf(code) {
+export async function formFieldsOf(code) {
   // เผื่อ FormCode ในฟอร์มฟิลด์เป็น Lookup ที่คืนมาแค่เลข id → แปลงกลับผ่าน formCatalog
   const catalog = await list('formCatalog').catch(() => []);
   const codeById = {};
@@ -108,68 +105,6 @@ async function formFieldsOf(code) {
   return (await list('formFields').catch(() => []))
     .filter((f) => fcodeOf(f) === code)
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
-}
-
-/**
- * ส่งออกคำขอของแบบฟอร์มที่เปิดอยู่ (ตามตัวกรองสถานะ) เป็น Excel
- * หนึ่งแถวต่อคำขอ: ข้อมูลระบบ + ทุกช่องในฟอร์ม · ตารางรายการ (lineitems) รวมไว้ในช่องเดียว ขึ้นบรรทัดใหม่ต่อรายการ
- */
-async function exportFormXlsx() {
-  const rows = shownRowsForExport;
-  if (!rows.length) return;
-  const code = shownCodeForExport;
-  const { downloadXlsx } = await import('../utils/xlsx.js');
-  const catalog = await list('formCatalog').catch(() => []);
-  const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code };
-  const fields = withStandard(await formFieldsOf(code), formRow)
-    .filter((f) => !['section', 'signature', 'heading'].includes(f.FieldType));
-  const toDate = (v) => {
-    if (!v) return null;
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v).trim());
-    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(v);
-    return isNaN(d) ? null : d;
-  };
-  const textOf = (f, v) => {
-    if (v == null || v === '') return '';
-    if (f.FieldType === 'lineitems' && Array.isArray(v)) {
-      const cols = String(f.Options || '').split('\n').map((x) => x.split('|')[0].trim()).filter(Boolean);
-      return v.filter((r) => r && Object.values(r).some((x) => String(x || '').trim()))
-        .map((r, i) => `${i + 1}. ${cols.map((c) => String(r[c] ?? '').trim()).filter(Boolean).join(' · ')}`).join('\n');
-    }
-    if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? (x.name || x.Title || x.url || '') : x)).filter(Boolean).join(', ');
-    if (typeof v === 'object') return String(v.name || v.Title || v.LookupValue || '');
-    return String(v);
-  };
-  const pr = isPR(code);
-  const base = [
-    { title: 'เลขที่คำขอ', width: 22 }, { title: 'วันที่ยื่น', width: 13, type: 'date' },
-    { title: 'ผู้ยื่น', width: 22 }, { title: 'ฝ่าย', width: 26, type: 'wrap' },
-    { title: 'สถานะ', width: 14 }, { title: 'รอลำดับ', width: 26, type: 'wrap' },
-    ...(pr ? [{ title: 'PR No.', width: 14 }, { title: 'วันที่ออก PR', width: 13, type: 'date' }, { title: 'สถานะจัดซื้อ', width: 16 }] : []),
-  ];
-  // ช่องมาตรฐานที่ซ้ำกับคอลัมน์ระบบ (ฝ่าย) ไม่ต้องใส่ซ้ำ
-  const baseTitles = new Set(base.map((c) => c.title));
-  fields.splice(0, fields.length, ...fields.filter((f) => !baseTitles.has(f.Title)));
-  const fieldCols = fields.map((f) => ({ title: f.Title || f.FieldKey,
-    width: f.FieldType === 'lineitems' ? 50 : f.FieldType === 'textarea' ? 36 : 20,
-    type: f.FieldType === 'date' ? 'date' : f.FieldType === 'number' ? 'number' : (['lineitems', 'textarea'].includes(f.FieldType) ? 'wrap' : undefined) }));
-  const out = rows.map((r) => {
-    let d = {};
-    try { d = JSON.parse(r.FormData || '{}') || {}; } catch (e) { d = {}; }
-    const steps = r._steps || stepCache[r.FormCode] || [];
-    const wait = String(r.Status || '').trim() === 'รออนุมัติ'
-      ? ((steps.find((x) => +x.StepOrder === (+r.CurrentStep || 1)) || {}).StepName || '') : '';
-    return [
-      r.Title || '', toDate(r.SubmittedDate), r.RequesterName || '', deptName(r.RequesterDept), r.Status || '', wait,
-      ...(pr ? [d.pr_no || '', toDate(d.pr_date), purchaseStatusOf(r)] : []),
-      ...fields.map((f) => (f.FieldType === 'date' ? toDate(d[f.FieldKey])
-        : f.FieldType === 'number' && d[f.FieldKey] !== '' && !isNaN(+d[f.FieldKey]) ? +d[f.FieldKey] : textOf(f, d[f.FieldKey]))),
-    ];
-  });
-  const day = new Date();
-  const stamp = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-  // ชื่อไฟล์ภาษาอังกฤษ: บางเบราว์เซอร์ตั้งชื่อไฟล์ภาษาไทยไม่ได้
-  downloadXlsx(`${code || 'requests'}_${stamp}.xlsx`, { sheet: code || 'คำขอ', columns: [...base, ...fieldCols], rows: out });
 }
 
 function summaryLine(req) {
@@ -284,9 +219,6 @@ export async function render(ctx) {
   const reviewPStatus = isPRTab ? (state.reviewPStatus || '') : '';
   const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
     && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)) : [];
-  shownRowsForExport = shownRows;
-  shownCodeForExport = shownGroup ? shownGroup.code : '';
-  shownNameForExport = shownGroup ? shownGroup.name : '';
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -336,7 +268,7 @@ export async function render(ctx) {
               <div class="rq-tools">
                 <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ</span>
                 ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
-                <button class="btn-mini" data-rqxlsx="1" ${shownRows.length ? '' : 'disabled'} title="ส่งออกรายการที่แสดงอยู่ (ตามตัวกรอง) เป็นไฟล์ Excel">⬇ ส่งออก Excel</button>
+                ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
               </div>`;
             })()}
             <div class="rq-list">
@@ -1194,7 +1126,6 @@ export function mount(ctx) {
   onClick('tab', (code) => setState({ reviewTab: code }));
   onClick('rqst', (st) => setState({ reviewStatus: st || '' }));
   onClick('rqpst', (st) => setState({ reviewPStatus: st || '' }));
-  onClick('rqxlsx', () => exportFormXlsx().catch((e) => alert('ส่งออกไม่สำเร็จ: ' + e.message)));
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
