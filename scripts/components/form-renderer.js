@@ -12,6 +12,8 @@ import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
 export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
+/** ตัวเลือกพิเศษของช่องโครงการ: งานของสำนักงาน (ไม่ใช่โครงการ) — ผู้บังคับบัญชาอนุมัติเหมือน "ไม่เกี่ยวกับโครงการ" */
+export const OFFICE_PROJECTS = ['สำนักงานใหญ่', 'สำนักงานชลบุรี'];
 
 /** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
 let files = [];
@@ -206,6 +208,8 @@ function control(f, value) {
                 placeholder="พิมพ์เพื่อค้นหา${esc(hint)}" autocomplete="off">
         <datalist id="${id}_opts">
           ${src === 'projects' ? `<option value="${NO_PROJECT}">ใช้งานทั่วไป · ผู้บังคับบัญชาอนุมัติ</option>` : ''}
+          ${src === 'projects' ? OFFICE_PROJECTS.filter((o) => !rows.some((r) => String(r.Title).trim() === o))
+            .map((o) => `<option value="${esc(o)}">งานของสำนักงาน · ผู้บังคับบัญชาอนุมัติ</option>`).join('') : ''}
           ${src === 'projects' && lookupData._om && !rows.some((r) => String(r.Title).trim() === OM_PROJECT)
             ? `<option value="${OM_PROJECT}">งานบำรุงรักษา · เลือกโครงการ O&amp;M ต่อ</option>` : ''}
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
@@ -351,7 +355,7 @@ export function collectForm(fields) {
     // ช่องโครงการ: ต้องเป็นชื่อจากทะเบียนโครงการ หรือ "ไม่เกี่ยวกับโครงการ" (พิมพ์เองไม่ได้ ระบบจะหาผู้อนุมัติไม่ถูก)
     const isOm = !!lookupData._om && v === OM_PROJECT;
     if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty && !isOm
-      && v !== NO_PROJECT && !(lookupData.projects || []).some((r) => String(r.Title).trim() === v)) {
+      && v !== NO_PROJECT && !OFFICE_PROJECTS.includes(v) && !(lookupData.projects || []).some((r) => String(r.Title).trim() === v)) {
       errors.push(`${f.Title} (เลือกจากรายการ หรือเลือก "${NO_PROJECT}")`);
     }
     // งาน O&M: ต้องเลือกโครงการ O&M (หรือพิมพ์เองเมื่อเลือก อื่นๆ)
