@@ -19,6 +19,10 @@ import { findMe, myEmails } from '../services/me.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
+/** ลำดับตัวกรองสถานะในหน้าติดตามสถานะ */
+const STATUS_FILTERS = ['รออนุมัติ', 'ส่งกลับแก้ไข', 'อนุมัติแล้ว', 'เสร็จสิ้น', 'ไม่อนุมัติ', 'ยกเลิก'];
+/** ลำดับตัวกรองสถานะจัดซื้อ (ใบขอสั่งซื้อ) */
+const PURCHASE_FILTERS = ['เบิก Store', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', 'ส่งของแล้ว', 'Cancel'];
 const STATUS_TONE = {
   'ร่าง': 'gray', 'รออนุมัติ': 'blue', 'อนุมัติแล้ว': 'green',
   'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'red',
@@ -84,6 +88,25 @@ function statusPill(s) {
 /** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
 const SYSTEM_LABEL = { pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
 
+/** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
+export async function formFieldsOf(code) {
+  // เผื่อ FormCode ในฟอร์มฟิลด์เป็น Lookup ที่คืนมาแค่เลข id → แปลงกลับผ่าน formCatalog
+  const catalog = await list('formCatalog').catch(() => []);
+  const codeById = {};
+  catalog.forEach((c) => { codeById[String(c.id)] = String(c.FormCode || '').trim(); });
+  const fcodeOf = (f) => {
+    if (f.FormCode !== undefined && f.FormCode !== null)
+      return String(typeof f.FormCode === 'object' ? (f.FormCode.LookupValue ?? f.FormCode.Title ?? '') : f.FormCode).trim();
+    const k = Object.keys(f).find((x) => /^FormCode\d+$/i.test(x));
+    if (k) return String(f[k]).trim();
+    if (f.FormCodeLookupId != null) return codeById[String(f.FormCodeLookupId)] || '';
+    return '';
+  };
+  return (await list('formFields').catch(() => []))
+    .filter((f) => fcodeOf(f) === code)
+    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+}
+
 function summaryLine(req) {
   try {
     const d = JSON.parse(req.FormData || '{}');
@@ -126,7 +149,7 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
-  notInDir = !mePerson;
+  notInDir = !mePerson && !state.isAdmin;   // บัญชีแอดมินกลาง (เช่น Intranet Prime) ไม่ต้องอยู่ในทะเบียน
   watchForms = DEPT_WATCH_FORMS[deptName(mePerson && mePerson.Department)] || [];
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
@@ -191,6 +214,11 @@ export async function render(ctx) {
   const activeTab = (groups.some((g) => g.code === state.reviewTab) && state.reviewTab)
     || (groups[0] && groups[0].code) || '';
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
+  const reviewStatus = state.reviewStatus || '';
+  const isPRTab = !!shownGroup && isPR(shownGroup.code);
+  const reviewPStatus = isPRTab ? (state.reviewPStatus || '') : '';
+  const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
+    && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)) : [];
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -203,7 +231,6 @@ export async function render(ctx) {
     <div class="wrap">
       <div class="rq-title-row">
         <h1 class="page-title">${esc(meta.title)}</h1>
-        ${prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
       </div>
 
       ${notInDir ? `<div class="rq-dir-warn">⚠ ไม่พบอีเมลที่คุณใช้ล็อกอิน (<b>${esc(myEmails().join(', '))}</b>) ในทะเบียนบุคลากร
@@ -222,8 +249,31 @@ export async function render(ctx) {
                 ${esc(g.name)} <b>${g.rows.length}</b>${g.act
                   ? `<span class="tab-badge" title="ถึงคิวคุณ ${g.act} ใบ">${g.act}</span>` : ''}</button>`).join('')}
             </div>
+            ${(() => {
+              // ตัวกรองสถานะของฟอร์มที่เลือก · รออนุมัติมีตัวเลขเตือน
+              const cnt = (st) => shownGroup.rows.filter((r) => String(r.Status || '').trim() === st).length;
+              const chips = STATUS_FILTERS.filter((st) => cnt(st) || st === reviewStatus);
+              return `<div class="rq-stfilter" role="group" aria-label="กรองตามสถานะ">
+                <button data-rqst="" aria-pressed="${!reviewStatus}">ทั้งหมด <b>${shownGroup.rows.length}</b></button>
+                ${chips.map((st) => `<button data-rqst="${esc(st)}" class="st-${STATUS_TONE[st] || 'gray'}" aria-pressed="${st === reviewStatus}">${esc(st)}${
+                  st === 'รออนุมัติ' && cnt(st) ? ` <span class="tab-badge" title="รออนุมัติ ${cnt(st)} ใบ">${cnt(st)}</span>` : ` <b>${cnt(st)}</b>`}</button>`).join('')}
+              </div>${isPRTab ? `<div class="rq-stfilter rq-pfilter" role="group" aria-label="กรองตามสถานะจัดซื้อ">
+                <span class="rq-pf-label">📦 สถานะจัดซื้อ</span>
+                <button data-rqpst="" aria-pressed="${!reviewPStatus}">ทั้งหมด</button>
+                ${PURCHASE_FILTERS.map((x) => {
+                  const n = shownGroup.rows.filter((r) => purchaseStatusOf(r) === x).length;
+                  return `<button data-rqpst="${esc(x)}" class="${x === PURCHASE_CANCEL ? 'st-red' : ''}" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
+                }).join('')}
+              </div>` : ''}
+              <div class="rq-tools">
+                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ</span>
+                ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
+                ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
+              </div>`;
+            })()}
             <div class="rq-list">
-              ${shownGroup.rows.map((r) => requestRow(r, {
+              ${shownRows.length ? '' : '<div class="panel"><div class="empty">ไม่มีคำขอสถานะนี้ในแบบฟอร์มนี้</div></div>'}
+              ${shownRows.map((r) => requestRow(r, {
                 showRequester: true,
                 canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
                 waiting: roleOnRequest(r, r._steps || [], meIds).waiting,
@@ -350,21 +400,8 @@ async function openRequest(req) {
   let data = {};
   try { data = JSON.parse(req.FormData || '{}'); } catch (e) { /* ข้อมูลเสีย */ }
   const code = formCodeOf(req);
-  // เผื่อ FormCode ในฟอร์มฟิลด์เป็น Lookup ที่คืนมาแค่เลข id → แปลงกลับผ่าน formCatalog
+  const fields = await formFieldsOf(code);
   const catalog = await list('formCatalog').catch(() => []);
-  const codeById = {};
-  catalog.forEach((c) => { codeById[String(c.id)] = String(c.FormCode || '').trim(); });
-  const fcodeOf = (f) => {
-    if (f.FormCode !== undefined && f.FormCode !== null)
-      return String(typeof f.FormCode === 'object' ? (f.FormCode.LookupValue ?? f.FormCode.Title ?? '') : f.FormCode).trim();
-    const k = Object.keys(f).find((x) => /^FormCode\d+$/i.test(x));
-    if (k) return String(f[k]).trim();
-    if (f.FormCodeLookupId != null) return codeById[String(f.FormCodeLookupId)] || '';
-    return '';
-  };
-  const fields = (await list('formFields').catch(() => []))
-    .filter((f) => fcodeOf(f) === code)
-    .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
 
   const answerRows = Object.entries(data)
     .filter(([k]) => !k.startsWith('_'))      // ค่าภายใน เช่นลายเซ็นผู้ยื่น
@@ -1087,6 +1124,8 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 
 export function mount(ctx) {
   onClick('tab', (code) => setState({ reviewTab: code }));
+  onClick('rqst', (st) => setState({ reviewStatus: st || '' }));
+  onClick('rqpst', (st) => setState({ reviewPStatus: st || '' }));
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');

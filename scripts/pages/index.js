@@ -19,7 +19,8 @@ import * as appraisal from './appraisal.page.js';
 import * as search    from './search.page.js';
 import * as prRegister from './pr-register.page.js';
 import * as access    from './access.page.js';
+import * as formRegister from './form-register.page.js';
 
-export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, admin, health, appraisal, search, prRegister, access];
+export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, admin, health, appraisal, search, prRegister, access, formRegister];
 
 export const pageByRoute = (route) => pages.find((p) => p.meta.route === route);
