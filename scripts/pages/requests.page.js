@@ -73,14 +73,27 @@ async function loadSteps(codes) {
   for (const c of codes) if (!(c in stepCache)) stepCache[c] = await stepsOf(c);
 }
 
-/** เติมผู้อนุมัติจริงให้คำขอแต่ละใบ ตามผู้ยื่นของใบนั้น */
+/** เติมผู้อนุมัติจริงให้คำขอแต่ละใบ ตามผู้ยื่นของใบนั้น (ทำพร้อมกันทีละชุด ไม่รอทีละใบ) */
 async function resolveFor(requests) {
-  for (const r of requests) {
-    const base = stepCache[r.FormCode] || [];
-    // clone เพราะผู้ยื่นต่างกัน ผู้อนุมัติตามตำแหน่งก็ต่างกัน
-    r._steps = await loadResolved(base.map((x) => ({ ...x })), r);
+  const BATCH = 20;
+  for (let i = 0; i < requests.length; i += BATCH) {
+    await Promise.all(requests.slice(i, i + BATCH).map(async (r) => {
+      const base = stepCache[r.FormCode] || [];
+      // clone เพราะผู้ยื่นต่างกัน ผู้อนุมัติตามตำแหน่งก็ต่างกัน
+      r._steps = await loadResolved(base.map((x) => ({ ...x })), r);
+    }));
   }
 }
+
+/**
+ * เปลี่ยนแถบ/ตัวกรอง/หน้า: วาดใหม่จากข้อมูลที่โหลดไว้แล้ว ไม่ต้องอ่าน SharePoint และคำนวณผู้อนุมัติใหม่ทุกครั้ง
+ * (ข้อมูลเก่าเกิน FRESH_MS จะโหลดใหม่ตามปกติ)
+ */
+const FRESH_MS = 60000;
+let fastNext = false;
+let loadedAt = 0;
+let loadedAll = null;
+function quick(patch) { fastNext = true; setState(patch); }
 
 function statusPill(s) {
   return `<span class="rq-status st-${STATUS_TONE[s] || 'gray'}">${esc(s || '')}</span>`;
@@ -158,6 +171,9 @@ export async function render(ctx) {
   // ของเก่ายังดูได้ด้วยปุ่ม "แสดงย้อนหลังทั้งหมด" (ดึงทั้ง List)
   const MONTHS = 6;
   const cutoff = Date.now() - MONTHS * 30 * 86400000;
+  const reuse = fastNext && allRequests.length && loadedAll === !!state.showAllRequests && Date.now() - loadedAt < FRESH_MS;
+  fastNext = false;
+  if (!reuse) {
   clearDataCache('requests');   // สถานะอาจเพิ่งเปลี่ยนจากการกดในอีเมล/Teams ต้องอ่านสดเสมอ
   const fetched = await (state.showAllRequests
     ? list('requests')
@@ -181,6 +197,8 @@ export async function render(ctx) {
   allRequests.forEach((r) => { r.FormCode = formCodeOf(r); });
   await loadSteps([...new Set(allRequests.map((r) => r.FormCode).filter(Boolean))]);
   await resolveFor(allRequests);
+  loadedAt = Date.now(); loadedAll = !!state.showAllRequests;
+  }
 
   const mine = allRequests.filter((r) => r.RequesterEmail
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
@@ -1131,9 +1149,9 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 }
 
 export function mount(ctx) {
-  onClick('tab', (code) => setState({ reviewTab: code }));
-  onClick('rqst', (st) => setState({ reviewStatus: st || '' }));
-  onClick('rqpst', (st) => setState({ reviewPStatus: st || '' }));
+  onClick('tab', (code) => quick({ reviewTab: code }));
+  onClick('rqst', (st) => quick({ reviewStatus: st || '' }));
+  onClick('rqpst', (st) => quick({ reviewPStatus: st || '' }));
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
@@ -1142,10 +1160,10 @@ export function mount(ctx) {
     mq.oninput = (e) => {
       const v = e.target.value;
       clearTimeout(t);
-      t = setTimeout(() => setState({ mineQuery: v, minePage: 1 }), 250);
+      t = setTimeout(() => quick({ mineQuery: v, minePage: 1 }), 250);
     };
   }
-  onClick('minepage', (p) => setState({ minePage: +p }));
+  onClick('minepage', (p) => quick({ minePage: +p }));
 
   const showAll = $('#rq-showall');
   if (showAll) showAll.onclick = () => setState({ showAllRequests: true, minePage: 1 });
