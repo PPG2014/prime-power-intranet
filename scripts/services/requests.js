@@ -512,7 +512,7 @@ export class AlreadyActedError extends Error {
  * กันกรณีมีคนกดจากการ์ด Teams/อีเมล หรืออีกหน้าจอไปก่อนหน้า
  */
 async function assertFresh(req) {
-  const all = await list('requests').catch(() => null);
+  const all = await list('requests', { fresh: true }).catch(() => null);
   if (!all) return req;                        // อ่านไม่ได้ ปล่อยผ่าน ไม่บล็อกงาน
   const now = all.find((r) => String(r.id) === String(req.id));
   if (!now) return req;

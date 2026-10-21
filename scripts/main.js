@@ -1,4 +1,4 @@
-import { list } from './services/data.js';
+import { list, listRecent, RECENT_REQUESTS } from './services/data.js';
 /** จุดเริ่มต้นของแอป — โหลดไฟล์เดียวนี้จาก index.html */
 import { startRouter } from './core/router.js';
 import { render, startRendering } from './core/render.js';
@@ -103,8 +103,11 @@ async function enter(user) {
     let lastAt = Date.now();
     const recount = () => {
       lastAt = Date.now();
-      import('./services/data.js').then((d) => ['requests', 'appraisals', 'appraisalCycles'].forEach((n) => d.clearDataCache(n)));
-      m.refreshBadges({ force: true });
+      // ดึงใหม่เบื้องหลังแทนการล้างแคช → เมนูที่กดระหว่างนั้นยังขึ้นทันที
+      import('./services/data.js')
+        .then((d) => Promise.all(['requests', 'appraisals', 'appraisalCycles'].map((n) => d.revalidate(n))))
+        .catch(() => {})
+        .then(() => m.refreshBadges({ force: true }));
     };
     const tick = () => {
       if (!document.hidden) recount();
@@ -119,12 +122,21 @@ async function enter(user) {
   // ประกาศเด้งขึ้นหลังหน้าแรกวาดเสร็จ เพื่อไม่ให้บังตอนหน้ายังโหลดไม่เสร็จ
   showAnnouncements();
 
-  // โหลดข้อมูลที่ใช้บ่อยรอไว้เบื้องหลัง พอกดเมนูไหนก็ขึ้นได้ทันที
-  // เฉพาะรายการที่เกือบทุกหน้าต้องใช้ (คำขอ/เส้นทางอนุมัติ ตัวเลขเตือนโหลดให้แล้ว)
-  // นโยบาย คู่มือ ห้องประชุม โหลดตอนเปิดหน้านั้นจริง · หน่วงแบบสุ่ม 2–6 วินาที กระจายภาระช่วงเช้าที่คนเข้าพร้อมกัน
-  const warm = () => ['directory', 'formCatalog', 'departments', 'sections']
-    .forEach((n) => list(n).catch(() => {}));
-  setTimeout(() => (window.requestIdleCallback || ((f) => f()))(warm), 2000 + Math.random() * 4000);
+  // โหลดข้อมูลของทุกเมนูรอไว้เบื้องหลัง พอกดเมนูไหนก็ขึ้นได้ทันที
+  // ทยอยทีละ 3 ชุด ไม่ยิง SharePoint พร้อมกันทีเดียว · หน่วงแบบสุ่ม 1.5–3.5 วินาที กระจายภาระช่วงเช้าที่คนเข้าพร้อมกัน
+  const WARM = [
+    ['directory', 'formCatalog', 'departments'], ['sections', 'settings', 'approvalMatrix'],
+    ['documents', 'policies', 'news'], ['rooms', 'projects', 'formFields'],
+    ['appraisalCycles', 'appraisalCriteria', 'appraisals'],
+  ];
+  const warm = async () => {
+    await listRecent('requests', RECENT_REQUESTS).catch(() => {});
+    for (const batch of WARM) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.all(batch.map((n) => list(n).catch(() => {})));
+    }
+  };
+  setTimeout(() => (window.requestIdleCallback || ((f) => f()))(warm), 1500 + Math.random() * 2000);
 }
 
 /** แปลรหัสผิดพลาดของไมโครซอฟท์เป็นข้อความที่บอกได้ว่าต้องทำอะไรต่อ */

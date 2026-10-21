@@ -5,7 +5,7 @@
  * คลิกวันไหนจะเห็นคิวของวันนั้น และเติมวันที่ลงในฟอร์มให้เลย
  */
 import { esc, $, $$ } from '../core/dom.js';
-import { list, clearDataCache } from '../services/data.js';
+import { list } from '../services/data.js';
 import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
 import { QUEUE_FIELDS, DEAD, codeOf, stTone, markClashes } from '../services/booking.js';
 
@@ -20,6 +20,7 @@ let ym = null;          // เดือนที่กำลังดู { y, m 
 let picked = '';        // วันที่ที่เลือกดู (YYYY-MM-DD)
 let bookings = [];      // คิวทั้งหมดของฟอร์มนี้
 let formCode = '';      // รหัสฟอร์ม (หรือหลายรหัส) ที่กำลังแสดงคิว
+let fresh = true;       // หน้าแบบฟอร์มต้องเห็นคิวล่าสุด · หน้าแรกใช้แคชแล้ววาดใหม่เองเมื่อข้อมูลเปลี่ยน
 let kind = 'queue';     // 'queue' = คิวรายวัน (Messenger) · 'car' = จองรถ (ข้ามวันได้ มีทะเบียนรถ)
 const dateField = () => (kind === 'car' ? CAR_FIELDS.dateFrom : QUEUE_FIELDS.date);
 
@@ -33,7 +34,7 @@ async function load(code) {
   formCode = code;
   if (kind === 'car') { bookings = await loadCars(code); return; }
   const codes = (Array.isArray(code) ? code : [code]).map((c) => String(c).trim());
-  const rows = await list('requests').catch(() => []);
+  const rows = await list('requests', { fresh }).catch(() => []);
   // แสดงทุกสถานะ (รออนุมัติ / อนุมัติแล้ว / ส่งกลับแก้ไข / เสร็จสิ้น / ยกเลิก / ไม่อนุมัติ) — ใบที่ยกเลิก/ไม่อนุมัติขีดฆ่าไว้ ไม่นับเป็นคิว
   bookings = rows
     .filter((r) => codes.includes(codeOf(r)))
@@ -222,6 +223,7 @@ function paint(box) {
  */
 export async function mountQueueCalendar(code, opts = {}) {
   kind = opts.kind || 'queue';
+  fresh = opts.fresh !== false;
   const box = $('#queue-cal');
   if (!box) return;
   box.innerHTML = '<div class="panel qc-panel"><div class="qc-hint">กำลังโหลดคิว…</div></div>';
@@ -229,7 +231,6 @@ export async function mountQueueCalendar(code, opts = {}) {
   const id = String(code);
   ym = ym && ym.code === id ? ym : { y: now.getFullYear(), m: now.getMonth(), code: id };
   picked = todayKey();
-  clearDataCache('requests');   // อ่านสถานะล่าสุดทุกครั้งที่เปิดปฏิทิน
   await load(code);
   paint(box);
 }

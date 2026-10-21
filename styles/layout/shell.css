@@ -7,3 +7,15 @@
   pointer-events: none;
 }
 #loadbar.on { width: 85%; opacity: 1; transition: width 1.6s cubic-bezier(.1,.7,.2,1), opacity .1s; }
+
+/* โครงหน้าชั่วคราว ขึ้นทันทีที่กดเมนูระหว่างรอข้อมูลครั้งแรก (core/render.js) */
+.page-skel .skel-line, .page-skel .skel-card {
+  background: linear-gradient(90deg, #e9eef4 25%, #f4f7fa 50%, #e9eef4 75%);
+  background-size: 200% 100%; animation: skel 1.2s ease-in-out infinite; border-radius: 10px;
+}
+.page-skel .skel-line { height: 14px; margin: 6px 0 18px; }
+.page-skel .w40 { width: 40%; }
+.page-skel .skel-card { height: 96px; margin-bottom: 12px; }
+.page-skel .skel-card.short { width: 70%; }
+@keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .page-skel .skel-line, .page-skel .skel-card { animation: none; } }

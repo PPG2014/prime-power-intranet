@@ -73,7 +73,7 @@ export async function carPlates() {
  */
 export async function carBookings(formCode, { fresh = false } = {}) {
   if (fresh) clearDataCache('requests');
-  const rows = await list('requests').catch(() => []);
+  const rows = await list('requests', { fresh: true }).catch(() => []);
   return rows
     // FormCode ของคำขออาจว่าง/เป็น Lookup → ดูจากเลขที่เอกสาร (reqCode)
     .filter((r) => reqCode(r) === String(formCode || '').trim())

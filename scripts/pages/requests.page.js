@@ -1,5 +1,5 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
-import { list, listRecent, get, clearDataCache } from '../services/data.js';
+import { list, listRecent, get, clearDataCache, RECENT_REQUESTS } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
@@ -209,10 +209,10 @@ export async function render(ctx) {
   const reuse = fastNext && allRequests.length && loadedAll === !!state.showAllRequests && Date.now() - loadedAt < FRESH_MS;
   fastNext = false;
   if (!reuse) {
-  clearDataCache('requests');   // สถานะอาจเพิ่งเปลี่ยนจากการกดในอีเมล/Teams ต้องอ่านสดเสมอ
+  // ใช้ข้อมูลในแคชแสดงทันที · ถ้าเก่ากว่า 60 วินาที ระบบดึงใหม่เบื้องหลังแล้ววาดใหม่เอง (กดอนุมัติในอีเมล/Teams ก็เห็น)
   const fetched = await (state.showAllRequests
     ? list('requests')
-    : listRecent('requests', { days: MONTHS * 30, statuses: ['รออนุมัติ', 'ส่งกลับแก้ไข'] })).catch(() => []);
+    : listRecent('requests', RECENT_REQUESTS)).catch(() => []);
   const everything = [...fetched]
     .sort((a, b) => new Date(b.SubmittedDate) - new Date(a.SubmittedDate));
 
