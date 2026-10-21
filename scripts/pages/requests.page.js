@@ -128,6 +128,14 @@ function summaryLine(req) {
   } catch (e) { return ''; }
 }
 
+/** ข้อความที่ใช้ค้นหา: เลขที่ หัวข้อ ชื่อฟอร์ม ผู้ยื่น โครงการ/ไซต์ O&M เลข PR ทะเบียนรถ */
+function searchText(req) {
+  const v = prValues(req);
+  return [req.Title, req.FormName, req.FormCode, summaryLine(req), req.RequesterName,
+    projectText(v), v.om_site, v.pr_no, carData(req).car_plate].filter(Boolean).join(' ').toLowerCase();
+}
+const matchQ = (req, q) => q.split(/\s+/).every((w) => searchText(req).includes(w));
+
 function requestRow(req, opts = {}) {
   const steps = req._steps || stepCache[req.FormCode] || [];
   const cur = +req.CurrentStep || 1;
@@ -208,7 +216,7 @@ export async function render(ctx) {
   const MINE_PER = 15;
   const mineQ = (state.mineQuery || '').trim().toLowerCase();
   const mineFiltered = mineQ
-    ? mine.filter((r) => (String(r.Title) + ' ' + String(r.FormName || '')).toLowerCase().includes(mineQ))
+    ? mine.filter((r) => matchQ(r, mineQ))
     : mine;
   const minePages = Math.max(1, Math.ceil(mineFiltered.length / MINE_PER));
   const minePage = Math.min(Math.max(1, state.minePage || 1), minePages);
@@ -220,10 +228,13 @@ export async function render(ctx) {
     const role = roleOnRequest(r, r._steps || [], meIds);
     return role.isInvolved;
   });
+  // ค้นหาชื่อโครงการ / ชื่อพนักงาน / เลขที่ — กรองทุกแบบฟอร์ม ตัวเลขบนแถบเป็นจำนวนที่พบ
+  const reviewQ = (state.reviewQuery || '').trim().toLowerCase();
+  const reviewHits = reviewQ ? toReview.filter((r) => matchQ(r, reviewQ)) : toReview;
 
   // จัดกลุ่มฝั่งซ้ายตามชื่อฟอร์ม พร้อมนับใบที่ถึงคิวฉันในแต่ละฟอร์ม (ตัวเลขเตือนบนแถบ)
   const groups = [];
-  toReview.forEach((r) => {
+  reviewHits.forEach((r) => {
     let g = groups.find((x) => x.code === r.FormCode);
     if (!g) groups.push((g = { code: r.FormCode, name: r.FormName || r.FormCode, rows: [], act: 0 }));
     g.rows.push(r);
@@ -262,6 +273,11 @@ export async function render(ctx) {
             ${actableCount ? `<span class="rq-badge">${actableCount} รายการถึงคิวคุณ</span>` : ''}
           </div>
 
+          ${toReview.length ? `<div class="rq-search">
+            <input id="rq-q" type="search" data-keepfocus value="${esc(state.reviewQuery || '')}"
+              placeholder="🔍 ค้นหาชื่อโครงการ ชื่อพนักงาน เลขที่ หัวข้อ เลข PR…" autocomplete="off">
+            ${reviewQ ? `<span class="dim">พบ ${reviewHits.length} จาก ${toReview.length} รายการ</span>` : ''}
+          </div>` : ''}
           ${groups.length ? `
             <div class="rq-tabs">
               ${groups.map((g) => `<button data-tab="${esc(g.code)}"
@@ -300,7 +316,7 @@ export async function render(ctx) {
               })).join('')}
             </div>`
           : `<div class="panel"><div class="empty">
-              ${seeAll ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
+              ${reviewQ ? `ไม่พบคำขอที่ตรงกับ “${esc(state.reviewQuery.trim())}”` : seeAll ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
             </div></div>`}
         </main>`}
 
@@ -310,7 +326,7 @@ export async function render(ctx) {
               <span class="panel-meta">${unreadCount ? `<span class="tab-badge">${unreadCount} ใหม่</span> ` : ''}${mineFiltered.length} รายการ</span></div>
             ${mine.length ? `<div class="rq-mine-tools">
               <input id="mine-q" type="search" data-keepfocus value="${esc(state.mineQuery || '')}"
-                placeholder="ค้นหาเลขที่ / ชื่อฟอร์ม…" autocomplete="off">
+                placeholder="ค้นหาเลขที่ / ฟอร์ม / โครงการ…" autocomplete="off">
             </div>` : ''}
             ${mineFiltered.length ? `<div class="rq-list rq-mine-list">
               ${mineRows.map((r) => requestRow(r, { unread: isUnread(r) })).join('')}</div>
@@ -1164,6 +1180,15 @@ export function mount(ctx) {
     };
   }
   onClick('minepage', (p) => quick({ minePage: +p }));
+  const rq = $('#rq-q');
+  if (rq) {
+    let t;
+    rq.oninput = (e) => {
+      const v = e.target.value;
+      clearTimeout(t);
+      t = setTimeout(() => quick({ reviewQuery: v }), 250);
+    };
+  }
 
   const showAll = $('#rq-showall');
   if (showAll) showAll.onclick = () => setState({ showAllRequests: true, minePage: 1 });
