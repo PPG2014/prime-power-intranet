@@ -9,7 +9,7 @@
  * ทะเบียนรถ วันเวลาคืน เก็บใน FormData ของคำขอ (car_plate, car_returned_at) ไม่ต้องเพิ่มคอลัมน์
  */
 import { list, get, update, clearDataCache } from './data.js';
-import { parseLog } from './requests.js';
+import { parseLog, reqCode } from './requests.js';
 
 export const CAR_FIELDS = { dateFrom: 'car_date_from', dateTo: 'car_date_to', timeFrom: 'car_time_from', timeTo: 'car_time_to' };
 export const CAR_PLACE = 'destination';
@@ -75,7 +75,8 @@ export async function carBookings(formCode, { fresh = false } = {}) {
   if (fresh) clearDataCache('requests');
   const rows = await list('requests').catch(() => []);
   return rows
-    .filter((r) => String(r.FormCode || '').trim() === String(formCode || '').trim())
+    // FormCode ของคำขออาจว่าง/เป็น Lookup → ดูจากเลขที่เอกสาร (reqCode)
+    .filter((r) => reqCode(r) === String(formCode || '').trim())
     .filter((r) => !DEAD.includes(String(r.Status || '').trim()))
     .map((r) => {
       const d = dataOf(r);
@@ -121,7 +122,7 @@ export async function carProblem(formCode, values, excludeId = null) {
 export async function plateClash(req, plate) {
   const sp = spanOf(dataOf(req));
   if (!sp || !plate) return [];
-  const hit = await carOverlaps(req.FormCode, sp, req.id, { fresh: true });
+  const hit = await carOverlaps(reqCode(req), sp, req.id, { fresh: true });
   return hit.filter((b) => b.plate && b.plate === plate);
 }
 
