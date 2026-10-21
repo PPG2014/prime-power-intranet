@@ -21,7 +21,7 @@ export const meta = { route: 'requests', title: 'ติดตามสถาน�
 
 const STATUS_TONE = {
   'ร่าง': 'gray', 'รออนุมัติ': 'blue', 'อนุมัติแล้ว': 'green',
-  'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'gray',
+  'ไม่อนุมัติ': 'red', 'เสร็จสิ้น': 'green', 'ยกเลิก': 'red',
   'ส่งกลับแก้ไข': 'amber',
 };
 
@@ -105,7 +105,7 @@ function requestRow(req, opts = {}) {
       <div class="rq-foot">
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
-        ${purchaseStatusOf(req) ? `<span class="rq-pstatus">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
+        ${purchaseStatusOf(req) ? `<span class="rq-pstatus${purchaseStatusOf(req) === PURCHASE_CANCEL ? ' bad' : ''}">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus">PR ${esc(prValues(req).pr_no)}</span>` : ''}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
@@ -622,7 +622,7 @@ function purchaseBox(req, role) {
   const pv = prValues(req);
   return `
     <div class="rq-action rq-purchase">
-      <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
+      <h4>📦 อัปเดตสถานะงานจัดซื้อ${nowSt ? ` <span class="rq-pstatus${nowSt === PURCHASE_CANCEL ? ' bad' : ''}">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
       ${early ? '<div class="rq-wait">ตอนนี้รอขั้นที่ไม่บังคับ (เช่น ผู้อำนวยการโครงการ) — ฝ่ายจัดซื้อเริ่มอัปเดตสถานะได้เลย เมื่อบันทึก ระบบจะข้ามขั้นนั้นให้</div>' : ''}
       <div class="rq-prno">
         <div><label class="rq-note-label" for="rq-prno">PR No. <span class="dim">(ระบบออกให้อัตโนมัติตอนยื่น · แก้ได้ · ห้ามซ้ำ)</span></label>

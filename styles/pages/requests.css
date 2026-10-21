@@ -416,3 +416,4 @@
 .tl-people.tl-partial { color: #b7791f; font-weight: 600; }
 .tl-people.tl-stuck { color: #c05621; font-weight: 600; }
 .rq-dir-warn { margin: 0 0 var(--gap); padding: 12px 16px; background: #fff4e5; border-left: 4px solid #dd6b20; border-radius: 8px; color: #7b341e; line-height: 1.6; }
+.rq-pstatus.bad { color: var(--danger); background: #fdf3f2; }
