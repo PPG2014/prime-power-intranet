@@ -112,3 +112,8 @@ body.qcf-open { overflow: hidden; }
   .qcf-grid { grid-auto-rows: minmax(90px, auto); }
   .qcf-ev { font-size: 11px; }
 }
+/* คิวที่เวลาชนกัน (ผู้ยื่นยืนยันจองทับ) */
+.qc-ev.clash { border-left-color: #805ad5; background: #f3edff; color: #553c9a; }
+.qc-clash { display: inline-block; width: fit-content; justify-self: start; margin-left: 6px; padding: 0 7px; border-radius: 9px; background: #f3edff; color: #6b46c1; font-size: .85em; font-weight: 600; }
+.qcf-legend i.clash, .qcf-ev.clash { --tone: #805ad5; }
+.qcf-ev.clash { background: #f7f3ff; }

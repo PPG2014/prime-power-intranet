@@ -7,11 +7,13 @@
 import { esc, $, $$ } from '../core/dom.js';
 import { list, clearDataCache } from '../services/data.js';
 import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
-import { QUEUE_FIELDS, DEAD, codeOf, stTone } from '../services/booking.js';
+import { QUEUE_FIELDS, DEAD, codeOf, stTone, markClashes } from '../services/booking.js';
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const TH_DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+/** สีของคิวในปฏิทิน: คิวที่เวลาชนกันใช้สีม่วง นอกนั้นตามสถานะ */
+const evTone = (b) => (b.clash && !DEAD.includes(b.status) ? 'clash' : stTone(b.status));
 const live = (b) => !DEAD.includes(b.status);   // นับเป็นคิว (ไม่รวมยกเลิก/ไม่อนุมัติ)
 
 let ym = null;          // เดือนที่กำลังดู { y, m }
@@ -53,6 +55,8 @@ async function load(code) {
     })
     .filter(Boolean)
     .sort((a, b) => a.day.localeCompare(b.day) || live(b) - live(a) || hhmm(a.from).localeCompare(hhmm(b.from)));
+  // คิวที่เวลาชนกัน (ผู้ยื่นยืนยันจองทับ) แสดงเป็นอีกสี
+  markClashes(bookings, { live });
 }
 
 /** จองรถ: หนึ่งคำขอแสดงทุกวันที่อยู่ในช่วง (วันแรกเริ่มตามเวลา · วันสุดท้ายถึงเวลา · วันกลางทั้งวัน) */
@@ -97,8 +101,8 @@ function grid() {
     ].filter(Boolean).join(' ');
 
     // แสดงคิวในช่องวันเลย สูงสุด 3 รายการ ที่เหลือบอกเป็นจำนวน
-    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${stTone(b.status)}"
-        title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}`)}">${esc(b.from)}</span>`).join('');
+    const shown = items.slice(0, 3).map((b) => `<span class="qc-ev ${evTone(b)}"
+        title="${esc(`${b.from}–${b.to} ${b.by}${b.place ? ' · ' + b.place : ''}${b.clash ? ' · ⚠ เวลาชนกับคิวอื่น' : ''}`)}">${esc(b.from)}</span>`).join('');
 
     cells.push(`<button class="${cls}" data-qcday="${k}">
       <span class="qc-d">${d}</span>
@@ -124,7 +128,7 @@ function dayList() {
       <span class="qc-by">${esc(b.by)}</span>
       ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
       ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-      <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
+      <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>${b.clash && live(b) ? '<span class="qc-clash">⚠ เวลาชนกัน</span>' : ''}
     </li>`).join('')}</ul>`;
 }
 
@@ -145,7 +149,7 @@ function monthList() {
         <span class="qc-by">${esc(b.by)}</span>
         ${b.plate ? `<span class="qc-plate">🚗 ${esc(b.plate)}</span>` : ''}
         ${b.place ? `<span class="qc-place">${esc(b.place)}</span>` : ''}
-        <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>
+        <span class="qc-st ${stTone(b.status)}">${esc(b.status)}</span>${b.clash && live(b) ? '<span class="qc-clash">⚠ เวลาชนกัน</span>' : ''}
       </div>`).join('')}
     </li>`).join('')}</ul>`;
 }
@@ -167,7 +171,8 @@ function html() {
       </div>
       <div class="qc-tools">
         <button class="btn-mini" data-qcfull="1" title="ดูปฏิทินเต็มจอ เห็นทุกรายการ">⛶ ขยายเต็มจอ</button>
-        <button class="btn-mini" data-qcpng="1" title="บันทึกเป็นรูปแนวตั้ง 1080×1920 สำหรับส่งในกลุ่ม">⬇ PNG</button>
+        <button class="btn-mini" data-qcpng="1" title="บันทึกเป็นรูปแนวตั้ง 1080×1920 สำหรับส่งในกลุ่ม">⬇ PNG แนวตั้ง</button>
+        <button class="btn-mini" data-qcpng="wide" title="บันทึกเป็นรูปแนวนอน 1920×1080 สำหรับนำเสนอ/จอประชุม">⬇ PNG แนวนอน</button>
       </div>
       <div class="qc-meta">${kind === 'car' ? 'การจองรถ' : 'คิว'}เดือนนี้ ${total} รายการ</div>
       <div class="qc-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
@@ -196,7 +201,7 @@ function paint(box) {
     b.onclick = () => { picked = b.dataset.qcday; paint(box); };
   });
   $$('[data-qcfull]', box).forEach((b) => { b.onclick = () => openFull(box); });
-  $$('[data-qcpng]', box).forEach((b) => { b.onclick = () => exportPng(); });
+  $$('[data-qcpng]', box).forEach((b) => { b.onclick = () => exportPng(b.dataset.qcpng === 'wide'); });
   $$('[data-qcuse]', box).forEach((b) => {
     b.onclick = () => {
       const input = $('#q_' + dateField());
@@ -242,7 +247,7 @@ export async function refreshQueueCalendar() {
 
 const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : 'ตารางคิว Messenger');
 const monthKey = () => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
-const tone = (b) => stTone(b.status);
+const tone = (b) => (b.clash && live(b) ? 'clash' : stTone(b.status));
 
 /** ปฏิทินเต็มจอ: ทุกวันแสดงรายการครบ (เวลา ผู้จอง ทะเบียนรถ สถานที่) */
 function openFull(sideBox) {
@@ -275,11 +280,12 @@ function openFull(sideBox) {
         <div class="qcf-btns">
           <button class="btn-mini" data-qcfm="-1">‹ เดือนก่อน</button>
           <button class="btn-mini" data-qcfm="1">เดือนถัดไป ›</button>
-          <button class="btn btn-primary" data-qcfpng="1">⬇ บันทึกเป็น PNG (1080×1920)</button>
+          <button class="btn btn-primary" data-qcfpng="1">⬇ PNG แนวตั้ง (1080×1920)</button>
+          <button class="btn btn-primary" data-qcfpng="wide">⬇ PNG แนวนอน (1920×1080)</button>
           <button class="btn-mini" data-qcfclose="1" aria-label="ปิด">✕ ปิด</button>
         </div>
       </div>
-      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว/เสร็จสิ้น <i class="wait"></i>รออนุมัติ <i class="back"></i>ส่งกลับแก้ไข${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ' <i class="dead"></i>ยกเลิก/ไม่อนุมัติ'}</div>
+      <div class="qcf-legend"><i class="ok"></i>อนุมัติแล้ว/เสร็จสิ้น <i class="wait"></i>รออนุมัติ <i class="back"></i>ส่งกลับแก้ไข${kind === 'car' ? '' : ' <i class="clash"></i>เวลาชนกัน (จองทับ)'}${kind === 'car' ? ' <i class="done"></i>คืนรถแล้ว' : ' <i class="dead"></i>ยกเลิก/ไม่อนุมัติ'}</div>
       <div class="qcf-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qcf-grid">${cells.join('')}</div>
     </div>`;
@@ -288,7 +294,7 @@ function openFull(sideBox) {
       ym = { ...ym, y: d.getFullYear(), m: d.getMonth() };
       draw(); if (sideBox) paint(sideBox);
     }; });
-    $('[data-qcfpng]', host).onclick = () => exportPng();
+    $$('[data-qcfpng]', host).forEach((b) => { b.onclick = () => exportPng(b.dataset.qcfpng === 'wide'); });
     $('[data-qcfclose]', host).onclick = close;
   };
   const close = () => { host.remove(); document.removeEventListener('keydown', onKey); document.body.classList.remove('qcf-open'); };
@@ -302,8 +308,13 @@ function openFull(sideBox) {
  * บันทึกปฏิทินเดือนที่ดูอยู่เป็นรูป PNG แนวตั้ง 1080×1920 (ขนาดสตอรี่/หน้าจอมือถือ)
  * วาดลง canvas เอง (ไม่ใช้ไลบรารีภายนอก) ใช้ฟอนต์เดียวกับหน้าเว็บ
  */
-async function exportPng() {
-  const W = 1080, H = 1920;
+/**
+ * บันทึกปฏิทินเดือนที่ดูอยู่เป็นภาพ PNG
+ *   wide = false → แนวตั้ง 1080×1920 (ส่งในกลุ่มแชท) · ปฏิทินด้านบน รายการด้านล่าง
+ *   wide = true  → แนวนอน 1920×1080 (นำเสนอ/จอประชุม) · ปฏิทินด้านซ้าย รายการด้านขวา
+ */
+async function exportPng(wide = false) {
+  const W = wide ? 1920 : 1080, H = wide ? 1080 : 1920;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
@@ -311,7 +322,7 @@ async function exportPng() {
   try { await document.fonts.ready; } catch (e) { /* ไม่เป็นไร */ }
   const F = (size, w = 400) => `${w} ${size}px ${font}`;
   const NAVY = '#0b3b7a', INK = '#1d2733', MUTED = '#6b7787', LINE = '#dbe3ee';
-  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', back: '#dd6b20', done: '#8a96a5', dead: '#b0b8c4' };
+  const TONE = { ok: '#1e7f4f', wait: '#d69e2e', back: '#dd6b20', done: '#8a96a5', dead: '#b0b8c4', clash: '#805ad5' };
   const fit = (text, max) => {               // ตัดข้อความให้พอดีความกว้าง
     let t = String(text || '');
     if (g.measureText(t).width <= max) return t;
@@ -325,15 +336,17 @@ async function exportPng() {
 
   // พื้นหลัง + หัว
   g.fillStyle = '#f3f6fa'; g.fillRect(0, 0, W, H);
-  g.fillStyle = NAVY; g.fillRect(0, 0, W, 230);
+  const HEAD = wide ? 150 : 230;
+  g.fillStyle = NAVY; g.fillRect(0, 0, W, HEAD);
   const logo = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = 'assets/img/logo-ppg.png'; });
   if (logo) {
-    const lh = 70, lw = logo.width * (lh / logo.height);
-    g.fillStyle = '#fff'; round(40, 36, lw + 36, lh + 24, 16); g.fill();
-    g.drawImage(logo, 58, 48, lw, lh);
+    const lh = wide ? 56 : 70, lw = logo.width * (lh / logo.height);
+    g.fillStyle = '#fff'; round(40, wide ? 30 : 36, lw + 36, lh + 24, 16); g.fill();
+    g.drawImage(logo, 58, wide ? 42 : 48, lw, lh);
+    if (wide) { g.fillStyle = '#fff'; g.font = F(46, 700); g.fillText(fit(calTitle(), W / 2), lw + 110, 92); }
   }
   g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
-  g.font = F(54, 700); g.fillText(fit(calTitle(), W - 80), 40, 182);
+  if (!wide || !logo) { g.font = F(wide ? 46 : 54, 700); g.fillText(fit(calTitle(), W - 80), 40, wide ? 92 : 182); }
   g.font = F(30, 600); g.textAlign = 'right';
   g.fillText(`${TH_MONTH[m]} ${y + 543}`, W - 40, 82);
   g.font = F(22); g.fillStyle = '#b9cde6';
@@ -342,14 +355,16 @@ async function exportPng() {
   g.textAlign = 'left';
 
   // ปฏิทิน
-  const X0 = 30, CW = (W - 60) / 7, Y0 = 260;
+  const CALW = wide ? 1160 : W - 60;
+  const X0 = 30, CW = CALW / 7, Y0 = HEAD + (wide ? 22 : 30);
   g.font = F(24, 600); g.fillStyle = MUTED; g.textAlign = 'center';
   TH_DOW.forEach((d, i) => g.fillText(d, X0 + CW * i + CW / 2, Y0 + 26));
   g.textAlign = 'left';
   const first = new Date(y, m, 1).getDay();
   const days = new Date(y, m + 1, 0).getDate();
   const weeks = Math.ceil((first + days) / 7);
-  const RH = weeks > 5 ? 136 : 160, GY = Y0 + 44;
+  const GY = Y0 + 44;
+  const RH = wide ? Math.floor((H - 64 - GY - 14) / weeks) : (weeks > 5 ? 136 : 160);
   const byDay = {};
   rows.forEach((b) => { (byDay[b.day] = byDay[b.day] || []).push(b); });
   for (let d = 1; d <= days; d += 1) {
@@ -370,10 +385,11 @@ async function exportPng() {
     if (items.length > per) { g.fillStyle = MUTED; g.font = F(18, 600); g.fillText(`+${items.length - per} รายการ`, cx + 12, cy + RH - 14); }
   }
 
-  // รายการทั้งเดือน (ถ้ายาวเกินหน้า เริ่มจากวันนี้)
-  let ly = GY + RH * weeks + 34;
-  g.fillStyle = NAVY; g.font = F(30, 700); g.fillText(`รายการเดือน${TH_MONTH[m]}`, 40, ly); ly += 18;
-  const LH = 46, room = Math.floor((H - 90 - ly) / LH);
+  // รายการทั้งเดือน (ถ้ายาวเกินหน้า เริ่มจากวันนี้) · แนวนอนอยู่ด้านขวาของปฏิทิน
+  const LX = wide ? X0 + CALW + 30 : 30, LW = wide ? W - LX - 30 : W - 60;
+  let ly = wide ? Y0 + 26 : GY + RH * weeks + 34;
+  g.fillStyle = NAVY; g.font = F(30, 700); g.fillText(`รายการเดือน${TH_MONTH[m]}`, LX + 10, ly); ly += 18;
+  const LH = wide ? 42 : 46, room = Math.floor((H - 90 - ly) / LH);
   let list = rows;
   if (list.length > room) {
     const from = rows.findIndex((b) => b.day >= todayKey());
@@ -382,34 +398,42 @@ async function exportPng() {
   const more = list.length - room;
   list.slice(0, more > 0 ? room - 1 : room).forEach((b, i) => {
     const yy = ly + i * LH;
-    g.fillStyle = i % 2 ? '#ffffff' : '#eef3f9'; round(30, yy, W - 60, LH - 6, 8); g.fill();
-    g.fillStyle = TONE[tone(b)]; g.fillRect(30, yy, 6, LH - 6);
+    const ty = yy + (wide ? 27 : 29);
+    g.fillStyle = i % 2 ? '#ffffff' : '#eef3f9'; round(LX, yy, LW, LH - 6, 8); g.fill();
+    g.fillStyle = TONE[tone(b)]; g.fillRect(LX, yy, 6, LH - 6);
     const [, mm, dd] = b.day.split('-').map(Number);
-    g.fillStyle = INK; g.font = F(22, 700);
-    g.fillText(`${dd} ${TH_MONTH[mm - 1].slice(0, 3)}.`, 48, yy + 29);
-    g.fillText(`${b.from}–${b.to}`, 150, yy + 29);
-    g.font = F(22);
-    g.fillText(fit(b.by, 230), 310, yy + 29);
-    g.fillStyle = NAVY; g.font = F(21, 600);
-    g.fillText(fit(b.plate ? `🚗 ${b.plate}` : b.place, 300), 550, yy + 29);
-    g.fillStyle = TONE[tone(b)]; g.font = F(20, 600); g.textAlign = 'right';
-    g.fillText(b.status, W - 46, yy + 29); g.textAlign = 'left';
+    g.fillStyle = INK; g.font = F(wide ? 20 : 22, 700);
+    g.fillText(`${dd} ${TH_MONTH[mm - 1].slice(0, 3)}.`, LX + 18, ty);
+    g.fillText(`${b.from}–${b.to}`, LX + (wide ? 100 : 120), ty);
+    const statusW = wide ? 110 : 140;
+    if (wide) {
+      // แนวนอน: ชื่อ · สถานที่/ทะเบียนรถ รวมในคอลัมน์เดียว
+      g.font = F(20);
+      g.fillText(fit(`${b.by}${b.plate ? ` · 🚗 ${b.plate}` : b.place ? ` · ${b.place}` : ''}`, LW - 268 - statusW), LX + 262, ty);
+    } else {
+      g.font = F(22);
+      g.fillText(fit(b.by, 230), LX + 280, ty);
+      g.fillStyle = NAVY; g.font = F(21, 600);
+      g.fillText(fit(b.plate ? `🚗 ${b.plate}` : b.place, 300), LX + 520, ty);
+    }
+    g.fillStyle = TONE[tone(b)]; g.font = F(wide ? 19 : 20, 600); g.textAlign = 'right';
+    g.fillText(b.status, LX + LW - 16, ty); g.textAlign = 'left';
   });
-  if (more > 0) { g.fillStyle = MUTED; g.font = F(22, 600); g.fillText(`…และอีก ${more + 1} รายการ ดูทั้งหมดในระบบ Intranet`, 48, ly + (room - 1) * LH + 29); }
-  if (!rows.length) { g.fillStyle = MUTED; g.font = F(24); g.fillText('เดือนนี้ยังไม่มีรายการ', 48, ly + 32); }
+  if (more > 0) { g.fillStyle = MUTED; g.font = F(22, 600); g.fillText(fit(`…และอีก ${more + 1} รายการ ดูทั้งหมดในระบบ Intranet`, LW - 30), LX + 18, ly + (room - 1) * LH + 29); }
+  if (!rows.length) { g.fillStyle = MUTED; g.font = F(24); g.fillText('เดือนนี้ยังไม่มีรายการ', LX + 18, ly + 32); }
 
   // ท้ายภาพ
   g.fillStyle = NAVY; g.fillRect(0, H - 64, W, 64);
   g.fillStyle = '#fff'; g.font = F(22, 600);
   g.fillText('Prime Power Group · ระบบ Intranet', 40, H - 24);
   g.textAlign = 'right'; g.fillStyle = '#b9cde6'; g.font = F(20);
-  g.fillText('🟩 อนุมัติแล้ว  🟨 รออนุมัติ  🟧 ส่งกลับแก้ไข' + (kind === 'car' ? '  ⬜ คืนรถแล้ว' : ''), W - 40, H - 24);
+  g.fillText('🟩 อนุมัติแล้ว  🟨 รออนุมัติ  🟧 ส่งกลับแก้ไข' + (kind === 'car' ? '  ⬜ คืนรถแล้ว' : '  🟪 เวลาชนกัน'), W - 40, H - 24);
   g.textAlign = 'left';
 
   const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${kind === 'car' ? 'car' : 'queue'}-calendar-${monthKey()}.png`;
+  a.download = `${kind === 'car' ? 'car' : 'queue'}-calendar-${monthKey()}${wide ? '-1920x1080' : ''}.png`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }

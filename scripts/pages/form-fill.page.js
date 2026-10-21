@@ -264,31 +264,33 @@ function templateButtons(form) {
 }
 
 /**
- * ตรวจว่าช่วงเวลาที่ขอชนกับคิวเดิมไหม คืนข้อความเตือน (HTML) ถ้าชน
- * ถ้าไม่ชนคืนค่าว่าง
+ * ตรวจช่วงเวลาที่ขอกับคิวเดิม
+ * คืน { error, clash, html } · error = เวลาไม่ถูกต้อง (ห้ามส่ง) · clash = คิวที่ชน (ยังจองทับได้หลังยืนยัน)
  */
 async function queueProblem(form, fields, values, excludeId) {
   const date = values[QUEUE_FIELDS.date];
   const from = values[QUEUE_FIELDS.from];
   const to = values[QUEUE_FIELDS.to];
-  if (!date || !from || !to) return '';
+  if (!date || !from || !to) return { error: '', clash: [], html: '' };
 
-  if (String(to) <= String(from)) {
-    return 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม กรุณาเลือกใหม่';
+  if (String(to).padStart(5, '0') <= String(from).padStart(5, '0')) {
+    return { error: 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม กรุณาเลือกใหม่', clash: [], html: 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม กรุณาเลือกใหม่' };
   }
 
   const hit = await queueConflicts({ formCode: form.FormCode, date, from, to, excludeId });
-  if (!hit.length) return '';
+  if (!hit.length) return { error: '', clash: [], html: '' };
 
   const slotField = fields.find((f) => f.FieldKey === QUEUE_FIELDS.from) || {};
   const slots = String(slotField.Options || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
   const free = await freeSlots({ formCode: form.FormCode, date, slots });
 
-  return `⛔ ช่วงเวลานี้มีคิวอยู่แล้ว กรุณาเลือกวันหรือช่วงเวลาใหม่<br>`
-    + hit.map((c) => `• ${esc(c.from)}–${esc(c.to)} ${esc(c.by)}${c.title ? ` (${esc(c.title)})` : ''}`).join('<br>')
+  const html = `⚠ ช่วงเวลานี้ชนกับคิวที่มีอยู่แล้ว ${hit.length} รายการ — ยังจองทับได้ (ต้องกดยืนยันตอนส่ง) · ปฏิทินจะแสดงคิวที่ชนเป็นสีม่วง<br>`
+    + hit.map((c) => `• <b>${esc(c.from)}–${esc(c.to)}</b> ${esc(c.by)}${c.what ? ` · เรื่อง: ${esc(c.what)}` : ''}${c.place ? ` · ${esc(c.place)}` : ''}`
+      + `<span class="dim"> (${esc(c.title)}${c.status ? ` · ${esc(c.status)}` : ''})</span>`).join('<br>')
     + (free.length
       ? `<br><br>ช่วงเวลาที่ยังว่างของวันนี้: ${free.slice(0, 12).map(esc).join(' · ')}${free.length > 12 ? ' …' : ''}`
-      : '<br><br>วันนี้คิวเต็มแล้ว กรุณาเลือกวันอื่น');
+      : '');
+  return { error: '', clash: hit, html };
 }
 
 /**
@@ -439,9 +441,10 @@ export function mount(ctx) {
       const vals = {};
       watch.forEach((el) => { vals[el.id.replace('q_', '')] = el.value; });
       if (!vals[QUEUE_FIELDS.date] || !vals[QUEUE_FIELDS.from] || !vals[QUEUE_FIELDS.to]) return;
-      const msg = await queueProblem(form, fields, vals, editId);
-      box.innerHTML = msg;
-      box.hidden = !msg;
+      const q = await queueProblem(form, fields, vals, editId);
+      box.innerHTML = q.html;
+      box.classList.toggle('q-warn', !!q.clash.length && !q.error);
+      box.hidden = !q.html;
     };
     watch.forEach((el) => {
       el.onchange = () => { clearTimeout(timer); timer = setTimeout(check, 200); };
@@ -450,6 +453,7 @@ export function mount(ctx) {
 
   send.onclick = async () => {
     const err = $('#q-error');
+    err.classList.remove('q-warn');
     const res = collectForm(fields);
 
     // ใบขอสั่งซื้อ: ช่องโครงการต้องเลือกเสมอ (โครงการ หรือ "ไม่เกี่ยวกับโครงการ") เพื่อให้ระบบรู้ว่าใครอนุมัติ
@@ -469,10 +473,18 @@ export function mount(ctx) {
       if (msg) { err.innerHTML = esc(msg).replace(/\n/g, '<br>'); err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     }
     // ฟอร์มที่จองเป็นช่วงเวลา (เช่น จองคิว Messenger) ต้องไม่ชนกับคิวที่มีอยู่
+    // ชนกับคิวเดิม: แจ้งว่าชนกับใคร เรื่องอะไร แล้วให้ยืนยันว่าจะจองทับ
     if (isQueueForm(fields)) {
       const v = res.values;
-      const msg = await queueProblem(form, fields, v, editId);
-      if (msg) { err.innerHTML = msg; err.hidden = false; return; }
+      const q = await queueProblem(form, fields, v, editId);
+      if (q.error) { err.innerHTML = esc(q.error); err.classList.remove('q-warn'); err.hidden = false; return; }
+      if (q.clash.length) {
+        const ok = confirm(`ช่วงเวลา ${v[QUEUE_FIELDS.from]}–${v[QUEUE_FIELDS.to]} ชนกับคิวที่มีอยู่แล้ว:\n\n`
+          + q.clash.map((c) => `• ${c.from}–${c.to} ${c.by}${c.what ? ` · เรื่อง: ${c.what}` : ''}${c.place ? ` · ${c.place}` : ''} (${c.title})`).join('\n')
+          + '\n\nยืนยันจองทับช่วงเวลานี้หรือไม่? (ปฏิทินจะแสดงคิวที่ชนเป็นสีม่วง)');
+        if (!ok) { err.innerHTML = q.html; err.classList.add('q-warn'); err.hidden = false; return; }
+        v._queueOverlap = q.clash.map((c) => c.title);   // บันทึกว่าผู้ยื่นยืนยันจองทับใบไหน
+      }
     }
     // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
     if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
