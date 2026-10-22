@@ -464,7 +464,7 @@
 .rq-stfilter button.nf-later { color: #44546a; }
 .rq-stfilter button.nf-later[aria-pressed="true"] { background: #eef2f6; }
 /* ใบขอสั่งซื้อ: เลข PR อยู่ฝั่งขวา หน้าวันที่ */
-.rq-foot .rq-prno-chip { margin-left: auto; }
-.rq-foot .rq-prno-chip + time { margin-left: 0; }
+.rq-foot .rq-prgrp { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rq-foot .rq-prgrp + time { margin-left: 0; }
 /* สถานะจัดซื้อ (เบิก Store · รับ PR · รับใบเสนอราคา · ออก PO แล้ว · ส่ง Sup แล้ว · ส่งของแล้ว · Cancel) = สีชมพู */
 .rq-pstatus.rq-buy { color: #a3195b; background: #fde4f0; }

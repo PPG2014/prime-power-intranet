@@ -9,7 +9,7 @@
  *   แพ็กเกจแนะนำ = ขนาดที่เล็กที่สุดที่ ≥ ค่าที่คำนวณ · แอร์: kW = BTU ÷ 3412.142 · ติดตั้ง = kW × 1.25
  */
 import { esc, $ } from '../core/dom.js';
-import { loadSolarPrices, sizesFor } from '../services/solar.js';
+import { loadSolarPrices, sizesFor, panelIcon } from '../services/solar.js';
 import { state } from '../core/state.js';
 import { toast } from './toast.js';
 
@@ -41,7 +41,7 @@ const pick = (list, need) => { const s = [...list].sort((a, b) => a - b); return
 
 export function calculatorHtml() {
   return `
-  <button class="sc-tab" id="sc-tab" aria-expanded="false" aria-controls="sc-panel" title="เปิด Solar Calculator">☀ Solar Calculator</button>
+  <button class="sc-tab" id="sc-tab" aria-expanded="false" aria-controls="sc-panel" title="เปิด Solar Calculator">${panelIcon(22, 'sc-tab-ic')}<span id="sc-tab-txt">Solar Calculator</span></button>
   <aside class="sc-panel" id="sc-panel" aria-label="Solar Calculator" aria-hidden="true">
     <div class="sc-head">
       <div><b>SOLAR ROOFTOP CALCULATOR</b><div class="sc-sub">คำนวณขนาดติดตั้งและความคุ้มค่า</div></div>
@@ -71,7 +71,7 @@ export function bindCalculator({ shell, onApply }) {
     shell.classList.toggle('sc-shift', open);
     tab.setAttribute('aria-expanded', String(open));
     panel.setAttribute('aria-hidden', String(!open));
-    tab.textContent = open ? '✕ ปิด Calculator' : '☀ Solar Calculator';
+    $('#sc-tab-txt').textContent = open ? '✕ ปิด Calculator' : 'Solar Calculator';
   };
   tab.onclick = () => setOpen(!panel.classList.contains('open'));
   $('#sc-close').onclick = () => setOpen(false);

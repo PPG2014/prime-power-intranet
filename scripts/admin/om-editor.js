@@ -51,7 +51,7 @@ function paint() {
     ${dirty() ? '<div class="om-unsaved">มีการแก้ไขที่ยังไม่บันทึก</div>' : ''}
     ${draft.map((g, gi) => `
       <section class="om-group">
-        <header class="om-ghead">
+        <div class="om-ghead">
           <label class="om-glabel">กลุ่มลูกค้า
             <input class="om-gname" data-g="${gi}" value="${esc(g.group)}" placeholder="เช่น WHA Group" maxlength="80"></label>
           <span class="dim">${g.items.length} โครงการ</span>
@@ -60,7 +60,7 @@ function paint() {
             <button class="btn-move" data-om="gdown" data-g="${gi}" title="เลื่อนกลุ่มลง" ${gi === draft.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="btn-mini danger" data-om="gdel" data-g="${gi}" title="ลบทั้งกลุ่ม">🗑 ลบกลุ่ม</button>
           </span>
-        </header>
+        </div>
         <ol class="om-items">
           ${g.items.map((it, ii) => `<li class="${it.on ? '' : 'off'}">
             <input class="om-iname" data-g="${gi}" data-i="${ii}" value="${esc(it.name)}" placeholder="ชื่อโครงการ เช่น โครงการ ALS" maxlength="150">

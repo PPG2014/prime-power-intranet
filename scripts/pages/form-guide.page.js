@@ -208,7 +208,7 @@ function formCard(form) {
 
   return `
   <article class="fg-card${off ? ' off' : ''}" id="fg-${esc(code)}">
-    <header class="fg-card-head">
+    <div class="fg-card-head">
       <span class="fg-icon">${esc(form.Icon || '📄')}</span>
       <div>
         <h3>${esc(form.Title)} ${off ? '<span class="fg-badge off">ปิดใช้งาน</span>' : ''}${form.Badge ? ` <span class="fg-badge">${esc(form.Badge)}</span>` : ''}</h3>
@@ -216,7 +216,7 @@ function formCard(form) {
         ${form.Description ? `<p class="fg-desc">${esc(form.Description)}</p>` : ''}
       </div>
       ${ext ? `<a class="btn-mini no-print" href="${esc(ext)}" target="_blank" rel="noopener">เปิดระบบ ↗</a>` : `<a class="btn-mini no-print" href="#/form/${esc(code)}">เปิดแบบฟอร์ม →</a>`}
-    </header>
+    </div>
     ${ext ? `<div class="fg-ext">🔗 แบบฟอร์มนี้ใช้งานผ่านระบบภายนอก: <a href="${esc(ext)}" target="_blank" rel="noopener">${esc(ext)}</a> — การกรอกและอนุมัติเป็นไปตามระบบนั้น</div>` : `
     ${form.FormNote ? `<div class="fg-note">⚠ ${esc(form.FormNote)}</div>` : ''}
     <h4>1. ช่องที่ต้องกรอก <span class="dim">${fields.length} ช่อง · บังคับ ${fields.filter((f) => yes(f.IsRequired)).length} ช่อง</span></h4>
