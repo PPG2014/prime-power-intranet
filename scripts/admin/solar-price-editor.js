@@ -42,8 +42,8 @@ export async function solarPriceHtml() {
 
 function table(t) {
   const rows = t.get();
-  return `<section class="om-group"><header class="om-ghead"><b class="om-glabel">${esc(t.title)}</b>
-      <span class="dim">${rows.length} รายการ</span></header>
+  return `<section class="om-group"><div class="om-ghead"><b class="om-glabel">${esc(t.title)}</b>
+      <span class="dim">${rows.length} รายการ</span></div>
     <div class="table-scroll"><table class="sp-table"><thead><tr>${t.cols.map(([, h]) => `<th>${esc(h)}</th>`).join('')}<th></th></tr></thead><tbody>
       ${rows.map((r, i) => `<tr>${t.cols.map(([k, , type]) => `<td><input data-t="${t.id}" data-i="${i}" data-c="${k}" value="${esc(r[k] ?? '')}" ${type === 't' ? '' : 'inputmode="decimal" class="sp-num"'}></td>`).join('')}
         <td><button class="btn-mini danger" data-sp="del" data-t="${t.id}" data-i="${i}" title="ลบแถว">✕</button></td></tr>`).join('')}
@@ -66,7 +66,7 @@ function paint() {
       <button class="btn btn-primary om-save" data-sp="save" ${dirty() ? '' : 'disabled'}>💾 บันทึก</button>
     </div>
     ${dirty() ? '<div class="om-unsaved">มีการแก้ไขที่ยังไม่บันทึก</div>' : ''}
-    <section class="om-group"><header class="om-ghead"><b class="om-glabel">ค่าทั่วไป</b></header>
+    <section class="om-group"><div class="om-ghead"><b class="om-glabel">ค่าทั่วไป</b></div>
       <div class="sp-gen">
         ${g('vat', 'VAT (%)')}
         ${g('deposit', 'เงินจอง (บาท)')}
@@ -74,7 +74,7 @@ function paint() {
         ${g('touPrice', 'มิเตอร์ TOU (บาท)', '0 = ให้ฝ่ายขายกรอกเอง')}
       </div></section>
     ${TABLES.map(table).join('')}
-    <section class="om-group"><header class="om-ghead"><b class="om-glabel">D · Smart Guard (Optional)</b></header>
+    <section class="om-group"><div class="om-ghead"><b class="om-glabel">D · Smart Guard (Optional)</b></div>
       <div class="table-scroll"><table class="sp-table"><thead><tr><th>ระบบไฟ</th><th>รุ่น</th><th>Price List (Total)</th><th>Minimum (Total) 🔒</th></tr></thead>
       <tbody>${sg(1)}${sg(3)}</tbody></table></div></section>`;
 }

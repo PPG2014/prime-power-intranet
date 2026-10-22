@@ -69,13 +69,13 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
         <a class="back-link" href="#/forms">← แบบฟอร์มทั้งหมด</a>
         <a class="back-link guide-link" href="#/form-guide/${esc(form.FormCode)}">📘 วิธีกรอกและเส้นทางอนุมัติของฟอร์มนี้</a>
         <a class="back-link guide-link" href="#/register/${esc(form.FormCode)}">📋 ทะเบียนใบจอง · ค้นหา · ส่งออก Excel</a>
-        <header class="sb-head">
+        <div class="sb-head">
           <div class="form-icon-lg">${esc(form.Icon || '☀️')}</div>
           <div>
             <h1>ใบจองและสั่งซื้อระบบโซลาร์เซลล์${editMode ? ' <span class="edit-tag">แก้ไข</span>' : ''}</h1>
             <div class="sb-sub">SOLAR BOOKING &amp; ORDER FORM · ${esc(form.FormCode)}${draft && !editMode ? ' · <span class="sb-draft">กู้ข้อมูลที่กรอกค้างไว้แล้ว <button class="link-btn" data-sbact="cleardraft">เริ่มใบใหม่</button></span>' : ''}</div>
           </div>
-        </header>
+        </div>
         ${warnPrice}
         <p class="sb-lead">ข้าพเจ้าขอจองและสั่งซื้อระบบโซลาร์เซลล์ตามรายการด้านล่าง ภายใต้เงื่อนไขที่ระบุท้ายใบจองนี้</p>
 
