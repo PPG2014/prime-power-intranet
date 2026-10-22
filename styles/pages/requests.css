@@ -463,3 +463,6 @@
 .rq-stfilter button.nf-soon[aria-pressed="true"] { background: #fff1c2; border-color: #f0b400; box-shadow: inset 0 0 0 1px #f0b400; }
 .rq-stfilter button.nf-later { color: #44546a; }
 .rq-stfilter button.nf-later[aria-pressed="true"] { background: #eef2f6; }
+/* ใบขอสั่งซื้อ: เลข PR อยู่ฝั่งขวา หน้าวันที่ */
+.rq-foot .rq-prno-chip { margin-left: auto; }
+.rq-foot .rq-prno-chip + time { margin-left: 0; }
