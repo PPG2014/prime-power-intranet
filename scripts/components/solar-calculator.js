@@ -16,6 +16,8 @@ const DEFAULT_SIZES = [3.25, 3.9, 5.2, 6.5, 10.4, 13, 19.5, 20.8, 22.1, 26];
 const DEFAULT_BATT = [7, 14, 21];
 const D = { bill: 8000, day: 20, rate: 4.3583, ft: 0.1623, pr: 0.8, sun: 5, prDod: 0.7, btu: 18000, phase: '1' };
 const KEY = 'solarCalc';
+/** สมมติฐานตาม Solar Calculator Rev.03 — ค่าคงที่ ไม่ให้แก้ */
+const FIXED = ['rate', 'ft', 'pr', 'sun', 'prDod'];
 
 const n2 = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('th-TH', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–');
 const baht = (v) => n2(v, 0);
@@ -40,6 +42,7 @@ export function bindCalculator({ shell, onApply }) {
   if (!tab || !panel) return;
   let v = { ...D };
   try { v = { ...D, ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) }; } catch (e) { /* ใช้ค่าเริ่มต้น */ }
+  FIXED.forEach((k) => { v[k] = D[k]; });
   let prices = null;
   loadSolarPrices().then((p) => { prices = p; paint(); });
 
@@ -86,6 +89,7 @@ export function bindCalculator({ shell, onApply }) {
     const pA = r.pkgA != null ? r.priceOf(r.pkgA) : null;
     const pB = r.pkgB != null ? r.priceOf(r.pkgB) : null;
     const pBat = r.pkgBatt != null ? r.battPrice(r.pkgBatt) : null;
+    const fixed = (k, label, unit) => `<div class="sc-out"><span>${label}</span><b>${v[k]}</b><em>${unit}</em></div>`;
     body.innerHTML = `
       <div class="sc-note">กรอกเฉพาะช่องสีขาว · ช่องอื่นคำนวณให้อัตโนมัติ</div>
       <h4>① ข้อมูลการใช้ไฟฟ้าของลูกค้า</h4>
@@ -95,12 +99,13 @@ export function bindCalculator({ shell, onApply }) {
       <div class="sc-out"><span>หน่วยไฟ กลางวัน / กลางคืน</span><b>${n2(r.dayU, 0)} / ${n2(r.nightU, 0)}</b><em>หน่วย/เดือน</em></div>
       <div class="sc-out"><span>รวมหน่วยไฟฟ้าทั้งหมด</span><b>${n2(r.total, 0)}</b><em>หน่วย/เดือน</em></div>
       <details class="sc-assume"><summary>② สมมติฐานการคำนวณ</summary>
-        ${inp('rate', 'อัตราค่าไฟฟ้า', 'บาท/หน่วย')}
-        ${inp('ft', 'ค่า Ft', 'บาท/หน่วย')}
+        ${fixed('rate', 'อัตราค่าไฟฟ้า', 'บาท/หน่วย')}
+        ${fixed('ft', 'ค่า Ft', 'บาท/หน่วย')}
         <div class="sc-out"><span>รวมค่าไฟฟ้าต่อหน่วย</span><b>${n2(r.unit, 4)}</b><em>บาท/หน่วย</em></div>
-        ${inp('pr', 'Performance Ratio (PR)', '')}
-        ${inp('sun', 'ชั่วโมงแดดเฉลี่ย', 'ชม./วัน')}
-        ${inp('prDod', 'PR Including DoD Battery', '')}
+        ${fixed('pr', 'Performance Ratio (PR)', '')}
+        ${fixed('sun', 'ชั่วโมงแดดเฉลี่ย', 'ชม./วัน')}
+        ${fixed('prDod', 'PR Including DoD Battery', '')}
+        <div class="sc-fixnote">🔒 ค่าคงที่ตาม Solar Calculator Rev.03 · แก้ไขไม่ได้</div>
       </details>
       <label class="sc-row"><span>ระบบไฟฟ้าของลูกค้า</span><select data-sc="phase"><option value="1" ${String(v.phase) !== '3' ? 'selected' : ''}>1 เฟส</option><option value="3" ${String(v.phase) === '3' ? 'selected' : ''}>3 เฟส</option></select><em></em></label>
       <h4>③ ผลการคำนวณ · เปรียบเทียบ 2 ทางเลือก</h4>
@@ -141,7 +146,7 @@ export function bindCalculator({ shell, onApply }) {
   // พิมพ์แล้วคำนวณใหม่ทันที โดยไม่วาดช่องที่กำลังพิมพ์ทับ (เคอร์เซอร์ไม่หลุด)
   body.addEventListener('input', (e) => {
     const k = e.target.dataset.sc;
-    if (!k) return;
+    if (!k || FIXED.includes(k)) return;
     v[k] = e.target.value;
     try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (ex) { /* ข้าม */ }
     clearTimeout(body._t);

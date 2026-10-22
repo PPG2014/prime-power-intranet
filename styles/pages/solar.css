@@ -79,6 +79,7 @@ body.sc-open .sc-tab { right: min(460px, 100vw); }
 .sc-row em, .sc-out em { font-style: normal; color: var(--muted); font-size: 12.5px; }
 .sc-out b { text-align: right; }
 .sc-assume { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.sc-fixnote { font-size: 12px; color: var(--muted); padding: 4px 0 6px; }
 .sc-assume summary { cursor: pointer; font-weight: 600; color: var(--navy); padding: 4px 0; }
 .sc-cards { display: grid; gap: 10px; }
 .sc-card { border-radius: 12px; padding: 10px 12px; border: 1px solid; }
