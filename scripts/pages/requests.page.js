@@ -362,7 +362,7 @@ export async function render(ctx) {
                 <button data-rqpst="" aria-pressed="${!reviewPStatus}">ทั้งหมด</button>
                 ${PURCHASE_FILTERS.map((x) => {
                   const n = shownGroup.rows.filter((r) => purchaseStatusOf(r) === x).length;
-                  return `<button data-rqpst="${esc(x)}" class="st-pink" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
+                  return `<button data-rqpst="${esc(x)}" class="${x === PURCHASE_CANCEL ? 'st-red' : ''}" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
                 }).join('')}
               </div>` : ''}${isNeedTab ? `<div class="rq-stfilter rq-nfilter" role="group" aria-label="กรองตามวันที่ต้องใช้เงิน">
                 <span class="rq-pf-label" title="นับเฉพาะคำขอที่ยังไม่อนุมัติ (รออนุมัติ / ส่งกลับแก้ไข)">📅 วันที่ต้องใช้เงิน</span>
