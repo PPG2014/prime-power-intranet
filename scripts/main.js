@@ -131,6 +131,7 @@ async function enter(user) {
   ];
   const warm = async () => {
     await listRecent('requests', RECENT_REQUESTS).catch(() => {});
+    import('./services/names.js').then((m) => m.ensurePeople()).catch(() => {});
     for (const batch of WARM) {
       // eslint-disable-next-line no-await-in-loop
       await Promise.all(batch.map((n) => list(n).catch(() => {})));

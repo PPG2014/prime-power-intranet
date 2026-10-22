@@ -17,6 +17,7 @@ import { isUnread, markSeen, refreshBadges } from '../services/badges.js';
 import { printWithNotice } from '../components/eta-notice.js';
 import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
+import { ensurePeople } from '../services/names.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -223,6 +224,7 @@ function requestRow(req, opts = {}) {
 }
 
 export async function render(ctx) {
+  await ensurePeople();   // ชื่อผู้อนุมัติจากการ์ด Teams (อังกฤษ) → ชื่อไทย
   const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ชื่อที่ใช้เทียบ/บันทึก = ชื่อในทะเบียนบุคลากร (หาด้วยอีเมล) ถ้าไม่เจอใช้ชื่อจาก Microsoft 365
   const dirAll = await list('directory').catch(() => []);

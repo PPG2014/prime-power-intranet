@@ -5,6 +5,7 @@
  * เส้นทางแต่ละฟอร์มมาจาก ApprovalMatrix เรียงตาม StepOrder
  * ประวัติการอนุมัติแต่ละครั้งเก็บใน ApprovalLog ของคำขอนั้น (JSON)
  */
+import { thaiName, thaiNote } from './names.js';
 import { list, update } from './data.js';
 
 /** ประเภทผู้อนุมัติที่เป็นตำแหน่งผู้บริหาร — ชื่อประเภทตรงกับตำแหน่งในทะเบียนบุคลากร */
@@ -298,7 +299,14 @@ const toArr = (v) => Array.isArray(v)
   ? v.map((x) => (x && typeof x === 'object' ? (x.LookupValue ?? x.Title ?? '') : x)).filter(Boolean)
   : String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
 
-export const parseLog = (v) => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+/** ประวัติการอนุมัติ · ชื่อจากการ์ด Teams (อังกฤษ) แปลงเป็นชื่อไทยในทะเบียน (services/names.js) */
+export const parseLog = (v) => {
+  let a;
+  try { a = JSON.parse(v || '[]'); } catch (e) { return []; }
+  if (!Array.isArray(a)) return [];
+  return a.map((l) => (l && typeof l === 'object' && (l.by || l.note)
+    ? { ...l, by: thaiName(l.by), note: thaiNote(l.note) } : l));
+};
 
 /**
  * บทบาทของผู้ใช้ต่อคำขอใบหนึ่ง
