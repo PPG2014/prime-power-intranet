@@ -290,6 +290,7 @@
 .li-view { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
 .li-view th { text-align: left; background: #fafbfc; padding: 6px 10px; border: 1px solid var(--line-soft); }
 .li-view td { padding: 6px 10px; border: 1px solid var(--line-soft); }
+.li-view td.r { text-align: right; white-space: nowrap; }
 .rq-owner-act { margin-top: var(--gap); padding: 14px 16px; background: #eef6fd;
   border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;
   gap: var(--gap-sm); flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
@@ -378,6 +379,10 @@
 .rq-ans .rq-file span { color: inherit; max-width: none; }
 .rq-file img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #f1f4f8; flex: none; }
 .rq-slip img { cursor: zoom-in; }
+.rq-slip-btn { background: #e8f6ec; border-color: #9fd6ae; color: #0f6b2c; font-weight: 600; }
+.slip-view-box { max-width: 560px; }
+.slip-view-box .eta-body { text-align: center; max-height: 70vh; overflow: auto; }
+.slip-view-box .eta-body img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; }
 
 .ex-ap-note { color: #c92a2a; font-weight: 700; }
 .rq-acted .btn-mini { margin-left: 6px; margin-top: 6px; }

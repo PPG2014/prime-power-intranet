@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress, slipOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
@@ -18,7 +18,7 @@ import { printWithNotice } from '../components/eta-notice.js';
 import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
-import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
+import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -525,10 +525,11 @@ async function openRequest(req) {
   const fields = await formFieldsOf(code);
   const catalog = await list('formCatalog').catch(() => []);
 
-  const answerRows = Object.entries(data)
+  const answerRows = (isSolar(code) ? solarEntries(data, fields) : Object.entries(data))
     .filter(([k]) => !k.startsWith('_'))      // ค่าภายใน เช่นลายเซ็นผู้ยื่น
     .filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))
     .map(([k, v]) => {
+      if (v && v.__html) return v.__html;     // ตารางที่จัดรูปไว้แล้ว (ราคา/งวดชำระของใบจองโซลาร์)
       const f = fields.find((x) => x.FieldKey === k);
       const label = (f ? f.Title : null) || standardLabel(k) || SYSTEM_LABEL[k] || k;
       // เวลาคืนรถ: แสดงทั้งวันและเวลา
@@ -652,7 +653,7 @@ async function openRequest(req) {
           </div>
         </div>
 
-        ${req.PaymentSlip ? renderSlip(req.PaymentSlip) : ''}
+        ${renderSlip(slipOf(req))}
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>'
@@ -673,6 +674,7 @@ async function openRequest(req) {
           ${isSolar(code) ? `<button class="btn-mini sb-exp sales" data-solardoc="sales">⬇ ส่งออก (Sales)</button>
           <button class="btn-mini sb-exp cust" data-solardoc="customer">⬇ ส่งออก (ลูกค้า)</button>`
           : `<button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>`}
+          ${slipOf(req) ? '<button class="btn-mini rq-slip-btn" data-viewslip="1">🧾 ดูหลักฐานการโอนเงิน</button>' : ''}
         </div>
       </div>`,
   });
@@ -680,6 +682,7 @@ async function openRequest(req) {
   import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
+  onClick('viewslip', () => viewSlip(slipOf(req), req));
   // ใบจองโซลาร์: เอกสารฉบับฝ่ายขาย / ฉบับลูกค้า (A4 หน้าเดียว)
   onClick('solardoc', async (kind) => {
     const [{ openSolarDoc }, { loadSolarPrices }] = await Promise.all([import('../templates/solar-doc.js'), import('../services/solar.js')]);
@@ -771,13 +774,71 @@ async function openRequest(req) {
   });
 }
 
-function renderSlip(raw) {
-  let s; try { s = JSON.parse(raw); } catch (e) { return ''; }
+/**
+ * ใบจองโซลาร์: เรียงตามลำดับช่องในฟอร์ม · ขนาดระบบแสดงค่าจริงช่องเดียว · ยอดเงินมีจุลภาค
+ * รายการราคา (q_lines) และงวดชำระ (q_schedule) แสดงเป็นตาราง ไม่ใช่ข้อความดิบ
+ */
+function solarEntries(data, fields) {
+  const d = { ...data };
+  const money = (n) => (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const kwp = d.size_kwp || (d.size === 'other' ? d.size_other : d.size);
+  if (kwp) d.size = kwp;
+  delete d.size_kwp; delete d.size_other;
+  if (d.q_date && d.std_date) delete d.std_date;   // วันที่ระบบซ้ำกับวันที่ใบจอง
+  const lines = Array.isArray(d.q_lines) ? d.q_lines : [];
+  const sched = Array.isArray(d.q_schedule) ? d.q_schedule : [];
+  delete d.q_lines; delete d.q_schedule;
+  fields.filter((f) => f.FieldType === 'currency' && d[f.FieldKey] !== '' && d[f.FieldKey] != null && !isNaN(+d[f.FieldKey]))
+    .forEach((f) => { d[f.FieldKey] = money(d[f.FieldKey]); });
+  const order = new Map(fields.map((f, i) => [f.FieldKey, i]));
+  const entries = Object.entries(d).sort(([a], [b]) => (order.has(a) ? order.get(a) : 999) - (order.has(b) ? order.get(b) : 999));
+  const table = (label, head, rows) => ({ __html: `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
+    <table class="li-view"><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${rows.join('')}</table></div>` });
+  const extra = [];
+  if (lines.length) {
+    extra.push(['q_lines', table('รายการราคา', ['รายการ', 'จำนวนเงิน (บาท)'],
+      lines.map((l) => `<tr><td>${esc(l.label || '')}</td><td class="r">${money(l.amount)}</td></tr>`))]);
+  }
+  if (sched.length) {
+    extra.push(['q_schedule', table('งวดการชำระเงิน', ['งวด', 'รายละเอียด', '%', 'จำนวนเงิน (บาท)'],
+      sched.map((x) => `<tr><td>${esc(x.no)}</td><td>${esc((SCHEDULE.find((y) => +y.no === +x.no) || {}).text || '')}</td>
+        <td>${x.pct == null ? '-' : esc(x.pct) + '%'}</td><td class="r">${money(x.amount)}</td></tr>`))]);
+  }
+  // ตารางวางต่อจากยอดรวมทั้งสิ้น
+  const at = entries.findIndex(([k]) => k === 'q_total');
+  entries.splice(at < 0 ? entries.length : at + 1, 0, ...extra);
+  return entries;
+}
+
+function renderSlip(s) {
   if (!s || !s.url) return '';
   const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(s.kind);
   return `<div class="rq-slip"><h4>หลักฐานการโอนเงิน</h4>
     ${img ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม"><img data-photo="${esc(s.url)}" alt="สลิป"></a>`
       : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
+}
+
+/** หน้าต่างดูสลิปโอนเงิน (รูปเดียวกับที่ส่งแจ้งผู้ยื่นทาง Teams) · PDF เปิดในแท็บใหม่ */
+async function viewSlip(s, req) {
+  if (!s || !s.url) return;
+  const img = /^(JPG|JPEG|PNG|GIF|WEBP|HEIC)$/i.test(s.kind || '');
+  if (!img) { window.open(s.url, '_blank', 'noopener'); return; }
+  const layer = document.createElement('div');
+  layer.className = 'eta-mask slip-view';
+  layer.innerHTML = `<div class="eta-box slip-view-box" role="dialog" aria-modal="true" aria-label="หลักฐานการโอนเงิน">
+      <div class="eta-head">🧾 หลักฐานการโอนเงิน · ${esc(req.Title || '')}</div>
+      <div class="eta-body"><img data-photo="${esc(s.url)}" data-fail="msg" alt="สลิปโอนเงิน"></div>
+      <div class="eta-foot">
+        <a class="btn-mini" href="${esc(s.url)}" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับ ↗</a>
+        <button type="button" class="btn btn-primary" data-x>ปิด</button>
+      </div></div>`;
+  const close = () => { layer.remove(); removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  layer.addEventListener('click', (e) => { if (e.target === layer || e.target.closest('[data-x]')) close(); });
+  addEventListener('keydown', onKey, true);
+  document.body.appendChild(layer);
+  const { hydratePhotos } = await import('../services/photos.js');
+  hydratePhotos(layer);
 }
 
 /** ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: เลือกสถานะงานจัดซื้อแทนปุ่มอนุมัติ · "ส่งของแล้ว" = ปิดคำขอ */

@@ -57,6 +57,10 @@
 .eta-src { font-size: .9em; color: var(--dim, #6b7280); margin: 8px 0 0; }
 .eta-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
 @media print { .eta-mask { display: none !important; } }
+/* คลิกนอกกรอบหน้าต่างที่ต้องกดปุ่มเท่านั้น (เช่นแนบสลิป) → กรอบสั่นเตือน */
+.eta-box.shake { animation: eta-shake .35s ease; }
+@keyframes eta-shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) { .eta-box.shake { animation: none; outline: 3px solid #f5b700; } }
 
 /* เลือกหน้าที่จะบันทึกเป็นรูป (components/page-picker.js) — ใช้กรอบเดียวกับ eta-notice */
 .pp-box { max-width: 560px; }

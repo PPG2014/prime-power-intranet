@@ -74,14 +74,25 @@ export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบ
       const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
       take(new File([blob], `slip-${stamp}.${ext}`, { type: blob.type }));
     };
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } };
+    // แนบไฟล์แล้วจะยกเลิก ต้องยืนยันก่อน กันเผลอกดแล้วสลิปที่อัปโหลดหาย
+    const cancel = () => { if (slip && !confirm('ยกเลิกการแนบสลิปและยังไม่อนุมัติ?')) return; done(null); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); cancel(); } };
     const done = (v) => {
       layer.remove();
       document.removeEventListener('paste', onPaste);
       removeEventListener('keydown', onKey, true);
       resolve(v);
     };
-    $('[data-slip="0"]').onclick = () => done(null);
+    $('[data-slip="0"]').onclick = cancel;
+    // คลิกนอกกรอบ: ไม่ปิดหน้าต่าง และไม่ให้คลิกทะลุไปถึงหน้าต่างด้านหลัง — กรอบสั่นบอกให้ใช้ปุ่มด้านล่าง
+    const boxEl = $('.slip-box');
+    ['mousedown', 'pointerdown', 'click', 'touchstart'].forEach((t) => layer.addEventListener(t, (e) => {
+      if (e.target !== layer) return;
+      e.stopPropagation();
+      if (t === 'click') {
+        boxEl.classList.remove('shake'); void boxEl.offsetWidth; boxEl.classList.add('shake');
+      }
+    }));
     ok.onclick = () => { if (slip) done(slip); };
     document.addEventListener('paste', onPaste);
     addEventListener('keydown', onKey, true);
