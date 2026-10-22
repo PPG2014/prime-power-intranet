@@ -6,6 +6,9 @@
  *
  * เห็นทุกใบ: ผู้ดูแลระบบ · ผู้บริหาร (RequestViewers) · ฝ่ายที่ติดตามฟอร์มนั้น (DEPT_WATCH_FORMS)
  * คนอื่นเห็นเฉพาะใบที่ตัวเองยื่น หรืออยู่ในเส้นทางอนุมัติ
+ *
+ * ใบจองโซลาร์ (FM-SMD-001): อิงวันที่ใบจอง · กรองที่ปรึกษาการขาย/ระบบไฟ · ค้นเลขใบเสนอราคา ลูกค้า เบอร์โทร
+ *   สรุปยอด kWp / มูลค่า · ส่งออกเอกสาร Sales / ลูกค้าย้อนหลังได้ทุกใบ
  */
 import { esc, $ } from '../core/dom.js';
 import { list } from '../services/data.js';
@@ -17,6 +20,7 @@ import { findMe, myEmails } from '../services/me.js';
 import { downloadXlsx } from '../utils/xlsx.js';
 import { projectText } from '../services/om.js';
 import { formFieldsOf, DEPT_WATCH_FORMS } from './requests.page.js';
+import { isSolar } from '../services/solar.js';
 
 export const meta = { route: 'register', title: 'ทะเบียนคำขอ', nav: false, order: 99, adminOnly: false };
 
@@ -42,8 +46,14 @@ let seeAll = false;
 const now = new Date();
 const f = {
   period: 'month', day: isoDay(now), month: `${now.getFullYear()}-${pad(now.getMonth() + 1)}`, year: String(now.getFullYear()),
-  status: '', project: '', q: '',
+  status: '', project: '', q: '', sales: '', phase: '',
 };
+let solar = false;
+const money = (n) => (+n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const numOf = (v) => { const n = +String(v ?? '').replace(/[,\s]/g, ''); return Number.isFinite(n) ? n : 0; };
+const kwpOf = (d) => numOf(d.size === 'other' ? d.size_other : d.size);
+/** ใบจองโซลาร์อิงวันที่ในใบจอง (แก้ได้) · ฟอร์มอื่นอิงวันที่ยื่น */
+const dateOf = (r, d) => (solar && toDate(d.q_date)) || toDate(r.SubmittedDate);
 
 const subjectOf = (d) => plain(d.std_subject || d.subject || d.purpose || d.reason);
 
@@ -51,7 +61,7 @@ function filtered() {
   const q = norm(f.q);
   return rows.filter(({ r, d }) => {
     if (f.period !== 'all') {
-      const t = toDate(r.SubmittedDate);
+      const t = dateOf(r, d);
       if (!t) return false;
       if (f.period === 'day' && isoDay(t) !== f.day) return false;
       if (f.period === 'month' && `${t.getFullYear()}-${pad(t.getMonth() + 1)}` !== f.month) return false;
@@ -59,10 +69,13 @@ function filtered() {
     }
     if (f.status && plain(r.Status) !== f.status) return false;
     if (f.project && plain(projectText(d)) !== f.project) return false;
-    if (q && !q.split(' ').every((w) => [r.Title, r.RequesterName, plain(r.RequesterDept), subjectOf(d), plain(projectText(d))]
-      .some((v) => norm(v).includes(w)))) return false;
+    if (f.sales && plain(d.sales_name) !== f.sales) return false;
+    if (f.phase && plain(d.phase) !== f.phase) return false;
+    const hay = solar ? [r.Title, r.RequesterName, d.q_no, d.c_name, d.c_phone, d.c_id, d.sales_name, d.c_email, d.c_line]
+      : [r.Title, r.RequesterName, plain(r.RequesterDept), subjectOf(d), plain(projectText(d))];
+    if (q && !q.split(' ').every((w) => hay.some((v) => norm(v).includes(w)))) return false;
     return true;
-  }).sort((a, b) => (toDate(b.r.SubmittedDate) || 0) - (toDate(a.r.SubmittedDate) || 0));
+  }).sort((a, b) => (dateOf(b.r, b.d) || 0) - (dateOf(a.r, a.d) || 0) || (toDate(b.r.SubmittedDate) || 0) - (toDate(a.r.SubmittedDate) || 0));
 }
 
 const options = (vals, cur, all) => `<option value="">${all}</option>`
@@ -70,7 +83,7 @@ const options = (vals, cur, all) => `<option value="">${all}</option>`
 
 function yearOptions(cur) {
   const ys = new Set([String(now.getFullYear()), cur]);
-  rows.forEach(({ r }) => { const d = toDate(r.SubmittedDate); if (d) ys.add(String(d.getFullYear())); });
+  rows.forEach(({ r, d }) => { const t = dateOf(r, d); if (t) ys.add(String(t.getFullYear())); });
   return [...ys].filter(Boolean).sort().reverse().map((y) => `<option value="${y}" ${y === cur ? 'selected' : ''}>พ.ศ. ${+y + 543}</option>`).join('');
 }
 function periodInput() {
@@ -84,11 +97,39 @@ function periodInput() {
   return '';
 }
 
+function solarTable(shown) {
+  const kwp = shown.reduce((s, { d }) => s + kwpOf(d), 0);
+  const live = shown.filter(({ r }) => !/^(ยกเลิก|ไม่อนุมัติ)$/.test(plain(r.Status)));
+  const sum = live.reduce((s, { d }) => s + numOf(d.q_total), 0);
+  return `<div class="srg-sum">
+      <div><b>${shown.length}</b><span>ใบจอง</span></div>
+      <div><b>${kwp.toLocaleString('th-TH', { maximumFractionDigits: 2 })}</b><span>kWp รวม</span></div>
+      <div><b>${money(sum)}</b><span>มูลค่ารวม (บาท รวม VAT · ไม่นับใบที่ยกเลิก)</span></div>
+    </div>
+    <div class="prr-scroll"><table class="prr-table">
+    <thead><tr><th>เลขที่ใบเสนอราคา</th><th>วันที่</th><th>ลูกค้า / โทร</th><th>ระบบ</th><th class="num">รวมทั้งสิ้น (บาท)</th>
+      <th>ที่ปรึกษาการขาย</th><th>สถานะ</th><th>ส่งออก / ประวัติ</th></tr></thead>
+    <tbody>${shown.map(({ r, d, wait }) => `<tr>
+      <td><a href="#/requests/${esc(r.id)}" title="เปิดดูรายละเอียดและประวัติ"><b>${esc(plain(d.q_no) || r.Title)}</b></a>${d.q_no ? `<span class="prr-sub">${esc(r.Title)}</span>` : ''}</td>
+      <td>${esc(thaiNumDate(d.q_date || r.SubmittedDate))}</td>
+      <td>${esc([plain(d.c_title), plain(d.c_name)].filter(Boolean).join(' '))}<span class="prr-sub">${esc(plain(d.c_phone))}</span></td>
+      <td>${kwpOf(d) ? `${esc(kwpOf(d))} kWp` : '—'} · ${esc(plain(d.system_type))}<span class="prr-sub">${esc(plain(d.phase))}${numOf(d.battery_kwh) && d.system_type === 'Hybrid' ? ` · แบต ${esc(d.battery_kwh)} kWh` : ''}</span></td>
+      <td class="num">${d.q_total ? money(numOf(d.q_total)) : '—'}</td>
+      <td>${esc(plain(d.sales_name))}</td>
+      <td><span class="prr-st${/^(ยกเลิก|ไม่อนุมัติ)$/.test(plain(r.Status)) ? ' bad' : ''}">${esc(plain(r.Status))}</span>${
+        wait ? `<span class="prr-sub">รอ: ${esc(wait)}</span>` : ''}</td>
+      <td class="srg-act"><button class="btn-mini sb-exp sales" data-srg="sales" data-id="${esc(r.id)}" title="ส่งออกฉบับฝ่ายขาย">⬇ Sales</button>
+        <button class="btn-mini sb-exp cust" data-srg="customer" data-id="${esc(r.id)}" title="ส่งออกฉบับลูกค้า">⬇ ลูกค้า</button>
+        <a class="btn-mini" href="#/requests/${esc(r.id)}" title="รายละเอียดและประวัติการอนุมัติ">🕘 ประวัติ</a></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
 function tableHtml() {
   const shown = filtered();
   $('#frg-count').textContent = `พบ ${shown.length} ใบ`;
   $('#frg-xlsx').disabled = !shown.length;
   if (!shown.length) return '<div class="empty">ไม่พบคำขอตามเงื่อนไขนี้</div>';
+  if (solar) return solarTable(shown);
   const hasProject = rows.some(({ d }) => plain(projectText(d)));
   return `<div class="prr-scroll"><table class="prr-table">
     <thead><tr><th>เลขที่คำขอ</th><th>วันที่ยื่น</th><th>ผู้ยื่น / ฝ่าย</th><th>เรื่อง</th>${hasProject ? '<th>โครงการ</th>' : ''}<th>สถานะ</th></tr></thead>
@@ -107,7 +148,8 @@ function tableHtml() {
 function cellOf(fd, v) {
   if (v == null || v === '') return fd.FieldType === 'date' ? null : '';
   if (fd.FieldType === 'date') return toDate(v);
-  if (fd.FieldType === 'number' && !isNaN(+v)) return +v;
+  if (['number', 'currency'].includes(fd.FieldType) && !isNaN(numOf(v)) && String(v).trim() !== '') return numOf(v);
+  if (fd.FieldType === 'yesno') return v === true || v === 'ใช่' ? 'ใช่' : '';
   if (fd.FieldType === 'lineitems' && Array.isArray(v)) {
     const cols = String(fd.Options || '').split('\n').map((x) => x.split('|')[0].trim()).filter(Boolean);
     return v.filter((x) => x && Object.values(x).some((y) => String(y || '').trim()))
@@ -135,7 +177,7 @@ function exportXlsx() {
     sheet: code,
     columns: [...base, ...cols.map((x) => ({ title: x.Title || x.FieldKey,
       width: x.FieldType === 'lineitems' ? 50 : x.FieldType === 'textarea' ? 36 : 20,
-      type: x.FieldType === 'date' ? 'date' : x.FieldType === 'number' ? 'number'
+      type: x.FieldType === 'date' ? 'date' : ['number', 'currency'].includes(x.FieldType) ? 'number'
         : ['lineitems', 'textarea'].includes(x.FieldType) ? 'wrap' : undefined }))],
     rows: shown.map(({ r, d, wait }) => [
       r.Title || '', toDate(r.SubmittedDate), r.RequesterName || '', plain(r.RequesterDept), plain(r.Status), wait,
@@ -146,11 +188,13 @@ function exportXlsx() {
 
 export async function render() {
   code = decodeURIComponent((location.hash.split('/')[2] || '').split('?')[0]).trim().toUpperCase();
+  solar = isSolar(code);
   const [all, catalog, dir] = await Promise.all([
     list('requests').catch(() => []), list('formCatalog').catch(() => []), list('directory').catch(() => []),
   ]);
   formRow = catalog.find((c) => plain(c.FormCode) === code) || { FormCode: code, Title: code };
-  fields = withStandard(await formFieldsOf(code), formRow)
+  // ใบจองโซลาร์มีช่องของตัวเองครบ ไม่ต้องเติมช่องมาตรฐาน (รหัสพนักงาน/ชื่อเรื่อง/ไฟล์แนบ)
+  fields = (solar ? await formFieldsOf(code) : withStandard(await formFieldsOf(code), formRow))
     .filter((x) => !['section', 'signature', 'heading'].includes(x.FieldType));
 
   const me = findMe(dir);
@@ -174,6 +218,9 @@ export async function render() {
   const projects = [...new Set(rows.map(({ d }) => plain(projectText(d))).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
   if (f.status && !statuses.includes(f.status)) f.status = '';
   if (f.project && !projects.includes(f.project)) f.project = '';
+  const salesList = solar ? [...new Set(rows.map(({ d }) => plain(d.sales_name)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th')) : [];
+  if (f.sales && !salesList.includes(f.sales)) f.sales = '';
+  if (!solar) { f.sales = ''; f.phase = ''; }
 
   return `
   <section class="page page-prr">
@@ -182,15 +229,17 @@ export async function render() {
       <p class="prr-lead">${esc(code)} · ${seeAll ? 'คำขอทั้งหมดของแบบฟอร์มนี้' : 'คำขอที่คุณยื่นหรืออยู่ในเส้นทางอนุมัติ'} · กดเลขที่คำขอเพื่อเปิดดูรายละเอียด
         · <a href="#/requests">← กลับหน้าติดตามสถานะ</a></p>
       <div class="panel prr-filters">
-        <label>ช่วงเวลา (วันที่ยื่น)
+        <label>ช่วงเวลา (${solar ? 'วันที่ใบจอง' : 'วันที่ยื่น'})
           <select id="frg-period">
             ${[['day', 'รายวัน'], ['month', 'รายเดือน'], ['year', 'รายปี'], ['all', 'ทั้งหมด']].map(([v, t]) =>
               `<option value="${v}" ${f.period === v ? 'selected' : ''}>${t}</option>`).join('')}
           </select></label>
         <span class="prr-when" id="frg-when">${periodInput()}</span>
         <label>สถานะ <select id="frg-status">${options(statuses, f.status, 'ทุกสถานะ')}</select></label>
+        ${solar ? `<label>ที่ปรึกษาการขาย <select id="frg-sales">${options(salesList, f.sales, 'ทุกคน')}</select></label>
+        <label>ระบบไฟ <select id="frg-phase">${options(['1 เฟส', '3 เฟส'], f.phase, 'ทั้งหมด')}</select></label>` : ''}
         ${projects.length ? `<label>โครงการ <select id="frg-project">${options(projects, f.project, 'ทุกโครงการ')}</select></label>` : ''}
-        <label class="prr-q">ค้นหา <input id="frg-q" type="search" value="${esc(f.q)}" placeholder="เลขที่คำขอ · ผู้ยื่น · เรื่อง" autocomplete="off"></label>
+        <label class="prr-q">ค้นหา <input id="frg-q" type="search" value="${esc(f.q)}" placeholder="${solar ? 'เลขใบเสนอราคา · ชื่อลูกค้า · เบอร์โทร · Sales' : 'เลขที่คำขอ · ผู้ยื่น · เรื่อง'}" autocomplete="off"></label>
       </div>
       <div class="prr-bar">
         <span id="frg-count" class="dim"></span>
@@ -216,6 +265,17 @@ export function mount() {
   $('#frg-period').onchange = (e) => { f.period = e.target.value; $('#frg-when').innerHTML = periodInput(); bindWhen(); redraw(); };
   $('#frg-status').onchange = (e) => { f.status = e.target.value; redraw(); };
   const pj = $('#frg-project'); if (pj) pj.onchange = (e) => { f.project = e.target.value; redraw(); };
+  const sl = $('#frg-sales'); if (sl) sl.onchange = (e) => { f.sales = e.target.value; redraw(); };
+  const ph = $('#frg-phase'); if (ph) ph.onchange = (e) => { f.phase = e.target.value; redraw(); };
+  // ใบจองโซลาร์: ส่งออกเอกสารย้อนหลังจากข้อมูลที่บันทึกไว้
+  $('#frg-body').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-srg]');
+    if (!b) return;
+    const hit = rows.find(({ r }) => String(r.id) === b.dataset.id);
+    if (!hit) return;
+    const [{ openSolarDoc }, { loadSolarPrices }] = await Promise.all([import('../templates/solar-doc.js'), import('../services/solar.js')]);
+    openSolarDoc(b.dataset.srg, hit.d, { prices: await loadSolarPrices() });
+  });
   let t; $('#frg-q').oninput = (e) => { clearTimeout(t); t = setTimeout(() => { f.q = e.target.value; redraw(); }, 200); };
   $('#frg-xlsx').onclick = exportXlsx;
   bindWhen();

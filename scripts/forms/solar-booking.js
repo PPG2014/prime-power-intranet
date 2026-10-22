@@ -68,6 +68,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
       <div class="wrap sb-wrap">
         <a class="back-link" href="#/forms">← แบบฟอร์มทั้งหมด</a>
         <a class="back-link guide-link" href="#/form-guide/${esc(form.FormCode)}">📘 วิธีกรอกและเส้นทางอนุมัติของฟอร์มนี้</a>
+        <a class="back-link guide-link" href="#/register/${esc(form.FormCode)}">📋 ทะเบียนใบจอง · ค้นหา · ส่งออก Excel</a>
         <header class="sb-head">
           <div class="form-icon-lg">${esc(form.Icon || '☀️')}</div>
           <div>
@@ -166,8 +167,8 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
 
         <div class="q-error" id="sb-error" hidden></div>
         <div class="sb-actions">
-          <button class="btn" data-sbact="export-sales">⬇ ส่งออก (Sales)</button>
-          <button class="btn" data-sbact="export-customer">⬇ ส่งออก (ลูกค้า)</button>
+          <button class="btn sb-exp sales" data-sbact="export-sales">⬇ ส่งออก (Sales)</button>
+          <button class="btn sb-exp cust" data-sbact="export-customer">⬇ ส่งออก (ลูกค้า)</button>
           <button class="btn btn-primary" id="sb-save">💾 ${editMode ? 'บันทึกการแก้ไขและยื่นใหม่' : 'บันทึกใบจอง'}</button>
         </div>
       </div>
@@ -414,10 +415,10 @@ export function solarDoneHtml({ sentNo, warn = [] }) {
     <p>เลขที่ <b>${esc(sentNo)}</b></p>
     ${warn.length ? `<div class="sb-alert">${warn.map(esc).join('<br>')}</div>` : ''}
     <div class="sb-actions">
-      <button class="btn" data-sbdone="export-sales">⬇ ส่งออก (Sales)</button>
-      <button class="btn btn-primary" data-sbdone="export-customer">⬇ ส่งออก (ลูกค้า)</button>
+      <button class="btn sb-exp sales" data-sbdone="export-sales">⬇ ส่งออก (Sales)</button>
+      <button class="btn sb-exp cust" data-sbdone="export-customer">⬇ ส่งออก (ลูกค้า)</button>
     </div>
-    <p class="dim"><a href="#/requests">ติดตามสถานะ</a> · <button class="link-btn" data-sbdone="new">＋ ใบจองใหม่</button></p>
+    <p class="dim"><a href="#/requests">ติดตามสถานะ</a> · <a href="#/register/FM-SMD-001">📋 ทะเบียนใบจอง</a> · <button class="link-btn" data-sbdone="new">＋ ใบจองใหม่</button></p>
   </div></div></section>`;
 }
 export function bindSolarDone() {
