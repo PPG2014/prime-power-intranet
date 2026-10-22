@@ -18,7 +18,7 @@ import { printWithNotice } from '../components/eta-notice.js';
 import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
-import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
+import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -525,10 +525,11 @@ async function openRequest(req) {
   const fields = await formFieldsOf(code);
   const catalog = await list('formCatalog').catch(() => []);
 
-  const answerRows = Object.entries(data)
+  const answerRows = (isSolar(code) ? solarEntries(data, fields) : Object.entries(data))
     .filter(([k]) => !k.startsWith('_'))      // ค่าภายใน เช่นลายเซ็นผู้ยื่น
     .filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))
     .map(([k, v]) => {
+      if (v && v.__html) return v.__html;     // ตารางที่จัดรูปไว้แล้ว (ราคา/งวดชำระของใบจองโซลาร์)
       const f = fields.find((x) => x.FieldKey === k);
       const label = (f ? f.Title : null) || standardLabel(k) || SYSTEM_LABEL[k] || k;
       // เวลาคืนรถ: แสดงทั้งวันและเวลา
@@ -771,6 +772,42 @@ async function openRequest(req) {
     closeModal();
     location.hash = `#/form/${req.FormCode}?edit=${req.id}`;
   });
+}
+
+/**
+ * ใบจองโซลาร์: เรียงตามลำดับช่องในฟอร์ม · ขนาดระบบแสดงค่าจริงช่องเดียว · ยอดเงินมีจุลภาค
+ * รายการราคา (q_lines) และงวดชำระ (q_schedule) แสดงเป็นตาราง ไม่ใช่ข้อความดิบ
+ */
+function solarEntries(data, fields) {
+  const d = { ...data };
+  const money = (n) => (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const kwp = d.size_kwp || (d.size === 'other' ? d.size_other : d.size);
+  if (kwp) d.size = kwp;
+  delete d.size_kwp; delete d.size_other;
+  if (d.q_date && d.std_date) delete d.std_date;   // วันที่ระบบซ้ำกับวันที่ใบจอง
+  const lines = Array.isArray(d.q_lines) ? d.q_lines : [];
+  const sched = Array.isArray(d.q_schedule) ? d.q_schedule : [];
+  delete d.q_lines; delete d.q_schedule;
+  fields.filter((f) => f.FieldType === 'currency' && d[f.FieldKey] !== '' && d[f.FieldKey] != null && !isNaN(+d[f.FieldKey]))
+    .forEach((f) => { d[f.FieldKey] = money(d[f.FieldKey]); });
+  const order = new Map(fields.map((f, i) => [f.FieldKey, i]));
+  const entries = Object.entries(d).sort(([a], [b]) => (order.has(a) ? order.get(a) : 999) - (order.has(b) ? order.get(b) : 999));
+  const table = (label, head, rows) => ({ __html: `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
+    <table class="li-view"><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${rows.join('')}</table></div>` });
+  const extra = [];
+  if (lines.length) {
+    extra.push(['q_lines', table('รายการราคา', ['รายการ', 'จำนวนเงิน (บาท)'],
+      lines.map((l) => `<tr><td>${esc(l.label || '')}</td><td class="r">${money(l.amount)}</td></tr>`))]);
+  }
+  if (sched.length) {
+    extra.push(['q_schedule', table('งวดการชำระเงิน', ['งวด', 'รายละเอียด', '%', 'จำนวนเงิน (บาท)'],
+      sched.map((x) => `<tr><td>${esc(x.no)}</td><td>${esc((SCHEDULE.find((y) => +y.no === +x.no) || {}).text || '')}</td>
+        <td>${x.pct == null ? '-' : esc(x.pct) + '%'}</td><td class="r">${money(x.amount)}</td></tr>`))]);
+  }
+  // ตารางวางต่อจากยอดรวมทั้งสิ้น
+  const at = entries.findIndex(([k]) => k === 'q_total');
+  entries.splice(at < 0 ? entries.length : at + 1, 0, ...extra);
+  return entries;
 }
 
 function renderSlip(s) {

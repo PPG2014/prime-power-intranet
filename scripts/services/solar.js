@@ -243,4 +243,5 @@ export const SOLAR_FIELDS = [
   F('deposit_date', 'วันที่ชำระเงินจอง', 'date', '8. เงินจอง'),
   F('deposit_receiver', 'ผู้รับเงิน', 'text', '8. เงินจอง'),
   F('survey_date', 'วันที่นัดสำรวจ', 'date', '9. งวดการชำระเงิน'),
+  F('checker_name', 'ผู้ตรวจสอบ / วิศวกรฝ่ายขาย', 'text', 'ลงนาม'),
 ];
