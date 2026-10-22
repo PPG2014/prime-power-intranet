@@ -122,7 +122,7 @@ export async function formFieldsOf(code) {
 }
 
 /** ฟอร์มที่แสดงวันที่ต้องการใช้เงินบนแถวคำขอ: ใกล้ถึง (≤ NEED_SOON_DAYS วัน) สีเหลือง · ถึงวัน/เลยกำหนด สีแดง */
-const NEED_DATE_FORMS = ['FM-ACC-002', 'FM-ACC-003'];
+export const NEED_DATE_FORMS = ['FM-ACC-002', 'FM-ACC-003'];
 const NEED_SOON_DAYS = 3;
 const needField = {};
 async function loadNeedFields() {
