@@ -2,6 +2,7 @@ import { esc, $, onClick } from '../core/dom.js';
 import { list, listRecent } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { parseLog } from '../services/requests.js';
+import { ensurePeople } from '../services/names.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 
 export const meta = { route: 'reports', title: 'รายงาน', nav: true, order: 8, adminOnly: false };
@@ -21,6 +22,7 @@ const dur = (h) => {
 let snapshot = { rows: [], perStep: [], perPerson: [] };
 
 export async function render(ctx) {
+  await ensurePeople();
   const days = state.reportPeriod || '90';
   const prRegisterOk = await import('./pr-register.page.js').then((m) => m.canSeePRRegister()).catch(() => false);
   // ช่วงเวลาจำกัด → ให้ SharePoint กรองมาเฉพาะช่วงนั้น (+ ใบที่ยังรออนุมัติ) ไม่ต้องดึงทั้ง List

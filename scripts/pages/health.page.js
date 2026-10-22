@@ -1,3 +1,4 @@
+import { setPeople, thaiName } from '../services/names.js';
 import { esc, $, onClick } from '../core/dom.js';
 import { list, schemaOf } from '../services/data.js';
 import { toArray } from '../admin/entity-form.js';
@@ -54,6 +55,21 @@ async function runChecks() {
     add('stop', 'บุคลากร', `ไม่มีอีเมล ${noEmail.length} คน`,
       noEmail.slice(0, 8).map((p) => clean(p.Title)).join(', ') + (noEmail.length > 8 ? ' …' : ''),
       'คนที่ไม่มีอีเมลจะไม่ได้รับการ์ดอนุมัติทาง Teams/อีเมล');
+  }
+  // ชื่อผู้อนุมัติจากการ์ด Teams (อังกฤษ) ที่แปลงเป็นชื่อไทยไม่ได้ → ให้เติม ชื่อ-สกุล (อังกฤษ) ในทะเบียน
+  setPeople(dir);
+  const enLeft = new Map();
+  requests.forEach((r) => {
+    let lg = []; try { lg = JSON.parse(r.ApprovalLog || '[]'); } catch (e) { lg = []; }
+    (Array.isArray(lg) ? lg : []).forEach((l) => {
+      const n = clean(l && l.by);
+      if (n && !/[\u0E00-\u0E7F]/.test(n) && thaiName(n) === n) enLeft.set(n, (enLeft.get(n) || 0) + 1);
+    });
+  });
+  if (enLeft.size) {
+    add('info', 'บุคลากร', `ชื่อผู้อนุมัติภาษาอังกฤษที่ยังจับคู่ชื่อไทยไม่ได้ ${enLeft.size} ชื่อ`,
+      [...enLeft.keys()].slice(0, 10).join(', ') + (enLeft.size > 10 ? ' …' : ''),
+      'มาจากการกดอนุมัติในการ์ด Teams (ระบบใช้ชื่อบัญชี Microsoft 365) — เปิดหน้าบุคลากร แก้คนนั้น แล้วใส่ช่อง "ชื่อ-สกุล (อังกฤษ)" ให้ตรงกับชื่อนี้ ระบบจะแสดงเป็นชื่อไทยและดึงลายเซ็นให้เอง');
   }
   // ผู้บริหารสูงสุด (ประธาน/กรรมการบริษัท) ไม่มีผู้บังคับบัญชาเป็นเรื่องปกติ ไม่ต้องเตือน
   const isTop = (p) => clean(p.Level) === 'ผู้บริหาร' || /ประธาน|กรรมการ/.test(clean(p.Position));
