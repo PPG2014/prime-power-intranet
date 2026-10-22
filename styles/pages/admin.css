@@ -264,3 +264,26 @@ label.head-btn { display: inline-flex; align-items: center; cursor: pointer; }
 .route-mini span { color: var(--muted); }
 .route-mini em { font-style: normal; color: var(--warn, #b26a00); font-size: 11.5px; }
 td[data-col="Badge"] { white-space: nowrap; }
+
+/* 🔧 โครงการ O&M (admin/om-editor.js) */
+.om-intro { background: #eef6ff; border: 1px solid #cfe2fb; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+.om-intro ul { margin: 6px 0 0; padding-left: 20px; }
+.om-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0 10px; }
+.om-bar .dim { margin-right: auto; font-size: 13px; }
+.om-save { padding: 6px 16px; }
+.om-unsaved { background: #fff5e6; border: 1px solid #f5d29a; color: #8a5a00; border-radius: 8px; padding: 6px 12px; font-size: 13px; margin-bottom: 10px; }
+.om-group { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; background: var(--surface, #fff); }
+.om-ghead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px dashed var(--line); padding-bottom: 10px; margin-bottom: 8px; }
+.om-glabel { display: flex; gap: 8px; align-items: center; font-weight: 700; color: var(--navy); }
+.om-gname { font: inherit; font-weight: 700; font-size: 16px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; min-width: 240px; }
+.om-gbtns { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.om-items { margin: 0; padding-left: 26px; }
+.om-items li { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 0; }
+.om-items li.off .om-iname { color: var(--muted); background: #f4f6f8; text-decoration: line-through; }
+.om-iname { flex: 1 1 280px; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.om-move { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; max-width: 160px; }
+.om-offtag { font-size: 11.5px; background: #eef2f6; color: var(--muted); border-radius: 999px; padding: 1px 8px; }
+.om-add { margin-top: 6px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--blue, #1f5fbf); font: inherit; cursor: pointer; text-decoration: underline; }
+@media (max-width: 640px) { .om-gname { min-width: 0; width: 100%; } .om-gbtns { margin-left: 0; } }
+.om-save:disabled { opacity: .45; cursor: default; }
