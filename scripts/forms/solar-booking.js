@@ -111,22 +111,22 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
             + `<input id="sb_roof_other" data-k="roof_other" value="${esc(values.roof_other || '')}" placeholder="ระบุชนิดหลังคา" ${values.roof === 'อื่นๆ' ? '' : 'hidden'}>`, { cls: 'sb-wide' })}
         </div>`)}
 
-        ${section('3', 'อุปกรณ์หลัก', 'Main Equipment', `<div class="sb-scroll"><table class="sb-table">
+        ${section('3', 'อุปกรณ์หลัก', 'Main Equipment', `<div class="sb-scroll"><table class="sb-table sb-stack sb-equip">
           <thead><tr><th>รายการ</th><th>ยี่ห้อ / รุ่น</th><th>จำนวน</th><th>กำลัง / หน่วย</th></tr></thead>
           <tbody>
-            <tr><td>แผงโซลาร์เซลล์ (Solar Panel)</td><td>Jinko Solar</td><td>${input('panels', values.panels, 'type="number" min="0" class="sb-num"')} แผง</td><td>650 W / แผง</td></tr>
-            <tr><td>อินเวอร์เตอร์ (Inverter)</td><td>Huawei</td><td>${input('inverter_qty', values.inverter_qty, 'type="number" min="0" class="sb-num"')} เครื่อง</td><td>${input('inverter_kw', values.inverter_kw, 'type="number" min="0" step="0.1" class="sb-num"')} kW / เครื่อง</td></tr>
-            <tr id="sb-batt-row"><td>แบตเตอรี่ (Battery) เฉพาะ Hybrid</td><td>Huawei</td><td colspan="2"><div id="sb-batt"></div></td></tr>
+            <tr><td class="sb-item">แผงโซลาร์เซลล์ (Solar Panel)</td><td data-l="ยี่ห้อ">Jinko Solar</td><td data-l="จำนวน">${input('panels', values.panels, 'type="number" inputmode="numeric" min="0" class="sb-num"')} แผง</td><td data-l="กำลัง">650 W / แผง</td></tr>
+            <tr><td class="sb-item">อินเวอร์เตอร์ (Inverter)</td><td data-l="ยี่ห้อ">Huawei</td><td data-l="จำนวน">${input('inverter_qty', values.inverter_qty, 'type="number" inputmode="numeric" min="0" class="sb-num"')} เครื่อง</td><td data-l="กำลัง">${input('inverter_kw', values.inverter_kw, 'type="number" inputmode="decimal" min="0" step="0.1" class="sb-num"')} kW / เครื่อง</td></tr>
+            <tr id="sb-batt-row"><td class="sb-item">แบตเตอรี่ (Battery) เฉพาะ Hybrid</td><td data-l="ยี่ห้อ">Huawei</td><td colspan="2" class="sb-full"><div id="sb-batt"></div></td></tr>
           </tbody></table></div>`)}
 
-        ${section('4', 'อุปกรณ์เสริม (เลือกได้)', 'Additional Equipment', `<div class="sb-scroll"><table class="sb-table">
+        ${section('4', 'อุปกรณ์เสริม (เลือกได้)', 'Additional Equipment', `<div class="sb-scroll"><table class="sb-table sb-stack sb-extras">
           <thead><tr><th>รายการ</th><th>ประโยชน์</th><th class="r">ราคา (บาท)</th></tr></thead><tbody>
           ${[['opt_tou', 'มิเตอร์ TOU', 'คิดค่าไฟตามช่วงเวลา (TOU) เพื่อบริหารการใช้ไฟให้เหมาะสม', 'price_tou'],
              ['opt_optimizer', 'Optimizer', 'เพิ่มประสิทธิภาพการผลิตไฟรายแผง และลดผลกระทบจากเงาบัง', 'price_optimizer'],
              ['opt_smartguard', 'Smart Guard', 'ตรวจสอบและเพิ่มความปลอดภัยของระบบไฟฟ้า ป้องกันความผิดปกติ และใช้ไฟสำรองได้เมื่อไฟดับ', 'price_smartguard'],
              ['opt_structure', 'โครงสร้างพิเศษ', 'โครงสร้างเสริมเพื่อรองรับการติดตั้งตามสภาพหลังคา', 'price_structure']]
-            .map(([k, t, d, pk]) => `<tr><td><label class="sb-chip"><input type="checkbox" id="sb_${k}" data-k="${k}" ${values[k] ? 'checked' : ''}> ${t}</label></td><td>${d}</td>
-              <td class="r"><input id="sb_${pk}" data-k="${pk}" class="sb-money" inputmode="decimal" value="${esc(values[pk] ?? '')}" placeholder="อัตโนมัติ"></td></tr>`).join('')}
+            .map(([k, t, d, pk]) => `<tr><td class="sb-item"><label class="sb-chip"><input type="checkbox" id="sb_${k}" data-k="${k}" ${values[k] ? 'checked' : ''}> ${t}</label></td><td class="sb-desc">${d}</td>
+              <td class="r" data-l="ราคา (บาท)"><input id="sb_${pk}" data-k="${pk}" class="sb-money" inputmode="decimal" value="${esc(values[pk] ?? '')}" placeholder="อัตโนมัติ"></td></tr>`).join('')}
           </tbody></table></div><div class="sb-hint">ราคาเติมให้อัตโนมัติตาม Price List (Optimizer = จำนวนแผง × ราคาต่อตัว · Smart Guard ตามเฟส · โครงสร้างพิเศษตามขนาดระบบ) — พิมพ์ทับเพื่อเปลี่ยนราคาได้ ลบให้ว่างเพื่อกลับเป็นอัตโนมัติ</div>`)}
 
         ${section('5', 'สิทธิประโยชน์ภาครัฐที่ประสงค์ใช้', 'Government Incentives', `<div class="sb-checks">${INCENTIVES.map((t, i) => `<label class="sb-chip sb-block"><input type="checkbox" data-inc="${i}" ${(values.incentives || []).includes(t) ? 'checked' : ''}> ${esc(t)}</label>`).join('')}</div>
@@ -168,9 +168,9 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
 
         <div class="q-error" id="sb-error" hidden></div>
         <div class="sb-actions">
-          <button class="btn sb-exp sales" data-sbact="export-sales">⬇ ส่งออก (Sales)</button>
-          <button class="btn sb-exp cust" data-sbact="export-customer">⬇ ส่งออก (ลูกค้า)</button>
-          <button class="btn btn-primary" id="sb-save">💾 ${editMode ? 'บันทึกการแก้ไขและยื่นใหม่' : 'บันทึกใบจอง'}</button>
+          <button class="btn sb-exp sales" data-sbact="export-sales"><span class="sb-long">⬇ ส่งออก (Sales)</span><span class="sb-short">⬇ Sales</span></button>
+          <button class="btn sb-exp cust" data-sbact="export-customer"><span class="sb-long">⬇ ส่งออก (ลูกค้า)</span><span class="sb-short">⬇ ลูกค้า</span></button>
+          <button class="btn btn-primary" id="sb-save">💾 ${editMode ? '<span class="sb-long">บันทึกการแก้ไขและยื่นใหม่</span><span class="sb-short">ยื่นใหม่</span>' : 'บันทึกใบจอง'}</button>
         </div>
       </div>
     </div>
@@ -250,9 +250,9 @@ function paintPrice() {
   }
   const sch = $('#sb-sched');
   if (sch) {
-    sch.innerHTML = `<div class="sb-scroll"><table class="sb-table">
+    sch.innerHTML = `<div class="sb-scroll"><table class="sb-table sb-stack sb-sched">
       <thead><tr><th>งวด</th><th>รายละเอียด</th><th class="c">%</th><th class="r">จำนวนเงิน (บาท)</th><th>กำหนดชำระ</th></tr></thead><tbody>
-      ${q.schedule.map((s) => `<tr><td class="c">${s.no}</td><td>${esc(s.text)}</td><td class="c">${s.pct == null ? '-' : s.pct + '%'}</td><td class="r">${baht(s.amount)}</td><td>${esc(s.due)}</td></tr>`).join('')}
+      ${q.schedule.map((s) => `<tr><td class="c sb-no-c" data-l="งวดที่">${s.no}</td><td class="sb-item">${esc(s.text)}</td><td class="c" data-l="สัดส่วน">${s.pct == null ? '-' : s.pct + '%'}</td><td class="r sb-amt" data-l="จำนวนเงิน (บาท)">${baht(s.amount)}</td><td data-l="กำหนดชำระ">${esc(s.due)}</td></tr>`).join('')}
       </tbody></table></div>`;
   }
   return q;
@@ -374,6 +374,7 @@ export function solarMount({ form, saveRequest, onSaved }) {
     if (q.missing.length) { err.innerHTML = `คำนวณราคาไม่ได้: ไม่พบ${esc(q.missing.join(', '))} ใน Price List`; err.hidden = false; return; }
     if (q.belowMin && !confirm(`ราคาสุทธิ ${baht(q.net)} บาท ต่ำกว่าราคาขั้นต่ำ ${baht(q.minimum)} บาท\n\nยืนยันบันทึกราคานี้หรือไม่?`)) return;
     err.hidden = true;
+    const btnHtml = btn.innerHTML;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const folder = 'Requests/' + form.FormCode + '/ลายเซ็น';
@@ -403,7 +404,7 @@ export function solarMount({ form, saveRequest, onSaved }) {
       console.error(ex);
       err.innerHTML = `บันทึกไม่สำเร็จ<br>${esc(ex.message).replace(/\n/g, '<br>')}<br><span class="dim">ข้อมูลที่กรอกยังอยู่ในเครื่องนี้ กดบันทึกใหม่ได้</span>`;
       err.hidden = false;
-      btn.disabled = false; btn.textContent = editMode ? '💾 บันทึกการแก้ไขและยื่นใหม่' : '💾 บันทึกใบจอง';
+      btn.disabled = false; btn.innerHTML = btnHtml;
     }
   };
 }

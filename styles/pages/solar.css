@@ -177,3 +177,72 @@ body.sc-open .sc-tab { right: min(460px, 100vw); }
 .sd-sales .sd-t th, .sd-sales .sd-t td { padding: 2.5px 6px; }
 .sd-sales .sd-terms { font-size: 10.4px; }
 .sd-sales .sd-sec { margin-bottom: 5px; }
+
+/* ── มือถือ / แท็บเล็ต (iPhone · iPad · Android) ── */
+.sb-short { display: none; }
+/* จอสัมผัส (iPhone/iPad/Android): iOS ซูมจอถ้าตัวอักษรในช่องกรอกเล็กกว่า 16px · ช่องสูงพอให้แตะง่าย */
+@media (pointer: coarse) {
+  .sb-shell input:not([type="radio"]):not([type="checkbox"]), .sb-shell select, .sb-shell textarea,
+  .sc-panel input, .sc-panel select { font-size: 16px; min-height: 44px; }
+  .sb-chip { min-height: 40px; }
+}
+.sb-shell .sig-canvas { touch-action: none; }
+.page-solar .back-link { margin-right: 14px; }
+.page-solar .back-link.guide-link { margin-left: 0; }
+/* จอไม่กว้างพอให้ฟอร์มหลบ: แผง Calculator ลอยทับแทน (ปิดด้วย ✕) */
+@media (max-width: 1099px) { .sb-shell.sc-shift { margin-right: 0; } }
+@media (max-width: 640px) {
+  .page-solar .wrap.sb-wrap { padding-left: 12px; padding-right: 12px; }
+  .page-solar .back-link { font-size: 12.5px; margin: 0 10px 6px 0; }
+  .sb-head { gap: 10px; align-items: flex-start; }
+  .sb-head h1 { font-size: 20px; line-height: 1.3; }
+  .sb-head .sb-icon svg { width: 36px; height: 36px; }
+  .sb-sub { font-size: 12px; }
+  .sb-sec { padding: 12px; border-radius: 12px; }
+  .sb-h { font-size: 16px; flex-wrap: wrap; }
+  .sb-en { font-size: 12px; }
+  .sb-chip { padding: 9px 13px; font-size: 14.5px; }
+  .sb-chip input { width: 18px; height: 18px; }
+  .sb-other-size select, .sb-other-size input { max-width: none; }
+  /* ตาราง → การ์ดทีละแถว */
+  .sb-stack, .sb-stack tbody, .sb-stack tr, .sb-stack td { display: block; width: 100%; box-sizing: border-box; }
+  .sb-stack thead { display: none; }
+  .sb-stack tr { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin-bottom: 10px; background: #fff; }
+  .sb-stack td { border: 0; padding: 5px 0; text-align: left !important; }
+  .sb-stack td[data-l] { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .sb-stack td[data-l]::before { content: attr(data-l); font-size: 13px; color: var(--muted); font-weight: 600; flex: none; }
+  .sb-stack td.sb-item { font-weight: 700; color: var(--navy); padding-bottom: 6px; border-bottom: 1px dashed #e3e9f1; margin-bottom: 4px; }
+  .sb-stack .sb-num { width: 96px !important; }
+  .sb-stack .sb-money { width: 60% !important; max-width: 200px; }
+  .sb-equip td.sb-full .sb-radios { flex-direction: column; }
+  .sb-equip td.sb-full .sb-chip { border-radius: 10px; }
+  .sb-extras td.sb-item { border-bottom: 0; padding-bottom: 0; }
+  .sb-extras td.sb-desc { font-size: 13px; color: #55657a; }
+  .sb-sched tr { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; }
+  .sb-sched td.sb-no-c { grid-row: 1; display: flex; }
+  .sb-sched td.sb-no-c::before { display: none; }
+  .sb-sched td.sb-no-c { width: 28px; height: 28px; border-radius: 999px; background: var(--navy); color: #fff; justify-content: center; align-items: center; padding: 0; font-weight: 700; }
+  .sb-sched td.sb-item { grid-row: 1; border-bottom: 0; margin: 0; padding: 3px 0; }
+  .sb-sched td:not(.sb-no-c):not(.sb-item) { grid-column: 1 / -1; }
+  .sb-sched td.sb-amt { font-weight: 700; color: var(--navy); font-size: 15px; }
+  .sb-price td { font-size: 14px; }
+  .sb-price .sb-money { width: 130px !important; }
+  /* ปุ่มบันทึก/ส่งออก ติดขอบล่างจอ กดได้ตลอด */
+  .sb-actions { position: sticky; bottom: 0; z-index: 25; margin: 14px -12px 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(244, 247, 251, .96); backdrop-filter: blur(6px); border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 8px; }
+  .sb-actions .btn { width: 100%; min-height: 46px; padding: 8px 6px; font-size: 14px; justify-content: center; }
+  .sb-actions #sb-save { font-size: 15px; }
+  .sb-actions .sb-long { display: none; }
+  .sb-actions .sb-short { display: inline; }
+  .sb-done .sb-actions { position: static; background: none; border: 0; margin: 14px 0; }
+  /* แถบ Calculator → ปุ่มลอยมุมขวาล่าง (เหนือแถบปุ่มบันทึก) */
+  .sc-tab { writing-mode: horizontal-tb; top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); right: 12px; transform: none;
+    border-radius: 999px; padding: 9px 14px 9px 9px; font-size: 13.5px; box-shadow: 0 6px 18px rgba(15, 138, 46, .4); }
+  body.sc-open .sc-tab { display: none; }
+  .sc-panel { width: 100vw; }
+  .sc-head { padding-top: calc(12px + env(safe-area-inset-top)); }
+  .sc-close { min-width: 44px; min-height: 44px; }
+  .sc-row, .sc-out { grid-template-columns: 1fr 112px 64px; }
+  .sc-cards { grid-template-columns: 1fr !important; }
+}
