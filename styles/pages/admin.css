@@ -287,3 +287,13 @@ td[data-col="Badge"] { white-space: nowrap; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--blue, #1f5fbf); font: inherit; cursor: pointer; text-decoration: underline; }
 @media (max-width: 640px) { .om-gname { min-width: 0; width: 100%; } .om-gbtns { margin-left: 0; } }
 .om-save:disabled { opacity: .45; cursor: default; }
+
+/* 💲 ราคาโซลาร์เซลล์ (admin/solar-price-editor.js) */
+.sp-gen { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.sp-g { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; font-weight: 600; }
+.sp-g em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 12px; }
+.sp-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.sp-table th { text-align: left; background: #f3f6fa; padding: 6px; white-space: nowrap; }
+.sp-table td { padding: 3px 4px; border-bottom: 1px solid #eef1f5; }
+.sp-table input, .sp-g input { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; width: 100%; box-sizing: border-box; min-width: 90px; }
+.sp-num { text-align: right; }

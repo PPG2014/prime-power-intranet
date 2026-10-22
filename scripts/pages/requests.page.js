@@ -18,6 +18,7 @@ import { printWithNotice } from '../components/eta-notice.js';
 import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
+import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -105,6 +106,14 @@ const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กล�
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
 export async function formFieldsOf(code) {
+  if (isSolar(code)) {
+    // ใบจองโซลาร์ใช้หน้ากรอกเฉพาะ ช่องข้อมูลกำหนดในโค้ด (ไม่ต้องตั้ง FormFields ใน SharePoint)
+    const own = await formFieldsRaw(code);
+    return own.length ? own : SOLAR_FIELDS;
+  }
+  return formFieldsRaw(code);
+}
+async function formFieldsRaw(code) {
   // เผื่อ FormCode ในฟอร์มฟิลด์เป็น Lookup ที่คืนมาแค่เลข id → แปลงกลับผ่าน formCatalog
   const catalog = await list('formCatalog').catch(() => []);
   const codeById = {};
@@ -657,7 +666,9 @@ async function openRequest(req) {
         </div>` : ''}
 
         <div class="rq-export-row">
-          <button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>
+          ${isSolar(code) ? `<button class="btn-mini" data-solardoc="sales">⬇ ส่งออก (Sales)</button>
+          <button class="btn-mini" data-solardoc="customer">⬇ ส่งออก (ลูกค้า)</button>`
+          : `<button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>`}
         </div>
       </div>`,
   });
@@ -665,6 +676,11 @@ async function openRequest(req) {
   import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
+  // ใบจองโซลาร์: เอกสารฉบับฝ่ายขาย / ฉบับลูกค้า (A4 หน้าเดียว)
+  onClick('solardoc', async (kind) => {
+    const [{ openSolarDoc }, { loadSolarPrices }] = await Promise.all([import('../templates/solar-doc.js'), import('../services/solar.js')]);
+    openSolarDoc(kind, data, { prices: await loadSolarPrices() });
+  });
 
   if (role.canActNow) { bindActions(req, steps, role, formRow); watchOthers(req); }
 

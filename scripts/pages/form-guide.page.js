@@ -16,6 +16,7 @@ import { isPR } from '../templates/pr-fm-pur-004.js';
 import { OM_FORMS, OM_PROJECT } from '../services/om.js';
 import { DEPT_WATCH_FORMS, NEED_DATE_FORMS } from './requests.page.js';
 import { groupByDepartment } from '../utils/dept.js';
+import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
 
 export const meta = { route: 'form-guide', title: 'คู่มือทุกแบบฟอร์ม', nav: false, order: 99, adminOnly: false };
 
@@ -94,6 +95,12 @@ function systemRules(form, fields) {
   if (NEED_DATE_FORMS.includes(code)) out.push(`หน้าติดตามสถานะแสดงวันที่ต้องใช้เงิน: <b class="fg-due">ถึงกำหนด/เลยกำหนด = แดง</b> · <b class="fg-soon">อีก 1–3 วัน = เหลือง</b> · เกิน 3 วัน = เทา และกดกรองได้`);
   const watch = Object.entries(DEPT_WATCH_FORMS).filter(([, codes]) => codes.includes(code)).map(([d]) => d);
   if (watch.length) out.push(`${esc(watch.join(', '))} เห็นคำขอของฟอร์มนี้ทุกใบเพื่อตรวจสอบ (กดอนุมัติได้เฉพาะคนที่อยู่ในเส้นทาง)`);
+  if (isSolar(code)) {
+    out.push('หน้ากรอกเฉพาะ: <b>คำนวณราคาอัตโนมัติ</b>จาก Price List (ระบบ · แบตเตอรี่ · Optimizer · Smart Guard · โครงสร้างพิเศษ) → ส่วนลด → VAT → รวมทั้งสิ้น และงวดชำระ 50/45/5% หลังหักเงินจอง');
+    out.push('เลขที่ใบเสนอราคาอัตโนมัติ <b>SMD-001-ปปดดลำดับ</b> (เช่น SMD-001-2610001) ขึ้นเดือนใหม่เริ่ม 001 · วันที่ตั้งเป็นวันนี้ แก้ได้ · ที่ปรึกษาการขายเลือกจากรายชื่อบุคลากร');
+    out.push('ลายเซ็น 3 ช่อง: ผู้สั่งซื้อ · ผู้แทนฝ่ายขาย · ผู้ตรวจสอบ/วิศวกรฝ่ายขาย · ส่งออกเอกสาร <b>ฉบับ Sales</b> และ <b>ฉบับลูกค้า (A4 หน้าเดียว)</b>');
+    out.push('แถบ <b>☀ Solar Calculator</b> ด้านขวา คำนวณขนาดติดตั้ง/แบตเตอรี่/ความคุ้มค่า แล้วกดใช้แพ็กเกจในใบจองได้ · ข้อมูลที่กรอกค้างเก็บในเครื่อง เน็ตหลุดไม่หาย');
+  }
   if (isQueueForm(fields)) out.push('เป็นการจองคิวตามช่วงเวลา: มีปฏิทินคิวข้างฟอร์ม ถ้าเวลาชนกับคิวอื่น ระบบเตือนว่าชนกับใคร เรื่องอะไร และให้ยืนยันก่อนจองซ้อน (คิวซ้อนขึ้นสีม่วงในปฏิทิน)');
   if (isCarForm(fields)) out.push('เป็นการจองรถ: เลือกช่วงวัน-เวลา ระบบตรวจรถว่าง/ชนกัน ผู้ดูแลรถเลือกทะเบียนรถตอนอนุมัติ เปลี่ยนรถ ยกเลิก หรือกดคืนรถได้ · ดูตารางการใช้รถได้ในปฏิทิน');
   if (fields.some((f) => f.FieldType === 'lineitems')) out.push('มีตารางรายการ: กด ＋ เพิ่มแถว ระบบรวมยอดเงินให้เอง');
@@ -164,7 +171,8 @@ export async function render(ctx) {
 function formCard(form) {
   const code = codeOf(form.FormCode);
   const own = fieldsByCode[code] || [];
-  const fields = withStandard(own, form);
+  // ใบจองโซลาร์มีหน้ากรอกเฉพาะ ช่องกำหนดในโค้ด
+  const fields = isSolar(code) && !own.length ? SOLAR_FIELDS : withStandard(own, form);
   const steps = stepsByCode[code] || [];
   const titleOf = (k) => (fields.find((f) => f.FieldKey === k) || {}).Title || k;
   const ext = String(form.ExternalUrl || '').trim();

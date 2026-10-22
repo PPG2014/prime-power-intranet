@@ -17,9 +17,15 @@ import { sheets, clean, generateSheets, waitingSelf, skipSelf, S_MGR } from '../
 import { routeHost, bindRouteEditor, routeProblems, saveRoute } from '../components/approval-route-editor.js';
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 import { omEditorHtml, bindOmEditor, omHasUnsaved } from '../admin/om-editor.js';
+import { solarPriceHtml, bindSolarPriceEditor, solarPriceUnsaved } from '../admin/solar-price-editor.js';
 
-/** เมนูพิเศษที่ไม่ใช่ตาราง List ตรง ๆ — มีหน้าแก้ไขของตัวเอง */
-const VIRTUAL = { omProjects: { icon: '🔧', title: 'โครงการ O&M' } };
+/** เมนูพิเศษที่ไม่ใช่ตาราง List ตรง ๆ — มีหน้าแก้ไขของตัวเอง (เก็บในตั้งค่าระบบ) */
+const VIRTUAL = {
+  omProjects: { icon: '🔧', title: 'โครงการ O&M', html: omEditorHtml, bind: bindOmEditor, unsaved: omHasUnsaved, label: 'โครงการ O&M' },
+  solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
+};
+/** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -35,7 +41,7 @@ function allowedSets() {
   const all = Object.keys(SCHEMA);
   if (!state.isAdmin) return all.filter((k) => SCHEMA[k].hr);
   const i = all.indexOf('projects');
-  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects');   // โครงการ O&M ต่อจากทะเบียนโครงการ
+  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'solarPrices');   // ต่อจากทะเบียนโครงการ
   return all;
 }
 
@@ -58,7 +64,7 @@ export async function render(ctx) {
   // ฝ่ายบุคคลที่ไม่ใช่ผู้ดูแล เห็นเฉพาะชุดข้อมูลระบบประเมิน
   const sets = allowedSets();
   key = sets.includes(state.adminSet) ? state.adminSet : sets[0];
-  if (VIRTUAL[key]) return shell(sets, await omEditorHtml());
+  if (VIRTUAL[key]) return shell(sets, await VIRTUAL[key].html());
   s = SCHEMA[key];
 
   // โหลดชื่อฟอร์มไว้แสดงในตัวเลือกกลุ่ม (เฉพาะชุดที่จัดกลุ่มตาม FormCode)
@@ -72,7 +78,7 @@ export async function render(ctx) {
   try {
     rows = await list(s.list);
     // โครงการ O&M แยกไปแก้ที่เมนู 🔧 โครงการ O&M ไม่โชว์ปนในตั้งค่าระบบ
-    if (key === 'settings') rows = rows.filter((r) => String(r.Title || '').trim() !== 'OMSites');
+    if (key === 'settings') rows = rows.filter((r) => !VIRTUAL_SETTINGS.includes(String(r.Title || '').trim()));
     if (s.dateDesc) {
       // ประกาศ/ข่าว เรียงจากใหม่ไปเก่า ให้รายการล่าสุดอยู่บนสุด
       const t = (x) => { const d = new Date(x[s.dateDesc]); return isNaN(d) ? null : d.getTime(); };
@@ -540,10 +546,10 @@ function formLabel(code) {
 export function mount(ctx) {
   if (VIRTUAL[key]) {
     onClick('set', (k) => {
-      if (omHasUnsaved() && !confirm('ยังไม่ได้บันทึกโครงการ O&M ที่แก้ไว้ ออกจากหน้านี้เลยไหม?')) return;
+      if (VIRTUAL[key].unsaved() && !confirm(`ยังไม่ได้บันทึก${VIRTUAL[key].label}ที่แก้ไว้ ออกจากหน้านี้เลยไหม?`)) return;
       setState({ adminSet: k, adminGroup: '' });
     });
-    bindOmEditor();
+    VIRTUAL[key].bind();
     return;
   }
   hydratePhotos($('#app'));

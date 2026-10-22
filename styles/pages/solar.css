@@ -1,0 +1,161 @@
+/* ใบจองและสั่งซื้อระบบโซลาร์เซลล์ (forms/solar-booking.js · components/solar-calculator.js · templates/solar-doc.js) */
+
+/* ── หน้ากรอก ── */
+.sb-shell { transition: margin-right .3s ease; }
+.sb-shell.sc-shift { margin-right: min(460px, 100vw); }
+.sb-wrap { max-width: 1060px; }
+.sb-head { display: flex; gap: 14px; align-items: center; margin: 8px 0 6px; }
+.sb-head h1 { margin: 0; font-size: 24px; color: var(--navy); }
+.sb-sub { color: var(--muted); font-size: 13.5px; }
+.sb-draft { color: #8a5a00; }
+.sb-lead { font-size: 14px; color: #44546a; margin: 6px 0 14px; }
+.sb-alert { background: #fff5e6; border: 1px solid #f5d29a; color: #8a5a00; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; margin: 8px 0; }
+.sb-alert.sb-internal { background: #fdecef; border-color: #f4b6c2; color: #a3195b; }
+.sb-sec { background: var(--surface, #fff); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.sb-h { margin: 0 0 12px; font-size: 17px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+.sb-no { background: var(--navy); color: #fff; border-radius: 999px; min-width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; padding: 0 6px; }
+.sb-en { color: var(--muted); font-weight: 400; font-size: 13px; }
+.sb-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.sb-top { background: #f4f8fc; border: 1px solid #dce6f2; border-radius: 14px; padding: 12px 16px; margin-bottom: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sb-f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.sb-f.sb-wide { grid-column: 1 / -1; }
+.sb-l { font-size: 13.5px; font-weight: 600; color: #33475b; }
+.sb-shell input:not([type="radio"]):not([type="checkbox"]), .sb-shell select, .sb-shell textarea {
+  font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; width: 100%; box-sizing: border-box; }
+.sb-shell textarea { resize: vertical; }
+.sb-qno { font-weight: 700; font-size: 16px; color: var(--navy); padding: 7px 0; letter-spacing: .3px; }
+.sb-hint { font-size: 12.5px; color: var(--muted); }
+.sb-radios { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; background: #fff; font-size: 14px; }
+.sb-chip:has(input:checked) { border-color: var(--navy); background: #eaf2fb; color: var(--navy); font-weight: 600; }
+.sb-chip.sb-block { display: flex; border-radius: 10px; }
+.sb-checks { display: grid; gap: 6px; }
+.sb-other-size { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.sb-other-size select, .sb-other-size input { max-width: 280px; }
+.sb-scroll { overflow-x: auto; }
+.sb-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sb-table th { background: #f3f6fa; text-align: left; font-weight: 600; color: #44546a; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sb-table td { padding: 7px 8px; border-bottom: 1px solid #eef1f5; vertical-align: middle; }
+.sb-table .r { text-align: right; } .sb-table .c { text-align: center; }
+.sb-table .sb-num { width: 90px !important; display: inline-block; }
+.sb-table .sb-money { width: 150px !important; text-align: right; }
+.sb-table tr.sb-dim td { opacity: .55; }
+.sb-price .sb-line td { color: #44546a; font-size: 13.5px; }
+.sb-price .sb-sum td { border-top: 1px solid var(--line); font-weight: 600; }
+.sb-price .sb-total td { font-weight: 700; font-size: 16px; color: var(--navy); background: #eaf2fb; }
+.sb-static { font-size: 14px; background: #f7f9fc; border-radius: 8px; padding: 8px 10px; }
+.sb-terms { font-size: 13.5px; padding-left: 20px; margin: 0; } .sb-terms li { margin: 4px 0; }
+.sb-ack { font-weight: 600; font-size: 14px; margin: 10px 0 0; }
+.sb-signs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.sb-sign { border: 1px dashed var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.sb-sign-role { font-weight: 700; color: var(--navy); text-align: center; }
+.sb-sign-name { text-align: center; font-size: 14px; }
+.sb-sign .sig-pad { margin: 0; }
+.sb-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin: 14px 0 30px; }
+.sb-done { text-align: center; } .sb-done-ic { font-size: 44px; } .sb-done .sb-actions { justify-content: center; }
+@media (max-width: 860px) {
+  .sb-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sb-signs { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) { .sb-grid, .sb-top { grid-template-columns: 1fr; } .sb-shell.sc-shift { margin-right: 0; } }
+
+/* ── Solar Calculator แถบข้าง ── */
+.sc-tab { position: fixed; right: 0; top: 46%; z-index: 60; transform: translateY(-50%); writing-mode: vertical-rl; text-orientation: mixed;
+  background: linear-gradient(180deg, #f5b700, #e8590c); color: #fff; border: 0; border-radius: 12px 0 0 12px; padding: 14px 9px;
+  font: 700 14px/1 inherit; letter-spacing: .5px; cursor: pointer; box-shadow: -2px 2px 10px rgba(0,0,0,.18); transition: right .3s ease; }
+body.sc-open .sc-tab { right: min(460px, 100vw); }
+.sc-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); z-index: 59; background: #fff; border-left: 1px solid var(--line);
+  box-shadow: -6px 0 24px rgba(0,0,0,.12); transform: translateX(100%); transition: transform .3s ease; display: flex; flex-direction: column; }
+.sc-panel.open { transform: translateX(0); }
+.sc-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--navy); color: #fff; }
+.sc-sub { font-size: 12.5px; opacity: .85; }
+.sc-close { background: none; border: 0; color: #fff; font-size: 20px; cursor: pointer; }
+.sc-body { overflow-y: auto; padding: 12px 16px 24px; font-size: 14px; }
+.sc-body h4 { margin: 16px 0 8px; color: var(--navy); font-size: 15px; }
+.sc-note { font-size: 12.5px; color: var(--muted); background: #f4f8fc; border-radius: 8px; padding: 6px 10px; }
+.sc-row, .sc-out { display: grid; grid-template-columns: 1fr 120px 74px; gap: 8px; align-items: center; padding: 4px 0; }
+.sc-row input, .sc-row select { font: inherit; padding: 6px 8px; border: 1.5px solid #4a9de0; border-radius: 6px; text-align: right; width: 100%; box-sizing: border-box; }
+.sc-row select { text-align: left; }
+.sc-row em, .sc-out em { font-style: normal; color: var(--muted); font-size: 12.5px; }
+.sc-out b { text-align: right; }
+.sc-assume { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.sc-assume summary { cursor: pointer; font-weight: 600; color: var(--navy); padding: 4px 0; }
+.sc-cards { display: grid; gap: 10px; }
+.sc-card { border-radius: 12px; padding: 10px 12px; border: 1px solid; }
+.sc-card.a { background: #eef7ff; border-color: #cfe2fb; } .sc-card.b { background: #fff7e8; border-color: #f5d29a; }
+.sc-ct { font-weight: 700; color: var(--navy); margin-bottom: 4px; } .sc-ct span { font-weight: 400; font-size: 12.5px; color: var(--muted); display: block; }
+.sc-kv { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 13.5px; }
+.sc-kv.hl { font-size: 15px; color: #0b6b3a; }
+.sc-over { color: #b42318; }
+.sc-apply { margin-top: 8px; width: 100%; }
+.sc-foot { font-size: 12px; color: var(--muted); margin-top: 14px; }
+
+/* ── เอกสาร (A4) ── */
+.sd-modal .modal-body { background: #e9edf2; }
+.sd-doc { font-size: 12px; color: #111; line-height: 1.35; }
+.sd-page { background: #fff; width: 210mm; min-height: 297mm; margin: 0 auto 14px; padding: 10mm 11mm; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.sd-one { min-height: 297mm; max-height: 297mm; overflow: hidden; font-size: 10.2px; line-height: 1.3; padding: 7mm 8mm; }
+.sd-doc th, .sd-doc td { font-size: inherit; line-height: inherit; }
+.sd-one .sd-t th, .sd-one .sd-t td { padding: 1.5px 5px; }
+.sd-one .sd-kv th { width: 23%; }
+.sd-one .sd-sec { margin-bottom: 4px; }
+.sd-one .sd-h { padding: 2px 7px; }
+.sd-one .sd-head { padding-bottom: 4px; margin-bottom: 4px; }
+.sd-one .sd-logo { height: 32px; }
+.sd-one .sd-meta th, .sd-one .sd-meta td { padding: 2px 6px; }
+.sd-one .sd-lead { margin: 2px 0 4px; }
+.sd-one .sd-signs { margin-top: 6px; }
+.sd-extras td.nw, .sd-extras th { white-space: nowrap; }
+.sd-modal { max-width: 900px; }
+.sd-head { display: grid; grid-template-columns: 120px 1fr 90px; align-items: center; gap: 10px; border-bottom: 2.5px solid #00397a; padding-bottom: 6px; margin-bottom: 6px; }
+.sd-logo { height: 40px; }
+.sd-title { text-align: center; } .sd-title b { display: block; font-size: 17px; color: #00397a; } .sd-title span { font-size: 11px; letter-spacing: .5px; color: #444; }
+.sd-one .sd-title b { font-size: 15px; }
+.sd-code { text-align: right; font-weight: 700; color: #00397a; }
+.sd-meta { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.sd-meta th, .sd-meta td { border: 1px solid #c9d3df; padding: 3px 6px; text-align: left; }
+.sd-meta th { background: #eef3f9; width: 18%; font-weight: 600; } .sd-meta small { font-weight: 400; color: #555; }
+.sd-lead { margin: 4px 0 6px; } .sd-lead small { color: #555; }
+.sd-sec { margin-bottom: 6px; break-inside: avoid; }
+.sd-h { font-weight: 700; color: #fff; background: #00397a; padding: 3px 8px; border-radius: 3px; margin-bottom: 3px; }
+.sd-h span { margin-right: 6px; } .sd-h small { font-weight: 400; opacity: .85; }
+.sd-t { width: 100%; border-collapse: collapse; }
+.sd-t th, .sd-t td { border: 1px solid #c9d3df; padding: 3px 6px; vertical-align: top; text-align: left; }
+.sd-t th { background: #f4f7fb; font-weight: 600; width: 26%; }
+.sd-grid th { width: auto; }
+.sd-t .r { text-align: right; } .sd-t .c { text-align: center; }
+.sd-t tr.sd-th th { background: #e3ebf5; }
+.sd-price .sd-total td { font-weight: 700; background: #e3ebf5; font-size: 1.1em; }
+.sd-opt { margin-right: 10px; white-space: nowrap; }
+.sd-blank { display: inline-block; min-width: 90px; border-bottom: 1px dotted #999; }
+.sd-checks { display: grid; gap: 2px; padding: 2px 4px; }
+.sd-note { font-size: .9em; color: #555; margin-top: 2px; }
+.sd-terms { margin: 2px 0; padding-left: 16px; } .sd-terms li { margin: 1px 0; }
+.sd-one .sd-terms { font-size: 9.4px; columns: 2; column-gap: 14px; }
+.sd-ack { font-weight: 700; margin-top: 4px; }
+.sd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sd-signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; text-align: center; break-inside: avoid; }
+.sd-sig { height: 46px; display: flex; align-items: flex-end; justify-content: center; }
+.sd-sig img { max-height: 46px; max-width: 100%; }
+.sd-one .sd-sig { height: 38px; } .sd-one .sd-sig img { max-height: 38px; }
+.sd-line { border-bottom: 1px dotted #555; margin: 0 10px 3px; }
+.sd-role { font-weight: 700; } .sd-date { color: #555; font-size: .92em; }
+.sd-foot { text-align: center; font-size: 9.5px; color: #666; margin-top: 6px; }
+
+@media print {
+  body.printing-solar .topbar, body.printing-solar header, body.printing-solar footer, body.printing-solar #app,
+  body.printing-solar .modal-head, body.printing-solar .modal-foot, body.printing-solar .sc-tab, body.printing-solar .sc-panel { display: none !important; }
+  body.printing-solar .mask { position: static; background: none; padding: 0; display: block; }
+  body.printing-solar .modal { box-shadow: none; max-width: none; width: auto; border-radius: 0; margin: 0; }
+  body.printing-solar .modal-body { padding: 0; overflow: visible !important; max-height: none !important; background: none; }
+  body.printing-solar .sd-page { margin: 0; box-shadow: none; break-after: page; width: auto; min-height: 0; }
+  body.printing-solar .sd-page:last-child { break-after: auto; }
+  body.printing-solar .sd-one { max-height: none; height: 279mm; overflow: hidden; }
+}
+@page solarpage { size: A4 portrait; margin: 8mm; }
+@media print { body.printing-solar .sd-page { page: solarpage; } }
+/* ฉบับฝ่ายขาย 2 หน้า A4 */
+.sd-sales { font-size: 11px; }
+.sd-sales .sd-t th, .sd-sales .sd-t td { padding: 2.5px 6px; }
+.sd-sales .sd-terms { font-size: 10.4px; }
+.sd-sales .sd-sec { margin-bottom: 5px; }
