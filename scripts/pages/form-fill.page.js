@@ -9,6 +9,7 @@ import { isWelfareRoom } from '../templates/welfare-room.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
+import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
 import { isCarForm, CAR_FIELDS, CAR_PLACE, carProblem, mapLink } from '../services/car.js';
 /** ฟอร์มที่มีปฏิทินด้านข้าง: คิวรายวัน (Messenger) หรือจองรถ */
 const hasCal = (fields) => isQueueForm(fields) || isCarForm(fields);
@@ -27,7 +28,8 @@ const active = (v) => v !== false && v !== 'No' && v !== 'ไม่' && v !== 0;
 let form = null;
 let me = null;
 let editId = null;
-let editSign = null;    // ลายเซ็นผู้ยื่นเดิม (โหมดแก้ไข)
+let editSign = null;
+let solar = null;        // โมดูลหน้ากรอกเฉพาะ (ใบจองโซลาร์เซลล์)    // ลายเซ็นผู้ยื่นเดิม (โหมดแก้ไข)
 
 /**
  * เลขที่เอกสาร แยกรันตามฟอร์ม รีเซ็ตทุกปี
@@ -130,6 +132,15 @@ export async function render(ctx) {
       <div class="panel"><div class="empty">ไม่พบแบบฟอร์มรหัส ${esc(code)}
         <br><a href="#/forms">กลับไปหน้าแบบฟอร์มทั้งหมด</a></div></div></div></section>`;
   }
+
+  // ใบจองโซลาร์เซลล์: หน้ากรอกเฉพาะ (คำนวณราคา ลายเซ็น 3 ช่อง Solar Calculator)
+  if (isSolar(form.FormCode)) {
+    solar = await import('../forms/solar-booking.js');
+    fields = SOLAR_FIELDS;
+    if (state.formSent) return solar.solarDoneHtml({ sentNo: state.formSent, warn: state.formWarn || [] });
+    return solar.solarRender({ form, me, dir: people, editData });
+  }
+  solar = null;
 
   if (state.formSent) {
     return `<section class="page page-form"><div class="wrap narrow">
@@ -413,7 +424,112 @@ function bindProjectHint() {
   show();
 }
 
+/**
+ * บันทึกคำขอ (ยื่นใหม่ หรือแก้ไขแล้วยื่นใหม่เมื่อมี editId) — คำนวณเส้นทางอนุมัติ ออกเลขที่เอกสาร เติมช่องให้ Power Automate
+ * ใช้ร่วมกับแบบฟอร์มที่มีหน้ากรอกเฉพาะ (เช่น ใบจองโซลาร์เซลล์) · คืน { sentNo, warn, no }
+ */
+export async function saveRequest(values, { flds = fields, files = attachedFiles(), afterCreate = null } = {}) {
+  if (editId) {
+    // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
+    const orig = (await list('requests', { fresh: true }).catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
+    // ช่องที่ระบบ/ผู้อนุมัติเติมเอง (เลข PR ทะเบียนรถ ฯลฯ) ไม่อยู่ในฟอร์มที่ผู้ยื่นแก้ → เก็บค่าเดิมไว้
+    try {
+      const od = JSON.parse(orig.FormData || '{}') || {};
+      ['pr_no', 'pr_date', 'car_plate', 'car_returned_at', 'q_no'].forEach((k) => {
+        if (od[k] !== undefined && values[k] === undefined) values[k] = od[k];
+      });
+    } catch (e) { /* FormData เดิมอ่านไม่ได้ ข้าม */ }
+    const rq = { ...orig, FormCode: form.FormCode, FormData: JSON.stringify(values) };
+    const { route, missing } = await buildRoute(rq);
+    const first = route.length ? route[0].step : 1;
+    const um = await update('requests', editId, {
+      FormData: JSON.stringify(values),
+      SummaryText: summarizeForm(flds, values),
+      Files: JSON.stringify(files),
+      Status: 'รออนุมัติ', CurrentStep: first,
+      ApprovalLog: (() => {
+        let lg = []; try { lg = JSON.parse(orig.ApprovalLog || '[]'); } catch (e) { lg = []; }
+        if (!Array.isArray(lg)) lg = [];
+        lg.push({ step: 0, action: 'ยื่นใหม่', by: (me && me.Title) || state.user?.name || '',
+                  note: 'แก้ไขและยื่นใหม่', at: new Date().toISOString() });
+        return JSON.stringify(lg);
+      })(),
+      ...flowFieldsFor(route, first),
+    });
+    if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
+    const uprob = [...(um?.skipped || []), ...(um?.dropped || [])];
+    if (uprob.some((x) => /^(Status|CurrentStep|FormData)\b/.test(x)))
+      throw new Error('บันทึกการแก้ไขไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + uprob.join('\n• '));
+    const w1 = [...uprob];
+    if (missing.length) w1.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
+    if (!route.length) w1.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
+    return { sentNo: 'แก้ไขแล้ว', warn: w1 };
+  }
+
+  // ใบขอสั่งซื้อ: ออกเลข PR อัตโนมัติ (PRyyMMnnn) ตอนยื่น · ตรวจซ้ำอีกครั้งหลังบันทึก
+  const prMod = isPR(form.FormCode) ? await import('../services/pr.js') : null;
+  if (prMod && !values.pr_no) {
+    values.pr_no = prMod.nextPRNo(await list('requests', { fresh: true }).catch(() => []), { start: await prMod.prStart() });
+    values.pr_date = prMod.todayISO();
+  }
+
+  const base = {
+    FormCode: form.FormCode,
+    FormName: form.Title,
+    RequesterName: (me && me.Title) || state.user?.name || '',
+    RequesterEmail: state.user?.email || '',
+    RequesterDept: me?.Department || '',
+    FormData: JSON.stringify(values),
+    // สรุปทั้งใบเป็นข้อความ ให้การ์ด Teams/อีเมล แสดงได้ครบโดยไม่ต้องเปิดเว็บ
+    SummaryText: summarizeForm(flds, values),
+  };
+  // คำนวณเส้นทาง + อีเมลผู้อนุมัติทุกลำดับไว้ล่วงหน้า ให้ Power Automate ใช้ได้ทันที
+  const { route, missing } = await buildRoute(base);
+  const first = route.length ? route[0].step : 1;
+  if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
+
+  const r = await createWithDocNo(form.FormCode, {
+    ...base,
+    Status: 'รออนุมัติ',
+    CurrentStep: first,
+    SubmittedDate: new Date().toISOString(),
+    Files: JSON.stringify(files),
+    ApprovalLog: '[]',
+    ...flowFieldsFor(route, first),
+  });
+
+  // ถ้าช่องสำคัญเขียนลง SharePoint ไม่ได้ อย่าขึ้นสำเร็จปลอม — บอกสาเหตุให้ชัด
+  const problems = [...(r.skipped || []), ...(r.dropped || [])];
+  const critical = problems.filter((x) => /^(Status|CurrentStep|FormCode|FormData)\b/.test(x));
+  if (critical.length) {
+    throw new Error(
+      'คำขอบันทึกไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + problems.join('\n• ') +
+      '\n\nวิธีแก้: เปิด List Requests ที่ SharePoint แล้วแก้ชนิดคอลัมน์ให้ถูก — ' +
+      'Status/FormCode ต้องเป็น Single line of text (ไม่ใช่ Choice), CurrentStep ต้องเป็น Number, ApprovalLog ต้องเป็น Multiple lines of text');
+  }
+
+  const warn = [...problems];
+  if (missing.length) warn.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
+  if (!route.length) warn.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
+  let sentNo = r.no;
+  if (prMod) {
+    const row = (await list('requests', { fresh: true }).catch(() => [])).find((x) => String(x.Title) === String(r.no));
+    const prNo = row ? await prMod.assignPRNo(row.id).catch(() => values.pr_no) : values.pr_no;
+    if (prNo) sentNo = `${r.no} · PR No. ${prNo}`;
+  }
+  if (afterCreate) sentNo = (await afterCreate(r.no, sentNo)) || sentNo;
+  return { sentNo, warn, no: r.no };
+}
+
 export function mount(ctx) {
+  if (solar) {
+    if (state.formSent) { solar.bindSolarDone(); return; }
+    solar.solarMount({
+      form, saveRequest,
+      onSaved: ({ sentNo, warn }) => setState({ formSent: sentNo, formDraft: null, formWarn: warn.length ? warn : null }),
+    });
+    return;
+  }
   const again = $('#again');
   if (again) again.onclick = () => setState({ formSent: null, formDraft: null });
 
@@ -529,95 +645,7 @@ export function mount(ctx) {
             url, at: new Date().toISOString() };
         }
       }
-      if (editId) {
-        // แก้ไขคำขอเดิม เขียนทับข้อมูลและรีเซ็ตกลับลำดับ 1 (ยังไม่มีใครอนุมัติอยู่แล้ว)
-        const orig = (await list('requests', { fresh: true }).catch(() => [])).find((r) => String(r.id) === String(editId)) || {};
-        // ช่องที่ระบบ/ผู้อนุมัติเติมเอง (เลข PR ทะเบียนรถ ฯลฯ) ไม่อยู่ในฟอร์มที่ผู้ยื่นแก้ → เก็บค่าเดิมไว้
-        try {
-          const od = JSON.parse(orig.FormData || '{}') || {};
-          ['pr_no', 'pr_date', 'car_plate', 'car_returned_at'].forEach((k) => {
-            if (od[k] !== undefined && res.values[k] === undefined) res.values[k] = od[k];
-          });
-        } catch (e) { /* FormData เดิมอ่านไม่ได้ ข้าม */ }
-        const rq = { ...orig, FormCode: form.FormCode, FormData: JSON.stringify(res.values) };
-        const { route, missing } = await buildRoute(rq);
-        const first = route.length ? route[0].step : 1;
-        const um = await update('requests', editId, {
-          FormData: JSON.stringify(res.values),
-          SummaryText: summarizeForm(fields, res.values),
-          Files: JSON.stringify(attachedFiles()),
-          Status: 'รออนุมัติ', CurrentStep: first,
-          ApprovalLog: (() => {
-            let lg = []; try { lg = JSON.parse(orig.ApprovalLog || '[]'); } catch (e) { lg = []; }
-            if (!Array.isArray(lg)) lg = [];
-            lg.push({ step: 0, action: 'ยื่นใหม่', by: (me && me.Title) || state.user?.name || '',
-                      note: 'แก้ไขและยื่นใหม่', at: new Date().toISOString() });
-            return JSON.stringify(lg);
-          })(),
-          ...flowFieldsFor(route, first),
-        });
-        if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
-        const uprob = [...(um?.skipped || []), ...(um?.dropped || [])];
-        if (uprob.some((x) => /^(Status|CurrentStep|FormData)\b/.test(x)))
-          throw new Error('บันทึกการแก้ไขไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + uprob.join('\n• '));
-        const w1 = [...uprob];
-        if (missing.length) w1.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
-        if (!route.length) w1.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
-        setState({ formSent: 'แก้ไขแล้ว', formDraft: null, formWarn: w1.length ? w1 : null });
-        return;
-      }
-
-      // ใบขอสั่งซื้อ: ออกเลข PR อัตโนมัติ (PRyyMMnnn) ตอนยื่น · ตรวจซ้ำอีกครั้งหลังบันทึก
-      const prMod = isPR(form.FormCode) ? await import('../services/pr.js') : null;
-      if (prMod && !res.values.pr_no) {
-        res.values.pr_no = prMod.nextPRNo(await list('requests', { fresh: true }).catch(() => []), { start: await prMod.prStart() });
-        res.values.pr_date = prMod.todayISO();
-      }
-
-      const base = {
-        FormCode: form.FormCode,
-        FormName: form.Title,
-        RequesterName: (me && me.Title) || state.user?.name || '',
-        RequesterEmail: state.user?.email || '',
-        RequesterDept: me?.Department || '',
-        FormData: JSON.stringify(res.values),
-        // สรุปทั้งใบเป็นข้อความ ให้การ์ด Teams/อีเมล แสดงได้ครบโดยไม่ต้องเปิดเว็บ
-        SummaryText: summarizeForm(fields, res.values),
-      };
-      // คำนวณเส้นทาง + อีเมลผู้อนุมัติทุกลำดับไว้ล่วงหน้า ให้ Power Automate ใช้ได้ทันที
-      const { route, missing } = await buildRoute(base);
-      const first = route.length ? route[0].step : 1;
-      if (missing.length) console.warn('[route] ไม่พบอีเมลของ:', missing);
-
-      const r = await createWithDocNo(form.FormCode, {
-        ...base,
-        Status: 'รออนุมัติ',
-        CurrentStep: first,
-        SubmittedDate: new Date().toISOString(),
-        Files: JSON.stringify(attachedFiles()),
-        ApprovalLog: '[]',
-        ...flowFieldsFor(route, first),
-      });
-
-      // ถ้าช่องสำคัญเขียนลง SharePoint ไม่ได้ อย่าขึ้นสำเร็จปลอม — บอกสาเหตุให้ชัด
-      const problems = [...(r.skipped || []), ...(r.dropped || [])];
-      const critical = problems.filter((x) => /^(Status|CurrentStep|FormCode|FormData)\b/.test(x));
-      if (critical.length) {
-        throw new Error(
-          'คำขอบันทึกไม่ครบ ช่องสำคัญที่ SharePoint ไม่รับ:\n• ' + problems.join('\n• ') +
-          '\n\nวิธีแก้: เปิด List Requests ที่ SharePoint แล้วแก้ชนิดคอลัมน์ให้ถูก — ' +
-          'Status/FormCode ต้องเป็น Single line of text (ไม่ใช่ Choice), CurrentStep ต้องเป็น Number, ApprovalLog ต้องเป็น Multiple lines of text');
-      }
-
-      const warn = [...problems];
-      if (missing.length) warn.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
-      if (!route.length) warn.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
-      let sentNo = r.no;
-      if (prMod) {
-        const row = (await list('requests', { fresh: true }).catch(() => [])).find((x) => String(x.Title) === String(r.no));
-        const prNo = row ? await prMod.assignPRNo(row.id).catch(() => res.values.pr_no) : res.values.pr_no;
-        if (prNo) sentNo = `${r.no} · PR No. ${prNo}`;
-      }
+      const { sentNo, warn } = await saveRequest(res.values);
       setState({ formSent: sentNo, formDraft: null, formWarn: warn.length ? warn : null });
     } catch (e) {
       console.error(e);

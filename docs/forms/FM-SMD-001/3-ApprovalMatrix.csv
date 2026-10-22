@@ -1,0 +1,2 @@
+﻿FormCode,StepOrder,StepName,ApproverType,ApproverDept,ApproveMode,ExtraApprovers,ConditionField,ConditionValues,Optional,NotifyAtSubmit,IsActive,SortOrder
+FM-SMD-001,1,ผู้จัดการฝ่ายขายและการตลาด ตรวจสอบใบจอง,ผู้จัดการฝ่ายที่ระบุ,ฝ่ายขายและการตลาด,คนใดคนหนึ่งอนุมัติก็ผ่าน,,,,No,No,Yes,1
