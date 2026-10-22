@@ -10,14 +10,30 @@
  */
 import { esc, $ } from '../core/dom.js';
 import { loadSolarPrices, sizesFor } from '../services/solar.js';
+import { state } from '../core/state.js';
+import { toast } from './toast.js';
 
 /** ขนาดแพ็กเกจตั้งต้นในไฟล์ Excel (ใช้เมื่อยังไม่ได้ตั้ง Price List) */
 const DEFAULT_SIZES = [3.25, 3.9, 5.2, 6.5, 10.4, 13, 19.5, 20.8, 22.1, 26];
 const DEFAULT_BATT = [7, 14, 21];
 const D = { bill: 8000, day: 20, rate: 4.3583, ft: 0.1623, pr: 0.8, sun: 5, prDod: 0.7, btu: 18000, phase: '1' };
 const KEY = 'solarCalc';
-/** สมมติฐานตาม Solar Calculator Rev.03 — ค่าคงที่ ไม่ให้แก้ */
+/**
+ * สมมติฐานการคำนวณ: ผู้ใช้ทั่วไปแก้ไม่ได้ · ผู้ดูแลระบบกด ⚙ ในกรอบเพื่อแก้
+ * เก็บในตั้งค่าระบบ SolarCalcAssumptions (JSON) · ไม่มีค่า = ใช้ค่าตาม Rev.03
+ */
 const FIXED = ['rate', 'ft', 'pr', 'sun', 'prDod'];
+export const ASSUME_SETTING = 'SolarCalcAssumptions';
+async function loadAssumptions({ fresh = false } = {}) {
+  const out = {};
+  try {
+    const { settings, clearSettings } = await import('../utils/settings.js');
+    if (fresh) clearSettings();
+    const saved = JSON.parse(String((await settings())[ASSUME_SETTING] || '').trim() || '{}') || {};
+    FIXED.forEach((k) => { const n = +String(saved[k] ?? '').replace(/,/g, ''); if (saved[k] !== '' && saved[k] != null && Number.isFinite(n) && n > 0) out[k] = n; });
+  } catch (e) { console.warn('อ่านสมมติฐาน Solar Calculator ไม่สำเร็จ:', e.message); }
+  return out;
+}
 
 const n2 = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('th-TH', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–');
 const baht = (v) => n2(v, 0);
@@ -44,7 +60,10 @@ export function bindCalculator({ shell, onApply }) {
   try { v = { ...D, ...(JSON.parse(localStorage.getItem(KEY) || '{}') || {}) }; } catch (e) { /* ใช้ค่าเริ่มต้น */ }
   FIXED.forEach((k) => { v[k] = D[k]; });
   let prices = null;
+  let editing = null;      // ค่าที่ผู้ดูแลกำลังแก้ (null = ไม่ได้แก้)
+  let assumeOpen = false;
   loadSolarPrices().then((p) => { prices = p; paint(); });
+  loadAssumptions().then((a) => { Object.assign(v, a); paint(); });
 
   const setOpen = (open) => {
     panel.classList.toggle('open', open);
@@ -89,7 +108,10 @@ export function bindCalculator({ shell, onApply }) {
     const pA = r.pkgA != null ? r.priceOf(r.pkgA) : null;
     const pB = r.pkgB != null ? r.priceOf(r.pkgB) : null;
     const pBat = r.pkgBatt != null ? r.battPrice(r.pkgBatt) : null;
-    const fixed = (k, label, unit) => `<div class="sc-out"><span>${label}</span><b>${v[k]}</b><em>${unit}</em></div>`;
+    const fixed = (k, label, unit) => (editing
+      ? `<label class="sc-row"><span>${label}</span><input data-as="${k}" value="${esc(editing[k])}" inputmode="decimal"><em>${unit}</em></label>`
+      : `<div class="sc-out"><span>${label}</span><b>${v[k]}</b><em>${unit}</em></div>`);
+    const gear = state.isAdmin && !editing ? '<button type="button" class="sc-gear" data-asact="edit" title="แก้ไขสมมติฐานการคำนวณ (ผู้ดูแลระบบ)" aria-label="แก้ไขสมมติฐานการคำนวณ">⚙</button>' : '';
     body.innerHTML = `
       <div class="sc-note">กรอกเฉพาะช่องสีขาว · ช่องอื่นคำนวณให้อัตโนมัติ</div>
       <h4>① ข้อมูลการใช้ไฟฟ้าของลูกค้า</h4>
@@ -98,14 +120,20 @@ export function bindCalculator({ shell, onApply }) {
       <div class="sc-out"><span>สัดส่วนกลางคืน</span><b>${n2(100 - (+v.day || 0), 0)}%</b></div>
       <div class="sc-out"><span>หน่วยไฟ กลางวัน / กลางคืน</span><b>${n2(r.dayU, 0)} / ${n2(r.nightU, 0)}</b><em>หน่วย/เดือน</em></div>
       <div class="sc-out"><span>รวมหน่วยไฟฟ้าทั้งหมด</span><b>${n2(r.total, 0)}</b><em>หน่วย/เดือน</em></div>
-      <details class="sc-assume"><summary>② สมมติฐานการคำนวณ</summary>
+      <details class="sc-assume${editing ? ' editing' : ''}" ${assumeOpen || editing ? 'open' : ''}><summary>② สมมติฐานการคำนวณ ${gear}</summary>
         ${fixed('rate', 'อัตราค่าไฟฟ้า', 'บาท/หน่วย')}
         ${fixed('ft', 'ค่า Ft', 'บาท/หน่วย')}
-        <div class="sc-out"><span>รวมค่าไฟฟ้าต่อหน่วย</span><b>${n2(r.unit, 4)}</b><em>บาท/หน่วย</em></div>
+        ${editing ? '' : `<div class="sc-out"><span>รวมค่าไฟฟ้าต่อหน่วย</span><b>${n2(r.unit, 4)}</b><em>บาท/หน่วย</em></div>`}
         ${fixed('pr', 'Performance Ratio (PR)', '')}
         ${fixed('sun', 'ชั่วโมงแดดเฉลี่ย', 'ชม./วัน')}
         ${fixed('prDod', 'PR Including DoD Battery', '')}
-        <div class="sc-fixnote">🔒 ค่าคงที่ตาม Solar Calculator Rev.03 · แก้ไขไม่ได้</div>
+        ${editing ? `<div class="sc-asbar">
+            <button type="button" class="btn-mini" data-asact="default" title="กลับไปใช้ค่าตาม Solar Calculator Rev.03">↺ ค่าตาม Rev.03</button>
+            <button type="button" class="btn-mini" data-asact="cancel">ยกเลิก</button>
+            <button type="button" class="btn btn-primary sc-assave" data-asact="save">💾 บันทึก</button>
+          </div>
+          <div class="sc-fixnote">บันทึกแล้วมีผลกับทุกคนที่ใช้ Calculator</div>`
+    : `<div class="sc-fixnote">🔒 ${state.isAdmin ? 'กด ⚙ เพื่อแก้ไข (ผู้ดูแลระบบ)' : 'ค่ากลางของบริษัท · แก้ไขได้เฉพาะผู้ดูแลระบบ'}</div>`}
       </details>
       <label class="sc-row"><span>ระบบไฟฟ้าของลูกค้า</span><select data-sc="phase"><option value="1" ${String(v.phase) !== '3' ? 'selected' : ''}>1 เฟส</option><option value="3" ${String(v.phase) === '3' ? 'selected' : ''}>3 เฟส</option></select><em></em></label>
       <h4>③ ผลการคำนวณ · เปรียบเทียบ 2 ทางเลือก</h4>
@@ -143,8 +171,36 @@ export function bindCalculator({ shell, onApply }) {
   }
   paint();
 
+  async function saveAssumptions(btn) {
+    const val = {};
+    for (const k of FIXED) {
+      const n = +String(editing[k] ?? '').replace(/,/g, '');
+      if (!Number.isFinite(n) || n <= 0) { toast('กรอกตัวเลขมากกว่า 0 ให้ครบทุกช่อง', 'bad'); return; }
+      val[k] = n;
+    }
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try {
+      const { list, create, update } = await import('../services/data.js');
+      const { clearSettings } = await import('../utils/settings.js');
+      const rows = await list('settings', { fresh: true });
+      const row = rows.find((x) => String(x.Title || '').trim() === ASSUME_SETTING);
+      if (row) await update('settings', row.id, { Value: JSON.stringify(val) });
+      else await create('settings', { Title: ASSUME_SETTING, Value: JSON.stringify(val), Description: 'สมมติฐาน Solar Calculator (ใบจองโซลาร์ FM-SMD-001) — แก้ที่ปุ่ม ⚙ ในกรอบสมมติฐานการคำนวณ' });
+      clearSettings();
+      Object.assign(v, val); editing = null;
+      toast('✓ บันทึกสมมติฐานการคำนวณแล้ว');
+    } catch (ex) {
+      toast('บันทึกไม่สำเร็จ: ' + ex.message, 'bad');
+      btn.disabled = false; btn.textContent = '💾 บันทึก';
+      return;
+    }
+    paint();
+  }
+
   // พิมพ์แล้วคำนวณใหม่ทันที โดยไม่วาดช่องที่กำลังพิมพ์ทับ (เคอร์เซอร์ไม่หลุด)
+  body.addEventListener('toggle', (e) => { if (e.target.classList?.contains('sc-assume')) assumeOpen = e.target.open; }, true);
   body.addEventListener('input', (e) => {
+    if (editing && e.target.dataset.as) { editing[e.target.dataset.as] = e.target.value; return; }
     const k = e.target.dataset.sc;
     if (!k || FIXED.includes(k)) return;
     v[k] = e.target.value;
@@ -160,7 +216,18 @@ export function bindCalculator({ shell, onApply }) {
     }, 300);
   });
   body.addEventListener('change', (e) => { if (e.target.dataset.sc === 'phase') { v.phase = e.target.value; paint(); } });
-  body.addEventListener('click', (e) => {
+  body.addEventListener('click', async (e) => {
+    const a = e.target.closest('[data-asact]');
+    if (a) {
+      e.preventDefault();   // ปุ่มอยู่ใน <summary> ไม่ให้พับกรอบ
+      const act = a.dataset.asact;
+      if (act === 'edit') editing = Object.fromEntries(FIXED.map((k) => [k, v[k]]));
+      else if (act === 'cancel') editing = null;
+      else if (act === 'default') editing = Object.fromEntries(FIXED.map((k) => [k, D[k]]));
+      else if (act === 'save') { await saveAssumptions(a); return; }
+      paint();
+      return;
+    }
     const b = e.target.closest('[data-scapply]');
     if (!b) return;
     const r = calc();

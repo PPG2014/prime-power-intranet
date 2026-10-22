@@ -25,7 +25,7 @@ const VIRTUAL = {
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
-const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList'];
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
