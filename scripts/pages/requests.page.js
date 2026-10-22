@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress, slipOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
@@ -652,7 +652,7 @@ async function openRequest(req) {
           </div>
         </div>
 
-        ${req.PaymentSlip ? renderSlip(req.PaymentSlip) : ''}
+        ${renderSlip(slipOf(req))}
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>'
@@ -673,6 +673,7 @@ async function openRequest(req) {
           ${isSolar(code) ? `<button class="btn-mini sb-exp sales" data-solardoc="sales">⬇ ส่งออก (Sales)</button>
           <button class="btn-mini sb-exp cust" data-solardoc="customer">⬇ ส่งออก (ลูกค้า)</button>`
           : `<button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>`}
+          ${slipOf(req) ? '<button class="btn-mini rq-slip-btn" data-viewslip="1">🧾 ดูหลักฐานการโอนเงิน</button>' : ''}
         </div>
       </div>`,
   });
@@ -680,6 +681,7 @@ async function openRequest(req) {
   import('../services/photos.js').then((m) => m.hydratePhotos(document.getElementById('overlay-root')));
   const formRow = catalog.find((c) => String(c.FormCode || '').trim() === code) || { FormCode: code, Title: req.FormName };
   onClick('exportreq', () => exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow }));
+  onClick('viewslip', () => viewSlip(slipOf(req), req));
   // ใบจองโซลาร์: เอกสารฉบับฝ่ายขาย / ฉบับลูกค้า (A4 หน้าเดียว)
   onClick('solardoc', async (kind) => {
     const [{ openSolarDoc }, { loadSolarPrices }] = await Promise.all([import('../templates/solar-doc.js'), import('../services/solar.js')]);
@@ -771,13 +773,35 @@ async function openRequest(req) {
   });
 }
 
-function renderSlip(raw) {
-  let s; try { s = JSON.parse(raw); } catch (e) { return ''; }
+function renderSlip(s) {
   if (!s || !s.url) return '';
   const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(s.kind);
   return `<div class="rq-slip"><h4>หลักฐานการโอนเงิน</h4>
     ${img ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม"><img data-photo="${esc(s.url)}" alt="สลิป"></a>`
       : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
+}
+
+/** หน้าต่างดูสลิปโอนเงิน (รูปเดียวกับที่ส่งแจ้งผู้ยื่นทาง Teams) · PDF เปิดในแท็บใหม่ */
+async function viewSlip(s, req) {
+  if (!s || !s.url) return;
+  const img = /^(JPG|JPEG|PNG|GIF|WEBP|HEIC)$/i.test(s.kind || '');
+  if (!img) { window.open(s.url, '_blank', 'noopener'); return; }
+  const layer = document.createElement('div');
+  layer.className = 'eta-mask slip-view';
+  layer.innerHTML = `<div class="eta-box slip-view-box" role="dialog" aria-modal="true" aria-label="หลักฐานการโอนเงิน">
+      <div class="eta-head">🧾 หลักฐานการโอนเงิน · ${esc(req.Title || '')}</div>
+      <div class="eta-body"><img data-photo="${esc(s.url)}" data-fail="msg" alt="สลิปโอนเงิน"></div>
+      <div class="eta-foot">
+        <a class="btn-mini" href="${esc(s.url)}" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับ ↗</a>
+        <button type="button" class="btn btn-primary" data-x>ปิด</button>
+      </div></div>`;
+  const close = () => { layer.remove(); removeEventListener('keydown', onKey, true); };
+  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  layer.addEventListener('click', (e) => { if (e.target === layer || e.target.closest('[data-x]')) close(); });
+  addEventListener('keydown', onKey, true);
+  document.body.appendChild(layer);
+  const { hydratePhotos } = await import('../services/photos.js');
+  hydratePhotos(layer);
 }
 
 /** ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: เลือกสถานะงานจัดซื้อแทนปุ่มอนุมัติ · "ส่งของแล้ว" = ปิดคำขอ */

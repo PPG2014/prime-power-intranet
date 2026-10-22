@@ -361,6 +361,15 @@ export function roleOnRequest(req, steps, userName) {
  * FM-ACC-002 เบิกเงินทดรองจ่าย · FM-ACC-003 เบิกเงินสำรองโครงการ
  */
 export const SLIP_FORMS = ['FM-ACC-002', 'FM-ACC-003'];
+/** สลิปโอนเงินของคำขอ: คอลัมน์ PaymentSlip → ถ้าไม่มี ดูในบันทึกอนุมัติ (ล่าสุด) · ไม่มีคืน null */
+export function slipOf(req) {
+  try {
+    const s = JSON.parse((req && req.PaymentSlip) || 'null');
+    if (s && s.url) return s;
+  } catch (e) { /* ค่าเสีย ลองในบันทึกอนุมัติ */ }
+  const hit = parseLog(req && req.ApprovalLog).filter((l) => l.slip && l.slip.url).pop();
+  return hit ? hit.slip : null;
+}
 /** ฟอร์มเบิกเงินที่ขั้นสุดท้ายต้องแนบสลิปการโอน: ตามรหัส หรือชื่อฟอร์มที่เป็นการเบิกเงินสำรอง/ทดรองจ่าย */
 export const needsSlip = (code, name = '') => SLIP_FORMS.includes(String(code || '').trim().toUpperCase())
   || /เงินสำรอง|ทดรองจ่าย/.test(String(name || ''));
@@ -561,7 +570,9 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   const mode = step ? step.ApproveMode : 'คนใดคนหนึ่งอนุมัติก็ผ่าน';
 
   // sig = ลายเซ็นที่ผู้อนุมัติเซ็นตอนกด (ถ้ามี) ใช้ในเอกสารส่งออก
-  log.push({ step: cur, action, by, note, at: new Date().toISOString(), ...(sig ? { sig } : {}) });
+  // สลิปเก็บในบันทึกอนุมัติด้วย — ถ้า List ยังไม่มีคอลัมน์ PaymentSlip ระบบจะตัดช่องนั้นทิ้ง แต่สลิปยังอยู่ในบันทึกนี้
+  const slipMeta = slip && slip.url ? { name: slip.name, url: slip.url, kind: slip.kind, sizeText: slip.sizeText } : null;
+  log.push({ step: cur, action, by, note, at: new Date().toISOString(), ...(sig ? { sig } : {}), ...(slipMeta ? { slip: slipMeta } : {}) });
 
   // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก)
   // อัปเดตสถานะจัดซื้อทำได้หลายครั้งในลำดับเดียวกัน (รับ PR → ออก PO → ส่งของ) ไม่นับว่าซ้ำ
