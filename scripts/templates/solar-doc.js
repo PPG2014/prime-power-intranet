@@ -11,7 +11,8 @@ import { hydratePhotos } from '../services/photos.js';
 import { printWithNotice } from '../components/eta-notice.js';
 import { BANK_ACCOUNT, INCENTIVES, TERMS, SCHEDULE, computeQuote, panelsFor } from '../services/solar.js';
 
-const LOGO = 'assets/img/logo-ppg.png';
+/** หัวกระดาษบริษัท (PPE-01) — โลโก้ ที่อยู่ ไทย/อังกฤษ และเส้นเขียว-น้ำเงิน อยู่ในรูปเดียว */
+const LETTERHEAD = 'assets/img/PPE-01.png';
 const baht = (n) => (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const box = (on) => (on ? '☑' : '☐');
 const opt = (cur, list) => list.map((o) => `<span class="sd-opt">${box(String(cur || '') === o)} ${esc(o)}</span>`).join('');
@@ -24,8 +25,9 @@ const thDate = (iso) => {
 const sigOf = (v, role) => (v._live && v._live[role]) || (v['_sign_' + role] && v['_sign_' + role].url) || '';
 
 function header(v, title) {
-  return `<div class="sd-head">
-    <img src="${LOGO}" alt="Prime Power" class="sd-logo">
+  return `<img src="${LETTERHEAD}" alt="Prime Power Engineering Pro Co., Ltd." class="sd-letterhead">
+  <div class="sd-head">
+    <div></div>
     <div class="sd-title"><b>ใบจองและสั่งซื้อระบบโซลาร์เซลล์</b><span>SOLAR BOOKING &amp; ORDER FORM${title ? ` · ${title}` : ''}</span></div>
     <div class="sd-code">FM-SMD-001</div>
   </div>
