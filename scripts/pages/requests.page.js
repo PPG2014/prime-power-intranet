@@ -152,18 +152,31 @@ function projectOf(req) {
   return other || pj;
 }
 
-function needChip(req) {
+/** วันที่ต้องใช้เงินของคำขอ · tone: due = ถึงวัน/เลยกำหนด, soon = อีก 1–3 วัน, later = เกิน 3 วัน, '' = ปิดแล้ว/ไม่มีวันที่ */
+function needInfo(req) {
   const nf = needField[req.FormCode];
-  if (!nf) return '';
+  if (!nf) return null;
   const day = localDay(prValues(req)[nf.key]);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
   const [y, m, d] = day.split('-').map(Number);
   const t = new Date(); t.setHours(0, 0, 0, 0);
   const diff = Math.round((new Date(y, m - 1, d) - t) / 86400000);
   const open = ['รออนุมัติ', 'ส่งกลับแก้ไข'].includes(String(req.Status || '').trim());
-  const tone = !open ? '' : diff <= 0 ? ' due' : diff <= NEED_SOON_DAYS ? ' soon' : '';
-  const when = !open ? '' : diff < 0 ? ` · เลยกำหนด ${-diff} วัน` : diff === 0 ? ' · วันนี้' : ` · อีก ${diff} วัน`;
-  return `<span class="rq-need${tone}" title="${esc(nf.label)}">📅 ${esc(nf.label)} ${esc(thaiDateShort(new Date(y, m - 1, d)))}${when}</span>`;
+  const tone = !open ? '' : diff <= 0 ? 'due' : diff <= NEED_SOON_DAYS ? 'soon' : 'later';
+  return { nf, date: new Date(y, m - 1, d), diff, open, tone };
+}
+/** ตัวกรองวันที่ต้องใช้เงิน (เฉพาะฟอร์มเบิกเงินสำรอง/ทดรองจ่าย) — ข้อความสั้น ผู้บริหารอ่านแล้วเข้าใจทันที */
+const NEED_FILTERS = [
+  { key: 'due', label: '🔴 ถึงกำหนดแล้ว', hint: 'ถึงวันที่ต้องใช้เงินแล้ว หรือเลยกำหนด — ควรอนุมัติด่วน' },
+  { key: 'soon', label: '🟡 ใกล้ถึง (1–3 วัน)', hint: `อีก 1–${NEED_SOON_DAYS} วันจะถึงวันที่ต้องใช้เงิน` },
+  { key: 'later', label: '⚪ ยังมีเวลา', hint: `อีกเกิน ${NEED_SOON_DAYS} วันจึงจะถึงวันที่ต้องใช้เงิน` },
+];
+function needChip(req) {
+  const n = needInfo(req);
+  if (!n) return '';
+  const tone = n.tone === 'due' || n.tone === 'soon' ? ' ' + n.tone : '';
+  const when = !n.open ? '' : n.diff < 0 ? ` · เลยกำหนด ${-n.diff} วัน` : n.diff === 0 ? ' · วันนี้' : ` · อีก ${n.diff} วัน`;
+  return `<span class="rq-need${tone}" title="${esc(n.nf.label)}">📅 ${esc(n.nf.label)} ${esc(thaiDateShort(n.date))}${when}</span>`;
 }
 
 function summaryLine(req) {
@@ -296,8 +309,11 @@ export async function render(ctx) {
   const reviewStatus = state.reviewStatus || '';
   const isPRTab = !!shownGroup && isPR(shownGroup.code);
   const reviewPStatus = isPRTab ? (state.reviewPStatus || '') : '';
+  const isNeedTab = !!shownGroup && NEED_DATE_FORMS.includes(shownGroup.code);
+  const reviewNeed = isNeedTab ? (state.reviewNeed || '') : '';
   const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
-    && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)) : [];
+    && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)
+    && (!reviewNeed || needInfo(r)?.tone === reviewNeed)) : [];
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -347,6 +363,13 @@ export async function render(ctx) {
                 ${PURCHASE_FILTERS.map((x) => {
                   const n = shownGroup.rows.filter((r) => purchaseStatusOf(r) === x).length;
                   return `<button data-rqpst="${esc(x)}" class="${x === PURCHASE_CANCEL ? 'st-red' : ''}" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
+                }).join('')}
+              </div>` : ''}${isNeedTab ? `<div class="rq-stfilter rq-nfilter" role="group" aria-label="กรองตามวันที่ต้องใช้เงิน">
+                <span class="rq-pf-label" title="นับเฉพาะคำขอที่ยังไม่อนุมัติ (รออนุมัติ / ส่งกลับแก้ไข)">📅 วันที่ต้องใช้เงิน</span>
+                <button data-rqneed="" aria-pressed="${!reviewNeed}">ทั้งหมด</button>
+                ${NEED_FILTERS.map((x) => {
+                  const n = shownGroup.rows.filter((r) => needInfo(r)?.tone === x.key).length;
+                  return `<button data-rqneed="${x.key}" class="nf-${x.key}" title="${esc(x.hint)}" aria-pressed="${x.key === reviewNeed}">${x.label} <b>${n}</b></button>`;
                 }).join('')}
               </div>` : ''}
               <div class="rq-tools">
@@ -1216,6 +1239,7 @@ export function mount(ctx) {
   onClick('tab', (code) => quick({ reviewTab: code }));
   onClick('rqst', (st) => quick({ reviewStatus: st || '' }));
   onClick('rqpst', (st) => quick({ reviewPStatus: st || '' }));
+  onClick('rqneed', (k) => quick({ reviewNeed: k || '' }));
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
