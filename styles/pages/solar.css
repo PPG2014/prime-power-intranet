@@ -52,6 +52,10 @@
 .sb-sign-name { text-align: center; font-size: 14px; }
 .sb-sign .sig-pad { margin: 0; }
 .sb-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin: 14px 0 30px; }
+.sb-exp { color: #fff; border: 0; font-weight: 600; }
+.sb-exp.sales { background: #1f6fb2; } .sb-exp.sales:hover { background: #185a91; }
+.sb-exp.cust { background: #e08a00; } .sb-exp.cust:hover { background: #c27700; }
+.sb-exp:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .sb-done { text-align: center; } .sb-done-ic { font-size: 44px; } .sb-done .sb-actions { justify-content: center; }
 @media (max-width: 860px) {
   .sb-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }

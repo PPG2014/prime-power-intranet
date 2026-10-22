@@ -46,6 +46,7 @@ let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดต�
  */
 export const DEPT_WATCH_FORMS = {
   'ฝ่ายบัญชีและการเงิน': ['FM-ACC-002', 'FM-ACC-003', 'FM-ACC-004'],   // เงินทดรองจ่าย · เงินสำรองโครงการ · ค่าแรงผู้รับเหมา
+  'ฝ่ายขายและการตลาด': ['FM-SMD-001'],                                  // ใบจองโซลาร์เซลล์
 };
 /** ขั้นที่ไม่แสดงรายชื่อผู้มีสิทธิ์อนุมัติ (ชื่อขึ้นเมื่อมีคนกดแล้ว) — ขั้นผู้ทบทวนที่ส่งให้ทั้งฝ่าย */
 const HIDE_NAMES_STEP = /ผู้ทบทวน/;
@@ -666,8 +667,8 @@ async function openRequest(req) {
         </div>` : ''}
 
         <div class="rq-export-row">
-          ${isSolar(code) ? `<button class="btn-mini" data-solardoc="sales">⬇ ส่งออก (Sales)</button>
-          <button class="btn-mini" data-solardoc="customer">⬇ ส่งออก (ลูกค้า)</button>`
+          ${isSolar(code) ? `<button class="btn-mini sb-exp sales" data-solardoc="sales">⬇ ส่งออก (Sales)</button>
+          <button class="btn-mini sb-exp cust" data-solardoc="customer">⬇ ส่งออก (ลูกค้า)</button>`
           : `<button class="btn-mini" data-exportreq="${req.id}">⬇ ส่งออกเป็นเอกสาร (PDF)</button>`}
         </div>
       </div>`,
