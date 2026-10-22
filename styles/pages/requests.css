@@ -453,3 +453,13 @@
 .rq-need.due { color: #fff; background: #d92d20; }
 .rq-row:has(.rq-need.due) { border-left: 4px solid #d92d20; }
 .rq-row:has(.rq-need.soon) { border-left: 4px solid #f0b400; }
+
+/* ตัวกรองวันที่ต้องใช้เงิน (เบิกเงินสำรอง/ทดรองจ่าย) — สีตรงกับป้ายวันที่ในแต่ละใบ */
+.rq-nfilter { margin-top: -6px; align-items: center; }
+.rq-stfilter button[data-rqneed=""][aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.rq-stfilter button.nf-due { color: #b42318; }
+.rq-stfilter button.nf-due[aria-pressed="true"] { background: #d92d20; color: #fff; border-color: #d92d20; }
+.rq-stfilter button.nf-soon { color: #7a5200; }
+.rq-stfilter button.nf-soon[aria-pressed="true"] { background: #fff1c2; border-color: #f0b400; box-shadow: inset 0 0 0 1px #f0b400; }
+.rq-stfilter button.nf-later { color: #44546a; }
+.rq-stfilter button.nf-later[aria-pressed="true"] { background: #eef2f6; }
