@@ -220,11 +220,14 @@ function requestRow(req, opts = {}) {
       <div class="rq-foot">
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
-        ${purchaseStatusOf(req) ? `<span class="rq-pstatus rq-buy">📦 ${esc(purchaseStatusOf(req))}</span>` : ''}
         ${needChip(req)}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
-        ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus rq-prno-chip">PR ${esc(prValues(req).pr_no)}</span>` : ''}
+        ${(() => {   // สถานะจัดซื้อ + เลข PR อยู่ด้วยกันชิดขวา (สถานะอยู่หน้าเลข PR)
+    const buy = purchaseStatusOf(req) ? `<span class="rq-pstatus rq-buy">📦 ${esc(purchaseStatusOf(req))}</span>` : '';
+    const prNo = isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus rq-prno-chip">PR ${esc(prValues(req).pr_no)}</span>` : '';
+    return buy || prNo ? `<span class="rq-prgrp">${buy}${prNo}</span>` : '';
+  })()}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
         ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
         ${opts.waiting ? '<span class="rq-wait-flag" title="คุณอยู่ลำดับถัดไป ดูได้อย่างเดียวจนกว่าจะถึงคิว">👁 ยังไม่ถึงคิว</span>' : ''}
