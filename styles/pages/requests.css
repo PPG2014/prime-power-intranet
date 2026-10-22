@@ -466,3 +466,6 @@
 /* ใบขอสั่งซื้อ: เลข PR อยู่ฝั่งขวา หน้าวันที่ */
 .rq-foot .rq-prno-chip { margin-left: auto; }
 .rq-foot .rq-prno-chip + time { margin-left: 0; }
+/* สถานะจัดซื้อ (เบิก Store · รับ PR · รับใบเสนอราคา · ออก PO แล้ว · ส่ง Sup แล้ว · ส่งของแล้ว · Cancel) = สีชมพู */
+.rq-pstatus.rq-buy { color: #a3195b; background: #fde4f0; }
+.rq-stfilter button.st-pink { color: #a3195b; }
