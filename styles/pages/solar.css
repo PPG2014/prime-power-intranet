@@ -65,8 +65,12 @@
 
 /* ── Solar Calculator แถบข้าง ── */
 .sc-tab { position: fixed; right: 0; top: 46%; z-index: 60; transform: translateY(-50%); writing-mode: vertical-rl; text-orientation: mixed;
-  background: linear-gradient(180deg, #f5b700, #e8590c); color: #fff; border: 0; border-radius: 12px 0 0 12px; padding: 14px 9px;
+  background: linear-gradient(180deg, #2ecc40, #0f8a2e); color: #fff; border: 0; border-radius: 12px 0 0 12px; padding: 12px 8px 16px;
+  display: flex; align-items: center; gap: 8px;
   font: 700 14px/1 inherit; letter-spacing: .5px; cursor: pointer; box-shadow: -2px 2px 10px rgba(0,0,0,.18); transition: right .3s ease; }
+.sc-tab:hover { background: linear-gradient(180deg, #27b838, #0b7426); }
+.sc-tab-ic { background: #fff; border-radius: 6px; padding: 2px; flex: none; }
+.sb-icon svg { display: block; }
 body.sc-open .sc-tab { right: min(460px, 100vw); }
 .sc-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); z-index: 59; background: #fff; border-left: 1px solid var(--line);
   box-shadow: -6px 0 24px rgba(0,0,0,.12); transform: translateX(100%); transition: transform .3s ease; display: flex; flex-direction: column; }

@@ -13,6 +13,7 @@ import { signaturePad, bindSignaturePads, readSignature, previewSignature } from
 import {
   SOLAR_FIELDS, TYPICAL_KWP, ROOF_TYPES, BANK_ACCOUNT, INCENTIVES, TERMS, SCHEDULE,
   loadSolarPrices, computeQuote, sizesFor, panelsFor, previewQuoteNo, assignQuoteNo,
+  panelIcon,
 } from '../services/solar.js';
 import { openSolarDoc } from '../templates/solar-doc.js';
 import { calculatorHtml, bindCalculator } from '../components/solar-calculator.js';
@@ -70,7 +71,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
         <a class="back-link guide-link" href="#/form-guide/${esc(form.FormCode)}">📘 วิธีกรอกและเส้นทางอนุมัติของฟอร์มนี้</a>
         <a class="back-link guide-link" href="#/register/${esc(form.FormCode)}">📋 ทะเบียนใบจอง · ค้นหา · ส่งออก Excel</a>
         <div class="sb-head">
-          <div class="form-icon-lg">${esc(form.Icon || '☀️')}</div>
+          <div class="form-icon-lg sb-icon">${panelIcon(44)}</div>
           <div>
             <h1>ใบจองและสั่งซื้อระบบโซลาร์เซลล์${editMode ? ' <span class="edit-tag">แก้ไข</span>' : ''}</h1>
             <div class="sb-sub">SOLAR BOOKING &amp; ORDER FORM · ${esc(form.FormCode)}${draft && !editMode ? ' · <span class="sb-draft">กู้ข้อมูลที่กรอกค้างไว้แล้ว <button class="link-btn" data-sbact="cleardraft">เริ่มใบใหม่</button></span>' : ''}</div>

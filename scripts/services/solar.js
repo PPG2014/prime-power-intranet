@@ -14,6 +14,13 @@ export const PRICE_SETTING = 'SolarPriceList';
 export const isSolar = (code) => String(code || '').trim().toUpperCase() === SOLAR_CODE;
 
 /** ค่าคงที่ที่ไม่ใช่ราคา */
+/** ไอคอนแผงโซลาร์ (SVG) · ใช้ที่หัวใบจองและแถบ Solar Calculator */
+export const panelIcon = (size = 40, cls = '') => `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+  <circle cx="38" cy="9" r="5" fill="#ffc107"/>
+  <path d="M10 14h26l6 20H4z" fill="#1d4f91" stroke="#0d2f5e" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M18.7 14l-2 20M27.3 14l2 20M7 20.7h32.3M5.5 27.3h36.2" stroke="#8fc3ff" stroke-width="1.3" fill="none"/>
+  <path d="M23 34v7M15 42h16" stroke="#5f6b7a" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
 export const PANEL_W = 650;              // แผง Jinko 650 W
 export const TYPICAL_KWP = [5.2, 6.5, 9.75];
 export const ROOF_TYPES = ['เมทัลชีท', 'กระเบื้องCPAC', 'อดามัส', 'ลอนคู่ (ไฟเบอร์ซีเมนต์)', 'อื่นๆ'];
