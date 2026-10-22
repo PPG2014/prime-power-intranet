@@ -161,6 +161,7 @@ export async function render(ctx) {
   <section class="page page-form${hasCal(fields) ? ' has-queue-cal' : ''}">
     <div class="wrap${hasCal(fields) ? '' : ' narrow'}">
       <a class="back-link" href="#/forms">← แบบฟอร์มทั้งหมด</a>
+      <a class="back-link guide-link" href="#/form-guide/${esc(form.FormCode)}">📘 วิธีกรอกและเส้นทางอนุมัติของฟอร์มนี้</a>
 
       <div class="form-head">
         <div class="form-icon-lg">${form.Icon || '📄'}</div>

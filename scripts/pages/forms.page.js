@@ -51,6 +51,7 @@ export async function render(ctx) {
                  placeholder="ค้นหาชื่อฟอร์ม รหัส หรือฝ่าย" autocomplete="off">
         </div>
         <span class="toolbar-meta">แสดง ${rows.length} จาก ${all.length} รายการ</span>
+        <a class="btn-mini guide-btn" href="#/form-guide" title="อธิบายทุกฟอร์ม: กรอกอะไร ช่องไหนบังคับ ใครอนุมัติ">📘 คู่มือทุกแบบฟอร์ม</a>
       </div>
 
       <div class="chips">
