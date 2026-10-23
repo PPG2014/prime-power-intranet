@@ -198,7 +198,13 @@ if(contains(body('allCodes'), '3'), '3', if(contains(body('allCodes'), '2'), '2'
 ```
 > มีคนกดไม่อนุมัติแม้คนเดียว = ไม่อนุมัติ · มีคนส่งกลับ = ส่งกลับแก้ไข · ทุกคนอนุมัติ = อนุมัติ
 
-**E)** **Set variable** → Name `varBy` · Value (พิมพ์) `ผู้อนุมัติทุกคนในลำดับนี้`
+**E1)** **Select** → Rename `allNames`
+- From (fx) `body('approvalAll')?['responses']`
+- Map: โหมดข้อความ → (fx) `item()?['responder']?['displayName']`
+
+**E2)** **Set variable** → Name `varBy` · Value (fx) `join(body('allNames'), ', ')`
+> บันทึกชื่อผู้อนุมัติทุกคนในลำดับนี้ คั่นด้วยจุลภาค — หน้าเว็บแปลงเป็นชื่อไทยทีละชื่อ
+> โฟลว์ที่ตั้งไว้แบบเดิม (พิมพ์ `ผู้อนุมัติทุกคนในลำดับนี้`) ยังใช้ได้: หน้าเว็บดึงชื่อจากช่องเหตุผล (varNote) มาแสดงแทน
 
 **F)** **Set variable** → Name `varNote` · Value (fx) `join(body('allText'), ' | ')`
 

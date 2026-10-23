@@ -1,4 +1,5 @@
 import { setPeople, thaiName } from '../services/names.js';
+import { rawApproverNames } from '../services/requests.js';
 import { esc, $, onClick } from '../core/dom.js';
 import { list, schemaOf } from '../services/data.js';
 import { toArray } from '../admin/entity-form.js';
@@ -62,8 +63,9 @@ async function runChecks() {
   requests.forEach((r) => {
     let lg = []; try { lg = JSON.parse(r.ApprovalLog || '[]'); } catch (e) { lg = []; }
     (Array.isArray(lg) ? lg : []).forEach((l) => {
-      const n = clean(l && l.by);
-      if (n && !/[\u0E00-\u0E7F]/.test(n) && thaiName(n) === n) enLeft.set(n, (enLeft.get(n) || 0) + 1);
+      rawApproverNames(l).map(clean).forEach((n) => {
+        if (n && !/[\u0E00-\u0E7F]/.test(n) && thaiName(n) === n) enLeft.set(n, (enLeft.get(n) || 0) + 1);
+      });
     });
   });
   if (enLeft.size) {

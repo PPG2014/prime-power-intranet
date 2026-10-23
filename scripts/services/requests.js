@@ -299,13 +299,53 @@ const toArr = (v) => Array.isArray(v)
   ? v.map((x) => (x && typeof x === 'object' ? (x.LookupValue ?? x.Title ?? '') : x)).filter(Boolean)
   : String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
 
+/**
+ * ลำดับที่ต้องอนุมัติครบทุกคน กดผ่านการ์ด Teams: โฟลว์รุ่นแรกบันทึกผู้อนุมัติเป็นคำกลาง ๆ นี้
+ * ส่วนชื่อจริงอยู่ในความเห็นรูปแบบ "ชื่อ: ความเห็น | ชื่อ: ความเห็น"
+ */
+const ALL_BY = 'ผู้อนุมัติทุกคนในลำดับนี้';
+const nameList = (by) => String(by || '').split(/\s*[,;]\s*/).map((x) => x.trim()).filter(Boolean);
+
+/** ชื่อผู้อนุมัติดิบของบันทึกหนึ่งบรรทัด (ยังไม่แปลงเป็นไทย) · ใช้ตรวจชื่อที่จับคู่ไม่ได้ */
+export function rawApproverNames(l) {
+  if (!l || typeof l !== 'object') return [];
+  if (String(l.by || '').trim() === ALL_BY && typeof l.note === 'string') {
+    return l.note.split(' | ').map((p) => { const i = p.indexOf(': '); return i > 0 ? p.slice(0, i).trim() : ''; }).filter(Boolean);
+  }
+  return nameList(l.by);
+}
+
+/** ดึงชื่อผู้อนุมัติจากความเห็น · ความเห็นที่เป็น "-" (ไม่ได้พิมพ์) ไม่แสดง */
+function expandAllApprovers(l) {
+  if (String(l.by || '').trim() !== ALL_BY || typeof l.note !== 'string' || !l.note.includes(': ')) return null;
+  const parts = l.note.split(' | ').map((p) => {
+    const i = p.indexOf(': ');
+    return i > 0 ? { who: thaiName(p.slice(0, i).trim()), text: p.slice(i + 2).trim() } : { who: '', text: p.trim() };
+  });
+  const names = [...new Set(parts.map((p) => p.who).filter(Boolean))];
+  if (!names.length) return null;
+  const said = parts.filter((p) => p.text && p.text !== '-');
+  return { ...l, by: names.join(', '), byList: names,
+    note: said.map((p) => (names.length > 1 && p.who ? `${p.who}: ${p.text}` : p.text)).join(' | ') };
+}
+
 /** ประวัติการอนุมัติ · ชื่อจากการ์ด Teams (อังกฤษ) แปลงเป็นชื่อไทยในทะเบียน (services/names.js) */
 export const parseLog = (v) => {
   let a;
   try { a = JSON.parse(v || '[]'); } catch (e) { return []; }
   if (!Array.isArray(a)) return [];
-  return a.map((l) => (l && typeof l === 'object' && (l.by || l.note)
-    ? { ...l, by: thaiName(l.by), note: thaiNote(l.note) } : l));
+  return a.map((l) => {
+    if (!l || typeof l !== 'object' || !(l.by || l.note)) return l;
+    const all = expandAllApprovers(l);
+    if (all) return all;
+    // หลายชื่อในช่องเดียว (โฟลว์รุ่นใหม่: "Name A, Name B") แปลงทีละชื่อ
+    const names = nameList(l.by);
+    if (names.length > 1) {
+      const list = names.map(thaiName);
+      return { ...l, by: list.join(', '), byList: list, note: thaiNote(l.note) };
+    }
+    return { ...l, by: thaiName(l.by), note: thaiNote(l.note) };
+  });
 };
 
 /**
@@ -440,7 +480,7 @@ export function stepProgress(step, log) {
   const n = +step.StepOrder;
   const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
   const now = log.slice(lastRound + 1).filter((l) => l.step === n);
-  const approvedBy = [...new Set(now.filter((l) => l.action === 'อนุมัติ').map((l) => String(l.by).trim()))];
+  const approvedBy = [...new Set(now.filter((l) => l.action === 'อนุมัติ').flatMap((l) => l.byList || [String(l.by).trim()]))];
   const all = String(step.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน';
   const need = all ? [...new Set((step._resolved || toArr(step.Approvers)).map((x) => String(x).trim()))] : [];
   const left = need.filter((a) => !approvedBy.includes(a));
@@ -607,7 +647,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   } else if (action === 'อนุมัติ' || action === 'ข้าม') {
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
     const approvers = (step && step._resolved) || toArr(step && step.Approvers);
-    const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').map((l) => l.by);
+    const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').flatMap((l) => l.byList || [l.by]);
     // คนเดิมกดอนุมัติซ้ำในลำดับเดียวกัน ไม่นับเพิ่ม
     const stepDone = action === 'ข้าม' || mode !== 'ต้องอนุมัติครบทุกคน'
       || approvers.every((a) => approvedBy.includes(a));
