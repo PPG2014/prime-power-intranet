@@ -814,11 +814,14 @@ function renderSlip(s) {
   if (!s || !s.url) return '';
   const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(s.kind);
   return `<div class="rq-slip"><h4>หลักฐานการโอนเงิน</h4>
-    ${img ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม"><img data-photo="${esc(s.url)}" alt="สลิป"></a>`
+    ${img ? `<button type="button" class="rq-slip-thumb" data-viewslip="1" title="กดเพื่อดูรูปขนาดใหญ่"><img data-photo="${esc(s.url)}" alt="สลิป"><span>🔍 กดเพื่อขยาย</span></button>`
       : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
 }
 
-/** หน้าต่างดูสลิปโอนเงิน (รูปเดียวกับที่ส่งแจ้งผู้ยื่นทาง Teams) · PDF เปิดในแท็บใหม่ */
+/**
+ * หน้าต่างดูสลิปโอนเงิน (รูปเดียวกับที่ส่งแจ้งผู้ยื่นทาง Teams) · PDF เปิดในแท็บใหม่
+ * รูปเต็มความกว้างหน้าต่าง · ชี้เมาส์ = แว่นขยาย · กดที่รูป / ปุ่ม 🔍 = สลับขนาดจริง (เลื่อนดูได้)
+ */
 async function viewSlip(s, req) {
   if (!s || !s.url) return;
   const img = /^(JPG|JPEG|PNG|GIF|WEBP|HEIC)$/i.test(s.kind || '');
@@ -827,11 +830,44 @@ async function viewSlip(s, req) {
   layer.className = 'eta-mask slip-view';
   layer.innerHTML = `<div class="eta-box slip-view-box" role="dialog" aria-modal="true" aria-label="หลักฐานการโอนเงิน">
       <div class="eta-head">🧾 หลักฐานการโอนเงิน · ${esc(req.Title || '')}</div>
-      <div class="eta-body"><img data-photo="${esc(s.url)}" data-fail="msg" alt="สลิปโอนเงิน"></div>
+      <div class="eta-body slip-stage" id="slip-stage">
+        <img data-photo="${esc(s.url)}" data-fail="msg" alt="สลิปโอนเงิน" id="slip-img">
+        <div class="slip-lens" id="slip-lens" hidden></div>
+      </div>
       <div class="eta-foot">
+        <span class="dim slip-tip">ชี้เมาส์ที่รูปเพื่อขยาย · กดที่รูปเพื่อดูขนาดจริง</span>
+        <button type="button" class="btn-mini" data-zoom>🔍 ขนาดจริง</button>
         <a class="btn-mini" href="${esc(s.url)}" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับ ↗</a>
         <button type="button" class="btn btn-primary" data-x>ปิด</button>
       </div></div>`;
+  const stage = layer.querySelector('#slip-stage');
+  const pic = layer.querySelector('#slip-img');
+  const lens = layer.querySelector('#slip-lens');
+  const zoomBtn = layer.querySelector('[data-zoom]');
+  const ZOOM = 2.5;
+  const toggleZoom = () => {
+    const on = stage.classList.toggle('full');
+    lens.hidden = true;
+    zoomBtn.textContent = on ? '↙ พอดีหน้าต่าง' : '🔍 ขนาดจริง';
+  };
+  // แว่นขยาย: เฉพาะตอนรูปย่อพอดีหน้าต่าง และอุปกรณ์ที่มีเมาส์
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  pic.addEventListener('mousemove', (e) => {
+    if (!fine || stage.classList.contains('full') || !pic.src) return;
+    const r = pic.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    const x = e.clientX - r.left; const y = e.clientY - r.top;
+    const size = lens.offsetWidth || 220;
+    lens.hidden = false;
+    lens.style.left = `${e.clientX - sr.left + stage.scrollLeft - size / 2}px`;
+    lens.style.top = `${e.clientY - sr.top + stage.scrollTop - size / 2}px`;
+    lens.style.backgroundImage = `url("${pic.src}")`;
+    lens.style.backgroundSize = `${r.width * ZOOM}px ${r.height * ZOOM}px`;
+    lens.style.backgroundPosition = `${-(x * ZOOM - size / 2)}px ${-(y * ZOOM - size / 2)}px`;
+  });
+  pic.addEventListener('mouseleave', () => { lens.hidden = true; });
+  pic.addEventListener('click', toggleZoom);
+  zoomBtn.addEventListener('click', toggleZoom);
   const close = () => { layer.remove(); removeEventListener('keydown', onKey, true); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   layer.addEventListener('click', (e) => { if (e.target === layer || e.target.closest('[data-x]')) close(); });
