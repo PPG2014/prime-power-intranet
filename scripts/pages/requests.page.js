@@ -605,7 +605,7 @@ async function openRequest(req) {
           // แสดงรายชื่อผู้มีสิทธิ์อนุมัติของขั้นที่ยังไม่มีคนกด · ยกเว้นขั้นผู้ทบทวน (รายชื่อยาวทั้งฝ่าย)
           const names = !acts.length && !HIDE_NAMES_STEP.test(String(s.StepName || ''))
             ? `<div class="tl-people">${esc(who.join(', '))}</div>` : '';
-          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => meIds.includes(String(a.by).trim()))
+          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => (a.byList || [String(a.by).trim()]).some((x) => meIds.includes(x)))
             || req.Status !== 'รออนุมัติ') return names;
           return names + (n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
             : n > cur ? '<div class="tl-people tl-me tl-later">คุณเป็นผู้อนุมัติขั้นนี้ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : '');
@@ -1231,7 +1231,8 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     const own = n === last && act.action === 'อนุมัติ' && data._approverSign && data._approverSign.url;
     return {
       role, name: act.by, note: act.note, at: act.at,
-      sig: act.action === 'อนุมัติ' ? (own ? data._approverSign.url : (act.sig || sigOf(act.by))) : '',
+      // ลำดับที่อนุมัติครบทุกคนผ่านการ์ด Teams: ใช้ลายเซ็นของคนแรกในรายชื่อ
+      sig: act.action === 'อนุมัติ' ? (own ? data._approverSign.url : (act.sig || sigOf((act.byList || [act.by])[0]))) : '',
       result: act.action === 'อนุมัติ' ? '✓ อนุมัติ' : act.action === 'ส่งกลับแก้ไข' ? '↩ ส่งกลับแก้ไข' : '✗ ไม่อนุมัติ',
     };
   });
@@ -1240,12 +1241,12 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   const lastAct = log.filter((l) => l.step === last && l.action === 'อนุมัติ').slice(-1)[0];
   const lastStep = steps.find((st) => +st.StepOrder === last) || {};
   const finalSign = () => (data._approverSign && data._approverSign.url ? data._approverSign
-    : lastAct ? { name: lastAct.by, sig: lastAct.sig || sigOf(lastAct.by) } : null);
+    : lastAct ? { name: lastAct.by, sig: lastAct.sig || sigOf((lastAct.byList || [lastAct.by])[0]) } : null);
   const finished = !!lastAct || ['อนุมัติแล้ว', 'เสร็จสิ้น'].includes(String(req.Status || '').trim());
   const myName = (findMe(dir) || {}).Title
     || state.user?.name || '';
   const isFinalApprover = finished && !!myName
-    && ((lastAct && lastAct.by === myName) || (lastStep._resolved || []).includes(myName));
+    && ((lastAct && (lastAct.byList || [lastAct.by]).includes(myName)) || (lastStep._resolved || []).includes(myName));
   const docHtml = () => renderFormDoc({
     form: { ...formRow, Title: formRow.Title || req.FormName }, fields, values: data,
     docNo: req.Title, submitted: req.SubmittedDate, requester: requester(), approvals: approvals(),

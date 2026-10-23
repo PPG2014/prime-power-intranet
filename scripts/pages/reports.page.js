@@ -59,8 +59,8 @@ export async function render(ctx) {
       if (hrs >= 0 && hrs < 24 * 90) {
         const k = `ลำดับ ${l.step}`;
         (stepAgg[k] = stepAgg[k] || []).push(hrs);
-        const who = clean(l.by) || 'ไม่ระบุ';
-        (personAgg[who] = personAgg[who] || []).push(hrs);
+        // ลำดับที่อนุมัติครบทุกคนผ่านการ์ด Teams: นับให้ทุกคนในบรรทัดนั้น
+        (l.byList || [clean(l.by) || 'ไม่ระบุ']).forEach((who) => { (personAgg[who] = personAgg[who] || []).push(hrs); });
       }
       prev = at;
     });
