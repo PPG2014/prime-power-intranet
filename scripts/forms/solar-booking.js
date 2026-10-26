@@ -151,7 +151,8 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
         </div>`)}
 
         ${section('9', 'งวดการชำระเงิน', 'Payment Schedule', `<div id="sb-sched"></div>
-          <div class="sb-grid">${field('วันที่นัดสำรวจหน้างาน', input('survey_date', values.survey_date, 'type="date"'))}</div>
+          <div class="sb-grid">${field('วันที่นัดสำรวจหน้างาน', input('survey_date', values.survey_date, 'type="date"'))}
+            ${field('หมายเหตุ <span class="sb-en">Note</span>', `<textarea id="sb_sched_note" data-k="sched_note" rows="3" maxlength="500" placeholder="เงื่อนไขอื่น ๆ เช่น ขอแบ่งชำระงวดที่ 2 เป็น 2 ครั้ง · ชำระผ่านบัตรเครดิต">${esc(values.sched_note || '')}</textarea>`, { cls: 'sb-wide' })}</div>
           <div class="sb-hint">* งวดที่ 2-4 คิดจากยอดคงเหลือหลังหักเงินจอง · แก้ % ได้ ระบบคำนวณจำนวนเงินให้ (ค่าเริ่มต้น 50 / 45 / 5) · กำหนดชำระนับจากวันที่บริษัทแจ้งว่าขั้นตอนนั้นแล้วเสร็จ</div>`)}
 
         ${section('10', 'ข้อตกลงที่สำคัญ', 'Key Terms', `<ol class="sb-terms">${TERMS.map(([h, t]) => `<li><b>${esc(h)}:</b> ${esc(t.replace('{deposit}', '2,000'))}</li>`).join('')}</ol>

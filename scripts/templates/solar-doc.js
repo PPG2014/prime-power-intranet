@@ -24,6 +24,10 @@ const thDate = (iso) => {
 };
 const sigOf = (v, role) => (v._live && v._live[role]) || (v['_sign_' + role] && v['_sign_' + role].url) || '';
 
+/** หมายเหตุเงื่อนไขการชำระเงิน (ข้อ 9 ในฟอร์ม) · ว่าง = ไม่แสดง */
+const schedNote = (v) => (String(v.sched_note || '').trim()
+  ? `<div class="sd-remark"><b>หมายเหตุ:</b> ${esc(String(v.sched_note).trim()).replace(/\n/g, '<br>')}</div>` : '');
+
 function header(v, title) {
   return `<img src="${LETTERHEAD}" alt="Prime Power Engineering Pro Co., Ltd." class="sd-letterhead">
   <div class="sd-head">
@@ -146,7 +150,8 @@ export function renderSalesDoc(v, { prices } = {}) {
       ${sec('9.', 'งวดการชำระเงิน', 'Payment Schedule', `<table class="sd-t sd-grid">
         <tr class="sd-th"><th class="c">งวด</th><th>รายละเอียด</th><th class="c">%</th><th class="r">จำนวนเงิน (บาท)</th><th>กำหนดชำระ</th></tr>
         ${q.schedule.map((s) => `<tr><td class="c">${s.no}</td><td>${esc(s.text)}</td><td class="c">${s.pct == null ? '-' : s.pct + '%'}</td><td class="r">${baht(s.amount)}</td><td>${esc(s.due)}${s.no === 2 ? ` (วันที่นัดสำรวจ ${v.survey_date ? thDate(v.survey_date) : '..................'})` : ''}</td></tr>`).join('')}
-      </table><div class="sd-note">* งวดที่ 2-4 คิดจากยอดคงเหลือหลังหักเงินจอง · กำหนดชำระนับจากวันที่บริษัทแจ้งว่าขั้นตอนนั้นแล้วเสร็จ</div>`)}
+      </table><div class="sd-note">* งวดที่ 2-4 คิดจากยอดคงเหลือหลังหักเงินจอง · กำหนดชำระนับจากวันที่บริษัทแจ้งว่าขั้นตอนนั้นแล้วเสร็จ</div>
+      ${schedNote(v)}`)}
       ${sec('10.', 'ข้อตกลงที่สำคัญ', 'Key Terms', termsBlock(q.deposit))}
       ${signBlock(v)}
     </div>
@@ -198,7 +203,7 @@ export function renderCustomerDoc(v, { prices } = {}) {
       </table>`)}
       <div class="sd-cols">
         ${sec('5.', 'สิทธิประโยชน์ภาครัฐที่ประสงค์ใช้', 'Government Incentives', incentivesBlock(v))}
-        ${sec('6.', 'ราคาและส่วนลด', 'Pricing and Discount', priceBlock(q, vat) + '<div class="sd-note">* ส่วนลดโปรโมชั่นสำหรับผู้จองภายในงานเท่านั้น · ราคาอาจเปลี่ยนแปลงได้กรณีเพิ่มเติมหลังการสำรวจเป็นไปตามที่ลูกค้ากำหนด</div>')}
+        ${sec('6.', 'ราคาและส่วนลด', 'Pricing and Discount', priceBlock(q, vat) + '<div class="sd-note">* ส่วนลดโปรโมชั่นสำหรับผู้จองภายในงานเท่านั้น · ราคาอาจเปลี่ยนแปลงได้กรณีเพิ่มเติมหลังการสำรวจเป็นไปตามที่ลูกค้ากำหนด</div>' + schedNote(v))}
       </div>
       ${sec('7.', 'ข้อตกลงที่สำคัญ', 'Key Terms', termsBlock(q.deposit))}
       ${signBlock(v)}
