@@ -39,6 +39,11 @@
 .sb-table .r { text-align: right; } .sb-table .c { text-align: center; }
 .sb-table .sb-num { width: 90px !important; display: inline-block; }
 .sb-table .sb-money { width: 150px !important; text-align: right; }
+.sb-table .sb-pct { width: 72px !important; text-align: center; }
+.sb-chip.sb-off { opacity: .5; cursor: not-allowed; background: #f3f4f6; }
+.sb-chip.sb-off input { cursor: not-allowed; }
+.sb-tax-note { color: #a35a00; }
+.sb-hint.sb-warn { color: #a35a00; font-weight: 600; }
 .sb-table tr.sb-dim td { opacity: .55; }
 .sb-price .sb-line td { color: #44546a; font-size: 13.5px; }
 .sb-price .sb-sum td { border-top: 1px solid var(--line); font-weight: 600; }
@@ -148,6 +153,8 @@ body.sc-open .sc-tab { right: min(460px, 100vw); }
 .sd-blank { display: inline-block; min-width: 90px; border-bottom: 1px dotted #999; }
 .sd-checks { display: grid; gap: 2px; padding: 2px 4px; }
 .sd-note { font-size: .9em; color: #555; margin-top: 2px; }
+.sd-remark { margin-top: 4px; padding: 3px 6px; border: 1px dashed #c9d3df; border-radius: 4px; background: #fbfcfe; }
+.sd-one .sd-remark { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .sd-terms { margin: 2px 0; padding-left: 16px; } .sd-terms li { margin: 1px 0; }
 .sd-one .sd-terms { font-size: 9.4px; columns: 2; column-gap: 14px; }
 .sd-ack { font-weight: 700; margin-top: 4px; }

@@ -23,14 +23,22 @@ export const panelIcon = (size = 40, cls = '') => `<svg class="${cls}" width="${
 </svg>`;
 export const PANEL_W = 650;              // แผง Jinko 650 W
 export const TYPICAL_KWP = [5.2, 6.5, 9.75];
-export const ROOF_TYPES = ['เมทัลชีท', 'กระเบื้องCPAC', 'อดามัส', 'ลอนคู่ (ไฟเบอร์ซีเมนต์)', 'อื่นๆ'];
+export const ROOF_TYPES = ['เมทัลชีท', 'กระเบื้องCPAC', 'อดามัส', 'ลอนคู่ (ไฟเบอร์ซีเมนต์)', 'ดาดฟ้า', 'อื่นๆ'];
 export const BANK_ACCOUNT = 'ธนาคารกสิกรไทย  เลขที่ 133-8-67216-7 (บจก.ไพร์ม พาวเวอร์ เอ็นจิเนียริ่ง โปร)';
 export const SCHEDULE = [
   { no: 1, text: 'เงินจอง (หักออกจากราคารวมทั้งสิ้น)', pct: null, due: 'วันที่ลงนาม' },
-  { no: 2, text: 'ชำระเพื่อมัดจำสั่งอุปกรณ์ (นัดสำรวจหน้างานภายใน 15 วันหลังวันจ่ายเงินจอง)', pct: 50, due: 'วันที่สำรวจหน้างาน' },
+  { no: 2, text: 'ชำระเพื่อมัดจำสั่งอุปกรณ์ (หลังยืนยันใบเสนอราคา)', pct: 50, due: 'วันที่สำรวจหน้างาน' },
   { no: 3, text: 'ติดตั้งระบบแล้วเสร็จ / ทดสอบระบบ', pct: 45, due: 'ภายใน 25-30 วัน' },
   { no: 4, text: 'ส่งมอบงานและเอกสารครบถ้วน', pct: 5, due: 'รอเอกสารจากการไฟฟ้า (MEA/PEA)' },
 ];
+/** ผู้ตรวจสอบ / วิศวกรฝ่ายขาย ในช่องลงนาม (คนเดียว) */
+export const SOLAR_CHECKER = 'กุสุมา เนาว์ประเสริฐ';
+/** สิทธิลดหย่อนภาษี 200,000 บาท (INCENTIVES[0]) ใช้ได้เฉพาะระบบไม่เกินขนาดนี้ */
+export const TAX_MAX_KWP = 10;
+/** ขนาดอินเวอร์เตอร์ Huawei ที่ใช้เลือกอัตโนมัติ (kW) */
+const INVERTER_KW = [3, 4, 5, 6, 8, 10, 12, 15, 17, 20, 25, 30, 36, 40, 50];
+/** อินเวอร์เตอร์แนะนำ: ขนาดเล็กสุดที่ ≥ kWp ÷ 1.1 (DC/AC ไม่เกิน 1.1) · เช่น 5.2→5 · 6.5→6 · 9.75→10 */
+export const inverterFor = (kwp) => { const need = num(kwp) / 1.1; return need ? (INVERTER_KW.find((k) => k >= need - 1e-9) || Math.ceil(need)) : 0; };
 export const INCENTIVES = [
   'สิทธิลดหย่อนภาษีสำหรับการติดตั้ง Solar Rooftop (ตามที่จ่ายจริงสูงสุด 200,000 บาท)',
   'เงินสนับสนุนภาครัฐ (สูงสุด 50,000 บาท/ครัวเรือน ตามประกาศของโครงการ)',
@@ -142,8 +150,14 @@ export function computeQuote(v = {}, prices) {
   const minimum = lines.reduce((s, l) => s + num(l.min), 0);
   const deposit = v.deposit_amount !== undefined && v.deposit_amount !== '' ? num(v.deposit_amount) : num(p.deposit);
   const balance = Math.max(0, total - deposit);
-  const schedule = SCHEDULE.map((s) => ({ ...s, amount: s.pct == null ? deposit : Math.round(balance * s.pct) / 100 }));
-  return { phase, kwp, panels, lines, gross, autoDisc, discount, net, vat, total, minimum, belowMin: !!minimum && net < minimum, deposit, balance, schedule, missing };
+  // % งวดที่ 2-4 แก้ได้ (ช่อง pct_2..pct_4) · ว่าง = ค่าเริ่มต้น
+  const schedule = SCHEDULE.map((s) => {
+    const own = v['pct_' + s.no];
+    const pct = s.pct == null ? null : (own !== undefined && own !== null && String(own).trim() !== '' ? num(own) : s.pct);
+    return { ...s, pct, amount: pct == null ? deposit : Math.round(balance * pct) / 100 };
+  });
+  const pctSum = schedule.reduce((t, s) => t + (s.pct || 0), 0);
+  return { phase, kwp, panels, lines, gross, autoDisc, discount, net, vat, total, minimum, belowMin: !!minimum && net < minimum, deposit, balance, schedule, pctSum, missing };
 }
 
 /* ───────── เลขที่ใบเสนอราคา ───────── */
@@ -242,6 +256,10 @@ export const SOLAR_FIELDS = [
   F('deposit_amount', 'จำนวนเงินจอง (บาท)', 'currency', '8. เงินจอง'),
   F('deposit_date', 'วันที่ชำระเงินจอง', 'date', '8. เงินจอง'),
   F('deposit_receiver', 'ผู้รับเงิน', 'text', '8. เงินจอง'),
+  F('pct_2', 'งวดที่ 2 (%)', 'number', '9. งวดการชำระเงิน'),
+  F('pct_3', 'งวดที่ 3 (%)', 'number', '9. งวดการชำระเงิน'),
+  F('pct_4', 'งวดที่ 4 (%)', 'number', '9. งวดการชำระเงิน'),
   F('survey_date', 'วันที่นัดสำรวจ', 'date', '9. งวดการชำระเงิน'),
+  F('sched_note', 'หมายเหตุ (งวดการชำระเงิน)', 'textarea', '9. งวดการชำระเงิน'),
   F('checker_name', 'ผู้ตรวจสอบ / วิศวกรฝ่ายขาย', 'text', 'ลงนาม'),
 ];
