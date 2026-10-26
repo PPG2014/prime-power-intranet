@@ -784,6 +784,7 @@ function solarEntries(data, fields) {
   const kwp = d.size_kwp || (d.size === 'other' ? d.size_other : d.size);
   if (kwp) d.size = kwp;
   delete d.size_kwp; delete d.size_other;
+  delete d.pct_2; delete d.pct_3; delete d.pct_4;   // % อยู่ในตารางงวดชำระแล้ว
   if (d.q_date && d.std_date) delete d.std_date;   // วันที่ระบบซ้ำกับวันที่ใบจอง
   const lines = Array.isArray(d.q_lines) ? d.q_lines : [];
   const sched = Array.isArray(d.q_schedule) ? d.q_schedule : [];

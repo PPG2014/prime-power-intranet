@@ -13,7 +13,7 @@ import { signaturePad, bindSignaturePads, readSignature, previewSignature } from
 import {
   SOLAR_FIELDS, TYPICAL_KWP, ROOF_TYPES, BANK_ACCOUNT, INCENTIVES, TERMS, SCHEDULE,
   loadSolarPrices, computeQuote, sizesFor, panelsFor, previewQuoteNo, assignQuoteNo,
-  panelIcon,
+  panelIcon, PANEL_W, SOLAR_CHECKER, TAX_MAX_KWP, inverterFor,
 } from '../services/solar.js';
 import { openSolarDoc } from '../templates/solar-doc.js';
 import { calculatorHtml, bindCalculator } from '../components/solar-calculator.js';
@@ -57,6 +57,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
     pay_option: 'ชำระเงินเอง', deposit_method: '', deposit_date: todayISO(), deposit_receiver: myName,
     incentives: [],
     ...(draft || {}), ...(editData || {}),
+    checker_name: SOLAR_CHECKER,   // ผู้ตรวจสอบ / วิศวกรฝ่ายขาย มีคนเดียว
   };
   const nextNo = editData && editData.q_no ? editData.q_no : await previewQuoteNo().catch(() => '');
 
@@ -114,10 +115,11 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
         ${section('3', 'อุปกรณ์หลัก', 'Main Equipment', `<div class="sb-scroll"><table class="sb-table sb-stack sb-equip">
           <thead><tr><th>รายการ</th><th>ยี่ห้อ / รุ่น</th><th>จำนวน</th><th>กำลัง / หน่วย</th></tr></thead>
           <tbody>
-            <tr><td class="sb-item">แผงโซลาร์เซลล์ (Solar Panel)</td><td data-l="ยี่ห้อ">Jinko Solar</td><td data-l="จำนวน">${input('panels', values.panels, 'type="number" inputmode="numeric" min="0" class="sb-num"')} แผง</td><td data-l="กำลัง">650 W / แผง</td></tr>
+            <tr><td class="sb-item">แผงโซลาร์เซลล์ (Solar Panel)</td><td data-l="ยี่ห้อ">Jinko Solar</td><td data-l="จำนวน">${input('panels', values.panels, 'type="number" inputmode="numeric" min="0" class="sb-num"')} แผง</td><td data-l="กำลัง">× ${PANEL_W} W / แผง = <b id="sb-kwp-calc">–</b> kWp</td></tr>
             <tr><td class="sb-item">อินเวอร์เตอร์ (Inverter)</td><td data-l="ยี่ห้อ">Huawei</td><td data-l="จำนวน">${input('inverter_qty', values.inverter_qty, 'type="number" inputmode="numeric" min="0" class="sb-num"')} เครื่อง</td><td data-l="กำลัง">${input('inverter_kw', values.inverter_kw, 'type="number" inputmode="decimal" min="0" step="0.1" class="sb-num"')} kW / เครื่อง</td></tr>
             <tr id="sb-batt-row"><td class="sb-item">แบตเตอรี่ (Battery) เฉพาะ Hybrid</td><td data-l="ยี่ห้อ">Huawei</td><td colspan="2" class="sb-full"><div id="sb-batt"></div></td></tr>
-          </tbody></table></div>`)}
+          </tbody></table></div>
+          <div class="sb-hint" id="sb-equip-hint">เลือกขนาดระบบในข้อ 2 แล้วระบบเติมจำนวนแผงและขนาดอินเวอร์เตอร์ให้อัตโนมัติ — แก้ไขได้</div>`)}
 
         ${section('4', 'อุปกรณ์เสริม (เลือกได้)', 'Additional Equipment', `<div class="sb-scroll"><table class="sb-table sb-stack sb-extras">
           <thead><tr><th>รายการ</th><th>ประโยชน์</th><th class="r">ราคา (บาท)</th></tr></thead><tbody>
@@ -130,6 +132,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
           </tbody></table></div><div class="sb-hint">ราคาเติมให้อัตโนมัติตาม Price List (Optimizer = จำนวนแผง × ราคาต่อตัว · Smart Guard ตามเฟส · โครงสร้างพิเศษตามขนาดระบบ) — พิมพ์ทับเพื่อเปลี่ยนราคาได้ ลบให้ว่างเพื่อกลับเป็นอัตโนมัติ</div>`)}
 
         ${section('5', 'สิทธิประโยชน์ภาครัฐที่ประสงค์ใช้', 'Government Incentives', `<div class="sb-checks">${INCENTIVES.map((t, i) => `<label class="sb-chip sb-block"><input type="checkbox" data-inc="${i}" ${(values.incentives || []).includes(t) ? 'checked' : ''}> ${esc(t)}</label>`).join('')}</div>
+          <div class="sb-hint sb-tax-note" id="sb-tax-note" hidden>สิทธิลดหย่อนภาษีใช้ได้เฉพาะระบบขนาดไม่เกิน ${TAX_MAX_KWP} kWp</div>
           <div class="sb-hint">* เป็นความประสงค์ของผู้สั่งซื้อเท่านั้น การได้รับสิทธิ จำนวนเงิน และเงื่อนไข เป็นไปตามประกาศและการอนุมัติของหน่วยงานภาครัฐ ซึ่งอาจเปลี่ยนแปลงได้</div>`)}
 
         ${section('6', 'วิธีชำระค่าระบบ', 'Payment Option', `${radios('pay_option', ['ชำระเงินเอง', 'เครื่องรูดบัตร k-bank 0% 10 เดือน', 'ขอสินเชื่อธนาคาร'], values.pay_option)}
@@ -149,7 +152,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
 
         ${section('9', 'งวดการชำระเงิน', 'Payment Schedule', `<div id="sb-sched"></div>
           <div class="sb-grid">${field('วันที่นัดสำรวจหน้างาน', input('survey_date', values.survey_date, 'type="date"'))}</div>
-          <div class="sb-hint">* งวดที่ 2-4 คิดจากยอดคงเหลือหลังหักเงินจอง · กำหนดชำระนับจากวันที่บริษัทแจ้งว่าขั้นตอนนั้นแล้วเสร็จ</div>`)}
+          <div class="sb-hint">* งวดที่ 2-4 คิดจากยอดคงเหลือหลังหักเงินจอง · แก้ % ได้ ระบบคำนวณจำนวนเงินให้ (ค่าเริ่มต้น 50 / 45 / 5) · กำหนดชำระนับจากวันที่บริษัทแจ้งว่าขั้นตอนนั้นแล้วเสร็จ</div>`)}
 
         ${section('10', 'ข้อตกลงที่สำคัญ', 'Key Terms', `<ol class="sb-terms">${TERMS.map(([h, t]) => `<li><b>${esc(h)}:</b> ${esc(t.replace('{deposit}', '2,000'))}</li>`).join('')}</ol>
           <p class="sb-ack">ข้าพเจ้าได้อ่านและเข้าใจรายละเอียดและข้อตกลงทั้งหมดข้างต้นแล้ว และได้รับสำเนาใบจอง 1 ฉบับ</p>`)}
@@ -160,8 +163,7 @@ export async function solarRender({ form, me, dir = [], editData = null }) {
               <div class="sb-sign">
                 <div class="sb-sign-role">${label}</div>
                 ${signaturePad('solar_' + role, (values['_sign_' + role] && values['_sign_' + role].url) || '', true)}
-                ${nk === 'checker_name' ? input('checker_name', values.checker_name, 'list="sb-people" autocomplete="off" placeholder="ชื่อผู้ตรวจสอบ / วิศวกร"')
-                  : `<div class="sb-sign-name" data-signame="${nk}">( ${esc(values[nk] || '................................')} )</div>`}
+                <div class="sb-sign-name" data-signame="${nk}">( ${esc(values[nk] || '................................')} )</div>
               </div>`).join('')}
           </div>
         </section>
@@ -248,15 +250,71 @@ function paintPrice() {
     const d = $('#sb_discount');
     if (d) d.addEventListener('input', () => { clearTimeout(d._t); d._t = setTimeout(() => { values.discount = d.value; paintPrice(); focusEnd('#sb_discount'); }, 400); });
   }
-  const sch = $('#sb-sched');
-  if (sch) {
-    sch.innerHTML = `<div class="sb-scroll"><table class="sb-table sb-stack sb-sched">
-      <thead><tr><th>งวด</th><th>รายละเอียด</th><th class="c">%</th><th class="r">จำนวนเงิน (บาท)</th><th>กำหนดชำระ</th></tr></thead><tbody>
-      ${q.schedule.map((s) => `<tr><td class="c sb-no-c" data-l="งวดที่">${s.no}</td><td class="sb-item">${esc(s.text)}</td><td class="c" data-l="สัดส่วน">${s.pct == null ? '-' : s.pct + '%'}</td><td class="r sb-amt" data-l="จำนวนเงิน (บาท)">${baht(s.amount)}</td><td data-l="กำหนดชำระ">${esc(s.due)}</td></tr>`).join('')}
-      </tbody></table></div>`;
-  }
+  paintSchedule(q);
+  paintEquipment(q);
+  paintIncentives(q);
   return q;
 }
+/** งวดชำระ: วาดตารางครั้งเดียว (ช่อง % พิมพ์ได้ไม่หลุด) แล้วอัปเดตเฉพาะจำนวนเงิน */
+function paintSchedule(q) {
+  const sch = $('#sb-sched');
+  if (!sch) return;
+  if (!sch.querySelector('table')) {
+    sch.innerHTML = `<div class="sb-scroll"><table class="sb-table sb-stack sb-sched">
+      <thead><tr><th>งวด</th><th>รายละเอียด</th><th class="c">%</th><th class="r">จำนวนเงิน (บาท)</th><th>กำหนดชำระ</th></tr></thead><tbody>
+      ${q.schedule.map((s) => `<tr><td class="c sb-no-c" data-l="งวดที่">${s.no}</td><td class="sb-item">${esc(s.text)}</td>
+        <td class="c" data-l="สัดส่วน (%)">${s.pct == null ? '-'
+          : `<input id="sb_pct_${s.no}" data-k="pct_${s.no}" class="sb-pct" inputmode="decimal" value="${esc(values['pct_' + s.no] ?? '')}" placeholder="${s.pct}" aria-label="งวดที่ ${s.no} (%)">`}</td>
+        <td class="r sb-amt" data-l="จำนวนเงิน (บาท)" data-amt="${s.no}"></td><td data-l="กำหนดชำระ">${esc(s.due)}</td></tr>`).join('')}
+      </tbody></table></div><div class="sb-alert" id="sb-pct-warn" hidden></div>`;
+  }
+  q.schedule.forEach((s) => { const c = sch.querySelector(`[data-amt="${s.no}"]`); if (c) c.textContent = baht(s.amount); });
+  const warn = $('#sb-pct-warn');
+  const off = Math.abs(q.pctSum - 100) > 0.001;
+  warn.hidden = !off;
+  if (off) warn.textContent = `⚠ งวดที่ 2-4 รวมกันได้ ${+q.pctSum.toFixed(2)}% — ควรรวมเป็น 100%`;
+}
+
+/** อุปกรณ์หลัก: จำนวนแผง × 650 W = kWp (แสดงผลทันทีเมื่อแก้จำนวนแผง) */
+function paintEquipment(q) {
+  const out = $('#sb-kwp-calc');
+  if (!out) return;
+  const n = +values.panels || q.panels || 0;
+  const kwp = (n * PANEL_W) / 1000;
+  out.textContent = n ? kwp.toFixed(2) : '–';
+  const hint = $('#sb-equip-hint');
+  if (hint && n && q.kwp && Math.abs(kwp - q.kwp) > 0.001) {
+    hint.textContent = `⚠ จำนวนแผง ${n} แผง = ${kwp.toFixed(2)} kWp ไม่ตรงกับขนาดระบบที่เลือก ${q.kwp.toFixed(2)} kWp (ราคาคิดตามขนาดระบบ)`;
+    hint.classList.add('sb-warn');
+  } else if (hint) {
+    hint.textContent = 'เลือกขนาดระบบในข้อ 2 แล้วระบบเติมจำนวนแผงและขนาดอินเวอร์เตอร์ให้อัตโนมัติ — แก้ไขได้';
+    hint.classList.remove('sb-warn');
+  }
+}
+
+/** เติมอุปกรณ์หลักตามขนาดระบบ (เรียกเมื่อเปลี่ยนขนาด) — ผู้ใช้แก้ทับได้ภายหลัง */
+function autoEquipment() {
+  const q = computeQuote(values, prices);
+  if (!q.kwp) return;
+  values.panels = panelsFor(q.kwp);
+  values.inverter_kw = inverterFor(q.kwp);
+  values.inverter_qty = values.inverter_qty || 1;
+  [['panels', values.panels], ['inverter_kw', values.inverter_kw], ['inverter_qty', values.inverter_qty]]
+    .forEach(([k, v]) => { const el = $('#sb_' + k); if (el) el.value = v; });
+}
+
+/** สิทธิลดหย่อนภาษี 200,000 บาท: ระบบเกิน 10 kWp ติ๊กไม่ได้ */
+function paintIncentives(q) {
+  const el = $('#sb-shell [data-inc="0"]');
+  if (!el) return;
+  const over = q.kwp > TAX_MAX_KWP;
+  el.disabled = over;
+  if (over && el.checked) { el.checked = false; values.incentives = (values.incentives || []).filter((t) => t !== INCENTIVES[0]); }
+  el.closest('.sb-chip')?.classList.toggle('sb-off', over);
+  const note = $('#sb-tax-note');
+  if (note) { note.hidden = !over; note.textContent = `สิทธิลดหย่อนภาษีใช้ได้เฉพาะระบบขนาดไม่เกิน ${TAX_MAX_KWP} kWp (ระบบที่เลือก ${q.kwp.toFixed(2)} kWp)`; }
+}
+
 const focusEnd = (sel) => { const el = $(sel); if (!el) return; el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n); } catch (e) { /* ข้าม */ } };
 
 function saveDraft() {
@@ -279,6 +337,7 @@ function problems(v, q) {
   if (v.meter_owner === 'ผู้อื่น' && !String(v.meter_owner_name || '').trim()) miss.push('ชื่อเจ้าของมิเตอร์');
   if (v.roof === 'อื่นๆ' && !String(v.roof_other || '').trim()) miss.push('ชนิดหลังคา (อื่นๆ)');
   if (v.pay_option === 'ขอสินเชื่อธนาคาร' && !String(v.loan_bank || '').trim()) miss.push('ธนาคารที่ขอสินเชื่อ');
+  if (Math.abs(q.pctSum - 100) > 0.001) miss.push(`งวดชำระที่ 2-4 ต้องรวมเป็น 100% (ตอนนี้ ${+q.pctSum.toFixed(2)}%)`);
   return miss;
 }
 
@@ -287,6 +346,7 @@ function finalValues() {
   const v = { ...read() };
   const q = computeQuote(v, prices);
   if (!v.panels && q.panels) v.panels = q.panels;
+  v.checker_name = SOLAR_CHECKER;
   // ช่องติ๊ก เก็บเป็น ใช่ / ว่าง ให้หน้าติดตามสถานะและทะเบียนแสดงเป็นคำ (ไม่ใช่ true/false)
   ['site_same', 'opt_tou', 'opt_optimizer', 'opt_smartguard', 'opt_structure'].forEach((k) => { v[k] = v[k] ? 'ใช่' : ''; });
   Object.assign(v, {
@@ -308,7 +368,9 @@ export function solarMount({ form, saveRequest, onSaved }) {
   const shell = $('#sb-shell');
   if (!shell) return;
   bindSignaturePads('Requests/' + form.FormCode + '/ลายเซ็น');
-  paintSizes(); paintBattery(); paintPrice();
+  paintSizes(); paintBattery();
+  if (!values.panels && !values.inverter_kw) autoEquipment();
+  paintPrice();
   bindCalculator({
     shell,
     onApply: ({ kwp, kwh, phase }) => {
@@ -318,7 +380,7 @@ export function solarMount({ form, saveRequest, onSaved }) {
       if (kwh) { values.system_type = 'Hybrid'; values.battery_kwh = kwh; }
       $$('#sb-shell input[name="sb_phase"]').forEach((el) => { el.checked = el.value === values.phase; });
       $$('#sb-shell input[name="sb_system_type"]').forEach((el) => { el.checked = el.value === values.system_type; });
-      paintSizes(); paintBattery(); paintPrice(); saveDraft();
+      paintSizes(); paintBattery(); if (kwp) autoEquipment(); paintPrice(); saveDraft();
       toast(`ใช้แพ็กเกจ ${kwp ? (+kwp).toFixed(2) + ' kWp' : ''}${kwh ? ' + แบตเตอรี่ ' + kwh + ' kWh' : ''} ในใบจองแล้ว`);
       $('#sb-sizes')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
@@ -332,6 +394,8 @@ export function solarMount({ form, saveRequest, onSaved }) {
     if (name === 'sb_phase' || name === 'sb_system_type') { paintSizes(); paintBattery(); }
     if (name === 'sb_size' && el.value !== 'other') values.size_other = '';
     if (name === 'sb_size') { paintSizes(); }
+    // เปลี่ยนขนาดระบบ → เติมจำนวนแผง / อินเวอร์เตอร์ใหม่
+    if ((name === 'sb_size' && el.value !== 'other') || el.id === 'sb_size_other') autoEquipment();
     if (el.id === 'sb_site_same') $('#sb_site_address').hidden = el.checked;
     if (name === 'sb_meter_owner') $('#sb_meter_owner_name').hidden = values.meter_owner !== 'ผู้อื่น';
     if (name === 'sb_roof') $('#sb_roof_other').hidden = values.roof !== 'อื่นๆ';
