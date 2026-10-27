@@ -921,7 +921,7 @@ function trackBox(req, role) {
       <textarea id="tk-note" rows="2" maxlength="500" placeholder="รายละเอียดเพิ่มเติม เช่น เหตุผลที่ Hold · สิ่งที่ต้อง Re-Check · วันที่จ่าย"></textarea>
       <div class="field-error" id="tk-err" hidden></div>
       <div class="rq-buttons tk-buttons">
-        <span class="dim">บันทึกในประวัติของคำขอ · ไม่กระทบขั้นตอนอนุมัติ</span>
+        <span class="dim">บันทึกในประวัติของคำขอ${tr.done ? ` · เลือก "${esc(tr.done)}" = ปิดคำขอ (เสร็จสิ้น)` : ''}</span>
         <button class="btn btn-primary" id="tk-save">💾 บันทึกสถานะ</button>
       </div>
     </div>`;
@@ -939,6 +939,9 @@ function bindTrack(req, steps, role) {
     const cur = purchaseStatusOf(req);
     if (!st) { fail('กรุณาเลือกสถานะ'); return; }
     if (st === cur && !text) { fail(`สถานะเป็น "${cur}" อยู่แล้ว — เลือกสถานะอื่น หรือพิมพ์ Note`); return; }
+    const tr = trackOf(req.FormCode);
+    if (tr.done && st === tr.done && String(req.Status || '').trim() !== 'เสร็จสิ้น' && !confirm(
+      `ยืนยัน "${st}"?\n\nคำขอ ${req.Title} จะถูกปิดเป็น "เสร็จสิ้น"${String(req.Status || '').trim() === 'รออนุมัติ' ? '\n⚠ คำขอนี้ยังอนุมัติไม่ครบทุกลำดับ' : ''}`)) return;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const by = me || state.user?.name || '';

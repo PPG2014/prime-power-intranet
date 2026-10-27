@@ -189,10 +189,11 @@ export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
 /**
  * แบบฟอร์มที่มี "สถานะติดตามงาน" แยกจากการอนุมัติ (บันทึกในประวัติเป็น อัปเดตสถานะ เหมือนใบขอสั่งซื้อ)
- * ไม่เลื่อนลำดับ/ไม่ปิดคำขอ · อัปเดตได้ทั้งระหว่างอนุมัติและหลังอนุมัติแล้ว
+ * ไม่เลื่อนลำดับ · ปิดคำขอเฉพาะสถานะ done (เช่น Payment = เสร็จสิ้น) · อัปเดตได้ทั้งระหว่างอนุมัติและหลังอนุมัติแล้ว
  */
 export const TRACK_STATUS = {
-  'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน' },
+  // done = สถานะที่ปิดคำขอเป็น "เสร็จสิ้น"
+  'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน', done: 'Payment' },
 };
 export const trackOf = (code) => TRACK_STATUS[String(code || '').trim().toUpperCase()] || null;
 /** สถานะที่ใช้ได้ของคำขอนี้ (ใบขอสั่งซื้อ = สถานะจัดซื้อ) */
@@ -656,8 +657,9 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
     // ฝ่ายจัดซื้อ: บันทึกสถานะไว้ในประวัติ · "ส่งของแล้ว" = ปิดคำขอ
     // "ส่งของแล้ว" = ปิดเป็นเสร็จสิ้น · "Cancel" = ปิดเป็นยกเลิก (note อาจมีหมายเหตุต่อท้ายด้วย " — ")
     const st = String(note).split(' — ')[0].trim();
-    if (st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
-    if (st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
+    const tr = trackOf(reqCode(req) || req.FormCode);
+    if (tr ? st === tr.done : st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
+    if (!tr && st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
   } else if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
     patch.PAState = 'DONE';
