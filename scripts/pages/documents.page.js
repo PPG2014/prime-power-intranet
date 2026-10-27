@@ -46,8 +46,9 @@ export async function render(ctx) {
               ${tab !== 'ไฟล์ดาวน์โหลด' ? `<td>${esc(thaiDateShort(d.LastUpdated))}</td>`
                 : `<td class="code">${esc(d.FileFormat || '')}</td><td>${esc(d.FileSize || '')}</td>`}
               <td>${toFiles(d.Files).length ? '📎 ' + toFiles(d.Files).length : '—'}</td>
-              <td class="col-actions"><button class="btn-mini" data-doc="${d.id}">${
-                tab === 'คู่มือ' ? 'เปิดอ่าน' : 'เปิดดู'}</button></td>
+              <td class="col-actions"><span class="doc-acts">
+                ${toFiles(d.Files).length ? `<button class="btn-mini doc-dl" data-dl="${d.id}" title="${toFiles(d.Files).length > 1 ? `ดาวน์โหลดไฟล์แนบทั้ง ${toFiles(d.Files).length} ไฟล์` : 'ดาวน์โหลดไฟล์'}">⬇ ดาวน์โหลด</button>` : ''}
+                <button class="btn-mini" data-doc="${d.id}">${tab === 'คู่มือ' ? 'เปิดอ่าน' : 'เปิดดู'}</button></span></td>
             </tr>`).join('')}</tbody>
           </table></div>
         </section>`).join('')
@@ -70,12 +71,36 @@ export function mount(ctx) {
         ${d.Description ? `<div class="doc-body">${esc(d.Description)}</div>`
                         : `<div class="doc-empty">ยังไม่ได้ใส่คำอธิบายสำหรับเอกสารนี้</div>`}
         ${files.length ? `<div class="doc-files"><h4>ไฟล์แนบ ${files.length} ไฟล์</h4>
-          ${files.map((a) => `<a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
+          ${files.map((a, i) => `<div class="doc-file-row"><a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener">
             <span>${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
             <b>${esc(a.name)}</b>
             <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
-          </a>`).join('')}</div>` : ''}
+          </a><button class="btn-mini doc-dl" data-dlone="${i}" title="ดาวน์โหลด ${esc(a.name)}">⬇</button></div>`).join('')}
+          ${files.length > 1 ? `<button class="btn-mini doc-dl doc-dl-all" data-dl="${d.id}">⬇ ดาวน์โหลดทั้งหมด ${files.length} ไฟล์</button>` : ''}</div>` : ''}
 `,
     });
+    onClick('dl', (x, el) => download(x, el));
+    onClick('dlone', (i, el) => saveFiles([files[+i]], el));
   });
+  onClick('dl', (id, el) => download(id, el));
+}
+
+/** ดาวน์โหลดไฟล์แนบของเอกสาร · หลายไฟล์ดาวน์โหลดทีละไฟล์ (เบราว์เซอร์อาจถามอนุญาตครั้งแรก) */
+function download(id, el) {
+  const d = rows.find((r) => String(r.id) === String(id));
+  if (d) saveFiles(toFiles(d.Files), el);
+}
+async function saveFiles(files, el) {
+  const { downloadFile } = await import('../services/photos.js');
+  const { toast } = await import('../components/toast.js');
+  const label = el ? el.innerHTML : '';
+  if (el) el.disabled = true;
+  let ok = 0;
+  for (const [i, f] of files.entries()) {
+    if (el) el.textContent = files.length > 1 ? `กำลังโหลด ${i + 1}/${files.length}…` : 'กำลังโหลด…';
+    try { await downloadFile(f.url, f.name); ok += 1; } catch (e) { toast(`${f.name}: ${e.message}`, 'bad'); }
+    if (i < files.length - 1) await new Promise((r) => setTimeout(r, 400));   // เว้นจังหวะ เบราว์เซอร์จะได้ไม่บล็อก
+  }
+  if (el) { el.disabled = false; el.innerHTML = label; }
+  if (ok && files.length > 1) toast(`ดาวน์โหลดแล้ว ${ok}/${files.length} ไฟล์`);
 }
