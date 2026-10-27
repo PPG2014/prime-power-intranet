@@ -516,6 +516,21 @@ async function openRequest(req) {
   }
   // ผู้อนุมัติจริงของคำขอนี้ (ตามผู้ยื่น/โครงการ/เงื่อนไข) — เปิดจากลิงก์ตรงอาจยังไม่ได้คำนวณไว้
   const steps = req._steps || await loadResolved((stepCache[req.FormCode] || await stepsOf(req.FormCode).catch(() => [])).map((x) => ({ ...x })), req);
+  // ลำดับปัจจุบันอนุมัติผ่านแล้วแต่คำขอไม่เลื่อน (เช่น บันทึกสะดุดกลางทาง) → เลื่อนไปลำดับถัดไปให้เลยตอนเปิด
+  // ไม่ต้องรอแอดมินกด ↻ · ผู้อนุมัติลำดับถัดไปจะได้ปุ่มอนุมัติทันที
+  if (String(req.Status || '').trim() === 'รออนุมัติ') {
+    const { stalledAdvance } = await import('../services/requests.js');
+    const adv = await stalledAdvance(req, steps).catch(() => null);
+    if (adv) {
+      try {
+        const { update } = await import('../services/data.js');
+        await update('requests', req.id, adv.fields);
+        req = { ...req, ...adv.fields };
+        const { toast } = await import('../components/toast.js');
+        toast(adv.step ? `ลำดับก่อนหน้าอนุมัติแล้ว — ระบบเลื่อนไปลำดับ ${adv.step} ให้แล้ว` : 'ทุกลำดับอนุมัติครบแล้ว — ปิดคำขอเป็น "อนุมัติแล้ว"');
+      } catch (e) { /* บันทึกไม่ได้ ยังแสดงป้ายเตือนให้แอดมินกด ↻ ได้เหมือนเดิม */ }
+    }
+  }
   const role = roleOnRequest(req, steps, meIds);
   const log = parseLog(req.ApprovalLog);
   const cur = +req.CurrentStep || 1;

@@ -65,7 +65,9 @@ async function call(path, options = {}) {
     if (res.status === 404) {
       throw new Error(`ไม่พบรายการที่ขอ (${path}) — ตรวจว่า GUID ของ List ใน config.js ตรงกับของจริง`);
     }
-    throw new Error(`Graph ตอบกลับ ${res.status} — ${detail.slice(0, 200)}`);
+    const err = new Error(`Graph ตอบกลับ ${res.status} — ${detail.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -336,11 +338,20 @@ function multiKeys(name, fields) {
  * เพราะ Graph จัดการคอลัมน์ Lookup แบบหลายค่าได้ไม่สม่ำเสมอ
  * ดีกว่าปล่อยให้บันทึกไม่ได้ทั้งรายการทั้งที่ช่องอื่นถูกต้องหมด
  */
+/**
+ * ช่องที่ห้ามตัดทิ้งเด็ดขาด — เป็นสถานะของงานอนุมัติ ถ้าตัดบางช่องแต่บันทึกช่องอื่น คำขอจะค้าง
+ * (เช่น ประวัติบอกว่าอนุมัติแล้ว แต่ลำดับไม่เลื่อน) → บันทึกไม่ได้ให้แจ้งผู้ใช้ลองใหม่ทั้งชุดแทน
+ */
+const KEEP_FIELDS = { requests: ['ApprovalLog', 'CurrentStep', 'Status', 'PAState'] };
+
 /** ช่องที่ตัดออกได้เสมอ = ช่องที่ไม่ใช่ค่าบังคับหลัก (คง Title ไว้) */
 async function send(name, fields, request) {
   try {
     return { res: await request(fields), dropped: [] };
   } catch (err) {
+    // ตัดช่องได้เฉพาะเมื่อ SharePoint ปฏิเสธค่าของช่อง (400 · บางครั้ง Graph ตอบ 500 กับคอลัมน์ Lookup)
+    // ข้อผิดพลาดชั่วคราว (ชนกัน 409/412 · หนาแน่น 429/503 · เน็ตหลุด) โยนต่อให้ผู้ใช้ลองใหม่ทั้งชุด
+    if (!err || ![400, 500].includes(err.status)) throw err;
     // รอบสอง ตัดช่องที่เลือกได้หลายค่าออกก่อน เพราะเป็นสาเหตุที่พบบ่อยสุด
     const why = String((err && err.message) || '').replace(/\s+/g, ' ').slice(0, 220);
     const multi = multiKeys(name, fields);
@@ -355,7 +366,8 @@ async function send(name, fields, request) {
 
     // รอบสาม ลองตัดทีละช่องจนเจอตัวที่ SharePoint ไม่รับ แล้วบันทึกที่เหลือ
     // คง Title ไว้เสมอเพราะเป็นคอลัมน์บังคับของทุก List
-    const keys = Object.keys(fields).filter((k) => k !== 'Title' && !k.endsWith('@odata.type'));
+    const keep = KEEP_FIELDS[name] || [];
+    const keys = Object.keys(fields).filter((k) => k !== 'Title' && !k.endsWith('@odata.type') && !keep.includes(k));
     for (const bad of keys) {
       const trial = { ...fields };
       delete trial[bad]; delete trial[bad + '@odata.type'];
