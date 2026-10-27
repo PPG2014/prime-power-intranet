@@ -482,3 +482,16 @@
 /* สถานะจัดซื้อ (เบิก Store · รับ PR · รับใบเสนอราคา · ออก PO แล้ว · ส่ง Sup แล้ว · ส่งของแล้ว · Cancel) = สีชมพู */
 .rq-pstatus.rq-buy { color: #a3195b; background: #fde4f0; }
 .rq-buy-by { font-weight: 500; opacity: .85; }
+/* สถานะติดตามงาน (ค่าแรงผู้รับเหมา): Approved · Hold · Re-Check · Send for Approve · Payment */
+.tk-0 { --tk: #1e7f4f; --tkbg: #e3f5ea; }
+.tk-1 { --tk: #b45309; --tkbg: #fff1db; }
+.tk-2 { --tk: #c53030; --tkbg: #fde8e8; }
+.tk-3 { --tk: #1f5fa8; --tkbg: #e3eefb; }
+.tk-4 { --tk: #6b46c1; --tkbg: #efe9fb; }
+.rq-pstatus.rq-track { color: var(--tk, #44546a); background: var(--tkbg, #eef3f9); }
+.rq-pfilter button[class*="tk-"] { color: var(--tk); }
+.rq-pfilter button[class*="tk-"][aria-pressed="true"] { background: var(--tkbg); border-color: var(--tk); }
+.tk-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.tk-opt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13.5px; background: #fff; color: var(--tk); font-weight: 600; }
+.tk-opt:has(input:checked) { background: var(--tkbg); border-color: var(--tk); }
+.rq-trackbox { margin-top: 12px; }

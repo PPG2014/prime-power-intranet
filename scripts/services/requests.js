@@ -187,12 +187,24 @@ export const PURCHASE_ACTION = 'อัปเดตสถานะ';
 export const PURCHASE_DONE = 'ส่งของแล้ว';
 export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
-/** บันทึกล่าสุดที่เปลี่ยนสถานะจัดซื้อ { status, by } · ไม่มีคืน null */
+/**
+ * แบบฟอร์มที่มี "สถานะติดตามงาน" แยกจากการอนุมัติ (บันทึกในประวัติเป็น อัปเดตสถานะ เหมือนใบขอสั่งซื้อ)
+ * ไม่เลื่อนลำดับ/ไม่ปิดคำขอ · อัปเดตได้ทั้งระหว่างอนุมัติและหลังอนุมัติแล้ว
+ */
+export const TRACK_STATUS = {
+  'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน' },
+};
+export const trackOf = (code) => TRACK_STATUS[String(code || '').trim().toUpperCase()] || null;
+/** สถานะที่ใช้ได้ของคำขอนี้ (ใบขอสั่งซื้อ = สถานะจัดซื้อ) */
+const statusListOf = (req) => (trackOf(reqCode(req) || (req && req.FormCode)) || {}).statuses || PURCHASE_STATUSES;
+
+/** บันทึกล่าสุดที่เปลี่ยนสถานะจัดซื้อ/สถานะงาน { status, by } · ไม่มีคืน null */
 const lastPurchase = (req) => {
   // ตัดหมายเหตุที่ต่อท้ายออก · บันทึกที่แก้แค่เลข PR (ไม่ได้เปลี่ยนสถานะ) ไม่นับ
+  const allowed = statusListOf(req);
   const hits = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION)
     .map((x) => ({ status: String(x.note || '').split(' — ')[0].trim(), by: x.by }))
-    .filter((x) => PURCHASE_STATUSES.includes(x.status) && x.status !== '-');
+    .filter((x) => allowed.includes(x.status) && x.status !== '-');
   return hits.slice(-1)[0] || null;
 };
 /** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */

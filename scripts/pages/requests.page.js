@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf, trackOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
@@ -225,7 +225,9 @@ function requestRow(req, opts = {}) {
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         ${(() => {   // สถานะจัดซื้อ + เลข PR อยู่ด้วยกันชิดขวา (สถานะอยู่หน้าเลข PR)
     const who = purchaseStatusBy(req);
-    const buy = purchaseStatusOf(req) ? `<span class="rq-pstatus rq-buy">📦 ${esc(purchaseStatusOf(req))}${who ? ` <span class="rq-buy-by">โดย ${esc(who)}</span>` : ''}</span>` : '';
+    const tr = trackOf(req.FormCode);
+    const st = purchaseStatusOf(req);
+    const buy = st ? `<span class="rq-pstatus ${tr ? `rq-track tk-${tr.statuses.indexOf(st)}` : 'rq-buy'}">${tr ? tr.icon : '📦'} ${esc(st)}${who ? ` <span class="rq-buy-by">โดย ${esc(who)}</span>` : ''}</span>` : '';
     const prNo = isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus rq-prno-chip">PR ${esc(prValues(req).pr_no)}</span>` : '';
     return buy || prNo ? `<span class="rq-prgrp">${buy}${prNo}</span>` : '';
   })()}
@@ -324,7 +326,10 @@ export async function render(ctx) {
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
   const reviewStatus = state.reviewStatus || '';
   const isPRTab = !!shownGroup && isPR(shownGroup.code);
-  const reviewPStatus = isPRTab ? (state.reviewPStatus || '') : '';
+  // แถบกรองสถานะ: ใบขอสั่งซื้อ = สถานะจัดซื้อ · แบบฟอร์มที่มีสถานะติดตามงาน (เช่น ค่าแรงผู้รับเหมา)
+  const shownTrack = shownGroup ? trackOf(shownGroup.code) : null;
+  const pFilters = isPRTab ? PURCHASE_FILTERS : shownTrack ? shownTrack.statuses : [];
+  const reviewPStatus = pFilters.includes(state.reviewPStatus) ? state.reviewPStatus : '';
   const isNeedTab = !!shownGroup && NEED_DATE_FORMS.includes(shownGroup.code);
   const reviewNeed = isNeedTab ? (state.reviewNeed || '') : '';
   const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
@@ -373,12 +378,12 @@ export async function render(ctx) {
                 <button data-rqst="" aria-pressed="${!reviewStatus}">ทั้งหมด <b>${shownGroup.rows.length}</b></button>
                 ${chips.map((st) => `<button data-rqst="${esc(st)}" class="st-${STATUS_TONE[st] || 'gray'}" aria-pressed="${st === reviewStatus}">${esc(st)}${
                   st === 'รออนุมัติ' && cnt(st) ? ` <span class="tab-badge" title="รออนุมัติ ${cnt(st)} ใบ">${cnt(st)}</span>` : ` <b>${cnt(st)}</b>`}</button>`).join('')}
-              </div>${isPRTab ? `<div class="rq-stfilter rq-pfilter" role="group" aria-label="กรองตามสถานะจัดซื้อ">
-                <span class="rq-pf-label">📦 สถานะจัดซื้อ</span>
+              </div>${pFilters.length ? `<div class="rq-stfilter rq-pfilter" role="group" aria-label="กรองตาม${shownTrack ? shownTrack.label : 'สถานะจัดซื้อ'}">
+                <span class="rq-pf-label">${shownTrack ? `${shownTrack.icon} ${shownTrack.label}` : '📦 สถานะจัดซื้อ'}</span>
                 <button data-rqpst="" aria-pressed="${!reviewPStatus}">ทั้งหมด</button>
-                ${PURCHASE_FILTERS.map((x) => {
+                ${pFilters.map((x, i) => {
                   const n = shownGroup.rows.filter((r) => purchaseStatusOf(r) === x).length;
-                  return `<button data-rqpst="${esc(x)}" class="${x === PURCHASE_CANCEL ? 'st-red' : ''}" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
+                  return `<button data-rqpst="${esc(x)}" class="${shownTrack ? `tk-${i}` : x === PURCHASE_CANCEL ? 'st-red' : ''}" aria-pressed="${x === reviewPStatus}">${esc(x)} <b>${n}</b></button>`;
                 }).join('')}
               </div>` : ''}${isNeedTab ? `<div class="rq-stfilter rq-nfilter" role="group" aria-label="กรองตามวันที่ต้องใช้เงิน">
                 <span class="rq-pf-label" title="นับเฉพาะคำขอที่ยังไม่อนุมัติ (รออนุมัติ / ส่งกลับแก้ไข)">📅 วันที่ต้องใช้เงิน</span>
@@ -639,7 +644,7 @@ async function openRequest(req) {
             ? ' <span class="tl-nosig" title="อนุมัติจากการ์ด Teams/อีเมล จึงไม่มีลายเซ็นในขั้นนี้">⚠ ไม่มีลายเซ็น</span>' : ''}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
-            ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">📦 สถานะจัดซื้อ</span>${esc(a.note)}</div>`
+            ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">${trackOf(req.FormCode) ? `${trackOf(req.FormCode).icon} ${trackOf(req.FormCode).label}` : '📦 สถานะจัดซื้อ'}</span>${esc(a.note)}</div>`
             : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}</div>`).join('')}
       </div></div>`;
   }).join('') + carTimeline(log);
@@ -678,6 +683,7 @@ async function openRequest(req) {
             : (!state.isAdmin && !role.isInvolved && watchForms.includes(req.FormCode)
               ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ติดตามสถานะตามฝ่าย — คุณไม่ได้อยู่ในเส้นทางอนุมัติของคำขอนี้</div>' : ''))}
 
+        ${trackBox(req, role)}
         ${requesterActions(req, log)}
         ${isCarRequest(req) ? carManageBox(req, role) : ''}
         ${state.isAdmin && req.Status === 'รออนุมัติ' ? `<div class="rq-owner-act">
@@ -706,6 +712,7 @@ async function openRequest(req) {
   });
 
   if (role.canActNow) { bindActions(req, steps, role, formRow); watchOthers(req); }
+  bindTrack(req, steps, role);
 
   onClick('reqcancel', async () => {
     if (!confirm('ยกเลิกคำขอนี้ใช่หรือไม่ · การยกเลิกถาวร')) return;
@@ -892,6 +899,58 @@ async function viewSlip(s, req) {
   document.body.appendChild(layer);
   const { hydratePhotos } = await import('../services/photos.js');
   hydratePhotos(layer);
+}
+
+/* ───── สถานะติดตามงาน (เช่น ค่าแรงผู้รับเหมา: Approved / Hold / Re-Check / Send for Approve / Payment) ───── */
+/** ใครอัปเดตได้: แอดมิน · ฝ่ายที่ติดตามแบบฟอร์มนี้ (เช่น บัญชีและการเงิน) · คนในเส้นทางอนุมัติของคำขอนี้ */
+const canTrack = (req, role) => !!trackOf(req.FormCode)
+  && (state.isAdmin || watchForms.includes(req.FormCode) || role.isInvolved)
+  && !['ยกเลิก', 'ไม่อนุมัติ'].includes(String(req.Status || '').trim());
+
+function trackBox(req, role) {
+  if (!canTrack(req, role)) return '';
+  const tr = trackOf(req.FormCode);
+  const nowSt = purchaseStatusOf(req);
+  return `
+    <div class="rq-action rq-purchase rq-trackbox">
+      <h4>${tr.icon} อัปเดต${esc(tr.label)}${nowSt ? ` <span class="rq-pstatus rq-track tk-${tr.statuses.indexOf(nowSt)}">ปัจจุบัน: ${esc(nowSt)}</span>` : ''}</h4>
+      <div class="tk-pick" role="radiogroup" aria-label="${esc(tr.label)}">
+        ${tr.statuses.map((x, i) => `<label class="tk-opt tk-${i}"><input type="radio" name="tk-st" value="${esc(x)}" ${x === nowSt ? 'checked' : ''}> ${esc(x)}</label>`).join('')}
+      </div>
+      <label class="rq-note-label" for="tk-note">Note <span class="dim">(ไม่บังคับ · ใส่ได้ทุกสถานะ)</span></label>
+      <textarea id="tk-note" rows="2" maxlength="500" placeholder="รายละเอียดเพิ่มเติม เช่น เหตุผลที่ Hold · สิ่งที่ต้อง Re-Check · วันที่จ่าย"></textarea>
+      <div class="field-error" id="tk-err" hidden></div>
+      <div class="rq-buttons tk-buttons">
+        <span class="dim">บันทึกในประวัติของคำขอ · ไม่กระทบขั้นตอนอนุมัติ</span>
+        <button class="btn btn-primary" id="tk-save">💾 บันทึกสถานะ</button>
+      </div>
+    </div>`;
+}
+
+function bindTrack(req, steps, role) {
+  const btn = $('#tk-save');
+  if (!btn) return;
+  const err = $('#tk-err');
+  const fail = (m) => { err.textContent = m; err.hidden = false; };
+  btn.onclick = async () => {
+    err.hidden = true;
+    const st = ($('input[name="tk-st"]:checked') || {}).value || '';
+    const text = $('#tk-note').value.trim();
+    const cur = purchaseStatusOf(req);
+    if (!st) { fail('กรุณาเลือกสถานะ'); return; }
+    if (st === cur && !text) { fail(`สถานะเป็น "${cur}" อยู่แล้ว — เลือกสถานะอื่น หรือพิมพ์ Note`); return; }
+    btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    try {
+      const by = me || state.user?.name || '';
+      await decide(req, steps, { action: PURCHASE_ACTION, by, note: [st, text].filter(Boolean).join(' — ') });
+      closeModal();
+      const { render: rerender } = await import('../core/render.js');
+      rerender();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = '💾 บันทึกสถานะ';
+      fail((e.name === 'AlreadyActedError' ? '⚠ ' : 'บันทึกไม่สำเร็จ — ') + e.message);
+    }
+  };
 }
 
 /** ขั้นฝ่ายจัดซื้อของใบขอสั่งซื้อ: เลือกสถานะงานจัดซื้อแทนปุ่มอนุมัติ · "ส่งของแล้ว" = ปิดคำขอ */
