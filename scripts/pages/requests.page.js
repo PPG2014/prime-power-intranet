@@ -621,7 +621,7 @@ async function openRequest(req) {
           // แสดงรายชื่อผู้มีสิทธิ์อนุมัติของขั้นที่ยังไม่มีคนกด · ยกเว้นขั้นผู้ทบทวน (รายชื่อยาวทั้งฝ่าย)
           const names = !acts.length && !HIDE_NAMES_STEP.test(String(s.StepName || ''))
             ? `<div class="tl-people">${esc(who.join(', '))}</div>` : '';
-          if (!who.some((x) => meIds.includes(x)) || acts.some((a) => (a.byList || [String(a.by).trim()]).some((x) => meIds.includes(x)))
+          if (!who.some((x) => meIds.includes(x)) || now.some((a) => (a.byList || [String(a.by).trim()]).some((x) => meIds.includes(x)))
             || req.Status !== 'รออนุมัติ') return names;
           return names + (n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
             : n > cur ? '<div class="tl-people tl-me tl-later">คุณเป็นผู้อนุมัติขั้นนี้ · รอลำดับก่อนหน้าอนุมัติก่อน</div>' : '');
