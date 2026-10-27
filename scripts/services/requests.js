@@ -5,7 +5,8 @@
  * เส้นทางแต่ละฟอร์มมาจาก ApprovalMatrix เรียงตาม StepOrder
  * ประวัติการอนุมัติแต่ละครั้งเก็บใน ApprovalLog ของคำขอนั้น (JSON)
  */
-import { ppeConfig, ppeApproversFor, ppeSiteOf } from './ppe.js';
+import { PPE_PROJECT, ppeConfig, ppeApproversFor, ppeSiteOf } from './ppe.js';
+import { OM_PROJECT } from './om.js';
 import { thaiName, thaiNote } from './names.js';
 import { list, update } from './data.js';
 
@@ -250,7 +251,31 @@ const signsEveryStep = (code) => SIGN_EVERY_STEP.includes(String(code || '').tri
  * ไม่สนช่องว่าง (อื่นๆ = อื่น ๆ)
  */
 const condNorm = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+/**
+ * ชุดเส้นทางอนุมัติแยก: แบบฟอร์มหนึ่งมีเส้นทางปกติ + เส้นทางของ Prime Power Engineering Pro / งาน O&M ได้ทั้งชุด
+ * เก็บในแถว ApprovalMatrix เดิม โดยตั้ง ConditionField = "__set" และ ConditionValues = ชื่อชุด (PPE / O&M)
+ * (ไม่ต้องเพิ่มคอลัมน์ใหม่ใน SharePoint · ลำดับของแต่ละชุดนับ 1, 2, 3… แยกกัน)
+ */
+export const ROUTE_SET_FIELD = '__set';
+export const ROUTE_SETS = [
+  { key: '', label: 'เส้นทางปกติ' },
+  { key: 'PPE', label: 'Prime Power Engineering Pro', project: PPE_PROJECT },
+  { key: 'O&M', label: 'งาน O&M', project: OM_PROJECT },
+];
+/** ชุดของแถวเส้นทาง ('' = เส้นทางปกติ) */
+export const routeSetOf = (step) => (String((step && step.ConditionField) || '').trim() === ROUTE_SET_FIELD
+  ? String((step && step.ConditionValues) || '').split(',')[0].trim() : '');
+/** ชุดที่คำขอนี้ควรใช้ ตามโครงการที่เลือก ('' = ปกติ) */
+export function requestRouteSet(req) {
+  let data = {};
+  try { data = (typeof req.FormData === 'string' ? JSON.parse(req.FormData || '{}') : req.FormData) || {}; } catch (e) { data = {}; }
+  const p = String(data.project || '').trim();
+  const hit = ROUTE_SETS.find((x) => x.project && x.project === p);
+  return hit ? hit.key : '';
+}
+
 export function stepApplies(step, req) {
+  if (routeSetOf(step)) return true;      // แถวของชุดแยก ไม่มีเงื่อนไขรายขั้น (applicableSteps เลือกชุดให้แล้ว)
   const field = String((step && step.ConditionField) || '').trim();
   const want = String((step && step.ConditionValues) || '').split(',').map(condNorm).filter(Boolean);
   if (!field || !want.length) return true;
@@ -259,8 +284,15 @@ export function stepApplies(step, req) {
   const got = data[field];
   return (Array.isArray(got) ? got : [got]).map(condNorm).some((g) => g && want.includes(g));
 }
-/** ลำดับที่ใช้กับคำขอนี้ (ตัดลำดับที่เงื่อนไขไม่ตรงออก) */
-export const applicableSteps = (steps, req) => steps.filter((s) => stepApplies(s, req));
+/**
+ * ลำดับที่ใช้กับคำขอนี้: เลือกชุดเส้นทางก่อน (โครงการ PPE / งาน O&M ใช้ชุดของตัวเองถ้าตั้งไว้ · ไม่ตั้ง = เส้นทางปกติ)
+ * แล้วตัดลำดับที่เงื่อนไขไม่ตรงออก
+ */
+export const applicableSteps = (steps, req) => {
+  const want = requestRouteSet(req);
+  const use = want && steps.some((s) => routeSetOf(s) === want) ? want : '';
+  return steps.filter((s) => routeSetOf(s) === use && stepApplies(s, req));
+};
 
 /** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น · ลำดับที่เงื่อนไขไม่ตรงถูกตัดออก */
 export async function loadResolved(steps, req) {

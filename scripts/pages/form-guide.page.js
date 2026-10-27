@@ -9,7 +9,7 @@ import { esc, $, onClick } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { withStandard, lineCols, OFFICE_PROJECTS, NO_PROJECT } from '../components/form-renderer.js';
-import { stepsOf, isOptionalStep, isNotifyEarly, SIGN_EVERY_STEP, needsSlip, PURCHASE_STATUSES } from '../services/requests.js';
+import { stepsOf, isOptionalStep, isNotifyEarly, SIGN_EVERY_STEP, needsSlip, PURCHASE_STATUSES, routeSetOf, ROUTE_SETS } from '../services/requests.js';
 import { isQueueForm } from '../services/booking.js';
 import { isCarForm } from '../services/car.js';
 import { isPR } from '../templates/pr-fm-pur-004.js';
@@ -173,7 +173,11 @@ function formCard(form) {
   const own = fieldsByCode[code] || [];
   // ใบจองโซลาร์มีหน้ากรอกเฉพาะ ช่องกำหนดในโค้ด
   const fields = isSolar(code) && !own.length ? SOLAR_FIELDS : withStandard(own, form);
-  const steps = stepsByCode[code] || [];
+  const allSteps = stepsByCode[code] || [];
+  // เส้นทางปกติ + เส้นทางแยกทั้งชุด (Prime Power Engineering Pro / งาน O&M) แสดงคนละตาราง
+  const steps = allSteps.filter((s) => !routeSetOf(s));
+  const setSteps = ROUTE_SETS.filter((x) => x.key).map((x) => ({ ...x, steps: allSteps.filter((s) => routeSetOf(s) === x.key) }))
+    .filter((x) => x.steps.length);
   const titleOf = (k) => (fields.find((f) => f.FieldKey === k) || {}).Title || k;
   const ext = String(form.ExternalUrl || '').trim();
   const off = !active(form.IsActive);
@@ -198,13 +202,18 @@ function formCard(form) {
   }).join('');
 
   const signAll = SIGN_EVERY_STEP.includes(code);
-  const stepRows = steps.map((s) => `<tr>
+  const rowsOf = (list) => list.map((s) => `<tr>
       <td class="n">${esc(s.StepOrder)}</td>
       <td><b>${esc(s.StepName || '')}</b></td>
       <td>${/ผู้ทบทวน/.test(String(s.StepName || '')) ? 'ตามผู้รับผิดชอบหลักของโครงการ / ฝ่ายที่กำหนด' : approverText(s)}</td>
       <td>${/ครบ/.test(String(s.ApproveMode || '')) ? '<b>ทุกคนต้องอนุมัติ</b>' : 'คนใดคนหนึ่งอนุมัติก็ผ่าน'}${signAll ? '<br>✍ ต้องลงลายเซ็น' : ''}</td>
-      <td>${stepCondText(s, titleOf)}${isOptionalStep(s) ? '<br>ข้ามได้ถ้าไม่มีผู้อนุมัติ' : ''}${isNotifyEarly(s) ? '<br>🔔 ได้รับแจ้งตั้งแต่ยื่น' : ''}</td>
+      <td>${routeSetOf(s) ? 'ทุกคำขอของโครงการนี้' : stepCondText(s, titleOf)}${isOptionalStep(s) ? '<br>ข้ามได้ถ้าไม่มีผู้อนุมัติ' : ''}${isNotifyEarly(s) ? '<br>🔔 ได้รับแจ้งตั้งแต่ยื่น' : ''}</td>
     </tr>`).join('');
+  const stepRows = rowsOf(steps);
+  const setTables = setSteps.map((x) => `<h4>2.${ROUTE_SETS.findIndex((r) => r.key === x.key)} เส้นทางแยก: ${esc(x.label)} <span class="dim">${x.steps.length} ลำดับ · ใช้แทนเส้นทางปกติเมื่อเลือกโครงการ ${esc(x.project)}</span></h4>
+    <div class="fg-scroll"><table class="fg-table">
+      <thead><tr><th>ลำดับ</th><th>ขั้น</th><th>ผู้อนุมัติ</th><th>เงื่อนไขการผ่าน</th><th>ใช้เมื่อ</th></tr></thead>
+      <tbody>${rowsOf(x.steps)}</tbody></table></div>`).join('');
 
   return `
   <article class="fg-card${off ? ' off' : ''}" id="fg-${esc(code)}">
@@ -229,6 +238,7 @@ function formCard(form) {
       <tbody>${stepRows}</tbody></table></div>
       <p class="fg-hint">ลำดับที่มีเงื่อนไข "ใช้เฉพาะเมื่อ" ถ้าคำขอไม่ตรงเงื่อนไข ระบบข้ามลำดับนั้นให้เอง · ผู้อนุมัติที่ลา ระบบส่งให้ผู้ปฏิบัติแทนอัตโนมัติ</p>`
       : '<p class="fg-warn">ยังไม่ได้ตั้งเส้นทางอนุมัติ — ส่งคำขอแล้วจะไม่มีผู้อนุมัติ (แจ้งผู้ดูแลระบบ)</p>'}
+    ${setTables}
     <h4>3. กติกาพิเศษที่ระบบทำให้</h4>
     <ul class="fg-rules">${systemRules(form, fields).map((r) => `<li>${r}</li>`).join('')}</ul>`}
   </article>`;
