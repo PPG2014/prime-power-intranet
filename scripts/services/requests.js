@@ -5,6 +5,7 @@
  * เส้นทางแต่ละฟอร์มมาจาก ApprovalMatrix เรียงตาม StepOrder
  * ประวัติการอนุมัติแต่ละครั้งเก็บใน ApprovalLog ของคำขอนั้น (JSON)
  */
+import { ppeConfig, ppeApproversFor, ppeSiteOf } from './ppe.js';
 import { thaiName, thaiNote } from './names.js';
 import { list, update } from './data.js';
 
@@ -35,7 +36,9 @@ export async function resolveApprovers(step, req) {
   // หรือผู้ยื่นไม่ได้อยู่ในทีมโครงการที่เลือก → ให้ผู้บังคับบัญชาของผู้ยื่นอนุมัติได้ด้วย (คนใดคนหนึ่ง)
   if ([step.ApproverType, ...also].some((t) => PROJECT_APPROVER_TYPES.includes(t))) {
     const proj = await projectOfRequest(req);
-    if (!proj || !(await inProjectTeam(proj, req))) {
+    const ppe = await ppeApproversOfRequest(req);
+    // โครงการ PPE ที่ตั้งผู้อนุมัติไว้แล้ว ไม่ต้องเติมผู้บังคับบัญชา
+    if (!(ppe && ppe.length) && (!proj || !(await inProjectTeam(proj, req)))) {
       const boss = await resolveRaw({ ApproverType: 'ผู้บังคับบัญชาของผู้ยื่น', Approvers: [] }, req);
       boss.forEach((b) => { if (!names.includes(b)) names.unshift(b); });
     }
@@ -97,6 +100,13 @@ async function resolveRaw(step, req) {
     const rl = await list('reportingLine').catch(() => []);
     const row = rl.find((r) => r.Title === req.RequesterName);
     return row && row.Manager ? [row.Manager] : named;
+  }
+
+  // โครงการของ Prime Power Engineering Pro: ผู้อนุมัติตามชื่อที่ตั้งไว้ (ของโครงการนั้น หรือของบริษัท) · เลือกได้หลายคน
+  if (PROJECT_APPROVER_TYPES.includes(type) || type === 'ผู้อำนวยการโครงการ') {
+    const ppe = await ppeApproversOfRequest(req);
+    // ผู้อำนวยการโครงการ: PPE ไม่มีในทะเบียนโครงการ → ใช้ชื่อที่ระบุในลำดับ (ว่าง + ลำดับไม่บังคับ = ข้ามอัตโนมัติ)
+    if (ppe) return type === 'ผู้อำนวยการโครงการ' || !ppe.length ? named : ppe;
   }
 
   if (type === 'ผู้รับผิดชอบหลักของโครงการ') {
@@ -165,6 +175,15 @@ async function inProjectTeam(proj, req) {
   const team = [nameOf(proj.Owner), ...asList(proj.Team).map(nameOf)];
   const mine = me ? asList(me.Project).map(nameOf) : [];
   return (!!name && team.filter(Boolean).includes(name)) || (!!title && mine.includes(title));
+}
+
+/** คำขอโครงการ PPE → รายชื่อผู้อนุมัติที่ตั้งไว้ (อาจว่าง) · ไม่ใช่โครงการ PPE คืน null */
+async function ppeApproversOfRequest(req) {
+  let d = {};
+  try { d = JSON.parse(req.FormData || '{}') || {}; } catch (e) { return null; }
+  const site = ppeSiteOf(d);
+  if (site === null) return null;
+  return ppeApproversFor(await ppeConfig(), site);
 }
 
 /** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบ/ไม่เกี่ยวกับโครงการ คืน null */

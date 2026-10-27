@@ -1,3 +1,4 @@
+import { PPE_PROJECT, PPE_OTHER, ppeConfig, ppeApproversFor } from '../services/ppe.js';
 import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
@@ -406,6 +407,15 @@ function bindProjectHint() {
     const bossTxt = boss ? `ผู้บังคับบัญชาของคุณ (${boss})` : 'ผู้บังคับบัญชาของคุณ';
     if (!v) { hint.textContent = `ไม่เกี่ยวกับโครงการใด ให้เลือก "${NO_PROJECT}"`; hint.classList.remove('warn'); return; }
     if (v === NO_PROJECT) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
+    // Prime Power Engineering Pro: ผู้อนุมัติตามที่ตั้งไว้ในหน้า 🏠 โครงการ PPE
+    if (v === PPE_PROJECT) {
+      const sel = document.getElementById('q_ppe_site');
+      const site = sel && sel.value === PPE_OTHER ? (document.getElementById('q_ppe_other') || {}).value : (sel && sel.value);
+      const who = ppeApproversFor(await ppeConfig(), site);
+      hint.textContent = who.length ? `ผู้อนุมัติโครงการ PPE: ${who.join(', ')} (คนใดคนหนึ่ง)` : `ยังไม่ได้ตั้งผู้อนุมัติโครงการ PPE — คำขอจะส่งให้${bossTxt}อนุมัติ`;
+      hint.classList.toggle('warn', !who.length);
+      return;
+    }
     const proj = (await list('projects').catch(() => [])).find((p) => String(p.Title).trim() === v);
     // สำนักงานใหญ่ / สำนักงานชลบุรี / งาน O&M (ไม่ได้อยู่ในทะเบียนโครงการ) → ผู้บังคับบัญชาอนุมัติ
     if (!proj && (OFFICE_PROJECTS.includes(v) || v === 'งาน O&M')) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
@@ -421,6 +431,8 @@ function bindProjectHint() {
   };
   input.addEventListener('change', show);
   input.addEventListener('input', show);
+  // เปลี่ยนโครงการ PPE → ผู้อนุมัติอาจต่างกัน (ตั้งเฉพาะโครงการได้)
+  ['q_ppe_site', 'q_ppe_other'].forEach((id) => { const el = document.getElementById(id); if (el) { el.addEventListener('change', show); el.addEventListener('input', show); } });
   show();
 }
 
