@@ -269,33 +269,27 @@ export async function photoBlobUrl(webUrl) {
 }
 
 /**
- * ดาวน์โหลดไฟล์ลงเครื่องด้วยชื่อไฟล์จริง
- * ไฟล์ใน SharePoint: ขอลิงก์ดาวน์โหลดชั่วคราวจาก Graph (@microsoft.graph.downloadUrl) แล้วให้เบราว์เซอร์โหลดเอง
- *   ชื่อไฟล์มาจาก SharePoint จึงเป็นภาษาไทยได้ (ถ้าโหลดเป็น blob บางเบราว์เซอร์ตั้งชื่อไทยไม่ได้ กลายเป็น "download")
+ * ดาวน์โหลดไฟล์ลงเครื่องด้วยชื่อไฟล์เดิม (ชื่อตอนแนบ ไม่ใช่ชื่อสุ่มที่เก็บใน SharePoint)
+ * ไฟล์ใน SharePoint ต้องแนบ token → โหลดเนื้อไฟล์ผ่าน Graph เป็น blob แล้วบันทึกด้วยชื่อที่ส่งมา
  * ลิงก์ภายนอก/ในเว็บ: เปิดดาวน์โหลดตามปกติ
  */
 export async function downloadFile(webUrl, name = '') {
   if (!webUrl || webUrl === '#') throw new Error('ไม่มีลิงก์ไฟล์');
-  const click = (href, attrs = {}) => {
+  const save = (href, extra = {}) => {
     const a = document.createElement('a');
     a.href = href; a.rel = 'noopener';
-    Object.assign(a, attrs);
+    Object.assign(a, extra);
     document.body.appendChild(a); a.click(); a.remove();
   };
-  if (CONFIG.dataSource === 'mock' || !/sharepoint\.com/i.test(webUrl)) { click(webUrl, { download: name || '' }); return; }
+  if (CONFIG.dataSource === 'mock' || !/sharepoint\.com/i.test(webUrl)) { save(webUrl, { download: name || '' }); return; }
   const token = await getToken();
-  const base = `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem`;
-  const meta = await graphFetch(base, { headers: { Authorization: `Bearer ${token}` } });
-  if (!meta.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ (' + meta.status + ')');
-  const item = await meta.json();
-  const direct = item['@microsoft.graph.downloadUrl'];
-  if (direct) { click(direct); return; }
-  // ไม่มีลิงก์ชั่วคราว (เช่นเป็นโฟลเดอร์/สิทธิ์จำกัด) → โหลดเนื้อไฟล์เป็น blob
-  const res = await graphFetch(base + '/content', { headers: { Authorization: `Bearer ${token}` } });
+  const res = await graphFetch(
+    `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/content`,
+    { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ (' + res.status + ')');
   const href = URL.createObjectURL(await res.blob());
-  click(href, { download: item.name || name || '' });
-  setTimeout(() => URL.revokeObjectURL(href), 30000);
+  save(href, { download: name || decodeURIComponent(webUrl.split('/').pop().split('?')[0]) });
+  setTimeout(() => URL.revokeObjectURL(href), 60000);
 }
 
 /** แทนที่ <img> ที่โหลดไม่ได้ ด้วยตัวอักษรย่อของชื่อ (เหมือนช่องไม่มีรูป) */

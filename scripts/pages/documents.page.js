@@ -80,7 +80,7 @@ export function mount(ctx) {
 `,
     });
     onClick('dl', (x, el) => download(x, el));
-    onClick('dlone', (i, el) => saveFiles([files[+i]], el));
+    onClick('dlone', (i, el) => saveFiles([files.length === 1 ? { ...files[0], name: docFileName(d, files[0]) } : files[+i]], el));
   });
   onClick('dl', (id, el) => download(id, el));
 }
@@ -88,7 +88,17 @@ export function mount(ctx) {
 /** ดาวน์โหลดไฟล์แนบของเอกสาร · หลายไฟล์ดาวน์โหลดทีละไฟล์ (เบราว์เซอร์อาจถามอนุญาตครั้งแรก) */
 function download(id, el) {
   const d = rows.find((r) => String(r.id) === String(id));
-  if (d) saveFiles(toFiles(d.Files), el);
+  if (!d) return;
+  const files = toFiles(d.Files);
+  // ไฟล์เดียว: ตั้งชื่อตามชื่อเอกสาร · หลายไฟล์: ใช้ชื่อไฟล์เดิมของแต่ละไฟล์ (ชื่อต่างกัน)
+  saveFiles(files.length === 1 ? [{ ...files[0], name: docFileName(d, files[0]) }] : files, el);
+}
+/** ชื่อเอกสาร + นามสกุลไฟล์ · ตัดอักขระที่ Windows ไม่รับในชื่อไฟล์ */
+function docFileName(d, f) {
+  const ext = (String(f.name || '').match(/\.[A-Za-z0-9]{1,8}$/) || [''])[0]
+    || (f.kind && f.kind !== 'FILE' ? '.' + String(f.kind).toLowerCase() : '');
+  const base = String(d.Title || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return base ? base + ext : f.name;
 }
 async function saveFiles(files, el) {
   const { downloadFile } = await import('../services/photos.js');
