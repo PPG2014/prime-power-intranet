@@ -5,6 +5,8 @@
  * เส้นทางแต่ละฟอร์มมาจาก ApprovalMatrix เรียงตาม StepOrder
  * ประวัติการอนุมัติแต่ละครั้งเก็บใน ApprovalLog ของคำขอนั้น (JSON)
  */
+import { PPE_PROJECT, ppeConfig, ppeApproversFor, ppeSiteOf } from './ppe.js';
+import { OM_PROJECT } from './om.js';
 import { thaiName, thaiNote } from './names.js';
 import { list, update } from './data.js';
 
@@ -35,7 +37,9 @@ export async function resolveApprovers(step, req) {
   // หรือผู้ยื่นไม่ได้อยู่ในทีมโครงการที่เลือก → ให้ผู้บังคับบัญชาของผู้ยื่นอนุมัติได้ด้วย (คนใดคนหนึ่ง)
   if ([step.ApproverType, ...also].some((t) => PROJECT_APPROVER_TYPES.includes(t))) {
     const proj = await projectOfRequest(req);
-    if (!proj || !(await inProjectTeam(proj, req))) {
+    const ppe = await ppeApproversOfRequest(req);
+    // โครงการ PPE ที่ตั้งผู้อนุมัติไว้แล้ว ไม่ต้องเติมผู้บังคับบัญชา
+    if (!(ppe && ppe.length) && (!proj || !(await inProjectTeam(proj, req)))) {
       const boss = await resolveRaw({ ApproverType: 'ผู้บังคับบัญชาของผู้ยื่น', Approvers: [] }, req);
       boss.forEach((b) => { if (!names.includes(b)) names.unshift(b); });
     }
@@ -97,6 +101,13 @@ async function resolveRaw(step, req) {
     const rl = await list('reportingLine').catch(() => []);
     const row = rl.find((r) => r.Title === req.RequesterName);
     return row && row.Manager ? [row.Manager] : named;
+  }
+
+  // โครงการของ Prime Power Engineering Pro: ผู้อนุมัติตามชื่อที่ตั้งไว้ (ของโครงการนั้น หรือของบริษัท) · เลือกได้หลายคน
+  if (PROJECT_APPROVER_TYPES.includes(type) || type === 'ผู้อำนวยการโครงการ') {
+    const ppe = await ppeApproversOfRequest(req);
+    // ผู้อำนวยการโครงการ: PPE ไม่มีในทะเบียนโครงการ → ใช้ชื่อที่ระบุในลำดับ (ว่าง + ลำดับไม่บังคับ = ข้ามอัตโนมัติ)
+    if (ppe) return type === 'ผู้อำนวยการโครงการ' || !ppe.length ? named : ppe;
   }
 
   if (type === 'ผู้รับผิดชอบหลักของโครงการ') {
@@ -167,6 +178,15 @@ async function inProjectTeam(proj, req) {
   return (!!name && team.filter(Boolean).includes(name)) || (!!title && mine.includes(title));
 }
 
+/** คำขอโครงการ PPE → รายชื่อผู้อนุมัติที่ตั้งไว้ (อาจว่าง) · ไม่ใช่โครงการ PPE คืน null */
+async function ppeApproversOfRequest(req) {
+  let d = {};
+  try { d = JSON.parse(req.FormData || '{}') || {}; } catch (e) { return null; }
+  const site = ppeSiteOf(d);
+  if (site === null) return null;
+  return ppeApproversFor(await ppeConfig(), site);
+}
+
 /** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบ/ไม่เกี่ยวกับโครงการ คืน null */
 async function projectOfRequest(req) {
   let name = '';
@@ -189,10 +209,11 @@ export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
 /**
  * แบบฟอร์มที่มี "สถานะติดตามงาน" แยกจากการอนุมัติ (บันทึกในประวัติเป็น อัปเดตสถานะ เหมือนใบขอสั่งซื้อ)
- * ไม่เลื่อนลำดับ/ไม่ปิดคำขอ · อัปเดตได้ทั้งระหว่างอนุมัติและหลังอนุมัติแล้ว
+ * ไม่เลื่อนลำดับ · ปิดคำขอเฉพาะสถานะ done (เช่น Payment = เสร็จสิ้น) · อัปเดตได้ทั้งระหว่างอนุมัติและหลังอนุมัติแล้ว
  */
 export const TRACK_STATUS = {
-  'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน' },
+  // done = สถานะที่ปิดคำขอเป็น "เสร็จสิ้น"
+  'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน', done: 'Payment' },
 };
 export const trackOf = (code) => TRACK_STATUS[String(code || '').trim().toUpperCase()] || null;
 /** สถานะที่ใช้ได้ของคำขอนี้ (ใบขอสั่งซื้อ = สถานะจัดซื้อ) */
@@ -230,7 +251,31 @@ const signsEveryStep = (code) => SIGN_EVERY_STEP.includes(String(code || '').tri
  * ไม่สนช่องว่าง (อื่นๆ = อื่น ๆ)
  */
 const condNorm = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+/**
+ * ชุดเส้นทางอนุมัติแยก: แบบฟอร์มหนึ่งมีเส้นทางปกติ + เส้นทางของ Prime Power Engineering Pro / งาน O&M ได้ทั้งชุด
+ * เก็บในแถว ApprovalMatrix เดิม โดยตั้ง ConditionField = "__set" และ ConditionValues = ชื่อชุด (PPE / O&M)
+ * (ไม่ต้องเพิ่มคอลัมน์ใหม่ใน SharePoint · ลำดับของแต่ละชุดนับ 1, 2, 3… แยกกัน)
+ */
+export const ROUTE_SET_FIELD = '__set';
+export const ROUTE_SETS = [
+  { key: '', label: 'เส้นทางปกติ' },
+  { key: 'PPE', label: 'Prime Power Engineering Pro', project: PPE_PROJECT },
+  { key: 'O&M', label: 'งาน O&M', project: OM_PROJECT },
+];
+/** ชุดของแถวเส้นทาง ('' = เส้นทางปกติ) */
+export const routeSetOf = (step) => (String((step && step.ConditionField) || '').trim() === ROUTE_SET_FIELD
+  ? String((step && step.ConditionValues) || '').split(',')[0].trim() : '');
+/** ชุดที่คำขอนี้ควรใช้ ตามโครงการที่เลือก ('' = ปกติ) */
+export function requestRouteSet(req) {
+  let data = {};
+  try { data = (typeof req.FormData === 'string' ? JSON.parse(req.FormData || '{}') : req.FormData) || {}; } catch (e) { data = {}; }
+  const p = String(data.project || '').trim();
+  const hit = ROUTE_SETS.find((x) => x.project && x.project === p);
+  return hit ? hit.key : '';
+}
+
 export function stepApplies(step, req) {
+  if (routeSetOf(step)) return true;      // แถวของชุดแยก ไม่มีเงื่อนไขรายขั้น (applicableSteps เลือกชุดให้แล้ว)
   const field = String((step && step.ConditionField) || '').trim();
   const want = String((step && step.ConditionValues) || '').split(',').map(condNorm).filter(Boolean);
   if (!field || !want.length) return true;
@@ -239,8 +284,15 @@ export function stepApplies(step, req) {
   const got = data[field];
   return (Array.isArray(got) ? got : [got]).map(condNorm).some((g) => g && want.includes(g));
 }
-/** ลำดับที่ใช้กับคำขอนี้ (ตัดลำดับที่เงื่อนไขไม่ตรงออก) */
-export const applicableSteps = (steps, req) => steps.filter((s) => stepApplies(s, req));
+/**
+ * ลำดับที่ใช้กับคำขอนี้: เลือกชุดเส้นทางก่อน (โครงการ PPE / งาน O&M ใช้ชุดของตัวเองถ้าตั้งไว้ · ไม่ตั้ง = เส้นทางปกติ)
+ * แล้วตัดลำดับที่เงื่อนไขไม่ตรงออก
+ */
+export const applicableSteps = (steps, req) => {
+  const want = requestRouteSet(req);
+  const use = want && steps.some((s) => routeSetOf(s) === want) ? want : '';
+  return steps.filter((s) => routeSetOf(s) === use && stepApplies(s, req));
+};
 
 /** เติมรายชื่อผู้อนุมัติจริงลงในแต่ละลำดับ ตามผู้ยื่นของคำขอนั้น · ลำดับที่เงื่อนไขไม่ตรงถูกตัดออก */
 export async function loadResolved(steps, req) {
@@ -656,8 +708,9 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
     // ฝ่ายจัดซื้อ: บันทึกสถานะไว้ในประวัติ · "ส่งของแล้ว" = ปิดคำขอ
     // "ส่งของแล้ว" = ปิดเป็นเสร็จสิ้น · "Cancel" = ปิดเป็นยกเลิก (note อาจมีหมายเหตุต่อท้ายด้วย " — ")
     const st = String(note).split(' — ')[0].trim();
-    if (st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
-    if (st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
+    const tr = trackOf(reqCode(req) || req.FormCode);
+    if (tr ? st === tr.done : st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
+    if (!tr && st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
   } else if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
     patch.PAState = 'DONE';

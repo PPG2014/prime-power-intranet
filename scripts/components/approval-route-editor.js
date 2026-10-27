@@ -7,7 +7,8 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
-import { EXEC_TYPES } from '../services/requests.js';
+import { EXEC_TYPES, ROUTE_SETS, ROUTE_SET_FIELD, routeSetOf } from '../services/requests.js';
+import { OM_FORMS } from '../services/om.js';
 
 export const MAX_STEPS = 8;
 const NAMED = 'ระบุชื่อเจาะจง';
@@ -38,12 +39,23 @@ let depts = [];
 let existing = [];      // แถว ApprovalMatrix เดิมของฟอร์มนี้ (ทั้งเปิดและปิดใช้งาน)
 let steps = [];         // ค่าที่กำลังแก้ [{ StepName, ApproverType, Approvers[], ApproveMode }]
 let condFields = [];    // ช่องตัวเลือกของฟอร์มนี้ ใช้ตั้งเงื่อนไข "ใช้ขั้นนี้เฉพาะเมื่อ…" [{ key, title, options[] }]
+/**
+ * ชุดเส้นทาง: '' = ปกติ · PPE / O&M = เส้นทางแยกทั้งชุด เมื่อผู้ยื่นเลือกโครงการนั้น (0 ขั้น = ใช้เส้นทางปกติ)
+ * ชุดแยกเลือกผู้อนุมัติได้ 2 แบบ: ระบุชื่อเจาะจง (หลายคน) หรือ ผู้บังคับบัญชาของผู้ยื่น
+ */
+let sets = { '': [] };
+let formCodeNow = '';
+let setKeys = [''];
+let curSet = '';
+const BOSS = 'ผู้บังคับบัญชาของผู้ยื่น';
+const SET_TYPES = [NAMED, BOSS];
 
 export const routeHost = () => '<div class="ar-box" id="ar-box"></div>';
 
 function stepHtml(s, i) {
   const n = i + 1;
-  const types = typesFor(n);
+  const inSet = !!curSet;
+  const types = inSet ? SET_TYPES : typesFor(n);
   const list_ = types.includes(s.ApproverType) || !s.ApproverType ? types : [...types, s.ApproverType];
   return `
   <div class="ar-step" data-step="${i}">
@@ -71,18 +83,18 @@ function stepHtml(s, i) {
             <button type="button" data-xrm="${esc(p)}" aria-label="เอา ${esc(p)} ออก">×</button></span>`).join('')}</div>
           <input class="ar-xq" list="ar-staff" placeholder="พิมพ์ชื่อเพื่อค้นหา แล้วเลือก (เลือกได้หลายคน)" autocomplete="off">
         </div>`}
-      ${[s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) ? `
+      ${!inSet && [s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) ? `
         <label class="ar-dept">ฝ่ายที่ระบุ
           <select data-k="ApproverDept"><option value="">— เลือกฝ่าย —</option>${depts.map((d) =>
             `<option ${d === s.ApproverDept ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>` : ''}
-      <details class="ar-also"${s.AlsoTypes.length ? ' open' : ''}>
+      ${inSet ? '' : `<details class="ar-also"${s.AlsoTypes.length ? ' open' : ''}>
         <summary>ให้คนจากประเภทอื่นอนุมัติขั้นนี้ได้ด้วย${s.AlsoTypes.length ? ` (${s.AlsoTypes.length})` : ''}</summary>
         <div class="ar-also-list">${ALSO_TYPES.filter((t) => t !== s.ApproverType).map((t) => `
           <label><input type="checkbox" data-also value="${esc(t)}" ${s.AlsoTypes.includes(t) ? 'checked' : ''}> ${esc(TYPE_LABEL[t] || t)}</label>`).join('')}</div>
-      </details>
+      </details>`}
       <label class="ar-opt"><input type="checkbox" data-opt ${s.Optional ? 'checked' : ''}>
         ขั้นนี้ไม่บังคับ — ผู้อนุมัติกด "ข้ามขั้นนี้" ได้ · หาผู้อนุมัติไม่เจอ ระบบข้ามให้อัตโนมัติ</label>
-      ${condHtml(s)}
+      ${inSet ? '' : condHtml(s)}
       ${n > 1 ? `<label class="ar-opt"><input type="checkbox" data-early ${s.NotifyAtSubmit ? 'checked' : ''}>
         แจ้งผู้อนุมัติขั้นนี้ให้ทราบตั้งแต่มีคำขอเข้ามา (ดูได้อย่างเดียว) แล้วแจ้งอีกครั้งเมื่อถึงคิว</label>` : ''}
     </div>
@@ -133,9 +145,19 @@ function paint() {
     <div class="ar-head">✔️ เส้นทางอนุมัติของแบบฟอร์มนี้
       <label class="ar-count">จำนวนขั้นอนุมัติ
         <select id="ar-count">${Array.from({ length: MAX_STEPS + 1 }, (_, k) =>
-          `<option value="${k}" ${k === steps.length ? 'selected' : ''}>${k ? `${k} ขั้น` : 'ไม่ต้องอนุมัติ'}</option>`).join('')}</select></label>
+          `<option value="${k}" ${k === steps.length ? 'selected' : ''}>${k ? `${k} ขั้น` : curSet ? 'ใช้เส้นทางปกติ' : 'ไม่ต้องอนุมัติ'}</option>`).join('')}</select></label>
     </div>
-    ${steps.length ? steps.map(stepHtml).join('') : '<div class="ar-none">ฟอร์มนี้ส่งแล้วไม่ต้องผ่านผู้อนุมัติ</div>'}
+    ${setKeys.length > 1 ? `<div class="ar-sets" role="tablist">${setKeys.map((k) => {
+      const meta = ROUTE_SETS.find((x) => x.key === k) || { label: k };
+      const n = (k === curSet ? steps : sets[k] || []).length;
+      return `<button type="button" role="tab" data-set="${esc(k)}" aria-selected="${k === curSet}">${esc(meta.label)}
+        <b>${k && !n ? 'ใช้ปกติ' : `${n} ขั้น`}</b></button>`;
+    }).join('')}</div>
+    ${curSet ? `<div class="ar-set-hint">เส้นทางนี้ใช้<b>แทนเส้นทางปกติทั้งชุด</b> เมื่อผู้ยื่นเลือกโครงการ
+      <b>${esc((ROUTE_SETS.find((x) => x.key === curSet) || {}).project || curSet)}</b>
+      · แต่ละขั้นเลือก <b>ระบุชื่อเจาะจง</b> (หลายคนได้) หรือ <b>ผู้บังคับบัญชาของผู้ยื่น</b>
+      · ตั้ง 0 ขั้น = ใช้เส้นทางปกติ${/^FM-PUR-004$/i.test(formCodeNow) ? ' · ใบขอสั่งซื้อ: ตั้งชื่อขั้นของฝ่ายจัดซื้อให้มีคำว่า "จัดซื้อ" เพื่อใช้ปุ่มอัปเดตสถานะจัดซื้อ' : ''}</div>` : ''}` : ''}
+    ${steps.length ? steps.map(stepHtml).join('') : `<div class="ar-none">${curSet ? 'ยังไม่ได้ตั้งเส้นทางแยก — คำขอโครงการนี้ใช้เส้นทางปกติ' : 'ฟอร์มนี้ส่งแล้วไม่ต้องผ่านผู้อนุมัติ'}</div>`}
     <div class="field-error" id="ar-err" hidden></div>`;
   bind();
 }
@@ -154,6 +176,15 @@ function read() {
 }
 
 function bind() {
+  $$('#ar-box [data-set]').forEach((b) => {
+    b.onclick = () => {
+      read();
+      sets[curSet] = steps;
+      curSet = b.dataset.set;
+      steps = sets[curSet] || (sets[curSet] = []);
+      paint();
+    };
+  });
   $('#ar-count').onchange = (e) => {
     read();
     const n = +e.target.value;
@@ -228,7 +259,7 @@ export async function bindRouteEditor(formCode) {
     .filter((f) => f.key);
   existing = code ? matrix.filter((s) => codeOfRow(s) === code)
     .sort((a, b) => (+a.StepOrder || 0) - (+b.StepOrder || 0)) : [];
-  steps = existing.filter((s) => !isOff(s.IsActive)).slice(0, MAX_STEPS).map((s) => ({
+  const toStep = (s) => ({
     StepName: plain(s.StepName),
     ApproverType: plain(s.ApproverType) || NAMED,
     // ขั้นแบบระบุชื่อที่นำเข้าจาก CSV ใส่ชื่อไว้ใน ExtraApprovers (ช่อง Approvers เป็น Lookup นำเข้าตรง ๆ ไม่ได้) → รวมเป็นผู้อนุมัติ
@@ -239,10 +270,23 @@ export async function bindRouteEditor(formCode) {
     AlsoTypes: splitList(s.AlsoTypes),
     Optional: yes(s.Optional),
     NotifyAtSubmit: yes(s.NotifyAtSubmit),
-    ConditionField: plain(s.ConditionField),
-    ConditionValues: splitList(s.ConditionValues),
+    ConditionField: routeSetOf(s) ? '' : plain(s.ConditionField),
+    ConditionValues: routeSetOf(s) ? [] : splitList(s.ConditionValues),
     Extra: splitList(s.ExtraApprovers),
-  }));
+  });
+  // ชุดเส้นทาง: ปกติเสมอ · PPE เมื่อฟอร์มมีช่องโครงการ · O&M เมื่อฟอร์มมีตัวเลือกงาน O&M · รวมชุดที่เคยตั้งไว้แล้ว
+  formCodeNow = code;
+  const hasProject = ffRows.some((f) => codeOfRow(f) === code && !isOff(f.IsActive)
+    && plain(f.FieldType) === 'lookup' && plain(f.Options) === 'projects');
+  const present = [...new Set(existing.map(routeSetOf).filter(Boolean))];
+  setKeys = ROUTE_SETS.map((x) => x.key).filter((k) => k === ''
+    || present.includes(k) || (hasProject && (k === 'PPE' || (k === 'O&M' && OM_FORMS.includes(code)))));
+  sets = {};
+  setKeys.forEach((k) => {
+    sets[k] = existing.filter((r) => routeSetOf(r) === k && !isOff(r.IsActive)).slice(0, MAX_STEPS).map(toStep);
+  });
+  curSet = '';
+  steps = sets[''];
   paint();
 }
 
@@ -250,6 +294,19 @@ export async function bindRouteEditor(formCode) {
 export function routeProblems() {
   if (!$('#ar-box')) return '';
   read();
+  sets[curSet] = steps;
+  // ชุดแยกที่มีปัญหา: แจ้งชื่อชุดแล้วพาไปที่แท็บนั้น
+  for (const k of setKeys.filter((x) => x && x !== curSet)) {
+    const bad = (sets[k] || []).map((x, i) => (x.ApproverType === NAMED && !x.Approvers.length ? i + 1 : 0)).filter(Boolean);
+    if (bad.length) {
+      const label = (ROUTE_SETS.find((x) => x.key === k) || {}).label || k;
+      curSet = k; steps = sets[k]; paint();
+      const err = $('#ar-err');
+      const msg = `เส้นทาง ${label}: ขั้นที่ ${bad.join(', ')} เลือก "ระบุชื่อเจาะจง" แต่ยังไม่ได้เลือกผู้อนุมัติ`;
+      if (err) { err.textContent = msg; err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      return msg;
+    }
+  }
   const bad = steps.map((s, i) => (s.ApproverType === NAMED && !s.Approvers.length ? i + 1 : 0)).filter(Boolean);
   const noDept = steps.map((s, i) => ([s.ApproverType, ...s.AlsoTypes].some((t) => DEPT_TYPES.includes(t)) && !s.ApproverDept ? i + 1 : 0)).filter(Boolean);
   const noCond = steps.map((s, i) => (s.ConditionField && !s.ConditionValues.length ? i + 1 : 0)).filter(Boolean);
@@ -268,38 +325,45 @@ export function routeProblems() {
 export async function saveRoute(formCode) {
   if (!$('#ar-box')) return [];
   read();
+  sets[curSet] = steps;
   const code = plain(formCode);
   const notes = [];
-  const rows = steps.map((s, i) => ({
-    Title: `${code} · ลำดับ ${i + 1}`,
-    FormCode: code,
-    StepOrder: i + 1,
-    StepName: s.StepName || TYPE_LABEL[s.ApproverType] || s.ApproverType,
-    ApproverType: s.ApproverType,
-    ...(s.ApproverType === NAMED ? { Approvers: s.Approvers } : {}),
-    ApproveMode: s.ApproveMode,
-    ApproverDept: s.ApproverDept || '',
-    AlsoTypes: s.AlsoTypes.join(', '),
-    Optional: !!s.Optional,
-    NotifyAtSubmit: !!s.NotifyAtSubmit,
-    // ขั้นแบบระบุชื่อเจาะจงใช้ช่อง Approvers อยู่แล้ว ไม่ต้องมีชื่อเพิ่ม
-    ExtraApprovers: s.ApproverType === NAMED ? '' : (s.Extra || []).join(', '),
-    ConditionField: s.ConditionField || '',
-    ConditionValues: (s.ConditionValues || []).join(', '),
-    SortOrder: i + 1,
-    IsActive: true,
-  }));
   const keep = (res) => {
     const skipped = [...((res && res.skipped) || []), ...((res && res.dropped) || [])];
     if (skipped.length) notes.push(...skipped);
   };
-  for (let i = 0; i < rows.length; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    keep(existing[i] ? await update('approvalMatrix', existing[i].id, rows[i]) : await create('approvalMatrix', rows[i]));
-  }
-  for (const old of existing.slice(rows.length)) {
-    // eslint-disable-next-line no-await-in-loop
-    await remove('approvalMatrix', old.id);
+  // เขียนทีละชุด: แถวเดิมของชุดนั้นใช้ซ้ำตามลำดับ ขาดเพิ่ม เกินลบ (ชุดอื่นไม่แตะ)
+  const keys = [...new Set([...setKeys, ...existing.map(routeSetOf)])];
+  for (const k of keys) {
+    const mine = existing.filter((r) => routeSetOf(r) === k);
+    const rows = (sets[k] || []).map((s, i) => ({
+      Title: `${code}${k ? ` · ${k}` : ''} · ลำดับ ${i + 1}`,
+      FormCode: code,
+      StepOrder: i + 1,
+      StepName: s.StepName || TYPE_LABEL[s.ApproverType] || s.ApproverType,
+      ApproverType: s.ApproverType,
+      ...(s.ApproverType === NAMED ? { Approvers: s.Approvers } : {}),
+      ApproveMode: s.ApproveMode,
+      ApproverDept: k ? '' : (s.ApproverDept || ''),
+      AlsoTypes: k ? '' : s.AlsoTypes.join(', '),
+      Optional: !!s.Optional,
+      NotifyAtSubmit: !!s.NotifyAtSubmit,
+      // ขั้นแบบระบุชื่อเจาะจงใช้ช่อง Approvers อยู่แล้ว ไม่ต้องมีชื่อเพิ่ม
+      ExtraApprovers: s.ApproverType === NAMED ? '' : (s.Extra || []).join(', '),
+      // ชุดแยก: ConditionField = __set · ConditionValues = ชื่อชุด
+      ConditionField: k ? ROUTE_SET_FIELD : (s.ConditionField || ''),
+      ConditionValues: k ? k : (s.ConditionValues || []).join(', '),
+      SortOrder: i + 1,
+      IsActive: true,
+    }));
+    for (let i = 0; i < rows.length; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      keep(mine[i] ? await update('approvalMatrix', mine[i].id, rows[i]) : await create('approvalMatrix', rows[i]));
+    }
+    for (const old of mine.slice(rows.length)) {
+      // eslint-disable-next-line no-await-in-loop
+      await remove('approvalMatrix', old.id);
+    }
   }
   return [...new Set(notes)];
 }

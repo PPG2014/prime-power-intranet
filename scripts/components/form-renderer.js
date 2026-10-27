@@ -9,6 +9,7 @@ import { list } from '../services/data.js';
 import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
 import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
+import { PPE_PROJECT, PPE_OTHER, ppeConfig } from '../services/ppe.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
 export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
@@ -32,6 +33,10 @@ export async function loadLookups(fields, { formCode = '' } = {}) {
   if (OM_FORMS.includes(String(formCode).trim())
     && fields.some((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects')) {
     lookupData._om = await omSites();
+  }
+  // ทุกแบบฟอร์มที่มีช่องโครงการ: ตัวเลือก Prime Power Engineering Pro + รายชื่อโครงการ PPE
+  if (fields.some((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects')) {
+    lookupData._ppe = (await ppeConfig()).projects.filter((p) => p.on).map((p) => p.name);
   }
   const names = [...new Set(fields
     .filter((f) => f.FieldType === 'lookup' || f.FieldType === 'person')
@@ -212,9 +217,11 @@ function control(f, value) {
             .map((o) => `<option value="${esc(o)}">งานของสำนักงาน · ผู้บังคับบัญชาอนุมัติ</option>`).join('') : ''}
           ${src === 'projects' && lookupData._om && !rows.some((r) => String(r.Title).trim() === OM_PROJECT)
             ? `<option value="${OM_PROJECT}">งานบำรุงรักษา · เลือกโครงการ O&amp;M ต่อ</option>` : ''}
+          ${src === 'projects' && lookupData._ppe && !rows.some((r) => String(r.Title).trim() === PPE_PROJECT)
+            ? `<option value="${esc(PPE_PROJECT)}">บริษัท PPE · เลือกโครงการ PPE ต่อ หรือเพิ่มชื่อเอง</option>` : ''}
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}
-        </datalist>${src === 'projects' && lookupData._om ? omBox(value) : ''}`;
+        </datalist>${src === 'projects' && lookupData._om ? omBox(value) : ''}${src === 'projects' && lookupData._ppe ? ppeBox(value) : ''}`;
     }
     case 'lineitems': {
       /**
@@ -271,6 +278,24 @@ function omBox(project) {
     </select>
     <input id="q_om_other" type="text" maxlength="120" placeholder="พิมพ์ชื่อโครงการ O&amp;M" autocomplete="off"
       value="${esc(site && !known ? site : '')}" ${site && !known ? '' : 'hidden'}>
+  </div>`;
+}
+
+/** เลือก Prime Power Engineering Pro → เลือกโครงการ PPE หรือพิมพ์ชื่อโครงการเอง */
+function ppeBox(project) {
+  const site = String(currentValues.ppe_site || '').trim();
+  const list = lookupData._ppe || [];
+  const known = list.includes(site);
+  const typed = !!site && !known;
+  return `<div class="q-om q-ppe" id="q_ppe_box" ${project === PPE_PROJECT ? '' : 'hidden'}>
+    <label for="q_ppe_site">โครงการของ Prime Power Engineering Pro <b class="req">*</b></label>
+    <select id="q_ppe_site">
+      <option value="">— เลือกโครงการ —</option>
+      ${list.map((n) => `<option value="${esc(n)}" ${n === site ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+      <option value="${PPE_OTHER}" ${typed || !list.length ? 'selected' : ''}>➕ เพิ่มชื่อโครงการเอง</option>
+    </select>
+    <input id="q_ppe_other" type="text" maxlength="150" placeholder="พิมพ์ชื่อโครงการ เช่น บ้านคุณ… 23.94 kWp" autocomplete="off"
+      value="${esc(typed ? site : '')}" ${typed || !list.length ? '' : 'hidden'}>
   </div>`;
 }
 
@@ -354,9 +379,19 @@ export function collectForm(fields) {
     }
     // ช่องโครงการ: ต้องเป็นชื่อจากทะเบียนโครงการ หรือ "ไม่เกี่ยวกับโครงการ" (พิมพ์เองไม่ได้ ระบบจะหาผู้อนุมัติไม่ถูก)
     const isOm = !!lookupData._om && v === OM_PROJECT;
-    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty && !isOm
+    const isPpe = !!lookupData._ppe && v === PPE_PROJECT;
+    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && !empty && !isOm && !isPpe
       && v !== NO_PROJECT && !OFFICE_PROJECTS.includes(v) && !(lookupData.projects || []).some((r) => String(r.Title).trim() === v)) {
       errors.push(`${f.Title} (เลือกจากรายการ หรือเลือก "${NO_PROJECT}")`);
+    }
+    // Prime Power Engineering Pro: ต้องเลือกโครงการ PPE หรือพิมพ์ชื่อเอง
+    if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._ppe) {
+      if (isPpe) {
+        const sel = $('#q_ppe_site');
+        const site = sel && sel.value === PPE_OTHER ? String(($('#q_ppe_other') || {}).value || '').trim() : (sel ? sel.value : '');
+        if (!site) errors.push('โครงการของ Prime Power Engineering Pro (เลือกจากรายการ หรือพิมพ์ชื่อโครงการ)');
+        out.ppe_site = site;
+      } else out.ppe_site = '';
     }
     // งาน O&M: ต้องเลือกโครงการ O&M (หรือพิมพ์เองเมื่อเลือก อื่นๆ)
     if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._om) {
@@ -486,6 +521,21 @@ export function bindForm(fields, folder) {
       omBoxEl.hidden = !(pEl && pEl.value.trim() === OM_PROJECT);
       other.hidden = sel.value !== '__other';
       if (!other.hidden && !omBoxEl.hidden && document.activeElement === sel) other.focus();
+    };
+    if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
+    sel.addEventListener('change', sync);
+  }
+
+  // Prime Power Engineering Pro: เลือกในช่องโครงการแล้วแสดงช่องโครงการ PPE · เลือก เพิ่มชื่อเอง แล้วแสดงช่องพิมพ์
+  const ppeBoxEl = $('#q_ppe_box');
+  if (ppeBoxEl) {
+    const pf = fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
+    const pEl = pf && $('#q_' + pf.FieldKey);
+    const sel = $('#q_ppe_site'); const other = $('#q_ppe_other');
+    const sync = () => {
+      ppeBoxEl.hidden = !(pEl && pEl.value.trim() === PPE_PROJECT);
+      other.hidden = sel.value !== PPE_OTHER;
+      if (!other.hidden && !ppeBoxEl.hidden && document.activeElement === sel) other.focus();
     };
     if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
     sel.addEventListener('change', sync);

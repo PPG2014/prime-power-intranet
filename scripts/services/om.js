@@ -7,6 +7,8 @@
  *
  * แก้รายการได้ที่ จัดการข้อมูล → 🔧 โครงการ O&M (เก็บในตั้งค่าระบบ OMSites) ถ้ายังไม่ได้ตั้งใช้ DEFAULT_OM_SITES
  */
+import { PPE_PROJECT } from './ppe.js';
+
 export const OM_PROJECT = 'งาน O&M';
 export const OM_OTHER = 'อื่นๆ';
 /** แบบฟอร์มที่มีตัวเลือก งาน O&M */
@@ -67,8 +69,10 @@ export async function omSites() {
   } catch (e) { return DEFAULT_OM_SITES; }
 }
 
-/** ข้อความโครงการสำหรับแสดง/ทะเบียน: "งาน O&M · โครงการ ALS" */
+/** ข้อความโครงการสำหรับแสดง/ทะเบียน: "งาน O&M · โครงการ ALS" · "Prime Power Engineering Pro Co., Ltd · บ้านคุณ…" */
 export const projectText = (v = {}) => {
   const p = String(v.project ?? '').trim();
-  return p === OM_PROJECT && String(v.om_site || '').trim() ? `${p} · ${String(v.om_site).trim()}` : p;
+  if (p === OM_PROJECT && String(v.om_site || '').trim()) return `${p} · ${String(v.om_site).trim()}`;
+  if (p === PPE_PROJECT && String(v.ppe_site || '').trim()) return `${p} · ${String(v.ppe_site).trim()}`;
+  return p;
 };
