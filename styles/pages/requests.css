@@ -481,3 +481,4 @@
 .rq-foot .rq-prgrp + time { margin-left: 0; }
 /* สถานะจัดซื้อ (เบิก Store · รับ PR · รับใบเสนอราคา · ออก PO แล้ว · ส่ง Sup แล้ว · ส่งของแล้ว · Cancel) = สีชมพู */
 .rq-pstatus.rq-buy { color: #a3195b; background: #fde4f0; }
+.rq-buy-by { font-weight: 500; opacity: .85; }

@@ -5,7 +5,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, stepProgress, slipOf } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
@@ -224,7 +224,8 @@ function requestRow(req, opts = {}) {
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
         ${(() => {   // สถานะจัดซื้อ + เลข PR อยู่ด้วยกันชิดขวา (สถานะอยู่หน้าเลข PR)
-    const buy = purchaseStatusOf(req) ? `<span class="rq-pstatus rq-buy">📦 ${esc(purchaseStatusOf(req))}</span>` : '';
+    const who = purchaseStatusBy(req);
+    const buy = purchaseStatusOf(req) ? `<span class="rq-pstatus rq-buy">📦 ${esc(purchaseStatusOf(req))}${who ? ` <span class="rq-buy-by">โดย ${esc(who)}</span>` : ''}</span>` : '';
     const prNo = isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-pstatus rq-prno-chip">PR ${esc(prValues(req).pr_no)}</span>` : '';
     return buy || prNo ? `<span class="rq-prgrp">${buy}${prNo}</span>` : '';
   })()}

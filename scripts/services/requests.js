@@ -187,13 +187,18 @@ export const PURCHASE_ACTION = 'อัปเดตสถานะ';
 export const PURCHASE_DONE = 'ส่งของแล้ว';
 export const PURCHASE_CANCEL = 'Cancel';
 export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รับ PR', 'รับใบเสนอราคา', 'ออก PO แล้ว', 'ส่ง Sup แล้ว', PURCHASE_DONE];
-/** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */
-export const purchaseStatusOf = (req) => {
+/** บันทึกล่าสุดที่เปลี่ยนสถานะจัดซื้อ { status, by } · ไม่มีคืน null */
+const lastPurchase = (req) => {
   // ตัดหมายเหตุที่ต่อท้ายออก · บันทึกที่แก้แค่เลข PR (ไม่ได้เปลี่ยนสถานะ) ไม่นับ
-  const sts = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION)
-    .map((x) => String(x.note || '').split(' — ')[0].trim()).filter((x) => PURCHASE_STATUSES.includes(x) && x !== '-');
-  return sts.slice(-1)[0] || '';
+  const hits = parseLog(req && req.ApprovalLog).filter((x) => x.action === PURCHASE_ACTION)
+    .map((x) => ({ status: String(x.note || '').split(' — ')[0].trim(), by: x.by }))
+    .filter((x) => PURCHASE_STATUSES.includes(x.status) && x.status !== '-');
+  return hits.slice(-1)[0] || null;
 };
+/** สถานะจัดซื้อล่าสุดของคำขอ (จากประวัติ) · ไม่มีคืน '' */
+export const purchaseStatusOf = (req) => (lastPurchase(req) || {}).status || '';
+/** ชื่อต้น (ไม่มีนามสกุล) ของคนที่อัปเดตสถานะจัดซื้อล่าสุด */
+export const purchaseStatusBy = (req) => String((lastPurchase(req) || {}).by || '').trim().split(/\s+/)[0] || '';
 
 /** ลำดับนี้ขอรับแจ้งตั้งแต่มีคำขอเข้ามาไหม (เช่น ฝ่ายจัดซื้อ) */
 export const isNotifyEarly = (s) => !!s && (s.NotifyAtSubmit === true || s.NotifyAtSubmit === 'Yes' || s.NotifyAtSubmit === 'ใช่');
