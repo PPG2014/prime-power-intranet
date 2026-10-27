@@ -356,7 +356,8 @@ async function exportPng(wide = false) {
   g.textAlign = 'left';
 
   // ปฏิทิน
-  const CALW = wide ? 1160 : W - 60;
+  // แนวนอน: ปฏิทินกว้างขึ้นให้ช่องวันแสดงชื่อ ทะเบียนรถ สถานที่ได้ · รายการด้านขวาแคบลง
+  const CALW = wide ? 1390 : W - 60;
   const X0 = 30, CW = CALW / 7, Y0 = HEAD + (wide ? 22 : 30);
   g.font = F(24, 600); g.fillStyle = MUTED; g.textAlign = 'center';
   TH_DOW.forEach((d, i) => g.fillText(d, X0 + CW * i + CW / 2, Y0 + 26));
@@ -374,16 +375,41 @@ async function exportPng(wide = false) {
     g.fillStyle = items.length ? '#e6f0ff' : '#ffffff';
     round(cx + 3, cy + 3, CW - 6, RH - 6, 12); g.fill();
     if (k === todayKey()) { g.strokeStyle = NAVY; g.lineWidth = 3; g.stroke(); }
-    g.fillStyle = INK; g.font = F(26, 700); g.fillText(String(d), cx + 12, cy + 34);
-    const per = RH > 140 ? 3 : 2;
-    items.slice(0, per).forEach((b, j) => {
-      const ey = cy + 46 + j * 32;
-      g.fillStyle = '#fff'; round(cx + 8, ey, CW - 16, 28, 6); g.fill();
-      g.fillStyle = TONE[tone(b)]; g.fillRect(cx + 8, ey, 5, 28);
-      g.fillStyle = INK; g.font = F(19, 600);
-      g.fillText(fit(`${b.from} ${String(b.by).split(' ')[0]}`, CW - 30), cx + 18, ey + 21);
-    });
-    if (items.length > per) { g.fillStyle = MUTED; g.font = F(18, 600); g.fillText(`+${items.length - per} รายการ`, cx + 12, cy + RH - 14); }
+    g.fillStyle = INK; g.font = F(20, 700); g.fillText(String(d), cx + 10, cy + 26);
+    if (items.length) { g.fillStyle = MUTED; g.font = F(12, 600); g.textAlign = 'right'; g.fillText(`${items.length} รายการ`, cx + CW - 12, cy + 24); g.textAlign = 'left'; }
+    // การ์ดย่อเหมือนหน้าจอ: เวลา + ชื่อ-สกุล · ทะเบียนรถ · สถานที่ (ตัวเล็ก)
+    // วันที่รายการเยอะ ลดเหลือ 2 บรรทัด (ไม่มีสถานที่) ก่อนจะต้องตัดเป็น "+N รายการ"
+    // ช่องแคบ (แนวตั้ง): เวลา กับ ชื่อ แยกบรรทัด
+    const roomy = CW >= 185;
+    const full = (b) => [
+      ...(roomy ? [`${b.from}–${b.to} ${b.by}`] : [`${b.from}–${b.to}`, b.by]),
+      ...(b.plate ? [`🚗 ${b.plate}`] : []),
+      ...(b.place ? [b.place] : []),
+    ];
+    const compact = (b) => [`${b.from} ${String(b.by).split(' ')[0]}`, ...(b.plate ? [`🚗 ${b.plate}`] : b.place ? [b.place] : [])];
+    const LHs = 14, GAP = 3, TOP = cy + 34, AV = RH - 34 - 6;
+    const cardH = (k) => k * LHs + 6;
+    const fits = (fn) => items.reduce((t, b) => t + cardH(fn(b).length) + GAP, 0) <= AV;
+    const lines = fits(full) ? full : compact;
+    let ey = TOP, shown = 0;
+    for (const b of items) {
+      const ls = lines(b);
+      const h = cardH(ls.length);
+      const left = items.length - shown;
+      // เหลือที่ไม่พอ → เก็บบรรทัดสุดท้ายไว้บอกจำนวนที่เหลือ
+      if (ey + h > cy + RH - 6 || (left > 1 && !fits(lines) && ey + h > cy + RH - 24)) break;
+      g.fillStyle = '#fff'; round(cx + 7, ey, CW - 14, h, 5); g.fill();
+      g.fillStyle = TONE[tone(b)]; g.fillRect(cx + 7, ey, 4, h);
+      ls.forEach((t, i) => {
+        const isPlate = t.startsWith('🚗');
+        const isHead = i === 0 || (!roomy && lines === full && i === 1);
+        g.fillStyle = isHead ? INK : isPlate ? NAVY : MUTED;
+        g.font = F(isHead ? 12.5 : 11.5, isHead || isPlate ? 600 : 400);
+        g.fillText(fit(t, CW - 26), cx + 15, ey + 3 + LHs * (i + 1) - 3);
+      });
+      ey += h + GAP; shown += 1;
+    }
+    if (shown < items.length) { g.fillStyle = MUTED; g.font = F(13, 600); g.fillText(`+${items.length - shown} รายการ`, cx + 12, cy + RH - 12); }
   }
 
   // รายการทั้งเดือน (ถ้ายาวเกินหน้า เริ่มจากวันนี้) · แนวนอนอยู่ด้านขวาของปฏิทิน
@@ -405,20 +431,21 @@ async function exportPng(wide = false) {
     const [, mm, dd] = b.day.split('-').map(Number);
     g.fillStyle = INK; g.font = F(wide ? 20 : 22, 700);
     g.fillText(`${dd} ${TH_MONTH[mm - 1].slice(0, 3)}.`, LX + 18, ty);
-    g.fillText(`${b.from}–${b.to}`, LX + (wide ? 100 : 120), ty);
-    const statusW = wide ? 110 : 140;
+    g.fillText(`${b.from}–${b.to}`, LX + (wide ? 88 : 120), ty);
     if (wide) {
-      // แนวนอน: ชื่อ · สถานที่/ทะเบียนรถ รวมในคอลัมน์เดียว
-      g.font = F(20);
-      g.fillText(fit(`${b.by}${b.plate ? ` · 🚗 ${b.plate}` : b.place ? ` · ${b.place}` : ''}`, LW - 268 - statusW), LX + 262, ty);
+      // แนวนอน: ชื่ออย่างเดียว (ทะเบียนรถ/สถานที่ดูในช่องปฏิทิน) · สถานะดูจากแถบสีด้านซ้าย
+      g.font = F(19);
+      g.fillText(fit(b.by, LW - 220), LX + 208, ty);
     } else {
       g.font = F(22);
       g.fillText(fit(b.by, 230), LX + 280, ty);
       g.fillStyle = NAVY; g.font = F(21, 600);
       g.fillText(fit(b.plate ? `🚗 ${b.plate}` : b.place, 300), LX + 520, ty);
     }
-    g.fillStyle = TONE[tone(b)]; g.font = F(wide ? 19 : 20, 600); g.textAlign = 'right';
-    g.fillText(b.status, LX + LW - 16, ty); g.textAlign = 'left';
+    if (!wide) {
+      g.fillStyle = TONE[tone(b)]; g.font = F(20, 600); g.textAlign = 'right';
+      g.fillText(b.status, LX + LW - 16, ty); g.textAlign = 'left';
+    }
   });
   if (more > 0) { g.fillStyle = MUTED; g.font = F(22, 600); g.fillText(fit(`…และอีก ${more + 1} รายการ ดูทั้งหมดในระบบ Intranet`, LW - 30), LX + 18, ly + (room - 1) * LH + 29); }
   if (!rows.length) { g.fillStyle = MUTED; g.font = F(24); g.fillText('เดือนนี้ยังไม่มีรายการ', LX + 18, ly + 32); }
