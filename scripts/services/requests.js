@@ -481,10 +481,12 @@ export function flowFieldsFor(route, stepNo) {
  * ความคืบหน้าของลำดับหนึ่งในรอบล่าสุด (หลังการยื่นใหม่ครั้งล่าสุด)
  * คืน { all, approvedBy, need, left, done } · done = ลำดับนี้ผ่านแล้วตามเงื่อนไขการผ่าน
  */
+/** บันทึกของรอบล่าสุด (หลังการยื่นใหม่ครั้งล่าสุด) · รอบก่อนหน้าเป็นประวัติ ไม่นับผลอนุมัติ */
+export const currentRound = (log) => log.slice(log.map((l) => l.action).lastIndexOf('ยื่นใหม่') + 1);
+
 export function stepProgress(step, log) {
   const n = +step.StepOrder;
-  const lastRound = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
-  const now = log.slice(lastRound + 1).filter((l) => l.step === n);
+  const now = currentRound(log).filter((l) => l.step === n);
   const approvedBy = [...new Set(now.filter((l) => l.action === 'อนุมัติ').flatMap((l) => l.byList || [String(l.by).trim()]))];
   const all = String(step.ApproveMode || '').trim() === 'ต้องอนุมัติครบทุกคน';
   const need = all ? [...new Set((step._resolved || toArr(step.Approvers)).map((x) => String(x).trim()))] : [];
@@ -619,9 +621,10 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   const slipMeta = slip && slip.url ? { name: slip.name, url: slip.url, kind: slip.kind, sizeText: slip.sizeText } : null;
   log.push({ step: cur, action, by, note, at: new Date().toISOString(), ...(sig ? { sig } : {}), ...(slipMeta ? { slip: slipMeta } : {}) });
 
-  // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก)
+  // คนเดิมกดซ้ำในลำดับเดียวกัน (เช่น กดในเว็บแล้วมากดในการ์ดอีก) · นับเฉพาะรอบล่าสุด
+  // (หลังผู้ยื่นแก้ไขแล้วยื่นใหม่ ผู้อนุมัติต้องอนุมัติใหม่ได้ แม้เคยอนุมัติลำดับนี้ในรอบก่อน)
   // อัปเดตสถานะจัดซื้อทำได้หลายครั้งในลำดับเดียวกัน (รับ PR → ออก PO → ส่งของ) ไม่นับว่าซ้ำ
-  const already = action !== PURCHASE_ACTION && parseLog(req.ApprovalLog)
+  const already = action !== PURCHASE_ACTION && currentRound(parseLog(req.ApprovalLog))
     .some((l) => l.step === cur && String(l.by) === String(by) && l.action === action);
   if (already) {
     throw new AlreadyActedError(`คุณได้${action}คำขอนี้ในลำดับนี้ไปแล้ว ระบบจึงไม่บันทึกซ้ำ`);
@@ -652,7 +655,7 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
   } else if (action === 'อนุมัติ' || action === 'ข้าม') {
     // ถ้าลำดับนี้ต้องครบทุกคน ตรวจว่าอนุมัติกันครบหรือยัง
     const approvers = (step && step._resolved) || toArr(step && step.Approvers);
-    const approvedBy = log.filter((l) => l.step === cur && l.action === 'อนุมัติ').flatMap((l) => l.byList || [l.by]);
+    const approvedBy = currentRound(log).filter((l) => l.step === cur && l.action === 'อนุมัติ').flatMap((l) => l.byList || [l.by]);
     // คนเดิมกดอนุมัติซ้ำในลำดับเดียวกัน ไม่นับเพิ่ม
     const stepDone = action === 'ข้าม' || mode !== 'ต้องอนุมัติครบทุกคน'
       || approvers.every((a) => approvedBy.includes(a));
