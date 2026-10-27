@@ -26,6 +26,12 @@
 .doc-empty { font-size: 13.5px; color: var(--dim); padding: 18px 0; }
 .doc-files { margin-top: var(--gap); padding-top: var(--gap); border-top: 1px solid var(--line-soft); }
 .doc-files h4 { font-size: 13px; color: var(--muted); margin-bottom: var(--gap-sm); }
+.doc-file-row { display: flex; gap: 8px; align-items: stretch; }
+.doc-file-row .doc-file { flex: 1; min-width: 0; }
+.doc-file-row .doc-dl { align-self: center; }
+.doc-dl-all { margin-top: 6px; }
+.doc-dl { background: #e8f6ec; border-color: #9fd6ae; color: #0f6b2c; font-weight: 600; }
+.doc-acts { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .doc-file { display: flex; align-items: center; gap: 10px; padding: 12px 15px;
   border: 1px solid var(--line); border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 14px; }
 .doc-file:hover { border-color: var(--blue-light); background: #f4f9fd; }

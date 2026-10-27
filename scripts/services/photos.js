@@ -268,6 +268,36 @@ export async function photoBlobUrl(webUrl) {
   return objUrl;
 }
 
+/**
+ * ดาวน์โหลดไฟล์ลงเครื่องด้วยชื่อไฟล์จริง
+ * ไฟล์ใน SharePoint: ขอลิงก์ดาวน์โหลดชั่วคราวจาก Graph (@microsoft.graph.downloadUrl) แล้วให้เบราว์เซอร์โหลดเอง
+ *   ชื่อไฟล์มาจาก SharePoint จึงเป็นภาษาไทยได้ (ถ้าโหลดเป็น blob บางเบราว์เซอร์ตั้งชื่อไทยไม่ได้ กลายเป็น "download")
+ * ลิงก์ภายนอก/ในเว็บ: เปิดดาวน์โหลดตามปกติ
+ */
+export async function downloadFile(webUrl, name = '') {
+  if (!webUrl || webUrl === '#') throw new Error('ไม่มีลิงก์ไฟล์');
+  const click = (href, attrs = {}) => {
+    const a = document.createElement('a');
+    a.href = href; a.rel = 'noopener';
+    Object.assign(a, attrs);
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  if (CONFIG.dataSource === 'mock' || !/sharepoint\.com/i.test(webUrl)) { click(webUrl, { download: name || '' }); return; }
+  const token = await getToken();
+  const base = `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem`;
+  const meta = await graphFetch(base, { headers: { Authorization: `Bearer ${token}` } });
+  if (!meta.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ (' + meta.status + ')');
+  const item = await meta.json();
+  const direct = item['@microsoft.graph.downloadUrl'];
+  if (direct) { click(direct); return; }
+  // ไม่มีลิงก์ชั่วคราว (เช่นเป็นโฟลเดอร์/สิทธิ์จำกัด) → โหลดเนื้อไฟล์เป็น blob
+  const res = await graphFetch(base + '/content', { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error('ดาวน์โหลดไม่สำเร็จ (' + res.status + ')');
+  const href = URL.createObjectURL(await res.blob());
+  click(href, { download: item.name || name || '' });
+  setTimeout(() => URL.revokeObjectURL(href), 30000);
+}
+
 /** แทนที่ <img> ที่โหลดไม่ได้ ด้วยตัวอักษรย่อของชื่อ (เหมือนช่องไม่มีรูป) */
 function fallbackInitials(img) {
   const s = document.createElement('span');
