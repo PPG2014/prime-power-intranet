@@ -6,6 +6,7 @@
  *   ประเภทสวัสดิการ (ติ๊ก ค่าห้องพัก / ค่าส่วนกลาง / ค่าที่จอดรถ) · จำนวนเงินแยกรายการหรือยอดรวม
  *   เลขห้อง · ทะเบียนรถ · เดือนที่ขอเบิก · หมายเหตุ · ไฟล์แนบ (นับเป็นจำนวนฉบับ)
  * ผู้ลงนามด้านขวา = ผู้อนุมัติขั้นสุดท้าย · ลายเซ็นขึ้นเมื่อขั้นนั้นอนุมัติแล้วเท่านั้น
+ * แถวค่าห้องพัก: "ค่าห้องพัก : ชื่อผู้ยื่นคำขอ" (ดึงจากผู้ยื่นอัตโนมัติ) · มีเลขห้อง แสดงต่อท้ายรหัสพนักงาน
  */
 import { esc } from '../core/dom.js';
 import { sigImg } from './form-doc.js';
@@ -121,8 +122,8 @@ export function renderWelfareRoom({ fields = [], values = {}, empCode = '', requ
       <thead><tr><th>ลำดับที่</th><th>วัน-เดือน-ปี</th><th>รายละเอียดรายจ่าย</th><th>จำนวนเงิน (บาท)</th><th>หมายเหตุ</th></tr></thead>
       <tbody>
         <tr><td class="wf-c">1</td><td class="wf-in wf-c">${esc(dmy(rows[0].date))}</td>
-          <td><div class="wf-line"><span>ค่าห้องพัก</span><span class="wf-box wf-b1">${esc(room)}</span>
-            <span>พนักงานรหัส</span><span class="wf-box wf-b2">${esc(empCode)}</span><span class="wf-box wf-b4">:</span></div></td>
+          <td><div class="wf-line wf-wrap"><span>ค่าห้องพัก :</span><span class="wf-box wf-b1">${esc(requester.name || '')}</span>
+            <span>พนักงานรหัส</span><span class="wf-box wf-b2">${esc(empCode)}</span>${room ? `<span class="wf-box wf-b4">ห้อง ${esc(room)}</span>` : ''}</div></td>
           <td class="wf-in wf-r">${money(rows[0].amount)}</td><td class="wf-in">${esc(note)}</td></tr>
         <tr><td class="wf-c">2</td><td class="wf-in wf-c">${esc(dmy(rows[1].date))}</td>
           <td>ค่าส่วนกลาง (ตามคำอนุมัติ)</td>
