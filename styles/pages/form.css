@@ -105,6 +105,10 @@
   padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #f7faff;
 }
 .tpl-label { font-weight: 600; margin-right: auto; }
+/* ค่าแรงผู้รับเหมา: หมายเหตุตัวแดงในช่องแนบไฟล์ */
+.attach-must { margin: 4px 0 8px; padding: 8px 12px; border: 1px solid #f3b4b4; border-left: 4px solid #d32f2f;
+  border-radius: var(--radius-sm); background: #fff1f1; color: #c62828; font-weight: 700; font-size: 14px; line-height: 1.6; }
+.q-field .tpl-links { margin: 0 0 10px; }
 .q-project-hint { margin-top: 4px; } .q-project-hint.warn { color: #b26a00; font-weight: 600; }
 .field-error.q-warn { background: #fff8ec; border-color: #f0c36d; color: #7b4a00; }
 /* งาน O&M: ช่องเลือกโครงการ O&M ใต้ช่องโครงการ */

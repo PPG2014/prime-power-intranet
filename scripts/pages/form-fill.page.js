@@ -183,7 +183,7 @@ export async function render(ctx) {
           ${descWithoutLinks(form.Description) ? `<p class="form-desc">${esc(descWithoutLinks(form.Description))}</p>` : ''}
         </div>
       </div>
-      ${templateButtons(form)}
+      ${isLabor(form) ? '' : templateButtons(form)}
 
       <div class="${hasCal(fields) ? 'form-layout' : ''}">
       <div>
@@ -274,6 +274,25 @@ function templateButtons(form) {
       </div>`;
     }).join('')}
   </div>`;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * ขอเบิกค่าแรงผู้รับเหมา: ต้องแนบใบปะหน้า + เอกสารส่งมอบงวดงานโครงการทุกครั้ง
+ * ย้ายปุ่มดาวน์โหลดใบปะหน้ามาไว้ที่ช่องแนบไฟล์ พร้อมหมายเหตุตัวแดง · ช่องแนบไฟล์เป็นช่องบังคับ
+ * ───────────────────────────────────────────────────────────── */
+const isLabor = (f) => !!f && (f.FormCode === 'FM-ACC-004' || /ค่าแรงผู้รับเหมา/.test(String(f.Title || '')));
+const attachFieldOf = (flds) => flds.find((f) => f.FieldType === 'file');
+
+function bindLaborAttach(form, flds) {
+  const f = attachFieldOf(flds);
+  const box = f && $(`[data-q="${f.FieldKey}"]`);
+  if (!box) return;
+  const label = box.querySelector('label');
+  if (label && !label.querySelector('.req')) label.insertAdjacentHTML('beforeend', ' <b class="req">*</b>');
+  box.querySelector('.q-help')?.remove();
+  (label || box).insertAdjacentHTML('afterend', `<div class="attach-must">
+      ⚠ แนบใบปะหน้า และเอกสารส่งมอบงวดงานโครงการ ทุกครั้ง (บังคับแนบ)
+    </div>${templateButtons(form)}`);
 }
 
 /**
@@ -551,6 +570,7 @@ export function mount(ctx) {
   bindForm(fields, formFolder(form, 'ไฟล์แนบ'));
   bindSignaturePads(formFolder(form, 'ลายเซ็น'));
   bindProjectHint();
+  if (isLabor(form)) bindLaborAttach(form, fields);
 
   // ปฏิทินคิวรายเดือนด้านข้าง (เฉพาะฟอร์มที่จองเป็นช่วงเวลา)
   if (isQueueForm(fields)) mountQueueCalendar(form.FormCode);
@@ -591,6 +611,10 @@ export function mount(ctx) {
     const pf = projectField();
     if (isPR(form.FormCode) && pf && !String((res.values || res.partial || {})[pf.FieldKey] || '').trim()) {
       (res.errors = res.errors || []).push(`${pf.Title} (เลือกโครงการ หรือ "${NO_PROJECT}")`);
+    }
+    // ค่าแรงผู้รับเหมา: บังคับแนบใบปะหน้า / เอกสารส่งมอบงวดงาน
+    if (isLabor(form) && attachFieldOf(fields) && !attachedFiles().length) {
+      (res.errors = res.errors || []).push('แนบใบปะหน้า และเอกสารส่งมอบงวดงานโครงการ');
     }
     if (res.errors) {
       err.innerHTML = `กรอกข้อมูลให้ครบก่อนส่ง<br>ยังขาด: ${esc(res.errors.join(', '))}`;
