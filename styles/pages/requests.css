@@ -196,6 +196,7 @@
 .wf-box { display: inline-block; background: #efefef; min-height: 20px; padding: 0 4px; text-align: center;
   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .wf-b1 { min-width: 56px; } .wf-b2 { min-width: 70px; } .wf-b3 { min-width: 96px; } .wf-b4 { min-width: 44px; }
+.wf-line.wf-wrap { flex-wrap: wrap; row-gap: 2px; } /* ชื่อผู้ยื่นยาว → ขึ้นบรรทัดใหม่ ไม่ตกขอบ */
 .wf-gap { width: 14px; }
 .wf-docs { display: flex; align-items: flex-end; gap: 10px; margin-top: 26px; }
 .wf-copies { min-width: 76px; border-bottom: 1px dotted #000; }
