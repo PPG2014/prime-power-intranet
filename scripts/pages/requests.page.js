@@ -147,13 +147,19 @@ async function loadNeedFields() {
 /** ช่อง "ชื่อโครงการ (กรณีไม่มีในรายการ)" ของแต่ละฟอร์ม — ใช้แสดงแทนเมื่อไม่ได้เลือกโครงการจากรายการ */
 const OTHER_PROJECT_KEYS = ['project_other', 'other_project', 'project_name', 'project_custom'];
 const otherProjField = {};
+/** ช่องเลข Purchase Order (PO) / เลขที่สัญญา ของแต่ละฟอร์ม (เช่น ค่าแรงผู้รับเหมา) — แสดงมุมขวาบนของรายการ และค้นหาได้ */
+const poField = {};
+const PO_RE = /purchase\s*order|\bP\.?O\.?\b|เลขที่สัญญา|เลขสัญญา/i;
 async function loadOtherProjFields(codes) {
   await Promise.all(codes.filter((c) => c && !(c in otherProjField)).map(async (code) => {
     const fields = await formFieldsOf(code).catch(() => []);
     const f = fields.find((x) => x.FieldKey !== 'project' && /ไม่มีในรายการ|กรอกชื่อโครงการ|ระบุชื่อโครงการ|โครงการอื่น/.test(x.Title || ''));
     otherProjField[code] = f ? f.FieldKey : '';
+    const po = fields.find((x) => !['file', 'lineitems'].includes(x.FieldType) && (PO_RE.test(x.Title || '') || /^po(_|no|$)/i.test(x.FieldKey || '')));
+    poField[code] = po ? po.FieldKey : '';
   }));
 }
+const poOf = (req) => String((poField[req.FormCode] && prValues(req)[poField[req.FormCode]]) || '').trim();
 function projectOf(req) {
   const v = prValues(req);
   const pj = projectText(v);
@@ -197,11 +203,11 @@ function summaryLine(req) {
   } catch (e) { return ''; }
 }
 
-/** ข้อความที่ใช้ค้นหา: เลขที่ หัวข้อ ชื่อฟอร์ม ผู้ยื่น โครงการ/ไซต์ O&M เลข PR ทะเบียนรถ */
+/** ข้อความที่ใช้ค้นหา: เลขที่ หัวข้อ ชื่อฟอร์ม ผู้ยื่น โครงการ/ไซต์ O&M เลข PR เลข PO/สัญญา ทะเบียนรถ */
 function searchText(req) {
   const v = prValues(req);
   return [req.Title, req.FormName, req.FormCode, summaryLine(req), req.RequesterName,
-    projectText(v), projectOf(req), v.om_site, v.pr_no, carData(req).car_plate].filter(Boolean).join(' ').toLowerCase();
+    projectText(v), projectOf(req), v.om_site, v.pr_no, poOf(req), carData(req).car_plate].filter(Boolean).join(' ').toLowerCase();
 }
 const matchQ = (req, q) => q.split(/\s+/).every((w) => searchText(req).includes(w));
 
@@ -215,6 +221,7 @@ function requestRow(req, opts = {}) {
         <span class="rq-no">${esc(req.Title)}</span>
         <span class="rq-form">${esc(req.FormName || req.FormCode)}</span>
         ${(() => { const pj = projectOf(req); return pj ? `<span class="rq-proj${pj === NO_PROJECT ? ' none' : ''}" title="โครงการ">🏗 ${esc(pj)}</span>` : ''; })()}
+        ${poOf(req) ? `<span class="rq-po" title="เลข Purchase Order (PO) / เลขที่สัญญา">PO ${esc(poOf(req))}</span>` : ''}
       </div>
       <div class="rq-sub">${esc(summaryLine(req)) || '<span class="dim">ไม่มีหัวข้อ</span>'}</div>
       <div class="rq-foot">
@@ -360,7 +367,7 @@ export async function render(ctx) {
 
           ${toReview.length ? `<div class="rq-search">
             <input id="rq-q" type="search" data-keepfocus value="${esc(state.reviewQuery || '')}"
-              placeholder="🔍 ค้นหาชื่อโครงการ ชื่อพนักงาน เลขที่ หัวข้อ เลข PR…" autocomplete="off">
+              placeholder="🔍 ค้นหาชื่อโครงการ ชื่อพนักงาน เลขที่ หัวข้อ เลข PR / PO…" autocomplete="off">
             ${reviewQ ? `<span class="dim">พบ ${reviewHits.length} จาก ${toReview.length} รายการ</span>` : ''}
           </div>` : ''}
           ${groups.length ? `
@@ -418,7 +425,7 @@ export async function render(ctx) {
               <span class="panel-meta">${unreadCount ? `<span class="tab-badge">${unreadCount} ใหม่</span> ` : ''}${mineFiltered.length} รายการ</span></div>
             ${mine.length ? `<div class="rq-mine-tools">
               <input id="mine-q" type="search" data-keepfocus value="${esc(state.mineQuery || '')}"
-                placeholder="ค้นหาเลขที่ / ฟอร์ม / โครงการ…" autocomplete="off">
+                placeholder="ค้นหาเลขที่ / ฟอร์ม / โครงการ / PO…" autocomplete="off">
             </div>` : ''}
             ${mineFiltered.length ? `<div class="rq-list rq-mine-list">
               ${mineRows.map((r) => requestRow(r, { unread: isUnread(r) })).join('')}</div>

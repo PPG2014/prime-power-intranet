@@ -450,6 +450,8 @@
 .rq-stfilter button.st-blue { color: var(--blue); }
 .tl-nosig { color: #c05621; font-weight: 600; font-size: .92em; }
 .rq-proj { font-size: 12px; font-weight: 600; color: #1f4e79; background: #e8f1fb; border-radius: 20px; padding: 1px 9px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rq-po { margin-left: auto; align-self: center; font-size: 12px; font-weight: 700; color: #6a3d00; background: #fff1d6;
+  border: 1px solid #f3cf8a; border-radius: 20px; padding: 1px 10px; white-space: nowrap; }
 .rq-proj.none { color: var(--muted); background: #eef2f6; font-weight: 500; }
 
 /* ค้นหาคำขอฝั่งซ้าย: ชื่อโครงการ / ชื่อพนักงาน / เลขที่ */
