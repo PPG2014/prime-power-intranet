@@ -203,7 +203,7 @@ const findPerson = (name) => staff.find((x) => x.Title === name) || { Title: nam
 const personChip = (name, role) => {
   const p = findPerson(name);
   const photo = (cls) => `<div class="${cls}">${p.PhotoUrl
-    ? `<img data-photo="${esc(p.PhotoUrl)}" data-thumb="medium" alt="${esc(p.Title)}" loading="lazy">`
+    ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy">`
     : `<span>${esc(String(p.Title || '?').slice(0, 2))}</span>`}</div>`;
 
   return `
