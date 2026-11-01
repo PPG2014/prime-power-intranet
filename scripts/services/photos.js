@@ -250,11 +250,37 @@ function shareId(url) {
   return 'u!' + b64.replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
 }
 
-/** คืน blob URL ของรูป (ลิงก์สาธารณะคืนตามเดิม, โหมด mock คืน data URL ตามเดิม) */
-export async function photoBlobUrl(webUrl) {
+/**
+ * รูปย่อที่ SharePoint สร้างไว้ให้ (medium ≈ 176px, large ≈ 800px) — ไฟล์เล็กกว่ารูปต้นฉบับหลายสิบเท่า
+ * รูปบุคลากรที่อัปโหลดจากกล้อง/มือถือมักเป็นไฟล์หลาย MB ถ้าดึงต้นฉบับจะขึ้นช้ามาก
+ * คืนลิงก์รูปย่อที่มีสิทธิ์ในตัว (ใส่ใน <img> ได้ตรง ๆ) · หาไม่ได้คืน '' แล้วไปดึงต้นฉบับแทน
+ */
+async function thumbUrl(webUrl, size) {
+  try {
+    const token = await getToken();
+    const res = await graphFetch(
+      `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/thumbnails?$select=${size}`,
+      { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return '';
+    const set = ((await res.json()).value || [])[0] || {};
+    return (set[size] && set[size].url) || '';
+  } catch (e) { return ''; }
+}
+
+/**
+ * คืน blob URL ของรูป (ลิงก์สาธารณะคืนตามเดิม, โหมด mock คืน data URL ตามเดิม)
+ * thumb = 'medium' | 'large' → ใช้รูปย่อแทนต้นฉบับ (รูปบุคลากรในการ์ด/หน้าข้อมูล)
+ */
+export async function photoBlobUrl(webUrl, { thumb = '' } = {}) {
   if (!webUrl) return '';
   if (CONFIG.dataSource === 'mock') return webUrl;
   if (!/sharepoint\.com/i.test(webUrl)) return webUrl;   // ลิงก์ภายนอก/สาธารณะโหลดเองได้
+  if (thumb) {
+    const key = `${thumb}|${webUrl}`;
+    if (!_photoCache.has(key)) _photoCache.set(key, thumbUrl(webUrl, thumb));
+    const t = await _photoCache.get(key);
+    if (t) return t;
+  }
   if (_photoCache.has(webUrl)) return _photoCache.get(webUrl);
 
   const token = await getToken();
@@ -316,7 +342,7 @@ export async function hydratePhotos(root) {
     const url = img.getAttribute('data-photo');
     img.removeAttribute('data-photo');
     try {
-      const src = await photoBlobUrl(url);
+      const src = await photoBlobUrl(url, { thumb: img.dataset.thumb || '' });
       if (src) img.src = src; else fallbackInitials(img);
     } catch (e) {
       fallbackInitials(img);

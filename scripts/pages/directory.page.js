@@ -89,7 +89,7 @@ const card = (p, cls = '') => `
   <article class="staff-card is-clickable ${cls}" data-person="${p.id}"
            role="button" tabindex="0" aria-label="ดูข้อมูล ${esc(p.Title)}">
     <div class="staff-photo">${p.PhotoUrl
-      ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
+      ? `<img data-photo="${esc(p.PhotoUrl)}" data-thumb="medium" alt="${esc(p.Title)}" loading="lazy" decoding="async">`
       : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
     <div class="staff-info">
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
@@ -295,7 +295,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
     body: `
       <div class="person-view">
         <div class="pv-photo">${p.PhotoUrl
-          ? `<img data-photo="${esc(p.PhotoUrl)}" alt="${esc(p.Title)}">`
+          ? `<img data-photo="${esc(p.PhotoUrl)}" data-thumb="large" alt="${esc(p.Title)}">`
           : `<span>${esc(p.Title.slice(0, 2))}</span>`}</div>
 
         <div class="pv-info">
