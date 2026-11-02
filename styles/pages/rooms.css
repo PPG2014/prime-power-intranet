@@ -34,3 +34,38 @@
 
 /* ปุ่มส่วนหัวห้อง ชิดขวา */
 .room-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ตารางห้องรายเดือน (วาดเองจากปฏิทินของห้อง แทนการฝัง Outlook) */
+.room-cal { padding: 14px 18px 6px; }
+.rc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.rc-head b { font-size: 1.05em; min-width: 140px; text-align: center; color: var(--navy); }
+.rc-meta { margin-left: auto; font-size: 13px; }
+.rc-dow, .rc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.rc-dow span { text-align: center; font-size: 12.5px; color: var(--muted); padding-bottom: 2px; }
+.rc-cell { min-height: 92px; border: 1px solid transparent; border-radius: 8px; background: #f5f7fa; font: inherit; font-size: 13px;
+  padding: 4px 5px; text-align: left; display: flex; flex-direction: column; gap: 2px; overflow: hidden; cursor: pointer; }
+.rc-cell.rc-blank { background: none; cursor: default; }
+.rc-cell:hover:not(.rc-blank) { border-color: var(--line); }
+.rc-cell.has { background: #eaf2fd; }
+.rc-cell.today { outline: 2px solid #9ec5ff; outline-offset: -2px; }
+.rc-cell.on { background: #dbe8ff; border-color: var(--blue); }
+.rc-d { font-weight: 700; line-height: 1.2; }
+.rc-ev { display: block; font-size: 11.5px; line-height: 1.3; padding: 1px 4px; border-radius: 4px; background: #fff; border-left: 3px solid #2b6cb0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-ev.tent { border-left-color: #d69e2e; }
+.rc-more { font-size: 11px; color: var(--muted); }
+.rc-day { margin: 12px 0 6px; }
+.rc-daytitle, .rc-free { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 600; color: var(--navy); }
+.rc-free { color: #1e7f4f; }
+.rc-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.rc-list li { display: flex; gap: 10px; align-items: center; padding: 7px 10px; background: #f7f9fc; border-radius: 8px; font-size: 13.5px; }
+.rc-time { font-weight: 700; color: var(--navy); min-width: 96px; }
+.rc-tag { font-size: 11.5px; color: #8a5a00; background: #fff4e0; border-radius: 999px; padding: 1px 8px; }
+.rc-hint { padding: 30px 10px; text-align: center; color: var(--muted); line-height: 2; }
+@media (max-width: 700px) {
+  .room-cal { padding: 10px 8px 4px; }
+  .rc-cell { min-height: 56px; font-size: 12px; padding: 3px; }
+  .rc-ev { font-size: 0; padding: 0; height: 5px; border-left-width: 0; background: #2b6cb0; }   /* มือถือ: เป็นแถบสี กดวันเพื่อดูรายการ */
+  .rc-ev.tent { background: #d69e2e; }
+  .rc-ev b { display: none; }
+}

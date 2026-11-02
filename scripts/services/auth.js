@@ -137,7 +137,7 @@ export async function getToken() {
  * ขอ token สำหรับสิทธิ์เสริม (เช่น ปฏิทิน) แบบขอตอนใช้งานจริงเท่านั้น
  * ใช้หน้าต่างป๊อปอัปเพื่อไม่ให้หลุดออกจากหน้าที่ทำอยู่ และไม่กระทบการล็อกอินของคนอื่น
  */
-export async function getTokenFor(scopes, label = '') {
+export async function getTokenFor(scopes, label = '', { silent = false } = {}) {
   if (CONFIG.dataSource === 'mock') return 'mock-token';
 
   const app = await client();
@@ -148,6 +148,8 @@ export async function getTokenFor(scopes, label = '') {
     const res = await app.acquireTokenSilent({ scopes, account: acct });
     return res.accessToken;
   } catch (err) {
+    // silent = ห้ามเปิดป๊อปอัปเอง (เช่น ตอนโหลดหน้า เบราว์เซอร์จะบล็อกป๊อปอัปที่ไม่ได้มาจากการกด)
+    if (silent) { const e = new Error('ต้องกดยืนยันสิทธิ์ปฏิทินก่อน'); e.code = 'needs-interaction'; throw e; }
     try {
       const res = await app.acquireTokenPopup({ scopes, account: acct });
       return res.accessToken;

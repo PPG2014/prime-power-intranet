@@ -3,12 +3,14 @@ import { CONFIG } from '../core/config.js';
 import { getToken, getTokenFor } from './auth.js';
 import { graphFetch } from './graph-fetch.js';
 
-/** อ่านช่วงเวลาที่ห้องไม่ว่าง จาก Room Mailbox */
-export async function getRoomSchedule(roomMailbox, startISO, endISO) {
-  const token = await getTokenFor(CONFIG.auth.calendarScopes);
+/** อ่านช่วงเวลาที่ห้องไม่ว่าง จาก Room Mailbox (silent = ไม่เปิดป๊อปอัปขอสิทธิ์เอง) */
+export async function getRoomSchedule(roomMailbox, startISO, endISO, { silent = false } = {}) {
+  if (CONFIG.dataSource === 'mock') return mockSchedule(startISO, endISO);
+  const token = await getTokenFor(CONFIG.auth.calendarScopes, '', { silent });
   const res = await graphFetch('https://graph.microsoft.com/v1.0/me/calendar/getSchedule', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    // เวลาในผลลัพธ์เป็นเวลาไทย (ไม่งั้น Graph คืนเป็น UTC)
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'outlook.timezone="Asia/Bangkok"' },
     body: JSON.stringify({
       schedules: [roomMailbox],
       startTime: { dateTime: startISO, timeZone: 'Asia/Bangkok' },
@@ -18,6 +20,21 @@ export async function getRoomSchedule(roomMailbox, startISO, endISO) {
   });
   if (!res.ok) throw new Error('อ่านตารางห้องไม่สำเร็จ');
   return (await res.json()).value[0];
+}
+
+/** โหมดข้อมูลตัวอย่าง: นัดสมมติของห้อง (ทุกวันจันทร์/พุธ/ศุกร์) */
+function mockSchedule(startISO, endISO) {
+  const items = [];
+  const d = new Date(startISO.slice(0, 10) + 'T00:00:00');
+  const end = new Date(endISO.slice(0, 10) + 'T00:00:00');
+  const day = (x) => x.toLocaleDateString('sv-SE');
+  for (; d < end; d.setDate(d.getDate() + 1)) {
+    const w = d.getDay();
+    if (w === 1) items.push({ status: 'busy', subject: 'ประชุมติดตามงานโครงการ', start: { dateTime: `${day(d)}T09:00:00` }, end: { dateTime: `${day(d)}T10:30:00` } });
+    if (w === 3) items.push({ status: 'busy', start: { dateTime: `${day(d)}T13:00:00` }, end: { dateTime: `${day(d)}T15:00:00` } });
+    if (w === 5) items.push({ status: 'tentative', subject: 'BEM2', start: { dateTime: `${day(d)}T14:00:00` }, end: { dateTime: `${day(d)}T16:00:00` } });
+  }
+  return { scheduleItems: items };
 }
 
 /** ลิงก์เปิดปฏิทินของผู้ใช้เองพร้อมกรอกชื่อห้องไว้ให้ */
