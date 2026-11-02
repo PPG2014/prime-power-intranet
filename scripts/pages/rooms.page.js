@@ -2,6 +2,7 @@ import { esc, $, onClick } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { composeBookingUrl, createRoomBooking, isRoomFree } from '../services/calendar.js';
 import { state, setState } from '../core/state.js';
+import { mountRoomCalendar } from '../components/room-calendar.js';
 
 let rooms = [];
 
@@ -93,11 +94,15 @@ export async function render(ctx) {
             — เห็นได้ทั้งใน Outlook และ Teams เหมือนจองจาก Outlook โดยตรง</div>
         </div>
 
-        ${r.PublishedCalendarUrl
-          ? `<div class="cal-box"><iframe src="${esc(r.PublishedCalendarUrl)}"
-               title="ปฏิทิน ${esc(r.Title)}" loading="lazy"></iframe></div>
-             <div class="panel-note">ตารางด้านบนคือปฏิทินของห้องที่เผยแพร่จาก Outlook — หากไม่ขึ้น ให้กด ↗ เปิดปฏิทินเต็มจอ</div>`
-          : `<div class="empty">ห้องนี้ยังไม่ได้เชื่อมปฏิทิน Outlook</div>`}
+        ${r.RoomMailbox
+          // Outlook ไม่ให้ฝังปฏิทินที่เผยแพร่ในเว็บอื่นแล้ว (กรอบขึ้นไอคอนห้าม) → วาดตารางเองจากปฏิทินของห้อง
+          ? `<div class="room-cal" id="room-cal"></div>
+             <div class="panel-note">ตารางการใช้ห้องจากปฏิทิน Outlook ของห้อง · ชื่อเรื่องประชุมขึ้นตามสิทธิ์ที่ห้องเปิดให้เห็น${
+  r.PublishedCalendarUrl ? ' · ดูแบบ Outlook ได้ที่ปุ่ม ↗ เปิดปฏิทินเต็มจอ' : ''}</div>`
+          : r.PublishedCalendarUrl
+            ? `<div class="empty">ดูตารางการใช้ห้องได้ที่ <a class="btn-mini" href="${esc(r.PublishedCalendarUrl)}" target="_blank" rel="noopener">↗ เปิดปฏิทินเต็มจอ</a>
+                 ${state.isAdmin ? '<br><span class="dim">กรอก "อีเมลของ Room Mailbox" ของห้องนี้ เพื่อให้แสดงตารางในหน้านี้ได้</span>' : ''}</div>`
+            : `<div class="empty">ห้องนี้ยังไม่ได้เชื่อมปฏิทิน Outlook</div>`}
       </div>
     </div>
   </section>`;
@@ -105,6 +110,7 @@ export async function render(ctx) {
 
 export function mount(ctx) {
   onClick('room', (k) => setState({ roomIndex: +k }));
+  if (rooms.length) mountRoomCalendar(rooms[Math.min(state.roomIndex || 0, rooms.length - 1)]);
 
   const go = $('#bk-go');
   if (!go) return;
