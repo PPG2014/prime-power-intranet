@@ -214,6 +214,10 @@ export const PURCHASE_STATUSES = ['-', 'เบิก Store', 'Cancel', 'รั�
 export const TRACK_STATUS = {
   // done = สถานะที่ปิดคำขอเป็น "เสร็จสิ้น"
   'FM-ACC-004': { statuses: ['Approved', 'Hold', 'Re-Check', 'Send for Approve', 'Payment'], icon: '📋', label: 'สถานะงาน', done: 'Payment' },
+  // จองคิวงานติดตั้ง PPE (services/install.js): approve = อนุมัติคำขอ · cancel = ปิดเป็นยกเลิก
+  // dated = สถานะที่ต้องกำหนดวันติดตั้ง (เก็บใน FormData inst_ok_from / inst_ok_to)
+  'FM-PPE-001': { statuses: ['อนุมัติ', 'แก้ไขวันติดตั้ง', 'ยกเลิกคำขอ', 'ติดตั้งเสร็จสิ้น'], icon: '🛠', label: 'สถานะงานติดตั้ง',
+    done: 'ติดตั้งเสร็จสิ้น', cancel: 'ยกเลิกคำขอ', approve: ['อนุมัติ', 'แก้ไขวันติดตั้ง'], dated: ['อนุมัติ', 'แก้ไขวันติดตั้ง'] },
 };
 export const trackOf = (code) => TRACK_STATUS[String(code || '').trim().toUpperCase()] || null;
 /** สถานะที่ใช้ได้ของคำขอนี้ (ใบขอสั่งซื้อ = สถานะจัดซื้อ) */
@@ -710,7 +714,11 @@ export async function decide(req, steps, { action, by, note = '', slip = null, s
     const st = String(note).split(' — ')[0].trim();
     const tr = trackOf(reqCode(req) || req.FormCode);
     if (tr ? st === tr.done : st === PURCHASE_DONE) { patch.Status = 'เสร็จสิ้น'; patch.PAState = 'DONE'; }
-    if (!tr && st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
+    if (tr ? tr.cancel && st === tr.cancel : st === PURCHASE_CANCEL) { patch.Status = 'ยกเลิก'; patch.PAState = 'DONE'; }
+    // สถานะที่ถือเป็นการอนุมัติ (เช่น คิวติดตั้ง: อนุมัติ / แก้ไขวันติดตั้ง) → คำขอที่ยังรออยู่เป็น "อนุมัติแล้ว"
+    if (tr && (tr.approve || []).includes(st) && ['รออนุมัติ', 'ส่งกลับแก้ไข'].includes(String(req.Status || '').trim())) {
+      patch.Status = 'อนุมัติแล้ว'; patch.PAState = 'DONE';
+    }
   } else if (action === 'ไม่อนุมัติ') {
     patch.Status = 'ไม่อนุมัติ';
     patch.PAState = 'DONE';

@@ -498,3 +498,9 @@
 .tk-opt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 13.5px; background: #fff; color: var(--tk); font-weight: 600; }
 .tk-opt:has(input:checked) { background: var(--tkbg); border-color: var(--tk); }
 .rq-trackbox { margin-top: 12px; }
+
+/* คิวงานติดตั้ง PPE: กำหนดวันติดตั้งในกล่องอัปเดตสถานะ */
+.tk-dates { margin: 0 0 10px; padding: 10px 12px; border: 1px dashed #9cc3e8; border-radius: 10px; background: #f5f9fe; font-size: 13px; }
+.tk-date-row { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 8px 0 4px; }
+.tk-date-row label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; color: var(--navy); }
+.tk-date-row input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }

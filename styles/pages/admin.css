@@ -321,3 +321,11 @@ td[data-col="Badge"] { white-space: nowrap; }
 .mil-rates { display: flex; flex-wrap: wrap; gap: 10px 24px; padding: 6px 0; }
 .mil-rates label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 .mil-rates input { width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; text-align: right; }
+
+/* 📅 วันหยุดบริษัทฯ */
+.hol-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hol-row .hol-date { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.hol-row .hol-dow { min-width: 170px; font-size: 13px; }
+.hol-row .hol-name { flex: 1; min-width: 200px; }
+.hol-paste { margin-top: 10px; font-size: 13.5px; }
+.hol-paste textarea { display: block; width: 100%; max-width: 520px; margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
