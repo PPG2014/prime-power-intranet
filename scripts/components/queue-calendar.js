@@ -8,6 +8,7 @@ import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
 import { CAR_FIELDS, carBookings, localDay } from '../services/car.js';
 import { QUEUE_FIELDS, DEAD, codeOf, stTone, markClashes } from '../services/booking.js';
+import { IF, installBookings } from '../services/install.js';
 
 const TH_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -21,8 +22,8 @@ let picked = '';        // วันที่ที่เลือกดู (YYY
 let bookings = [];      // คิวทั้งหมดของฟอร์มนี้
 let formCode = '';      // รหัสฟอร์ม (หรือหลายรหัส) ที่กำลังแสดงคิว
 let fresh = true;       // หน้าแบบฟอร์มต้องเห็นคิวล่าสุด · หน้าแรกใช้แคชแล้ววาดใหม่เองเมื่อข้อมูลเปลี่ยน
-let kind = 'queue';     // 'queue' = คิวรายวัน (Messenger) · 'car' = จองรถ (ข้ามวันได้ มีทะเบียนรถ)
-const dateField = () => (kind === 'car' ? CAR_FIELDS.dateFrom : QUEUE_FIELDS.date);
+let kind = 'queue';     // 'queue' = คิวรายวัน (Messenger) · 'car' = จองรถ (ข้ามวันได้ มีทะเบียนรถ) · 'install' = คิวงานติดตั้ง PPE (ช่วงหลายวัน)
+const dateField = () => (kind === 'car' ? CAR_FIELDS.dateFrom : kind === 'install' ? IF.dateFrom : QUEUE_FIELDS.date);
 
 /** เวลาแบบ 9:00 ต้องเติม 0 ก่อนเทียบ ไม่งั้น "10:00" จะมาก่อน "9:00" */
 const hhmm = (t) => String(t || '').trim().padStart(5, '0');
@@ -33,6 +34,7 @@ const todayKey = () => new Date().toLocaleDateString('sv-SE');
 async function load(code) {
   formCode = code;
   if (kind === 'car') { bookings = await loadCars(code); return; }
+  if (kind === 'install') { bookings = await loadInstalls(code); return; }
   const codes = (Array.isArray(code) ? code : [code]).map((c) => String(c).trim());
   const rows = await list('requests', { fresh }).catch(() => []);
   // แสดงทุกสถานะ (รออนุมัติ / อนุมัติแล้ว / ส่งกลับแก้ไข / เสร็จสิ้น / ยกเลิก / ไม่อนุมัติ) — ใบที่ยกเลิก/ไม่อนุมัติขีดฆ่าไว้ ไม่นับเป็นคิว
@@ -79,6 +81,23 @@ async function loadCars(code) {
     }
   });
   return out.sort((a, b) => a.day.localeCompare(b.day) || hhmm(a.from).localeCompare(hhmm(b.from)));
+}
+
+/** คิวงานติดตั้ง: หนึ่งงานแสดงทุกวันในช่วงที่กันคิวไว้ (วันที่ผู้อนุมัติกำหนด หรือวันที่ขอ) */
+async function loadInstalls(code) {
+  const out = [];
+  (await installBookings(code, { fresh })).forEach((b) => {
+    const [y, m, d0] = b.from.split('-').map(Number);
+    for (let d = new Date(y, m - 1, d0); localDay(d) <= b.to; d.setDate(d.getDate() + 1)) {
+      const day = localDay(d);
+      out.push({
+        day, from: day === b.from ? (b.time || 'ติดตั้ง') : 'ติดตั้ง', to: '',
+        by: b.by, place: [b.customer, b.place].filter(Boolean).join(' · '),
+        status: b.live ? (b.track || b.status) : b.status, title: b.req.Title || '',
+      });
+    }
+  });
+  return out.sort((a, b) => a.day.localeCompare(b.day));
 }
 
 function grid() {
@@ -175,7 +194,7 @@ function html() {
         <button class="btn-mini" data-qcpng="1" title="บันทึกเป็นรูปแนวตั้ง 1080×1920 สำหรับส่งในกลุ่ม">⬇ PNG แนวตั้ง</button>
         <button class="btn-mini" data-qcpng="wide" title="บันทึกเป็นรูปแนวนอน 1920×1080 สำหรับนำเสนอ/จอประชุม">⬇ PNG แนวนอน</button>
       </div>
-      <div class="qc-meta">${kind === 'car' ? 'การจองรถ' : 'คิว'}เดือนนี้ ${total} รายการ</div>
+      <div class="qc-meta">${kind === 'car' ? 'การจองรถ' : kind === 'install' ? 'วันที่มีงานติดตั้ง' : 'คิว'}เดือนนี้ ${total} ${kind === 'install' ? 'วัน' : 'รายการ'}</div>
       <div class="qc-dow">${TH_DOW.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="qc-grid">${grid()}</div>
       <div class="qc-day">${dayList()}</div>
@@ -246,7 +265,7 @@ export async function refreshQueueCalendar() {
 
 /* ───────────── ปฏิทินเต็มจอ + บันทึกเป็นรูป ───────────── */
 
-const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : 'ตารางคิว Messenger');
+const calTitle = () => (kind === 'car' ? 'ตารางการใช้รถยนต์บริษัทฯ' : kind === 'install' ? 'ตารางคิวงานติดตั้ง PPE' : 'ตารางคิว Messenger');
 const monthKey = () => `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
 const tone = (b) => (b.clash && live(b) ? 'clash' : stTone(b.status));
 

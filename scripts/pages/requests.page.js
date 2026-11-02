@@ -19,6 +19,7 @@ import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
 import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
+import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -107,6 +108,11 @@ const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กล�
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
 export async function formFieldsOf(code) {
+  if (isInstallCode(code)) {
+    // จองคิวงานติดตั้ง PPE: ช่องกำหนดในโค้ด (services/install.js)
+    const own = await formFieldsRaw(code);
+    return own.length ? own : INSTALL_FIELDS;
+  }
   if (isSolar(code)) {
     // ใบจองโซลาร์ใช้หน้ากรอกเฉพาะ ช่องข้อมูลกำหนดในโค้ด (ไม่ต้องตั้ง FormFields ใน SharePoint)
     const own = await formFieldsRaw(code);
@@ -924,13 +930,30 @@ function trackBox(req, role) {
       <div class="tk-pick" role="radiogroup" aria-label="${esc(tr.label)}">
         ${tr.statuses.map((x, i) => `<label class="tk-opt tk-${i}"><input type="radio" name="tk-st" value="${esc(x)}" ${x === nowSt ? 'checked' : ''}> ${esc(x)}</label>`).join('')}
       </div>
+      ${tr.dated ? installDates(req, tr) : ''}
       <label class="rq-note-label" for="tk-note">Note <span class="dim">(ไม่บังคับ · ใส่ได้ทุกสถานะ)</span></label>
-      <textarea id="tk-note" rows="2" maxlength="500" placeholder="รายละเอียดเพิ่มเติม เช่น เหตุผลที่ Hold · สิ่งที่ต้อง Re-Check · วันที่จ่าย"></textarea>
+      <textarea id="tk-note" rows="2" maxlength="500" placeholder="${tr.dated ? 'รายละเอียดเพิ่มเติม เช่น ทีมที่เข้าติดตั้ง · เหตุผลที่เลื่อนวัน · เหตุผลที่ยกเลิก' : 'รายละเอียดเพิ่มเติม เช่น เหตุผลที่ Hold · สิ่งที่ต้อง Re-Check · วันที่จ่าย'}"></textarea>
       <div class="field-error" id="tk-err" hidden></div>
       <div class="rq-buttons tk-buttons">
-        <span class="dim">บันทึกในประวัติของคำขอ${tr.done ? ` · เลือก "${esc(tr.done)}" = ปิดคำขอ (เสร็จสิ้น)` : ''}</span>
+        <span class="dim">บันทึกในประวัติของคำขอ${tr.done ? ` · เลือก "${esc(tr.done)}" = ปิดคำขอ (เสร็จสิ้น)` : ''}${tr.cancel ? ` · "${esc(tr.cancel)}" = ปิดคำขอ (ยกเลิก)` : ''}</span>
         <button class="btn btn-primary" id="tk-save">💾 บันทึกสถานะ</button>
       </div>
+    </div>`;
+}
+
+/** คิวงานติดตั้ง PPE: กำหนดวันติดตั้ง (แสดงเมื่อเลือก อนุมัติ / แก้ไขวันติดตั้ง) */
+function installDates(req, tr) {
+  const v = prValues(req);
+  const ask = { from: localDay(v[IF.dateFrom]), to: localDay(v[IF.dateTo]) || localDay(v[IF.dateFrom]) };
+  const ok = { from: localDay(v[IF.okFrom]), to: localDay(v[IF.okTo]) };
+  return `<div class="tk-dates" id="tk-dates" hidden data-from="${esc(ask.from)}" data-to="${esc(ask.to)}">
+      <div class="dim">ช่วงที่ผู้ยื่นขอ: <b>${esc(ask.from ? thRange(ask.from, ask.to) : '-')}</b>${v[IF.time] ? ` · เวลา ${esc(v[IF.time])} น.` : ''}${
+  ok.from ? ` · กำหนดไว้ล่าสุด: <b>${esc(thRange(ok.from, ok.to || ok.from))}</b>` : ''}</div>
+      <div class="tk-date-row">
+        <label><span>วันเข้าติดตั้ง <b class="req">*</b></span><input type="date" id="tk-from" value="${esc(ok.from || ask.from)}"></label>
+        <label><span>ถึงวันที่ <b class="req">*</b></span><input type="date" id="tk-to" value="${esc(ok.to || ask.to)}"></label>
+      </div>
+      <div class="dim" id="tk-date-hint"></div>
     </div>`;
 }
 
@@ -939,20 +962,56 @@ function bindTrack(req, steps, role) {
   if (!btn) return;
   const err = $('#tk-err');
   const fail = (m) => { err.textContent = m; err.hidden = false; };
+  // คิวงานติดตั้ง: เลือกสถานะที่ต้องกำหนดวัน → แสดงช่องวันที่ · อนุมัติ = ภายในช่วงที่ขอ · แก้ไข = วันใหม่ที่เข้าติดตั้งได้
+  const trk = trackOf(req.FormCode);
+  const dates = $('#tk-dates');
+  if (dates && trk && trk.dated) {
+    const sync = () => {
+      const st = ($('input[name="tk-st"]:checked') || {}).value || '';
+      dates.hidden = !trk.dated.includes(st);
+      $('#tk-date-hint').textContent = st === INSTALL_STATUS.approve ? 'อนุมัติ: เลือกวันที่อยู่ในช่วงที่ผู้ยื่นขอ'
+        : st === INSTALL_STATUS.change ? 'แก้ไขวันติดตั้ง: กำหนดวันที่สามารถเข้าติดตั้งได้ (นอกช่วงที่ขอ)' : '';
+    };
+    $$('input[name="tk-st"]').forEach((r) => r.addEventListener('change', sync));
+    sync();
+  }
   btn.onclick = async () => {
     err.hidden = true;
     const st = ($('input[name="tk-st"]:checked') || {}).value || '';
     const text = $('#tk-note').value.trim();
     const cur = purchaseStatusOf(req);
     if (!st) { fail('กรุณาเลือกสถานะ'); return; }
-    if (st === cur && !text) { fail(`สถานะเป็น "${cur}" อยู่แล้ว — เลือกสถานะอื่น หรือพิมพ์ Note`); return; }
     const tr = trackOf(req.FormCode);
+    // คิวงานติดตั้ง: ตรวจวันที่ที่กำหนด + คิวชนกับงานอื่น
+    let formPatch = null; let when = '';
+    if (tr.dated && tr.dated.includes(st)) {
+      const a = $('#tk-from').value; const b = $('#tk-to').value || a;
+      const ask = { from: dates.dataset.from, to: dates.dataset.to || dates.dataset.from };
+      if (!a) { fail('กรุณากำหนดวันเข้าติดตั้ง'); return; }
+      if (b < a) { fail('"ถึงวันที่" ต้องไม่ก่อนวันเข้าติดตั้ง'); return; }
+      const inside = ask.from && a >= ask.from && b <= ask.to;
+      if (st === INSTALL_STATUS.approve && ask.from && !inside) {
+        fail(`อนุมัติได้เฉพาะวันที่อยู่ในช่วงที่ขอ (${thRange(ask.from, ask.to)}) — ถ้าต้องเลื่อนไปวันอื่น เลือก "${INSTALL_STATUS.change}"`); return;
+      }
+      if (st === INSTALL_STATUS.change && inside) {
+        fail(`วันที่อยู่ในช่วงที่ขออยู่แล้ว — เลือก "${INSTALL_STATUS.approve}" แทน`); return;
+      }
+      const hit = await installClashes(req.FormCode, a, b, req.id);
+      if (hit.length) { fail(clashText(hit)); return; }
+      formPatch = { [IF.okFrom]: a, [IF.okTo]: b };
+      when = `วันติดตั้ง ${thRange(a, b)}`;
+      const prev = prValues(req);
+      if (st === cur && !text && localDay(prev[IF.okFrom]) === a && localDay(prev[IF.okTo]) === b) {
+        fail(`สถานะเป็น "${cur}" และวันที่นี้อยู่แล้ว — เลือกสถานะ/วันอื่น หรือพิมพ์ Note`); return;
+      }
+    } else if (st === cur && !text) { fail(`สถานะเป็น "${cur}" อยู่แล้ว — เลือกสถานะอื่น หรือพิมพ์ Note`); return; }
+    if (tr.cancel && st === tr.cancel && !confirm(`ยืนยัน "${st}"?\n\nคำขอ ${req.Title} จะถูกปิดเป็น "ยกเลิก" และคืนคิวให้คนอื่นจองได้`)) return;
     if (tr.done && st === tr.done && String(req.Status || '').trim() !== 'เสร็จสิ้น' && !confirm(
       `ยืนยัน "${st}"?\n\nคำขอ ${req.Title} จะถูกปิดเป็น "เสร็จสิ้น"${String(req.Status || '').trim() === 'รออนุมัติ' ? '\n⚠ คำขอนี้ยังอนุมัติไม่ครบทุกลำดับ' : ''}`)) return;
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const by = me || state.user?.name || '';
-      await decide(req, steps, { action: PURCHASE_ACTION, by, note: [st, text].filter(Boolean).join(' — ') });
+      await decide(req, steps, { action: PURCHASE_ACTION, by, note: [st, when, text].filter(Boolean).join(' — '), formPatch });
       closeModal();
       const { render: rerender } = await import('../core/render.js');
       rerender();

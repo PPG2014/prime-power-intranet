@@ -10,6 +10,7 @@ import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
 import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
 import { PPE_PROJECT, PPE_OTHER, ppeConfig } from '../services/ppe.js';
+import { mileageConfig, carRateFor, vehicleLabel, vehicleRate, VEHICLE_RE, RATE_RE } from '../services/mileage.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
 export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
@@ -19,6 +20,8 @@ export const OFFICE_PROJECTS = ['สำนักงานใหญ่', 'สำ�
 /** ไฟล์แนบของฟอร์มที่เปิดอยู่ */
 let files = [];
 let currentValues = {};
+/** ผู้ยื่น (จากทะเบียนบุคลากร) ของฟอร์มที่เปิดอยู่ — ใช้หาอัตราค่าพาหนะของคนนั้น */
+let currentMe = null;
 
 /** ตัวเลือกของช่องที่ดึงจาก List อื่น เก็บไว้ใช้ตอนวาด */
 let lookupData = {};
@@ -37,6 +40,11 @@ export async function loadLookups(fields, { formCode = '' } = {}) {
   // ทุกแบบฟอร์มที่มีช่องโครงการ: ตัวเลือก Prime Power Engineering Pro + รายชื่อโครงการ PPE
   if (fields.some((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects')) {
     lookupData._ppe = (await ppeConfig()).projects.filter((p) => p.on).map((p) => p.name);
+  }
+  // เบิกค่าเดินทาง: มีช่อง/คอลัมน์ประเภทพาหนะ → โหลดอัตรารถยนต์ส่วนบุคคลรายบุคคล
+  if (fields.some((f) => (f.FieldType === 'choice' && VEHICLE_RE.test(f.Title || ''))
+    || (f.FieldType === 'lineitems' && lineCols(f).some(isVehicleCol)))) {
+    lookupData._mileage = await mileageConfig();
   }
   const names = [...new Set(fields
     .filter((f) => f.FieldType === 'lookup' || f.FieldType === 'person')
@@ -136,6 +144,17 @@ export function lineTotal(cols, rows) {
 }
 
 const opts = (f) => String(f.Options || '').split('\n').map((x) => x.trim()).filter(Boolean);
+
+/* ───── ค่าพาหนะ: รถยนต์ส่วนบุคคลคิดตามอัตราของผู้ยื่น (services/mileage.js) ───── */
+const isVehicleCol = (c) => String(c.type).startsWith('choice:') && VEHICLE_RE.test(c.label);
+const isRateCol = (c) => !isVehicleCol(c) && RATE_RE.test(c.label) && c.type !== 'text';
+/** อัตรารถยนต์ส่วนบุคคลของผู้ยื่น · ฟอร์มที่ไม่มีช่องพาหนะคืน null */
+const myCarRate = () => (lookupData._mileage ? carRateFor(lookupData._mileage, currentMe && currentMe.Title) : null);
+/** ตัวเลือกพาหนะ: แสดงอัตราของผู้ยื่น · ค่าเดิมที่บันทึกด้วยอัตราอื่น (รถยนต์ส่วนบุคคล) ถือว่าเป็นตัวเลือกเดียวกัน */
+const vehicleOptions = (list, val) => list.map((o) => {
+  const label = vehicleLabel(o, myCarRate());
+  return `<option${label === vehicleLabel(val, myCarRate()) ? ' selected' : ''}>${esc(label)}</option>`;
+}).join('');
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
 
 /** ค่าเริ่มต้นของช่องหนึ่ง จากค่าที่ renderForm ได้รับ (ใช้ตอน bind) */
@@ -198,7 +217,8 @@ function control(f, value) {
     case 'choice':
       return `<select id="${id}" ${req}>
         <option value="">— เลือก —</option>
-        ${opts(f).map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+        ${lookupData._mileage && VEHICLE_RE.test(f.Title || '') ? vehicleOptions(opts(f), value)
+    : opts(f).map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
       </select>`;
     case 'lookup':
     case 'person': {
@@ -310,6 +330,7 @@ export function renderForm(fields, me, values = {}) {
     });
   });
   currentValues = values || {};
+  currentMe = me || null;
   const groups = [];
   fields.forEach((f) => {
     const name = f.Section || 'ข้อมูลคำขอ';
@@ -426,7 +447,8 @@ export function bindForm(fields, folder) {
       if (String(c.type).startsWith('choice:')) {
         const opts = c.type.slice(7).split(';').map((x) => x.trim()).filter(Boolean);
         return `<td><select data-k="${c.key}"><option value="">— เลือก —</option>${
-          opts.map((o) => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></td>`;
+          isVehicleCol(c) && lookupData._mileage ? vehicleOptions(opts, val)
+            : opts.map((o) => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></td>`;
       }
       return c.type === 'text'
         ? `<td><input data-k="${c.key}" value="${esc(val ?? '')}"></td>`
@@ -450,14 +472,32 @@ export function bindForm(fields, folder) {
       sumCell.textContent = sum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
     };
 
+    // ค่าพาหนะ: เลือกประเภทพาหนะ (ในแถว หรือช่องประเภทพาหนะของฟอร์ม) → เติมราคาต่อหน่วย (บาท/กม.) ให้
+    const vCol = lookupData._mileage && cols.find(isVehicleCol);
+    const rCol = lookupData._mileage && cols.find(isRateCol);
+    const vField = lookupData._mileage && !vCol && fields.find((x) => x.FieldType === 'choice' && VEHICLE_RE.test(x.Title || ''));
+    const vehicleOf = (tr) => (vCol ? (tr.querySelector(`[data-k="${vCol.key}"]`) || {}).value
+      : ($('#q_' + (vField || {}).FieldKey) || {}).value) || '';
+    const fillRate = (tr, force) => {
+      const el = rCol && tr.querySelector(`[data-k="${rCol.key}"]`);
+      const r = el && vehicleRate(vehicleOf(tr), myCarRate());
+      if (r == null || (!force && String(el.value).trim())) return;
+      el.value = r;
+    };
+
     const addRow = (data = {}) => {
       const tr = document.createElement('tr');
       tr.innerHTML = cols.map((c) => cell(c, data[c.key])).join('')
         + '<td class="li-x"><button type="button" class="li-del">✕</button></td>';
       body.appendChild(tr);
+      if (rCol && (vCol || vField)) fillRate(tr, false);
       tr.querySelectorAll('input, select').forEach((el) => { el.oninput = recalc; el.onchange = recalc; });
+      if (rCol && vCol) tr.querySelector(`[data-k="${vCol.key}"]`).onchange = () => { fillRate(tr, true); recalc(); };
       tr.querySelector('.li-del').onclick = () => { tr.remove(); recalc(); };
     };
+    if (rCol && vField && $('#q_' + vField.FieldKey)) {
+      $('#q_' + vField.FieldKey).addEventListener('change', () => { body.querySelectorAll('tr').forEach((tr) => fillRate(tr, true)); recalc(); });
+    }
 
     (initial.length ? initial : [{}]).forEach(addRow);
     recalc();

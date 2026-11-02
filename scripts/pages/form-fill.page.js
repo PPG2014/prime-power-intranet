@@ -12,8 +12,9 @@ import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
 import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
 import { isCarForm, CAR_FIELDS, CAR_PLACE, carProblem, mapLink } from '../services/car.js';
-/** ฟอร์มที่มีปฏิทินด้านข้าง: คิวรายวัน (Messenger) หรือจองรถ */
-const hasCal = (fields) => isQueueForm(fields) || isCarForm(fields);
+import { isInstallCode, isInstallForm, INSTALL_FIELDS, INSTALL_DAYS, IF, holidays, addWorkdays, installClashes, clashText, thRange } from '../services/install.js';
+/** ฟอร์มที่มีปฏิทินด้านข้าง: คิวรายวัน (Messenger) จองรถ หรือคิวงานติดตั้ง PPE */
+const hasCal = (fields) => isQueueForm(fields) || isCarForm(fields) || isInstallForm(fields);
 import { mountQueueCalendar } from '../components/queue-calendar.js';
 import { confirmSubmit } from '../components/submit-confirm.js';
 import { printWithNotice } from '../components/eta-notice.js';
@@ -108,9 +109,11 @@ export async function render(ctx) {
 
   form = forms.find((f) => f.FormCode === code);
 
-  const own = allFields
+  let own = allFields
     .filter((f) => f.FormCode === code && active(f.IsActive))
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
+  // จองคิวงานติดตั้ง PPE: ช่องกำหนดในโค้ด (ไม่ต้องตั้ง FormFields ใน SharePoint)
+  if (isInstallCode(code) && !own.length) own = INSTALL_FIELDS;
   // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
   fields = withStandard(own, form);
 
@@ -200,7 +203,7 @@ export async function render(ctx) {
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
         ${`<section class="q-group q-sign">
-          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) || isPR(form.FormCode) ? ' <b class="req">*</b>' : ''}</h3>
+          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) || isPR(form.FormCode) || isInstallForm(fields) ? ' <b class="req">*</b>' : ''}</h3>
           <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
             (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
           ${signaturePad('requester', (editSign && editSign.url) || (me && me.SignatureUrl) || '', true)}
@@ -352,6 +355,52 @@ function bindCarForm(form, fields) {
     a.id = 'car-map'; a.className = 'btn-mini car-map'; a.target = '_blank'; a.rel = 'noopener';
     a.textContent = '🗺 เปิดในแผนที่';
     const sync = () => { const u = mapLink(place.value); a.href = u || 'https://www.google.com/maps'; };
+    place.addEventListener('input', sync); sync();
+    place.insertAdjacentElement('afterend', a);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * จองคิวงานติดตั้ง PPE: วันเข้าติดตั้ง → "ถึงวันที่" นับต่ออีก 7 วันทำการให้เอง
+ * ตรวจคิวชนทันทีที่เลือกวัน · ปุ่มเปิดสถานที่ใน Google Maps
+ * ───────────────────────────────────────────────────────────── */
+async function installProblem(code, values) {
+  const day = (v) => (v ? new Date(v).toLocaleDateString('sv-SE') : '');
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(String(values[IF.dateFrom] || '')) ? values[IF.dateFrom] : day(values[IF.dateFrom]);
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(String(values[IF.dateTo] || '')) ? values[IF.dateTo] : day(values[IF.dateTo]);
+  if (!from) return '';
+  if (to && to < from) return '"ถึงวันที่" ต้องไม่ก่อนวันเข้าดำเนินการติดตั้ง';
+  const hit = await installClashes(code, from, to || from, editId);
+  return hit.length ? clashText(hit) : '';
+}
+
+function bindInstallForm(form) {
+  const box = $('#q-error');
+  const from = $('#q_' + IF.dateFrom); const to = $('#q_' + IF.dateTo);
+  if (!from || !to) return;
+  let hol = [];
+  const ready = holidays().then((h) => { hol = h; });
+  let timer = null;
+  const check = async () => {
+    const msg = await installProblem(form.FormCode, { [IF.dateFrom]: from.value, [IF.dateTo]: to.value });
+    box.classList.remove('q-warn');
+    box.innerHTML = msg ? esc(msg).replace(/\n/g, '<br>')
+      : (from.value ? `✓ ช่วง ${esc(thRange(from.value, to.value || from.value))} ยังว่าง จองได้` : '');
+    box.classList.toggle('q-ok', !!from.value && !msg);
+    box.hidden = !box.innerHTML;
+  };
+  from.addEventListener('change', async () => {
+    await ready;
+    if (from.value) to.value = addWorkdays(from.value, INSTALL_DAYS, hol);
+    clearTimeout(timer); timer = setTimeout(check, 150);
+  });
+  to.addEventListener('change', () => { clearTimeout(timer); timer = setTimeout(check, 150); });
+  const place = $('#q_' + IF.place);
+  if (place && !$('#inst-map')) {
+    const a = document.createElement('a');
+    a.id = 'inst-map'; a.className = 'btn-mini car-map'; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = '🗺 เปิดในแผนที่';
+    const sync = () => { a.href = mapLink(place.value) || 'https://www.google.com/maps'; };
     place.addEventListener('input', sync); sync();
     place.insertAdjacentElement('afterend', a);
   }
@@ -578,6 +627,10 @@ export function mount(ctx) {
     mountQueueCalendar(form.FormCode, { kind: 'car' });
     bindCarForm(form, fields);
   }
+  if (isInstallForm(fields)) {
+    mountQueueCalendar(form.FormCode, { kind: 'install' });
+    bindInstallForm(form);
+  }
 
   const dl = $('#q-download');
   if (dl) dl.onclick = () => downloadBlankForm(form, fields);
@@ -604,7 +657,7 @@ export function mount(ctx) {
 
   send.onclick = async () => {
     const err = $('#q-error');
-    err.classList.remove('q-warn');
+    err.classList.remove('q-warn', 'q-ok');
     const res = collectForm(fields);
 
     // ใบขอสั่งซื้อ: ช่องโครงการต้องเลือกเสมอ (โครงการ หรือ "ไม่เกี่ยวกับโครงการ") เพื่อให้ระบบรู้ว่าใครอนุมัติ
@@ -627,6 +680,11 @@ export function mount(ctx) {
       const msg = await carProblem(form.FormCode, res.values, editId);
       if (msg) { err.innerHTML = esc(msg).replace(/\n/g, '<br>'); err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     }
+    // คิวงานติดตั้ง PPE: ช่วงวันที่ชนกับคิวที่มีอยู่ → ห้ามส่ง ให้เลือกวันใหม่
+    if (isInstallForm(fields)) {
+      const msg = await installProblem(form.FormCode, res.values);
+      if (msg) { err.innerHTML = esc(msg).replace(/\n/g, '<br>'); err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    }
     // ฟอร์มที่จองเป็นช่วงเวลา (เช่น จองคิว Messenger) ต้องไม่ชนกับคิวที่มีอยู่
     // ชนกับคิวเดิม: แจ้งว่าชนกับใคร เรื่องอะไร แล้วให้ยืนยันว่าจะจองทับ
     if (isQueueForm(fields)) {
@@ -644,6 +702,14 @@ export function mount(ctx) {
     // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
     if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
       err.innerHTML = 'กรุณาลงลายเซ็นผู้เบิกจ่ายก่อนส่ง — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"';
+      err.hidden = false;
+      const pad = $('.sig-pad[data-sig="requester"]');
+      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // คิวงานติดตั้ง PPE: ต้องมีลายเซ็นผู้ยื่น (เซ็นใหม่ หรือมีลายเซ็นเดิม/ในทะเบียน)
+    if (isInstallForm(fields) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
+      err.innerHTML = 'กรุณาลงลายเซ็นผู้ยื่นก่อนส่ง — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"';
       err.hidden = false;
       const pad = $('.sig-pad[data-sig="requester"]');
       if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
