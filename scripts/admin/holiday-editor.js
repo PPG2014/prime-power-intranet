@@ -6,7 +6,7 @@
 import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { toast } from '../components/toast.js';
-import { HOLIDAY_SETTING, holidays, parseHolidays, thDay } from '../services/install.js';
+import { HOLIDAY_SETTING, holidays, holidaysSaved, parseHolidays, thDay } from '../services/install.js';
 
 let draft = [];
 let saved = '';
@@ -17,7 +17,8 @@ const dow = (day) => { const [y, m, d] = day.split('-').map(Number); return TH_D
 
 export async function holidayEditorHtml() {
   draft = (await holidays({ fresh: true })).map((r) => ({ ...r }));
-  saved = fmt(draft);
+  // ยังไม่เคยบันทึก: แสดงวันหยุดปี 2569 ตั้งต้นไว้ให้ กด 💾 บันทึก ครั้งเดียวก็เก็บลงตั้งค่าระบบ
+  saved = (await holidaysSaved()) ? fmt(draft) : '';
   return `<div class="panel-head">📅 วันหยุดบริษัทฯ</div>
     <div class="om-intro">
       วันหยุดนักขัตฤกษ์และวันหยุดพิเศษของบริษัทฯ — ระบบใช้นับ <b>วันทำการ</b> (ไม่นับเสาร์-อาทิตย์ และวันในรายการนี้)
@@ -40,7 +41,7 @@ function paint() {
       <button class="btn-mini" data-hol="reset" ${dirty() ? '' : 'disabled'}>↺ ยกเลิกที่แก้</button>
       <button class="btn btn-primary om-save" data-hol="save" ${dirty() ? '' : 'disabled'}>💾 บันทึก</button>
     </div>
-    ${dirty() ? '<div class="om-unsaved">มีการแก้ไขที่ยังไม่บันทึก</div>' : ''}
+    ${dirty() ? `<div class="om-unsaved">${saved ? 'มีการแก้ไขที่ยังไม่บันทึก' : 'กรอกวันหยุดบริษัทฯ ปี 2569 ไว้ให้แล้ว — ตรวจแล้วกด 💾 บันทึก'}</div>` : ''}
     <section class="om-group">
       <ol class="om-items hol-items">
         ${draft.map((r, i) => `<li class="hol-row">

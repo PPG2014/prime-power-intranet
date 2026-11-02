@@ -65,12 +65,43 @@ export function parseHolidays(raw) {
     .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date) && !seen.has(r.date) && seen.add(r.date))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+/** วันหยุดบริษัทฯ ปี 2569 (ตามประกาศบริษัทฯ) — ใช้เมื่อยังไม่ได้บันทึก CompanyHolidays ในตั้งค่าระบบ */
+export const DEFAULT_HOLIDAYS = [
+  ['2026-01-01', 'วันขึ้นปีใหม่'],
+  ['2026-01-02', 'วันหยุดทำการเพิ่มเป็นกรณีพิเศษ'],
+  ['2026-03-03', 'วันมาฆบูชา'],
+  ['2026-04-06', 'วันจักรี หรือวันพระบาทสมเด็จพระพุทธยอดฟ้าจุฬาโลกมหาราชฯ'],
+  ['2026-04-13', 'วันสงกรานต์'],
+  ['2026-04-14', 'วันสงกรานต์'],
+  ['2026-04-15', 'วันสงกรานต์'],
+  ['2026-05-01', 'วันแรงงานแห่งชาติ'],
+  ['2026-06-01', 'ชดเชยวันวิสาขบูชา'],
+  ['2026-06-03', 'วันเฉลิมพระชนมพรรษา สมเด็จพระนางเจ้าสุทิดา พัชรสุธาพิมลลักษณ พระบรมราชินี'],
+  ['2026-07-28', 'วันเฉลิมพระชนมพรรษาพระบาทสมเด็จพระเจ้าอยู่หัว'],
+  ['2026-07-29', 'วันอาสาฬหบูชา'],
+  ['2026-08-12', 'วันแม่แห่งชาติ'],
+  ['2026-10-13', 'วันนวมินทรมหาราช'],
+  ['2026-10-23', 'วันปิยมหาราช'],
+  ['2026-12-07', 'ชดเชยวันคล้ายวันพระบรมราชสมภพ พระบาทสมเด็จพระบรมชนกาธิเบศรฯ'],
+  ['2026-12-10', 'วันรัฐธรรมนูญ'],
+  ['2026-12-31', 'วันสิ้นปี'],
+].map(([date, name]) => ({ date, name }));
+
+/** วันหยุดที่ใช้นับวันทำการ · ยังไม่เคยบันทึกในตั้งค่าระบบ → ใช้วันหยุดปี 2569 ตั้งต้น */
 export async function holidays({ fresh = false } = {}) {
   try {
     const { settings, clearSettings } = await import('../utils/settings.js');
     if (fresh) clearSettings();
-    return parseHolidays((await settings())[HOLIDAY_SETTING]);
-  } catch (e) { return []; }
+    const raw = (await settings())[HOLIDAY_SETTING];
+    return raw == null || !String(raw).trim() ? DEFAULT_HOLIDAYS.map((r) => ({ ...r })) : parseHolidays(raw);
+  } catch (e) { return DEFAULT_HOLIDAYS.map((r) => ({ ...r })); }
+}
+/** บันทึกวันหยุดในตั้งค่าระบบแล้วหรือยัง */
+export async function holidaysSaved() {
+  try {
+    const { settings } = await import('../utils/settings.js');
+    return !!String((await settings())[HOLIDAY_SETTING] || '').trim();
+  } catch (e) { return false; }
 }
 
 const toDate = (day) => { const [y, m, d] = String(day).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
