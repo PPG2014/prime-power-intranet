@@ -19,15 +19,17 @@ import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblem
 import { omEditorHtml, bindOmEditor, omHasUnsaved } from '../admin/om-editor.js';
 import { solarPriceHtml, bindSolarPriceEditor, solarPriceUnsaved } from '../admin/solar-price-editor.js';
 import { ppeEditorHtml, bindPpeEditor, ppeHasUnsaved } from '../admin/ppe-editor.js';
+import { mileageEditorHtml, bindMileageEditor, mileageHasUnsaved } from '../admin/mileage-editor.js';
 
 /** เมนูพิเศษที่ไม่ใช่ตาราง List ตรง ๆ — มีหน้าแก้ไขของตัวเอง (เก็บในตั้งค่าระบบ) */
 const VIRTUAL = {
   omProjects: { icon: '🔧', title: 'โครงการ O&M', html: omEditorHtml, bind: bindOmEditor, unsaved: omHasUnsaved, label: 'โครงการ O&M' },
   ppeProjects: { icon: '🏠', title: 'โครงการ PPE', html: ppeEditorHtml, bind: bindPpeEditor, unsaved: ppeHasUnsaved, label: 'โครงการ PPE' },
+  mileage: { icon: '🚗', title: 'ค่าพาหนะ', html: mileageEditorHtml, bind: bindMileageEditor, unsaved: mileageHasUnsaved, label: 'ค่าพาหนะ' },
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
-const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects'];
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -41,9 +43,9 @@ let formNames = {};
 /** ชุดข้อมูลที่ผู้ใช้นี้แก้ได้ — ผู้ดูแลได้ทุกชุด ฝ่ายบุคคลได้เฉพาะชุดที่ตั้ง hr: true */
 function allowedSets() {
   const all = Object.keys(SCHEMA);
-  if (!state.isAdmin) return all.filter((k) => SCHEMA[k].hr);
+  if (!state.isAdmin) return [...all.filter((k) => SCHEMA[k].hr), 'mileage'];   // ฝ่ายบุคคลตั้งค่าพาหนะได้
   const i = all.indexOf('projects');
-  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'solarPrices');   // ต่อจากทะเบียนโครงการ
+  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'solarPrices', 'mileage');   // ต่อจากทะเบียนโครงการ
   return all;
 }
 
