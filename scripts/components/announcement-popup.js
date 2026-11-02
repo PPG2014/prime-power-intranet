@@ -39,7 +39,7 @@ function slideHtml(a, interval) {
   const isImage = a.AnnounceType === 'รูปภาพเต็มใบ' && a.ImageUrl;
 
   return `
-    <div class="pop-card" role="dialog" aria-modal="true" aria-label="ประกาศจากบริษัท">
+    <div class="pop-card${isImage ? ' pop-wide' : ''}" role="dialog" aria-modal="true" aria-label="ประกาศจากบริษัท">
       <button class="pop-close" id="pop-x" aria-label="ปิดประกาศ">✕</button>
 
       ${isImage
