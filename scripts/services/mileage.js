@@ -47,11 +47,22 @@ export function vehicleLabel(opt, carRate) {
   if (!isPrivateCar(o) || !carRate) return o;
   return RATE_TEXT.test(o) ? o.replace(RATE_TEXT, `(${carRate} บาท/กม.)`) : `${o} (${carRate} บาท/กม.)`;
 }
-/** อัตรา (บาท/กม.) ของตัวเลือกพาหนะ · ไม่รู้คืน null */
+/** รถจักรยานยนต์ส่วนบุคคล — คิดตามระยะทางเหมือนรถยนต์ */
+export const isMotorcycle = (opt) => /จักรยานยนต์|มอเตอร์ไซ/.test(String(opt || ''));
+/** อัตรารถจักรยานยนต์ถ้าตัวเลือกไม่ได้เขียนอัตราไว้ (ตามระเบียบ 3.5 บาท/กม.) */
+export const MOTO_RATE = 3.5;
+/**
+ * พาหนะนี้เบิกตามระยะทาง (เลขไมล์ × ราคาต่อหน่วย) ไหม
+ * รถยนต์/รถจักรยานยนต์ส่วนบุคคล หรือตัวเลือกที่เขียนอัตรา "บาท/กม." = ใช่
+ * อื่น ๆ (แท็กซี่ รถสาธารณะ ทางด่วน ที่จอดรถ) = ไม่ใช่ → เบิกตามจริงตามใบเสร็จ/สลิป
+ */
+export const isMileageVehicle = (opt) => isPrivateCar(opt) || isMotorcycle(opt) || /บาท\s*\/\s*(?:กม|กิโล)/.test(String(opt || ''));
+
+/** อัตรา (บาท/กม.) ของตัวเลือกพาหนะ · เบิกตามจริง/ไม่รู้ คืน null */
 export function vehicleRate(opt, carRate) {
   const o = String(opt || '');
-  if (!o) return null;
+  if (!o || !isMileageVehicle(o)) return null;
   if (isPrivateCar(o)) return carRate || null;
   const m = o.match(/([\d.]+)\s*บาท/);
-  return m ? Number(m[1]) : null;
+  return m ? Number(m[1]) : isMotorcycle(o) ? MOTO_RATE : null;
 }

@@ -10,7 +10,7 @@ import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
 import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
 import { PPE_PROJECT, PPE_OTHER, ppeConfig } from '../services/ppe.js';
-import { mileageConfig, carRateFor, vehicleLabel, vehicleRate, VEHICLE_RE, RATE_RE } from '../services/mileage.js';
+import { mileageConfig, carRateFor, vehicleLabel, vehicleRate, isMileageVehicle, VEHICLE_RE, RATE_RE } from '../services/mileage.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
 export const NO_PROJECT = 'ไม่เกี่ยวกับโครงการ';
@@ -472,17 +472,64 @@ export function bindForm(fields, folder) {
       sumCell.textContent = sum.toLocaleString('th-TH', { minimumFractionDigits: 2 });
     };
 
-    // ค่าพาหนะ: เลือกประเภทพาหนะ (ในแถว หรือช่องประเภทพาหนะของฟอร์ม) → เติมราคาต่อหน่วย (บาท/กม.) ให้
-    const vCol = lookupData._mileage && cols.find(isVehicleCol);
-    const rCol = lookupData._mileage && cols.find(isRateCol);
-    const vField = lookupData._mileage && !vCol && fields.find((x) => x.FieldType === 'choice' && VEHICLE_RE.test(x.Title || ''));
+    /*
+     * ค่าพาหนะ (เบิกค่าเดินทาง): ประเภทพาหนะ (ในแถว หรือช่องประเภทพาหนะของฟอร์ม) กำหนดวิธีเบิก
+     *   - รถยนต์/รถจักรยานยนต์ส่วนบุคคล → กรอกเลขไมล์ก่อน-หลัง · ก.ม. และจำนวนเงิน (ก.ม. × ราคาต่อหน่วย) คำนวณให้
+     *   - อื่น ๆ (แท็กซี่ รถสาธารณะ ทางด่วน ที่จอดรถ) → ไม่ใช้เลขไมล์/ราคาต่อหน่วย · กรอกจำนวนเงินตามจริงตามใบเสร็จ/สลิป
+     */
+    const travel = !!lookupData._mileage;
+    const colBy = (re, ok = () => true) => (travel ? cols.find((c) => re.test(c.label) && ok(c)) : null);
+    const vCol = travel && cols.find(isVehicleCol);
+    const rCol = travel && cols.find(isRateCol);
+    const vField = travel && !vCol && fields.find((x) => x.FieldType === 'choice' && VEHICLE_RE.test(x.Title || ''));
+    const fromCol = colBy(/ไมล์ก่อน/); const toCol = colBy(/ไมล์หลัง/);
+    const kmCol = colBy(/^ก\.?\s*ม|กิโลเมตร|ระยะทาง/, (c) => c !== fromCol && c !== toCol);
+    const amtCol = colBy(/จำนวนเงิน|เป็นเงิน/) || (travel ? cols.find((c) => c.type === 'money' && c !== rCol) : null);
     const vehicleOf = (tr) => (vCol ? (tr.querySelector(`[data-k="${vCol.key}"]`) || {}).value
       : ($('#q_' + (vField || {}).FieldKey) || {}).value) || '';
-    const fillRate = (tr, force) => {
-      const el = rCol && tr.querySelector(`[data-k="${rCol.key}"]`);
-      const r = el && vehicleRate(vehicleOf(tr), myCarRate());
-      if (r == null || (!force && String(el.value).trim())) return;
-      el.value = r;
+    const inp = (tr, c) => (c ? tr.querySelector(`[data-k="${c.key}"]`) : null);
+    const mileCols = [fromCol, toCol, kmCol, rCol].filter(Boolean);
+    const n = (el) => (el && String(el.value).trim() !== '' ? Number(el.value) : null);
+
+    /** โหมดของแถว: 'mile' = ตามระยะทาง · 'actual' = ตามจริง · '' = ยังไม่เลือกพาหนะ */
+    const modeOf = (tr) => { const v = vehicleOf(tr); return !v ? '' : isMileageVehicle(v) ? 'mile' : 'actual'; };
+    const calcRow = (tr) => {
+      if (modeOf(tr) !== 'mile') return;
+      const a = n(inp(tr, fromCol)); const b = n(inp(tr, toCol));
+      const kmEl = inp(tr, kmCol);
+      if (kmEl && a != null && b != null) kmEl.value = b >= a ? +(b - a).toFixed(2) : '';
+      const km = n(kmEl); const rate = n(inp(tr, rCol)); const amt = inp(tr, amtCol);
+      if (amt && km != null && rate != null) amt.value = +(km * rate).toFixed(2);
+    };
+    const applyMode = (tr, force) => {
+      const mode = modeOf(tr);
+      mileCols.forEach((c) => {
+        const el = inp(tr, c);
+        if (!el) return;
+        el.disabled = mode === 'actual';
+        el.placeholder = mode === 'actual' ? '—' : '';
+        if (mode === 'actual') el.value = '';
+      });
+      const rateEl = inp(tr, rCol);
+      const r = rateEl && vehicleRate(vehicleOf(tr), myCarRate());
+      if (rateEl && r != null && (force || !String(rateEl.value).trim())) rateEl.value = r;
+      const amt = inp(tr, amtCol);
+      if (amt) {
+        amt.readOnly = mode === 'mile' && !!(kmCol || (fromCol && toCol)) && !!rCol;
+        amt.placeholder = mode === 'actual' ? 'ตามใบเสร็จ' : mode === 'mile' ? 'คำนวณให้' : '';
+      }
+      tr.classList.toggle('li-actual', mode === 'actual');
+      calcRow(tr);
+    };
+    const hint = travel && (vCol || vField) ? document.createElement('div') : null;
+    if (hint) { hint.className = 'li-mode q-help'; box.insertBefore(hint, box.firstChild); }
+    const paintHint = () => {
+      if (!hint) return;
+      const modes = new Set([...body.querySelectorAll('tr')].map(modeOf));
+      hint.innerHTML = modes.has('actual') && !modes.has('mile')
+        ? '🧾 <b>เบิกตามจริง</b> — ไม่ต้องกรอกเลขไมล์/ราคาต่อหน่วย · กรอกคำอธิบายและ <b>จำนวนเงินตามใบเสร็จหรือสลิปโอนเงิน</b> แล้วแนบหลักฐาน'
+        : modes.has('mile') ? '🚗 <b>เบิกตามระยะทาง</b> — กรอกเลขไมล์ก่อน-หลัง ระบบคำนวณ ก.ม. และจำนวนเงิน (ก.ม. × ราคาต่อหน่วย) ให้' : '';
+      hint.hidden = !hint.innerHTML;
     };
 
     const addRow = (data = {}) => {
@@ -490,16 +537,19 @@ export function bindForm(fields, folder) {
       tr.innerHTML = cols.map((c) => cell(c, data[c.key])).join('')
         + '<td class="li-x"><button type="button" class="li-del">✕</button></td>';
       body.appendChild(tr);
-      if (rCol && (vCol || vField)) fillRate(tr, false);
-      tr.querySelectorAll('input, select').forEach((el) => { el.oninput = recalc; el.onchange = recalc; });
-      if (rCol && vCol) tr.querySelector(`[data-k="${vCol.key}"]`).onchange = () => { fillRate(tr, true); recalc(); };
+      tr.querySelectorAll('input, select').forEach((el) => { el.oninput = () => { calcRow(tr); recalc(); }; el.onchange = el.oninput; });
+      if (vCol) tr.querySelector(`[data-k="${vCol.key}"]`).onchange = () => { applyMode(tr, true); paintHint(); recalc(); };
+      if (vCol || vField) applyMode(tr, false);
       tr.querySelector('.li-del').onclick = () => { tr.remove(); recalc(); };
     };
-    if (rCol && vField && $('#q_' + vField.FieldKey)) {
-      $('#q_' + vField.FieldKey).addEventListener('change', () => { body.querySelectorAll('tr').forEach((tr) => fillRate(tr, true)); recalc(); });
+    if (vField && $('#q_' + vField.FieldKey)) {
+      $('#q_' + vField.FieldKey).addEventListener('change', () => {
+        body.querySelectorAll('tr').forEach((tr) => applyMode(tr, true)); paintHint(); recalc();
+      });
     }
 
     (initial.length ? initial : [{}]).forEach(addRow);
+    if (hint) paintHint();
     recalc();
     box.querySelector('.li-add').onclick = () => addRow();
   });
