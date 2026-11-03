@@ -1,5 +1,7 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
-import { list, listRecent, get, clearDataCache, RECENT_REQUESTS } from '../services/data.js';
+import { list, listRecent, get, create, update, clearDataCache, RECENT_REQUESTS } from '../services/data.js';
+import { settings, clearSettings } from '../utils/settings.js';
+import { toast } from '../components/toast.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
@@ -98,6 +100,25 @@ let fastNext = false;
 let loadedAt = 0;
 let loadedAll = null;
 function quick(patch) { fastNext = true; setState(patch); }
+
+/* ───── จำนวนคำขอต่อหน้า (รายการของแต่ละแบบฟอร์ม) ───── */
+const PER_PAGE_KEY = 'RequestsPerPage';
+const PER_PAGE_DEFAULT = 40;
+const PER_PAGE_CHOICES = [10, 20, 25, 30, 40, 50, 100];
+async function perPage() {
+  try {
+    const n = Math.round(Number((await settings())[PER_PAGE_KEY]));
+    return n >= 5 && n <= 500 ? n : PER_PAGE_DEFAULT;
+  } catch (e) { return PER_PAGE_DEFAULT; }
+}
+/** ผู้ดูแลเปลี่ยนจำนวนต่อหน้า → บันทึกในตั้งค่าระบบ (มีผลกับทุกคน) */
+async function savePerPage(n) {
+  const rows = await list('settings', { fresh: true });
+  const row = rows.find((r) => String(r.Title || '').trim() === PER_PAGE_KEY);
+  if (row) await update('settings', row.id, { Value: String(n) });
+  else await create('settings', { Title: PER_PAGE_KEY, Value: String(n), Description: 'จำนวนคำขอต่อหน้า ในหน้าติดตามสถานะ (รายการของแต่ละแบบฟอร์ม)' });
+  clearSettings();
+}
 /** กดเปลี่ยนหน้ารายการคำขอ → หลังวาดใหม่ให้เลื่อนไปต้นรายการ */
 let scrollToList = false;
 
@@ -306,8 +327,8 @@ export async function render(ctx) {
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
   const unreadCount = mine.filter((r) => isUnread(r)).length;
 
-  // รายการคำขอของแต่ละแบบฟอร์ม (ฝั่งซ้าย) แสดงหน้าละ 40 ใบ
-  const REVIEW_PER = 40;
+  // รายการคำขอของแต่ละแบบฟอร์ม (ฝั่งซ้าย) แสดงหน้าละกี่ใบ — ตั้งค่าระบบ RequestsPerPage (ค่าเริ่มต้น 40)
+  const REVIEW_PER = await perPage();
   // ค้นหา + แบ่งหน้า กล่อง "คำขอของฉัน" (15 รายการต่อหน้า)
   const MINE_PER = 15;
   const mineQ = (state.mineQuery || '').trim().toLowerCase();
@@ -422,7 +443,11 @@ export async function render(ctx) {
                 }).join('')}
               </div>` : ''}
               <div class="rq-tools">
-                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ${reviewPages > 1 ? ` · ${reviewPages} หน้า (หน้าละ ${REVIEW_PER})` : ''}</span>
+                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ${reviewPages > 1 ? ` · ${reviewPages} หน้า` : ''}</span>
+                ${state.isAdmin ? `<label class="rq-perpage" title="ผู้ดูแลตั้งได้ · ใช้กับทุกคน (ตั้งค่าระบบ ${PER_PAGE_KEY})">หน้าละ
+                  <select id="rq-perpage">${[...new Set([...PER_PAGE_CHOICES, REVIEW_PER])].sort((a, b) => a - b)
+                    .map((n) => `<option value="${n}" ${n === REVIEW_PER ? 'selected' : ''}>${n}</option>`).join('')}</select> รายการ</label>`
+    : reviewPages > 1 ? `<span class="dim">หน้าละ ${REVIEW_PER} รายการ</span>` : ''}
                 ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
                 ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
               </div>`;
@@ -1524,6 +1549,14 @@ export function mount(ctx) {
   onClick('rqpst', (st) => quick({ reviewPStatus: st || '', reviewPage: 1 }));
   onClick('rqneed', (k) => quick({ reviewNeed: k || '', reviewPage: 1 }));
   onClick('rvpage', (pg) => { scrollToList = true; quick({ reviewPage: +pg }); });
+  const pp = $('#rq-perpage');
+  if (pp) {
+    pp.onchange = async () => {
+      pp.disabled = true;
+      try { await savePerPage(+pp.value); toast(`✓ ตั้งค่าแสดงหน้าละ ${pp.value} รายการแล้ว (ใช้กับทุกคน)`); quick({ reviewPage: 1 }); }
+      catch (e) { pp.disabled = false; toast('บันทึกไม่สำเร็จ: ' + e.message, 'bad'); }
+    };
+  }
   // เปลี่ยนหน้าแล้วเลื่อนกลับไปต้นรายการ (กดจากปุ่มด้านล่างจะได้ไม่ค้างอยู่ท้ายหน้า)
   if (scrollToList) {
     scrollToList = false;

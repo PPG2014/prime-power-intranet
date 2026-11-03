@@ -510,3 +510,5 @@
 .rq-rpager.top { margin: 4px 0 10px; scroll-margin-top: 80px; }
 .rq-rpager .rq-pager-info { padding: 0 6px; }
 .rq-rpager .rq-pager-info b { color: var(--navy); }
+.rq-perpage { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.rq-perpage select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit; color: var(--navy); }
