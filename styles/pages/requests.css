@@ -198,6 +198,10 @@
 .wf-b1 { min-width: 56px; } .wf-b2 { min-width: 70px; } .wf-b3 { min-width: 96px; } .wf-b4 { min-width: 44px; }
 .wf-line.wf-wrap { flex-wrap: wrap; row-gap: 2px; } /* ชื่อผู้ยื่นยาว → ขึ้นบรรทัดใหม่ ไม่ตกขอบ */
 .wf-gap { width: 14px; }
+.wf-line.wf-tight { gap: 3px; }   /* แถวค่าห้องพัก: เดือน รหัส ชื่อ อยู่บรรทัดเดียวตามตัวอย่าง */
+.wf-tight .wf-box { min-width: 0; padding: 0 4px; }
+.wf-acc { font-weight: 700; }
+.wf-acc-v { min-width: 180px; text-align: left; padding: 0 8px; }
 .wf-docs { display: flex; align-items: flex-end; gap: 10px; margin-top: 26px; }
 .wf-copies { min-width: 76px; border-bottom: 1px dotted #000; }
 .wf-sp { margin-left: 12px; }

@@ -92,7 +92,7 @@ export function renderFormDoc({ form = {}, fields = [], values = {}, docNo = '',
   requester = {}, approvals = [], empCode = '', position = '', dept = '', finalSign = null }) {
   // ฟอร์มที่มีแม่แบบตามต้นฉบับ ใช้แม่แบบนั้นแทน
   if (isMemo(form)) return renderMemo({ fields, values, empCode, requester, approvals, person: { position, dept } });
-  if (isWelfareRoom(form)) return renderWelfareRoom({ fields, values, empCode, requester, finalSign, position });
+  if (isWelfareRoom(form)) return renderWelfareRoom({ fields, values, empCode, requester, finalSign, position, submitted });
   if (isTravel(form, fields)) return renderTravel({ form, fields, values, empCode, requester, approvals });
   const shown = fields.filter((f) => f.FieldType !== 'section' && showIfMatches(f.ShowIf, values));
   const groups = [];
