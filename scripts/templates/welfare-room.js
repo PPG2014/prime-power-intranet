@@ -6,7 +6,11 @@
  *   ประเภทสวัสดิการ (ติ๊ก ค่าห้องพัก / ค่าส่วนกลาง / ค่าที่จอดรถ) · จำนวนเงินแยกรายการหรือยอดรวม
  *   เลขห้อง · ทะเบียนรถ · เดือนที่ขอเบิก · หมายเหตุ · ไฟล์แนบ (นับเป็นจำนวนฉบับ)
  * ผู้ลงนามด้านขวา = ผู้อนุมัติขั้นสุดท้าย · ลายเซ็นขึ้นเมื่อขั้นนั้นอนุมัติแล้วเท่านั้น
- * แถวค่าห้องพัก: "ค่าห้องพัก : ชื่อผู้ยื่นคำขอ" (ดึงจากผู้ยื่นอัตโนมัติ) · มีเลขห้อง แสดงต่อท้ายรหัสพนักงาน
+ * ตาราง (ตามตัวอย่างฝ่ายบัญชี):
+ *   วัน-เดือน-ปี = วันที่ส่งคำขอเข้าระบบ (ทุกแถว)
+ *   1 ค่าห้องพักเดือน [ต.ค. 2569] พนักงานรหัส [P-xxxxx] [ชื่อผู้ยื่น] · หมายเหตุ = ช่องหมายเหตุ
+ *   2 ค่าส่วนกลาง (ตามคำอนุมัติ) · 3 ค่าที่จอดรถ ทะเบียน [..] (เฉพาะรถบริษัทเท่านั้น)
+ *   ต่อด้วย ชื่อบัญชีผู้รับเงิน (ห้องพัก) / ธนาคาร (+สาขา) / หมายเลขบัญชี — อ่านจากช่องในคำขอตามชื่อหัวข้อ
  */
 import { esc } from '../core/dom.js';
 import { sigImg } from './form-doc.js';
@@ -51,17 +55,32 @@ const num = (v) => {
   return isNaN(n) ? 0 : n;
 };
 const money = (n) => (n ? n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '');
-/** วัน-เดือน-ปี แบบ 30/09/2569 · ข้อความ (เช่น "กันยายน 2569") แสดงตามที่กรอก */
-function dmy(v) {
-  if (!v) return '';
-  if (!/^\d{4}-\d{2}-\d{2}/.test(String(v))) return String(v);
-  const d = new Date(v);
-  if (isNaN(d)) return String(v);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear() + 543}`;
+/** วันที่แบบตัวอย่างของฝ่ายบัญชี: 27/10/2025 (ค.ศ.) */
+function dmyCE(v) {
+  const d = v ? new Date(v) : null;
+  if (!d || isNaN(d)) return '';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+const TH_MON = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const TH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+/** เดือนที่ขอเบิก → "ต.ค. 2569" (รับวันที่ หรือข้อความ เช่น "ตุลาคม 2569" / "ต.ค. 69") · อ่านไม่ออกแสดงตามที่กรอก */
+function monthLabel(v) {
+  const t = String(v ?? '').trim();
+  if (!t) return '';
+  if (/^\d{4}-\d{2}(-\d{2})?/.test(t)) {
+    const d = new Date(t.length === 7 ? `${t}-01T00:00:00` : t);
+    if (!isNaN(d)) return `${TH_ABBR[d.getMonth()]} ${d.getFullYear() + 543}`;
+  }
+  const i = TH_MON.findIndex((m) => t.includes(m));
+  const j = i >= 0 ? i : TH_ABBR.findIndex((m) => t.includes(m));
+  const y = (t.match(/(\d{4}|\d{2})\s*$/) || [])[1];
+  if (j < 0) return t;
+  const yy = !y ? '' : y.length === 2 ? String(2500 + Number(y)) : Number(y) < 2400 ? String(Number(y) + 543) : y;
+  return `${TH_ABBR[j]}${yy ? ` ${yy}` : ''}`;
 }
 
 export function renderWelfareRoom({ fields = [], values = {}, empCode = '', requester = {}, finalSign = null,
-  position = '', files = null }) {
+  position = '', files = null, submitted = '' }) {
   const byTitle = (re, pred = () => true) => fields.find((f) => re.test(String(f.Title || '')) && pred(f));
   const val = (f) => (f ? values[f.FieldKey] : '');
   const text = (f) => {
@@ -100,11 +119,25 @@ export function renderWelfareRoom({ fields = [], values = {}, empCode = '', requ
   const room = text(byTitle(/เลขห้อง|ห้องเลขที่|หมายเลขห้อง|^ห้อง$/));
   const plate = text(byTitle(/ทะเบียน/));
   const note = text(byTitle(/หมายเหตุ/));
+  // วันที่ส่งคำขอเข้าระบบ (ยังไม่ส่ง = วันนี้) · เดือนที่ขอเบิก
+  const sentOn = dmyCE(submitted || new Date());
+  const monthF = byTitle(/เดือน|งวด/, (x) => !isMoney(x) && x.FieldType !== 'file');
+  const month = monthLabel(monthF && monthF.FieldType === 'date' ? val(monthF) : text(monthF));
+  // บัญชีผู้รับเงินค่าห้องพัก
+  const notAcc = (x) => !isMoney(x) && x.FieldType !== 'file';
+  const accName = text(byTitle(/ชื่อบัญชี|ชื่อผู้รับเงิน|ผู้รับเงิน/, notAcc));
+  const accNo = text(byTitle(/เลขที่บัญชี|หมายเลขบัญชี|เลขบัญชี/, notAcc));
+  const branchF = byTitle(/สาขา/, (x) => notAcc(x) && !/เลข.*บัญชี/.test(x.Title));
+  const bankF = byTitle(/ธนาคาร/, (x) => notAcc(x) && x !== branchF && !/ชื่อบัญชี|เลข.*บัญชี/.test(x.Title));
+  const bank = [text(bankF), text(branchF)].filter(Boolean).join(' ');
   const fileCount = files != null ? files
     : fields.filter((f) => f.FieldType === 'file').reduce((t, f) => t + (Array.isArray(val(f)) ? val(f).length : 0), 0);
   const signer = finalSign || {};
 
-  const blankRows = Array.from({ length: Math.max(0, MIN_ROWS - 3) }, () =>
+  const money0 = (n) => (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const accRow = (label, v) => `<tr><td>&nbsp;</td><td></td><td><div class="wf-line wf-wrap"><b class="wf-acc">${label}</b>
+      <span class="wf-box wf-acc-v">${esc(v)}</span></div></td><td></td><td></td></tr>`;
+  const blankRows = Array.from({ length: Math.max(0, MIN_ROWS - 6) }, () =>
     '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('');
 
   return `
@@ -121,17 +154,21 @@ export function renderWelfareRoom({ fields = [], values = {}, empCode = '', requ
       <colgroup><col class="wf-c1"><col class="wf-c2"><col><col class="wf-c4"><col class="wf-c5"></colgroup>
       <thead><tr><th>ลำดับที่</th><th>วัน-เดือน-ปี</th><th>รายละเอียดรายจ่าย</th><th>จำนวนเงิน (บาท)</th><th>หมายเหตุ</th></tr></thead>
       <tbody>
-        <tr><td class="wf-c">1</td><td class="wf-in wf-c">${esc(dmy(rows[0].date))}</td>
-          <td><div class="wf-line wf-wrap"><span>ค่าห้องพัก :</span><span class="wf-box wf-b1">${esc(requester.name || '')}</span>
-            <span>พนักงานรหัส</span><span class="wf-box wf-b2">${esc(empCode)}</span>${room ? `<span class="wf-box wf-b4">ห้อง ${esc(room)}</span>` : ''}</div></td>
-          <td class="wf-in wf-r">${money(rows[0].amount)}</td><td class="wf-in">${esc(note)}</td></tr>
-        <tr><td class="wf-c">2</td><td class="wf-in wf-c">${esc(dmy(rows[1].date))}</td>
+        <tr><td class="wf-c">1</td><td class="wf-in wf-c">${esc(sentOn)}</td>
+          <td><div class="wf-line wf-wrap wf-tight"><span>ค่าห้องพักเดือน</span><span class="wf-box wf-b1">${esc(month)}</span>
+            <span>พนักงานรหัส</span><span class="wf-box wf-b2">${esc(empCode)}</span>
+            <span class="wf-box wf-b1">${esc(requester.name || '')}</span>${room ? `<span class="wf-box wf-b4">ห้อง ${esc(room)}</span>` : ''}</div></td>
+          <td class="wf-in wf-r">${money0(rows[0].amount)}</td><td class="wf-in wf-c">${esc(note)}</td></tr>
+        <tr><td class="wf-c">2</td><td class="wf-in wf-c">${esc(sentOn)}</td>
           <td>ค่าส่วนกลาง (ตามคำอนุมัติ)</td>
-          <td class="wf-in wf-r">${money(rows[1].amount)}</td><td></td></tr>
-        <tr><td class="wf-c">3</td><td class="wf-in wf-c">${esc(dmy(rows[2].date))}</td>
+          <td class="wf-in wf-r">${money0(rows[1].amount)}</td><td></td></tr>
+        <tr><td class="wf-c">3</td><td class="wf-in wf-c">${esc(sentOn)}</td>
           <td><div class="wf-line"><span>ค่าที่จอดรถ</span><span class="wf-gap"></span><span>ทะเบียน</span>
             <span class="wf-box wf-b3">${esc(plate)}</span><span>(เฉพาะรถบริษัทเท่านั้น)</span></div></td>
-          <td class="wf-in wf-r">${money(rows[2].amount)}</td><td></td></tr>
+          <td class="wf-in wf-r">${money0(rows[2].amount)}</td><td></td></tr>
+        ${accRow('ชื่อบัญชีผู้รับเงิน (ห้องพัก)', accName)}
+        ${accRow('ธนาคาร', bank)}
+        ${accRow('หมายเลขบัญชี', accNo)}
         ${blankRows}
       </tbody>
       <tfoot>

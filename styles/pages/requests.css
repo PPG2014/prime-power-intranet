@@ -198,6 +198,10 @@
 .wf-b1 { min-width: 56px; } .wf-b2 { min-width: 70px; } .wf-b3 { min-width: 96px; } .wf-b4 { min-width: 44px; }
 .wf-line.wf-wrap { flex-wrap: wrap; row-gap: 2px; } /* ชื่อผู้ยื่นยาว → ขึ้นบรรทัดใหม่ ไม่ตกขอบ */
 .wf-gap { width: 14px; }
+.wf-line.wf-tight { gap: 3px; }   /* แถวค่าห้องพัก: เดือน รหัส ชื่อ อยู่บรรทัดเดียวตามตัวอย่าง */
+.wf-tight .wf-box { min-width: 0; padding: 0 4px; }
+.wf-acc { font-weight: 700; }
+.wf-acc-v { min-width: 180px; text-align: left; padding: 0 8px; }
 .wf-docs { display: flex; align-items: flex-end; gap: 10px; margin-top: 26px; }
 .wf-copies { min-width: 76px; border-bottom: 1px dotted #000; }
 .wf-sp { margin-left: 12px; }
@@ -504,3 +508,27 @@
 .tk-date-row { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 8px 0 4px; }
 .tk-date-row label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; color: var(--navy); }
 .tk-date-row input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+
+/* แบ่งหน้ารายการคำขอของแต่ละแบบฟอร์ม (หน้าละ 40) */
+.rq-rpager { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 4px; }
+.rq-rpager.top { margin: 4px 0 10px; scroll-margin-top: 80px; }
+.rq-rpager .rq-pager-info { padding: 0 6px; }
+.rq-rpager .rq-pager-info b { color: var(--navy); }
+.rq-perpage { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.rq-perpage select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit; color: var(--navy); }
+
+/* เอกสารแนบต่อท้ายเอกสารที่ส่งออก (หน้า 2 เป็นต้นไป · หน้า A4 ละไฟล์) */
+.ex-att-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-right: auto; cursor: pointer; }
+.ex-att-msg { font-size: 12.5px; margin-right: 8px; }
+.ex-att-page { margin: 18px auto 0; width: 186mm; max-width: 100%; background: #fff; border: 1px dashed #c9d3df; padding: 4mm; box-sizing: border-box; }
+.ex-att-head { font-size: 8pt; color: #6b7787; margin-bottom: 2mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-att-body { display: flex; align-items: center; justify-content: center; }
+.ex-att-body img { display: block; max-width: 100%; max-height: 255mm; object-fit: contain; }
+.ex-att-other { padding: 30mm 10mm; text-align: center; color: #3d4650; line-height: 1.8; }
+@media print {
+  .ex-att-page { break-before: page; page-break-before: always; break-inside: avoid; margin: 0; border: 0; padding: 0; width: auto;
+    height: 269mm; display: flex; flex-direction: column; }
+  .ex-att-body { flex: 1; min-height: 0; }
+  .ex-att-body img { max-height: 262mm; }
+  .ex-att[hidden] { display: none !important; }
+}

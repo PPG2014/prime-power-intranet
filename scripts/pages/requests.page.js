@@ -1,5 +1,7 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
-import { list, listRecent, get, clearDataCache, RECENT_REQUESTS } from '../services/data.js';
+import { list, listRecent, get, create, update, clearDataCache, RECENT_REQUESTS } from '../services/data.js';
+import { settings, clearSettings } from '../utils/settings.js';
+import { toast } from '../components/toast.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
@@ -98,6 +100,27 @@ let fastNext = false;
 let loadedAt = 0;
 let loadedAll = null;
 function quick(patch) { fastNext = true; setState(patch); }
+
+/* ───── จำนวนคำขอต่อหน้า (รายการของแต่ละแบบฟอร์ม) ───── */
+const PER_PAGE_KEY = 'RequestsPerPage';
+const PER_PAGE_DEFAULT = 40;
+const PER_PAGE_CHOICES = [10, 20, 25, 30, 40, 50, 100];
+async function perPage() {
+  try {
+    const n = Math.round(Number((await settings())[PER_PAGE_KEY]));
+    return n >= 5 && n <= 500 ? n : PER_PAGE_DEFAULT;
+  } catch (e) { return PER_PAGE_DEFAULT; }
+}
+/** ผู้ดูแลเปลี่ยนจำนวนต่อหน้า → บันทึกในตั้งค่าระบบ (มีผลกับทุกคน) */
+async function savePerPage(n) {
+  const rows = await list('settings', { fresh: true });
+  const row = rows.find((r) => String(r.Title || '').trim() === PER_PAGE_KEY);
+  if (row) await update('settings', row.id, { Value: String(n) });
+  else await create('settings', { Title: PER_PAGE_KEY, Value: String(n), Description: 'จำนวนคำขอต่อหน้า ในหน้าติดตามสถานะ (รายการของแต่ละแบบฟอร์ม)' });
+  clearSettings();
+}
+/** กดเปลี่ยนหน้ารายการคำขอ → หลังวาดใหม่ให้เลื่อนไปต้นรายการ */
+let scrollToList = false;
 
 function statusPill(s) {
   return `<span class="rq-status st-${STATUS_TONE[s] || 'gray'}">${esc(s || '')}</span>`;
@@ -304,6 +327,8 @@ export async function render(ctx) {
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
   const unreadCount = mine.filter((r) => isUnread(r)).length;
 
+  // รายการคำขอของแต่ละแบบฟอร์ม (ฝั่งซ้าย) แสดงหน้าละกี่ใบ — ตั้งค่าระบบ RequestsPerPage (ค่าเริ่มต้น 40)
+  const REVIEW_PER = await perPage();
   // ค้นหา + แบ่งหน้า กล่อง "คำขอของฉัน" (15 รายการต่อหน้า)
   const MINE_PER = 15;
   const mineQ = (state.mineQuery || '').trim().toLowerCase();
@@ -348,6 +373,17 @@ export async function render(ctx) {
   const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
     && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)
     && (!reviewNeed || needInfo(r)?.tone === reviewNeed)) : [];
+  // แบ่งหน้า: เกิน 40 ใบต่อแบบฟอร์ม → แสดงทีละหน้า ไม่ต้องเลื่อนหายาว
+  const reviewPages = Math.max(1, Math.ceil(shownRows.length / REVIEW_PER));
+  const reviewPage = Math.min(Math.max(1, state.reviewPage || 1), reviewPages);
+  const pageRows = shownRows.slice((reviewPage - 1) * REVIEW_PER, reviewPage * REVIEW_PER);
+  const pager = (where) => (reviewPages > 1 ? `<div class="rq-pager rq-rpager${where === 'top' ? ' top' : ''}" role="navigation" aria-label="เลือกหน้า">
+      <button class="btn-mini" data-rvpage="1" ${reviewPage <= 1 ? 'disabled' : ''} title="หน้าแรก">«</button>
+      <button class="btn-mini" data-rvpage="${reviewPage - 1}" ${reviewPage <= 1 ? 'disabled' : ''}>‹ ก่อนหน้า</button>
+      <span class="rq-pager-info">หน้า <b>${reviewPage}</b> / ${reviewPages} · รายการที่ ${(reviewPage - 1) * REVIEW_PER + 1}–${Math.min(reviewPage * REVIEW_PER, shownRows.length)} จาก ${shownRows.length}</span>
+      <button class="btn-mini" data-rvpage="${reviewPage + 1}" ${reviewPage >= reviewPages ? 'disabled' : ''}>ถัดไป ›</button>
+      <button class="btn-mini" data-rvpage="${reviewPages}" ${reviewPage >= reviewPages ? 'disabled' : ''} title="หน้าสุดท้าย">»</button>
+    </div>` : '');
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -407,19 +443,25 @@ export async function render(ctx) {
                 }).join('')}
               </div>` : ''}
               <div class="rq-tools">
-                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ</span>
+                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ${reviewPages > 1 ? ` · ${reviewPages} หน้า` : ''}</span>
+                ${state.isAdmin ? `<label class="rq-perpage" title="ผู้ดูแลตั้งได้ · ใช้กับทุกคน (ตั้งค่าระบบ ${PER_PAGE_KEY})">หน้าละ
+                  <select id="rq-perpage">${[...new Set([...PER_PAGE_CHOICES, REVIEW_PER])].sort((a, b) => a - b)
+                    .map((n) => `<option value="${n}" ${n === REVIEW_PER ? 'selected' : ''}>${n}</option>`).join('')}</select> รายการ</label>`
+    : reviewPages > 1 ? `<span class="dim">หน้าละ ${REVIEW_PER} รายการ</span>` : ''}
                 ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
                 ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
               </div>`;
             })()}
-            <div class="rq-list">
+            ${pager('top')}
+            <div class="rq-list" id="rq-list">
               ${shownRows.length ? '' : '<div class="panel"><div class="empty">ไม่มีคำขอสถานะนี้ในแบบฟอร์มนี้</div></div>'}
-              ${shownRows.map((r) => requestRow(r, {
+              ${pageRows.map((r) => requestRow(r, {
                 showRequester: true,
                 canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
                 waiting: roleOnRequest(r, r._steps || [], meIds).waiting,
               })).join('')}
-            </div>`
+            </div>
+            ${pager('bottom')}`
           : `<div class="panel"><div class="empty">
               ${reviewQ ? `ไม่พบคำขอที่ตรงกับ “${esc(state.reviewQuery.trim())}”` : seeAll ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
             </div></div>`}
@@ -1435,6 +1477,10 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     finalSign: finalSign(),
   });
 
+  // ไฟล์แนบของคำขอ → ต่อท้ายเอกสารตั้งแต่หน้า 2 (หน้า A4 ละไฟล์ · PDF ทุกหน้า)
+  const { attachmentsOf, renderAttachPages } = await import('../components/attach-pages.js');
+  const attFiles = attachmentsOf(fields, data);
+
   const win = document.getElementById('overlay-root');
   win.innerHTML = `
     <div class="mask" id="ex-mask">
@@ -1455,8 +1501,11 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
             <span class="dim" id="ex-asign-msg"></span>
           </details>` : ''}
           <div id="ex-doc">${docHtml()}</div>
+          ${attFiles.length ? '<div class="ex-att" id="ex-att"></div>' : ''}
         </div>
         <div class="modal-foot">
+          ${attFiles.length ? `<label class="ex-att-toggle"><input type="checkbox" id="ex-att-on" checked>
+            แนบเอกสารประกอบต่อจากหน้าแรก (${attFiles.length} ไฟล์)</label><span class="dim ex-att-msg" id="ex-att-msg"></span>` : ''}
           <button class="btn-mini" id="ex-cancel">ปิด</button>
           <button class="btn btn-primary" id="ex-print">พิมพ์ / บันทึกเป็น PDF</button>
         </div>
@@ -1469,8 +1518,22 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   document.getElementById('ex-close').onclick = close;
   document.getElementById('ex-cancel').onclick = close;
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
-  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
-  document.getElementById('ex-print').onclick = () => printWithNotice('printing-doc');
+  // เอกสารแนบ: เตรียมหน้าไว้ตั้งแต่เปิด · ติ๊กออกได้ถ้าไม่ต้องการพิมพ์แนบ
+  const attBox = document.getElementById('ex-att');
+  const attMsg = document.getElementById('ex-att-msg');
+  const attReady = attBox ? renderAttachPages(attBox, attFiles, { onProgress: (t) => { if (attMsg) attMsg.textContent = t; } }) : Promise.resolve();
+  const attOn = document.getElementById('ex-att-on');
+  if (attOn) attOn.onchange = () => { attBox.hidden = !attOn.checked; };
+  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง · รอเอกสารแนบพร้อมก่อน
+  document.getElementById('ex-print').onclick = async () => {
+    const btn = document.getElementById('ex-print');
+    if (attBox && !attBox.hidden) {
+      btn.disabled = true; btn.textContent = 'กำลังเตรียมเอกสารแนบ…';
+      await attReady.catch(() => {});
+      btn.disabled = false; btn.textContent = 'พิมพ์ / บันทึกเป็น PDF';
+    }
+    printWithNotice('printing-doc');
+  };
 
   // ผู้ยื่น / ผู้อนุมัติขั้นสุดท้าย เซ็นเพิ่มหรือเปลี่ยนลายเซ็นตอนส่งออก → บันทึกลงคำขอ แล้ววาดเอกสารใหม่
   const folder = formFolder({ FormCode: req.FormCode, Title: req.FormName, ...formRow }, 'ลายเซ็น');
@@ -1501,10 +1564,26 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 }
 
 export function mount(ctx) {
-  onClick('tab', (code) => quick({ reviewTab: code }));
-  onClick('rqst', (st) => quick({ reviewStatus: st || '' }));
-  onClick('rqpst', (st) => quick({ reviewPStatus: st || '' }));
-  onClick('rqneed', (k) => quick({ reviewNeed: k || '' }));
+  // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
+  onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));
+  onClick('rqst', (st) => quick({ reviewStatus: st || '', reviewPage: 1 }));
+  onClick('rqpst', (st) => quick({ reviewPStatus: st || '', reviewPage: 1 }));
+  onClick('rqneed', (k) => quick({ reviewNeed: k || '', reviewPage: 1 }));
+  onClick('rvpage', (pg) => { scrollToList = true; quick({ reviewPage: +pg }); });
+  const pp = $('#rq-perpage');
+  if (pp) {
+    pp.onchange = async () => {
+      pp.disabled = true;
+      try { await savePerPage(+pp.value); toast(`✓ ตั้งค่าแสดงหน้าละ ${pp.value} รายการแล้ว (ใช้กับทุกคน)`); quick({ reviewPage: 1 }); }
+      catch (e) { pp.disabled = false; toast('บันทึกไม่สำเร็จ: ' + e.message, 'bad'); }
+    };
+  }
+  // เปลี่ยนหน้าแล้วเลื่อนกลับไปต้นรายการ (กดจากปุ่มด้านล่างจะได้ไม่ค้างอยู่ท้ายหน้า)
+  if (scrollToList) {
+    scrollToList = false;
+    const top = document.querySelector('.rq-rpager.top') || document.getElementById('rq-list');
+    if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
@@ -1523,7 +1602,7 @@ export function mount(ctx) {
     rq.oninput = (e) => {
       const v = e.target.value;
       clearTimeout(t);
-      t = setTimeout(() => quick({ reviewQuery: v }), 250);
+      t = setTimeout(() => quick({ reviewQuery: v, reviewPage: 1 }), 250);
     };
   }
 
