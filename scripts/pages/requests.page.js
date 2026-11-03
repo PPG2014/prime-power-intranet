@@ -1477,6 +1477,10 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     finalSign: finalSign(),
   });
 
+  // ไฟล์แนบของคำขอ → ต่อท้ายเอกสารตั้งแต่หน้า 2 (หน้า A4 ละไฟล์ · PDF ทุกหน้า)
+  const { attachmentsOf, renderAttachPages } = await import('../components/attach-pages.js');
+  const attFiles = attachmentsOf(fields, data);
+
   const win = document.getElementById('overlay-root');
   win.innerHTML = `
     <div class="mask" id="ex-mask">
@@ -1497,8 +1501,11 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
             <span class="dim" id="ex-asign-msg"></span>
           </details>` : ''}
           <div id="ex-doc">${docHtml()}</div>
+          ${attFiles.length ? '<div class="ex-att" id="ex-att"></div>' : ''}
         </div>
         <div class="modal-foot">
+          ${attFiles.length ? `<label class="ex-att-toggle"><input type="checkbox" id="ex-att-on" checked>
+            แนบเอกสารประกอบต่อจากหน้าแรก (${attFiles.length} ไฟล์)</label><span class="dim ex-att-msg" id="ex-att-msg"></span>` : ''}
           <button class="btn-mini" id="ex-cancel">ปิด</button>
           <button class="btn btn-primary" id="ex-print">พิมพ์ / บันทึกเป็น PDF</button>
         </div>
@@ -1511,8 +1518,22 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   document.getElementById('ex-close').onclick = close;
   document.getElementById('ex-cancel').onclick = close;
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
-  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง
-  document.getElementById('ex-print').onclick = () => printWithNotice('printing-doc');
+  // เอกสารแนบ: เตรียมหน้าไว้ตั้งแต่เปิด · ติ๊กออกได้ถ้าไม่ต้องการพิมพ์แนบ
+  const attBox = document.getElementById('ex-att');
+  const attMsg = document.getElementById('ex-att-msg');
+  const attReady = attBox ? renderAttachPages(attBox, attFiles, { onProgress: (t) => { if (attMsg) attMsg.textContent = t; } }) : Promise.resolve();
+  const attOn = document.getElementById('ex-att-on');
+  if (attOn) attOn.onchange = () => { attBox.hidden = !attOn.checked; };
+  // แจ้งผลทางกฎหมายของเอกสารอิเล็กทรอนิกส์ก่อนพิมพ์ทุกครั้ง · รอเอกสารแนบพร้อมก่อน
+  document.getElementById('ex-print').onclick = async () => {
+    const btn = document.getElementById('ex-print');
+    if (attBox && !attBox.hidden) {
+      btn.disabled = true; btn.textContent = 'กำลังเตรียมเอกสารแนบ…';
+      await attReady.catch(() => {});
+      btn.disabled = false; btn.textContent = 'พิมพ์ / บันทึกเป็น PDF';
+    }
+    printWithNotice('printing-doc');
+  };
 
   // ผู้ยื่น / ผู้อนุมัติขั้นสุดท้าย เซ็นเพิ่มหรือเปลี่ยนลายเซ็นตอนส่งออก → บันทึกลงคำขอ แล้ววาดเอกสารใหม่
   const folder = formFolder({ FormCode: req.FormCode, Title: req.FormName, ...formRow }, 'ลายเซ็น');

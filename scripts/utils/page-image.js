@@ -14,7 +14,7 @@ const SCALE = 1.5;                     // 1280×720 × 1.5 = 1920×1080
 
 const loading = {};
 /** โหลดสคริปต์จาก assets/vendor ครั้งเดียว แล้วคืนตัวแปร global ที่สคริปต์สร้าง */
-function loadScript(src, globalName) {
+export function loadScript(src, globalName) {
   if (window[globalName]) return Promise.resolve(window[globalName]);
   if (!loading[src]) {
     loading[src] = new Promise((ok, fail) => {
