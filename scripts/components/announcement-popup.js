@@ -42,7 +42,7 @@ function slideHtml(a, interval) {
     <div class="pop-card${isImage ? ' pop-wide' : ''}" role="dialog" aria-modal="true" aria-label="ประกาศจากบริษัท">
       <button class="pop-close" id="pop-x" aria-label="ปิดประกาศ">✕</button>
 
-      ${isImage
+      <div class="pop-slide">${isImage
         ? `<div class="pop-full"><img data-photo="${esc(a.ImageUrl)}" alt="${esc(a.Title)}"></div>
            ${a.Title ? `<div class="pop-caption">${esc(a.Title)}${
              a.Department ? ' · ' + esc(a.Department) : ''}</div>` : ''}`
@@ -52,7 +52,7 @@ function slideHtml(a, interval) {
              <h3>${esc(a.Title)}</h3>
              ${a.Content ? `<p>${esc(a.Content)}</p>` : ''}
              ${a.PublishDate ? `<div class="pop-date">ประกาศเมื่อ ${esc(thaiDateShort(a.PublishDate))}</div>` : ''}
-           </div>`}
+           </div>`}</div>
 
       ${many && interval > 0
         ? `<div class="pop-bar"><span style="animation-duration:${interval}s"></span></div>` : ''}
@@ -107,8 +107,8 @@ function close() {
 function onKey(ev) {
   if (!$('#pop-mask')) { window.removeEventListener('keydown', onKey); return; }
   if (ev.key === 'Escape') close();
-  if (items.length > 1 && ev.key === 'ArrowRight') goTo(index + 1);
-  if (items.length > 1 && ev.key === 'ArrowLeft') goTo(index - 1);
+  if (items.length > 1 && ev.key === 'ArrowRight') goTo(index + 1, 1);
+  if (items.length > 1 && ev.key === 'ArrowLeft') goTo(index - 1, -1);
 }
 
 /** ผูกปุ่มของการ์ดที่แสดงอยู่ + ตั้งเวลาเลื่อนอัตโนมัติ */
@@ -116,11 +116,11 @@ function bindCard() {
   $('#pop-x').onclick = close;
   $('#pop-ok').onclick = close;
   if (items.length < 2) return;
-  $('#pop-prev').onclick = () => goTo(index - 1);
-  $('#pop-next').onclick = () => goTo(index + 1);
+  $('#pop-prev').onclick = () => goTo(index - 1, -1);
+  $('#pop-next').onclick = () => goTo(index + 1, 1);
   $$('[data-slide]').forEach((b) => { b.onclick = () => goTo(+b.dataset.slide); });
   if (interval > 0) {
-    const tick = () => { stop(); timer = setTimeout(() => goTo(index + 1), interval * 1000); };
+    const tick = () => { stop(); timer = setTimeout(() => goTo(index + 1, 1), interval * 1000); };
     tick();
     const card = $('.pop-card');
     const bar = $('.pop-bar span');
@@ -131,27 +131,71 @@ function bindCard() {
   preload(items[(index + 1) % items.length]);
 }
 
-/** เปลี่ยนการ์ดแบบจางออก-จางเข้า · รอรูปการ์ดใหม่พร้อมก่อน (ไม่เกิน 1.5 วินาที) จะได้ไม่เห็นกรอบว่าง */
-async function goTo(k) {
+/**
+ * เปลี่ยนการ์ดแบบเลื่อน (slide): ถัดไป = การ์ดใหม่เลื่อนเข้าจากซ้ายไปขวา ดันการ์ดเดิมออกทางขวา · ก่อนหน้า = กลับทิศ
+ * รอรูปการ์ดใหม่พร้อมก่อน (ไม่เกิน 1.5 วินาที) จะได้ไม่เห็นกรอบว่าง · ขนาดการ์ดปรับไปพร้อมกับการเลื่อน
+ */
+const SLIDE_MS = 450;
+const EASE = 'cubic-bezier(.22,.61,.36,1)';
+async function goTo(k, dir = 0) {
   if (busy || !$('#pop-mask')) return;
+  const next = (k + items.length) % items.length;
+  if (next === index) return;
   busy = true;
   stop();
-  index = (k + items.length) % items.length;
+  // ทิศทาง: กดถัดไป/เลื่อนอัตโนมัติ = +1 · ก่อนหน้า = -1 · กดจุด = ตามตำแหน่ง
+  const d = dir || (k > index ? 1 : -1);
+  index = next;
+  await waitFor(preload(items[index]), 1500);
+  const mask = $('#pop-mask');
   const old = $('.pop-card');
-  old.classList.add('pop-leave');
-  await Promise.all([waitFor(preload(items[index]), 1500), new Promise((r) => setTimeout(r, 180))]);
-  if (!$('#pop-mask')) { busy = false; return; }   // ปิดไประหว่างรอ
-  // ความสูงเปลี่ยนแบบนุ่มนวลจากการ์ดเดิมไปการ์ดใหม่
-  const h = old.offsetHeight;
+  if (!mask || !old) { busy = false; return; }   // ปิดไประหว่างรอ
+
+  // การ์ดใหม่ (ยังไม่แสดง): ใส่รูป แล้ววัดขนาดจริงไว้ก่อน
   const tmp = document.createElement('div');
   tmp.innerHTML = slideHtml(items[index], interval).trim();
   const card = tmp.firstElementChild;
-  card.classList.add('pop-swap', 'pop-enter');
-  old.replaceWith(card);
-  await hydratePhotos(card);   // รูปอยู่ในแคชแล้ว ขึ้นทันที
-  const nh = card.offsetHeight;
-  if (card.animate && Math.abs(nh - h) > 2) card.animate([{ height: `${h}px` }, { height: `${nh}px` }], { duration: 220, easing: 'ease-out' });
-  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.remove('pop-enter')));
+  card.classList.add('pop-swap');
+  await hydratePhotos(card);
+  card.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0';
+  mask.appendChild(card);
+  const imgs = [...card.querySelectorAll('img')].filter((im) => !im.complete);
+  await waitFor(Promise.all(imgs.map((im) => new Promise((r) => { im.onload = r; im.onerror = r; }))), 800);
+  const nw = card.offsetWidth; const nsh = card.querySelector('.pop-slide').offsetHeight;
+  card.remove(); card.style.cssText = '';
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const oldSlide = old.querySelector('.pop-slide');
+  if (!old.animate || reduce || !oldSlide) {   // เบราว์เซอร์เก่า/ปิดภาพเคลื่อนไหว: สลับทันที
+    old.replaceWith(card); bindCard(); busy = false; return;
+  }
+  const ow = old.offsetWidth; const osh = oldSlide.offsetHeight;
+  // จุด/เลขหน้าเปลี่ยนทันที ไม่ต้องรอเลื่อนเสร็จ
+  const foot = old.querySelector('.pop-foot'); const nfoot = card.querySelector('.pop-foot');
+  if (foot && nfoot) foot.innerHTML = nfoot.innerHTML;
+
+  // เวที: ห่อการ์ดเดิม แล้ววางการ์ดใหม่ไว้ข้าง ๆ (นอกกรอบ) เลื่อนเข้ามาพร้อมกัน
+  const stage = document.createElement('div');
+  stage.className = 'pop-stage';
+  stage.style.height = `${osh}px`;
+  oldSlide.replaceWith(stage);
+  oldSlide.style.width = `${ow}px`;
+  stage.appendChild(oldSlide);
+  const inSlide = card.querySelector('.pop-slide').cloneNode(true);
+  inSlide.classList.add('pop-in-slide');
+  inSlide.style.width = `${nw}px`;
+  stage.appendChild(inSlide);
+  old.style.width = `${ow}px`;
+
+  const opt = { duration: SLIDE_MS, easing: EASE, fill: 'forwards' };
+  const anims = [
+    oldSlide.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${d * 100}%)` }], opt),
+    inSlide.animate([{ transform: `translateX(${-d * 100}%)` }, { transform: 'translateX(0)' }], opt),
+  ];
+  if (Math.abs(nw - ow) > 1) anims.push(old.animate([{ width: `${ow}px` }, { width: `${nw}px` }], opt));
+  if (Math.abs(nsh - osh) > 1) anims.push(stage.animate([{ height: `${osh}px` }, { height: `${nsh}px` }], opt));
+  await Promise.all(anims.map((a) => a.finished.catch(() => {})));
+  if ($('#pop-mask')) old.replaceWith(card);   // การ์ดใหม่ขนาดเท่ากันพอดี ไม่กระตุก
   bindCard();
   busy = false;
 }

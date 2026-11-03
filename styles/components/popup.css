@@ -5,10 +5,11 @@
   position: relative; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.35);
   animation: pop-in .22s ease-out; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
-/* เปลี่ยนการ์ด: จางออก → จางเข้า (ไม่เด้งเข้ามาใหม่ทุกครั้ง) */
-.pop-card { transition: opacity .18s ease; }
+/* เปลี่ยนการ์ด: เลื่อน (slide) ซ้าย ↔ ขวา · ไม่เด้งเข้ามาใหม่ทุกครั้ง */
 .pop-card.pop-swap { animation: none; }
-.pop-card.pop-leave, .pop-card.pop-enter { opacity: 0; }
+.pop-stage { position: relative; overflow: hidden; }
+.pop-stage > .pop-slide { will-change: transform; }
+.pop-stage > .pop-in-slide { position: absolute; top: 0; left: 0; }
 
 .pop-close { position: absolute; top: 12px; right: 12px; z-index: 2; width: 32px; height: 32px;
   border-radius: 50%; background: rgba(255,255,255,.92); color: var(--navy); font-size: 15px;
@@ -57,7 +58,7 @@
   .pop-count { margin-right: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pop-card { animation: none; transition: none; }
+  .pop-card { animation: none; }
   .pop-bar span { animation: none; width: 100%; }
 }
 

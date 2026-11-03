@@ -98,6 +98,8 @@ let fastNext = false;
 let loadedAt = 0;
 let loadedAll = null;
 function quick(patch) { fastNext = true; setState(patch); }
+/** กดเปลี่ยนหน้ารายการคำขอ → หลังวาดใหม่ให้เลื่อนไปต้นรายการ */
+let scrollToList = false;
 
 function statusPill(s) {
   return `<span class="rq-status st-${STATUS_TONE[s] || 'gray'}">${esc(s || '')}</span>`;
@@ -304,6 +306,8 @@ export async function render(ctx) {
     && r.RequesterEmail.toLowerCase() === String(state.user?.email).toLowerCase());
   const unreadCount = mine.filter((r) => isUnread(r)).length;
 
+  // รายการคำขอของแต่ละแบบฟอร์ม (ฝั่งซ้าย) แสดงหน้าละ 40 ใบ
+  const REVIEW_PER = 40;
   // ค้นหา + แบ่งหน้า กล่อง "คำขอของฉัน" (15 รายการต่อหน้า)
   const MINE_PER = 15;
   const mineQ = (state.mineQuery || '').trim().toLowerCase();
@@ -348,6 +352,17 @@ export async function render(ctx) {
   const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
     && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)
     && (!reviewNeed || needInfo(r)?.tone === reviewNeed)) : [];
+  // แบ่งหน้า: เกิน 40 ใบต่อแบบฟอร์ม → แสดงทีละหน้า ไม่ต้องเลื่อนหายาว
+  const reviewPages = Math.max(1, Math.ceil(shownRows.length / REVIEW_PER));
+  const reviewPage = Math.min(Math.max(1, state.reviewPage || 1), reviewPages);
+  const pageRows = shownRows.slice((reviewPage - 1) * REVIEW_PER, reviewPage * REVIEW_PER);
+  const pager = (where) => (reviewPages > 1 ? `<div class="rq-pager rq-rpager${where === 'top' ? ' top' : ''}" role="navigation" aria-label="เลือกหน้า">
+      <button class="btn-mini" data-rvpage="1" ${reviewPage <= 1 ? 'disabled' : ''} title="หน้าแรก">«</button>
+      <button class="btn-mini" data-rvpage="${reviewPage - 1}" ${reviewPage <= 1 ? 'disabled' : ''}>‹ ก่อนหน้า</button>
+      <span class="rq-pager-info">หน้า <b>${reviewPage}</b> / ${reviewPages} · รายการที่ ${(reviewPage - 1) * REVIEW_PER + 1}–${Math.min(reviewPage * REVIEW_PER, shownRows.length)} จาก ${shownRows.length}</span>
+      <button class="btn-mini" data-rvpage="${reviewPage + 1}" ${reviewPage >= reviewPages ? 'disabled' : ''}>ถัดไป ›</button>
+      <button class="btn-mini" data-rvpage="${reviewPages}" ${reviewPage >= reviewPages ? 'disabled' : ''} title="หน้าสุดท้าย">»</button>
+    </div>` : '');
 
   // ผู้ใช้ที่ไม่มีหน้าที่อนุมัติใบไหนเลย ไม่ต้องเห็นกล่องว่าง "คำขอที่ต้องดำเนินการ" ให้เหลือแค่คำขอของฉัน
   const solo = !seeAll && !toReview.length;
@@ -407,19 +422,21 @@ export async function render(ctx) {
                 }).join('')}
               </div>` : ''}
               <div class="rq-tools">
-                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ</span>
+                <span class="dim">แสดง ${shownRows.length} จาก ${shownGroup.rows.length} รายการ${reviewPages > 1 ? ` · ${reviewPages} หน้า (หน้าละ ${REVIEW_PER})` : ''}</span>
                 ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
                 ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
               </div>`;
             })()}
-            <div class="rq-list">
+            ${pager('top')}
+            <div class="rq-list" id="rq-list">
               ${shownRows.length ? '' : '<div class="panel"><div class="empty">ไม่มีคำขอสถานะนี้ในแบบฟอร์มนี้</div></div>'}
-              ${shownRows.map((r) => requestRow(r, {
+              ${pageRows.map((r) => requestRow(r, {
                 showRequester: true,
                 canAct: roleOnRequest(r, r._steps || [], meIds).canActNow,
                 waiting: roleOnRequest(r, r._steps || [], meIds).waiting,
               })).join('')}
-            </div>`
+            </div>
+            ${pager('bottom')}`
           : `<div class="panel"><div class="empty">
               ${reviewQ ? `ไม่พบคำขอที่ตรงกับ “${esc(state.reviewQuery.trim())}”` : seeAll ? 'ยังไม่มีคำขอในระบบ' : 'ยังไม่มีคำขอที่คุณต้องดำเนินการ'}
             </div></div>`}
@@ -1501,10 +1518,18 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 }
 
 export function mount(ctx) {
-  onClick('tab', (code) => quick({ reviewTab: code }));
-  onClick('rqst', (st) => quick({ reviewStatus: st || '' }));
-  onClick('rqpst', (st) => quick({ reviewPStatus: st || '' }));
-  onClick('rqneed', (k) => quick({ reviewNeed: k || '' }));
+  // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
+  onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));
+  onClick('rqst', (st) => quick({ reviewStatus: st || '', reviewPage: 1 }));
+  onClick('rqpst', (st) => quick({ reviewPStatus: st || '', reviewPage: 1 }));
+  onClick('rqneed', (k) => quick({ reviewNeed: k || '', reviewPage: 1 }));
+  onClick('rvpage', (pg) => { scrollToList = true; quick({ reviewPage: +pg }); });
+  // เปลี่ยนหน้าแล้วเลื่อนกลับไปต้นรายการ (กดจากปุ่มด้านล่างจะได้ไม่ค้างอยู่ท้ายหน้า)
+  if (scrollToList) {
+    scrollToList = false;
+    const top = document.querySelector('.rq-rpager.top') || document.getElementById('rq-list');
+    if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   // กล่อง "คำขอของฉัน": ค้นหา (หน่วง 250ms) + เลือกหน้า
   const mq = $('#mine-q');
@@ -1523,7 +1548,7 @@ export function mount(ctx) {
     rq.oninput = (e) => {
       const v = e.target.value;
       clearTimeout(t);
-      t = setTimeout(() => quick({ reviewQuery: v }), 250);
+      t = setTimeout(() => quick({ reviewQuery: v, reviewPage: 1 }), 250);
     };
   }
 
