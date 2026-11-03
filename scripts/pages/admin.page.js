@@ -31,6 +31,8 @@ const VIRTUAL = {
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
+/** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
+const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers'];
 const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
@@ -430,6 +432,11 @@ async function openEditor(key, record) {
         }
       }
       if (s.history) data.UpdatedDate = new Date().toISOString();
+      // ตั้งค่าที่เป็นรายชื่ออีเมล: ขึ้นบรรทัดใหม่/; /เว้นวรรค → คั่นด้วย ", " บรรทัดเดียว
+      // (โฟลว์แจ้งเตือนความคิดเห็นใช้ค่านี้เป็นช่อง To ของอีเมล — มีบรรทัดใหม่ปนจะ error ว่าอีเมลผิดรูปแบบ)
+      if (s.list === 'settings' && EMAIL_LIST_SETTINGS.includes(String(data.Title || '').trim()) && typeof data.Value === 'string') {
+        data.Value = data.Value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).join(', ');
+      }
 
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);

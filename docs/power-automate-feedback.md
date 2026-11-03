@@ -47,9 +47,9 @@ Title eq 'FeedbackRecipients'
 **Send an email (V2)** → Rename `mailFeedback`
 - **To** (fx):
 ```
-replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], ''), ' ', ''), ',', ';')
+replace(replace(replace(replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], ''), ' ', ''), decodeUriComponent('%0D'), ''), decodeUriComponent('%0A'), ','), ',,', ','), ',', ';')
 ```
-> ช่อง To ของ Outlook ต้องคั่นหลายอีเมลด้วย **;** — สูตรนี้แปลงจุลภาคในตั้งค่าระบบให้เอง
+> ช่อง To ของ Outlook ต้องคั่นหลายอีเมลด้วย **;** และห้ามมีการขึ้นบรรทัดใหม่ — สูตรนี้ตัดเว้นวรรค/บรรทัดใหม่ แล้วแปลงจุลภาคเป็น ; ให้เอง
 - **Subject** (fx):
 ```
 concat('[ความคิดเห็นใหม่] ', coalesce(triggerOutputs()?['body/Title'], 'ไม่ระบุเรื่อง'))
@@ -87,4 +87,5 @@ concat('มีความคิดเห็นใหม่ส่งเข้า
 | 3.1 กด Save แล้วขึ้น *contains invalid expression(s)* | ย้ายสูตร Body ไปไว้ใน Compose `bodyHtml` ตามข้อ 4.1 · ตรวจว่า `'` ไม่ใช่ตัวโค้ง ‘ ’ |
 | 4. รอบนั้น **Succeeded** | กดเข้าไปดูกล่องที่แดง แล้วส่งภาพมาให้ผู้ดูแลเว็บ |
 | 5. Succeeded แต่ `hasRecipient` ไป **False** | ชื่อค่าใน Settings ต้องสะกด `FeedbackRecipients` ตรงทุกตัว ไม่มีช่องว่างหัวท้าย |
+| 5.1 `mailFeedback` แดง: *Input parameter 'emailMessage/To' is required to be of type 'String/email'* | ค่าผู้รับมีการขึ้นบรรทัดใหม่ปน (เช่น พิมพ์อีเมลละบรรทัด) → เปิดแถว `FeedbackRecipients` ในตั้งค่าระบบแล้วกดบันทึกอีกครั้ง (เว็บจัดให้เป็นบรรทัดเดียวคั่นด้วย `, ` เอง) · และเปลี่ยนสูตร To ในกล่อง 4 เป็นสูตรล่าสุดด้านบน แล้วกด **Resubmit** |
 | 6. Succeeded และส่งเมลแล้ว แต่ไม่เจอ | ดูโฟลเดอร์ **Junk/Other** และ Quarantine ของ Microsoft 365 |
