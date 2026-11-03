@@ -9,7 +9,7 @@ import { list } from '../services/data.js';
 import { settings } from '../utils/settings.js';
 import { esc, $, $$ } from '../core/dom.js';
 import { thaiDateShort } from '../utils/format.js';
-import { hydratePhotos } from '../services/photos.js';
+import { hydratePhotos, photoBlobUrl } from '../services/photos.js';
 
 const SEEN_KEY = 'ppg-announce-seen';
 
@@ -72,42 +72,104 @@ function slideHtml(a, interval) {
     </div>`;
 }
 
-function draw(interval) {
+/**
+ * โหลดรูปของประกาศล่วงหน้า (ดึงจาก SharePoint + ถอดรหัสภาพไว้ก่อน) เพื่อให้เปลี่ยนการ์ดได้ทันทีไม่ต้องรอ
+ * คืน Promise ที่เสร็จเมื่อรูปพร้อมแสดง (หรือโหลดไม่ได้ ก็ไม่ค้าง)
+ */
+const ready = new Map();
+function preload(a) {
+  const url = a && a.ImageUrl;
+  if (!url) return Promise.resolve();
+  if (!ready.has(url)) {
+    ready.set(url, photoBlobUrl(url).then((src) => {
+      if (!src) return undefined;
+      const im = new Image();
+      im.src = src;
+      return (im.decode ? im.decode() : new Promise((r) => { im.onload = r; im.onerror = r; })).catch(() => {});
+    }).catch(() => {}));
+  }
+  return ready.get(url);
+}
+/** รอรูปไม่เกินเวลาที่กำหนด — ช้ากว่านั้นเปลี่ยนการ์ดไปก่อน รูปขึ้นตามมาเอง */
+const waitFor = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+
+let interval = 0;
+let busy = false;   // กำลังเปลี่ยนการ์ด (กันกดรัว)
+
+const stop = () => { clearTimeout(timer); timer = null; };
+function close() {
+  stop();
+  const root = $('#overlay-root');
+  if (root) root.innerHTML = '';
+  previewNote = '';
+  window.removeEventListener('keydown', onKey);
+}
+function onKey(ev) {
+  if (!$('#pop-mask')) { window.removeEventListener('keydown', onKey); return; }
+  if (ev.key === 'Escape') close();
+  if (items.length > 1 && ev.key === 'ArrowRight') goTo(index + 1);
+  if (items.length > 1 && ev.key === 'ArrowLeft') goTo(index - 1);
+}
+
+/** ผูกปุ่มของการ์ดที่แสดงอยู่ + ตั้งเวลาเลื่อนอัตโนมัติ */
+function bindCard() {
+  $('#pop-x').onclick = close;
+  $('#pop-ok').onclick = close;
+  if (items.length < 2) return;
+  $('#pop-prev').onclick = () => goTo(index - 1);
+  $('#pop-next').onclick = () => goTo(index + 1);
+  $$('[data-slide]').forEach((b) => { b.onclick = () => goTo(+b.dataset.slide); });
+  if (interval > 0) {
+    const tick = () => { stop(); timer = setTimeout(() => goTo(index + 1), interval * 1000); };
+    tick();
+    const card = $('.pop-card');
+    const bar = $('.pop-bar span');
+    card.onmouseenter = () => { stop(); if (bar) bar.style.animationPlayState = 'paused'; };
+    card.onmouseleave = () => { tick(); if (bar) bar.style.animationPlayState = 'running'; };
+  }
+  // การ์ดถัดไปโหลดรอไว้ก่อน
+  preload(items[(index + 1) % items.length]);
+}
+
+/** เปลี่ยนการ์ดแบบจางออก-จางเข้า · รอรูปการ์ดใหม่พร้อมก่อน (ไม่เกิน 1.5 วินาที) จะได้ไม่เห็นกรอบว่าง */
+async function goTo(k) {
+  if (busy || !$('#pop-mask')) return;
+  busy = true;
+  stop();
+  index = (k + items.length) % items.length;
+  const old = $('.pop-card');
+  old.classList.add('pop-leave');
+  await Promise.all([waitFor(preload(items[index]), 1500), new Promise((r) => setTimeout(r, 180))]);
+  if (!$('#pop-mask')) { busy = false; return; }   // ปิดไประหว่างรอ
+  // ความสูงเปลี่ยนแบบนุ่มนวลจากการ์ดเดิมไปการ์ดใหม่
+  const h = old.offsetHeight;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = slideHtml(items[index], interval).trim();
+  const card = tmp.firstElementChild;
+  card.classList.add('pop-swap', 'pop-enter');
+  old.replaceWith(card);
+  await hydratePhotos(card);   // รูปอยู่ในแคชแล้ว ขึ้นทันที
+  const nh = card.offsetHeight;
+  if (card.animate && Math.abs(nh - h) > 2) card.animate([{ height: `${h}px` }, { height: `${nh}px` }], { duration: 220, easing: 'ease-out' });
+  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.remove('pop-enter')));
+  bindCard();
+  busy = false;
+}
+
+function draw(iv) {
+  interval = iv;
+  busy = false;
   const root = $('#overlay-root');
   root.innerHTML = `<div class="pop-mask" id="pop-mask">${previewNote
     ? `<div class="pop-preview-note">${esc(previewNote)}</div>` : ''}${slideHtml(items[index], interval)}</div>`;
   // รูปจาก SharePoint ต้องแนบ token จึงจะโหลดได้ทุกบัญชี ไม่ใช่เฉพาะคนที่เปิด SharePoint ค้างไว้
   hydratePhotos(root);
-
-  const stop = () => { clearTimeout(timer); timer = null; };
-  const close = () => {
-    stop();
-    root.innerHTML = '';
-    previewNote = '';
-  };
-  const goTo = (k) => { stop(); index = (k + items.length) % items.length; draw(interval); };
-
-  $('#pop-x').onclick = close;
-  $('#pop-ok').onclick = close;
   $('#pop-mask').onclick = (ev) => { if (ev.target.id === 'pop-mask') close(); };
-  addEventListener('keydown', function onEsc(ev) {
-    if (ev.key === 'Escape') { close(); removeEventListener('keydown', onEsc); }
-  });
-
-  if (items.length > 1) {
-    $('#pop-prev').onclick = () => goTo(index - 1);
-    $('#pop-next').onclick = () => goTo(index + 1);
-    $$('[data-slide]').forEach((b) => { b.onclick = () => goTo(+b.dataset.slide); });
-
-    if (interval > 0) {
-      const tick = () => { timer = setTimeout(() => goTo(index + 1), interval * 1000); };
-      tick();
-      const card = $('.pop-card');
-      const bar = $('.pop-bar span');
-      card.onmouseenter = () => { stop(); if (bar) bar.style.animationPlayState = 'paused'; };
-      card.onmouseleave = () => { tick(); if (bar) bar.style.animationPlayState = 'running'; };
-    }
-  }
+  window.removeEventListener('keydown', onKey);
+  window.addEventListener('keydown', onKey);
+  bindCard();
+  // โหลดรูปของทุกประกาศรอไว้ (ทีละใบตามลำดับ ไม่แย่งกับใบที่กำลังดู)
+  items.reduce((p, a) => p.then(() => preload(a)), Promise.resolve());
 }
 
 /** เรียกหลังเข้าสู่ระบบสำเร็จ */
@@ -158,7 +220,7 @@ export async function previewAnnouncement(item) {
   previewNote = why.length
     ? `ตัวอย่าง · ประกาศนี้ยังไม่ขึ้น Popup บนหน้าแรกตอนนี้ เพราะ${why.join(' และ ')}`
     : 'ตัวอย่าง · ประกาศนี้กำลังขึ้น Popup บนหน้าแรกอยู่';
-  clearTimeout(timer); timer = null;
+  stop();
   items = [item];
   index = 0;
   draw(Number(cfg.PopupInterval ?? 5) || 0);
