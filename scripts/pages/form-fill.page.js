@@ -7,6 +7,7 @@ import { renderForm, collectForm, bindForm, attachedFiles, loadLookups, withStan
 import { buildRoute, flowFieldsFor, stepsOf, applicableSteps } from '../services/requests.js';
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
+import { isEmpWelfare, empWelfareFields, EW, SHOE_MAX } from '../templates/emp-welfare.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
@@ -114,6 +115,8 @@ export async function render(ctx) {
     .sort((a, b) => (+a.SortOrder || 0) - (+b.SortOrder || 0));
   // จองคิวงานติดตั้ง PPE: ช่องกำหนดในโค้ด (ไม่ต้องตั้ง FormFields ใน SharePoint)
   if (isInstallCode(code) && !own.length) own = INSTALL_FIELDS;
+  // ขอเบิกสวัสดิการของพนักงาน: ช่องกำหนดในโค้ดตามแบบฟอร์มต้นฉบับ (templates/emp-welfare.js)
+  if (!own.length && isEmpWelfare(form)) own = empWelfareFields(code);
   // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
   fields = withStandard(own, form);
 
@@ -668,6 +671,10 @@ export function mount(ctx) {
     // ค่าแรงผู้รับเหมา: บังคับแนบใบปะหน้า / เอกสารส่งมอบงวดงาน
     if (isLabor(form) && attachFieldOf(fields) && !attachedFiles().length) {
       (res.errors = res.errors || []).push('แนบใบปะหน้า และเอกสารส่งมอบงวดงานโครงการ');
+    }
+    // ค่ารองเท้าเซฟตี้เบิกจ่ายตามจริงได้ไม่เกิน 1,000 บาท
+    if (isEmpWelfare(form) && res.values && Number(res.values[EW.shoe]) > SHOE_MAX) {
+      (res.errors = res.errors || []).push(`ค่ารองเท้าเซฟตี้ (เบิกได้ไม่เกิน ${SHOE_MAX.toLocaleString('th-TH')} บาท)`);
     }
     if (res.errors) {
       err.innerHTML = `กรอกข้อมูลให้ครบก่อนส่ง<br>ยังขาด: ${esc(res.errors.join(', '))}`;
