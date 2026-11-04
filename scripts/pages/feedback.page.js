@@ -6,7 +6,7 @@ import { esc, $ } from '../core/dom.js';
 import { create } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 
-// navTitle = ชื่อสั้นบนแถบเมนู (ชื่อเต็มยาวจนเมนูพับเป็น ☰ บนจอคอม)
+// navTitle = ชื่อสั้นบนแถบเมนูของผู้ดูแล (มีเมนูจัดการข้อมูลเพิ่ม ชื่อเต็มยาวจนเมนูพับเป็น ☰) · ผู้ใช้ทั่วไปเห็นชื่อเต็ม
 export const meta = { route: 'feedback', title: '💬 กล่องรับฟังความคิดเห็น', navTitle: '💬 ความคิดเห็น', nav: true, order: 10.5, adminOnly: false };
 
 export async function render(ctx) {

@@ -12,11 +12,14 @@ function badgeOf(route) {
 }
 
 export function renderNav() {
+  // ผู้ดูแล/ฝ่ายบุคคลมีเมนู "จัดการข้อมูล" เพิ่ม → ใช้ชื่อเมนูแบบสั้น (navTitle) กันแถบเมนูพับเป็น ☰ · ผู้ใช้ทั่วไปเห็นชื่อเต็ม
+  const short = state.isAdmin || state.isHR;
+  const label = (m) => (short && m.navTitle ? m.navTitle : m.title);
   $('#nav').innerHTML = pages
     .filter((p) => p.meta.nav && (!p.meta.adminOnly || state.isAdmin || (p.meta.hrAllowed && state.isHR)))
     .sort((a, b) => a.meta.order - b.meta.order)
     .map((p) => `<a href="#/${p.meta.route}"
-        ${state.route === p.meta.route ? 'aria-current="page"' : ''}${p.meta.navTitle ? ` title="${esc(p.meta.title)}"` : ''}>${esc(p.meta.navTitle || p.meta.title)}${badgeOf(p.meta.route)}</a>`)
+        ${state.route === p.meta.route ? 'aria-current="page"' : ''}${label(p.meta) !== p.meta.title ? ` title="${esc(p.meta.title)}"` : ''}>${esc(label(p.meta))}${badgeOf(p.meta.route)}</a>`)
     .join('');
   // ตอนเมนูพับเป็นปุ่ม ☰ ให้ปุ่มแสดงยอดรวมแทน
   const nb = state.navBadges || {};
