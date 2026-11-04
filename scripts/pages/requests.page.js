@@ -524,6 +524,8 @@ export async function render(ctx) {
   ${calFor ? `<div class="rq-drawer${calOpen ? ' open' : ''}" id="rq-drawer" aria-hidden="${!calOpen}">
     <div class="rq-drawer-back" id="rq-cal-back"></div>
     <div class="rq-drawer-panel" role="dialog" aria-label="${esc(calTitle(calFor.kind))}">
+      <button class="rq-drawer-tab" id="rq-cal-tab" title="${esc(calTitle(calFor.kind))}"><span>📅</span><span class="rq-tab-txt">ปฏิทิน${
+        calFor.kind === 'car' ? 'การใช้รถ' : calFor.kind === 'install' ? 'งานติดตั้ง' : 'คิว Messenger'}</span></button>
       <div class="rq-drawer-head"><b>📅 ${esc(calTitle(calFor.kind))}</b>
         <button class="rq-drawer-x" id="rq-cal-close" title="ปิด (Esc)">✕</button></div>
       <div class="rq-drawer-body"><div id="queue-cal"></div></div>
@@ -550,6 +552,7 @@ function bindCalDrawer() {
   };
   if (calOpen) load();
   $('#rq-cal-open').onclick = () => set(!calOpen);
+  $('#rq-cal-tab').onclick = () => set(!calOpen);   // แถบที่ขอบขวาของจอ: กดดึงปฏิทินออก/เก็บ
   $('#rq-cal-close').onclick = () => set(false);
   $('#rq-cal-back').onclick = () => set(false);
   if (!bindCalDrawer.esc) {
