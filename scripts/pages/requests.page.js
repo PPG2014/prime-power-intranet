@@ -23,7 +23,7 @@ import { ensurePeople } from '../services/names.js';
 import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
 import { isEmpWelfare, empWelfareFields } from '../templates/emp-welfare.js';
 import { personRef, personRefs, bindPersonCards } from '../components/person-card.js';
-import { pastOf } from '../services/project-sync.js';
+import { pastEntries } from '../services/project-sync.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -574,7 +574,8 @@ function noRouteBox(code) {
 /**
  * หมายเหตุ "เคยอยู่โครงการนี้ · ปัจจุบันย้ายไป …" สำหรับผู้ยื่น/ผู้อนุมัติที่ย้ายออกจากโครงการของคำขอแล้ว
  * ดูจากประวัติ PastProjects ในข้อมูลบุคลากร · ยังอยู่ในทีม หรือไม่เคยอยู่ → ไม่แสดง
- * คืนฟังก์ชัน (ชื่อ) → HTML หมายเหตุ
+ * แสดงเฉพาะรายการที่ทำตั้งแต่วันที่ย้ายออก (ยื่น/อนุมัติก่อนย้าย = รายการเดิม ไม่มีหมายเหตุ · ประวัติที่ไม่มีวันที่ = ไม่แสดง)
+ * คืนฟังก์ชัน (ชื่อ, เวลาที่ทำรายการ) → HTML หมายเหตุ
  */
 async function movedNoteFor(data) {
   const k = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
@@ -584,10 +585,12 @@ async function movedNoteFor(data) {
   const pj = projects.find((x) => k(x.Title) === title);
   if (!pj) return () => '';
   const team = new Set([k(nameOfVal(pj.Owner)), ...toArrVal(pj.Team).map(k)].filter(Boolean));
-  return (raw) => k(raw).split(/\s*,\s*/).filter(Boolean).map((name) => {
+  return (raw, when) => k(raw).split(/\s*,\s*/).filter(Boolean).map((name) => {
     const person = dir.find((x) => k(x.Title) === name);
     if (!person || team.has(name) || toArrVal(person.Project).map(k).includes(title)) return '';
-    if (!pastOf(person).includes(title)) return '';
+    const past = pastEntries(person).find((e) => e.title === title);
+    const at = when ? new Date(when) : null;
+    if (!past || !past.date || !at || isNaN(at) || at < new Date(`${past.date}T00:00:00`)) return '';
     const now = toArrVal(person.Project).map(k).filter(Boolean);
     return `<div class="tl-moved" title="ข้อมูลจากประวัติโครงการในทะเบียนบุคลากร">↪ ${esc(name)} เคยอยู่โครงการนี้ · ปัจจุบันย้าย${now.length ? `ไป ${esc(now.join(', '))}` : 'โครงการแล้ว'}</div>`;
   }).join('');
@@ -738,7 +741,7 @@ async function openRequest(req) {
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
             ? `<div class="tl-note tl-note-buy"><span class="tl-note-h">${trackOf(req.FormCode) ? `${trackOf(req.FormCode).icon} ${trackOf(req.FormCode).label}` : '📦 สถานะจัดซื้อ'}</span>${esc(a.note)}</div>`
-            : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}${movedNote(a.by)}</div>`).join('')}
+            : `<div class="tl-note"><span class="tl-note-h">💬 ความเห็นผู้อนุมัติ</span>${esc(a.note)}</div>`) : ''}${movedNote(a.by, a.at)}</div>`).join('')}
       </div></div>`;
   }).join('') + carTimeline(log);
 
@@ -751,7 +754,7 @@ async function openRequest(req) {
         <div class="rq-detail-head">
           ${statusPill(req.Status)}
           <span class="dim">ยื่นโดย ${personRef(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
-          ${movedNote(req.RequesterName)}
+          ${movedNote(req.RequesterName, req.SubmittedDate)}
           ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-prline">PR No. <b>${esc(prValues(req).pr_no)}</b>${
             prValues(req).pr_date ? ` · ออก ${esc(thaiNumDate(prValues(req).pr_date))}` : ''}</span>` : ''}
           ${isCarRequest(req) ? carLine(req) : ''}
