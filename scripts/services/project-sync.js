@@ -9,7 +9,8 @@
  * - ลบโครงการ/ลบคน                  → เอาชื่อออกจากอีกฝั่ง
  *
  * ประวัติ: คนที่ออกจากโครงการ (เอาออกจากทีม / เอาติ๊กออก / ลบโครงการ) → ชื่อโครงการไปอยู่ในช่อง PastProjects ของคนนั้น
- *   (บรรทัดละโครงการ) · กลับเข้าโครงการเดิม → เอาออกจากประวัติ · ไม่มีคอลัมน์ PastProjects ใน SharePoint = ระบบข้ามไปเอง
+ *   บรรทัดละโครงการ รูปแบบ "ชื่อโครงการ | วันที่ย้ายออก (YYYY-MM-DD)" (ใส่เองไม่มีวันที่ก็ได้)
+ *   กลับเข้าโครงการเดิม → เอาออกจากประวัติ · ไม่มีคอลัมน์ PastProjects ใน SharePoint = ระบบข้ามไปเอง
  *
  * เขียนตรงด้วย update() ไม่ผ่านหน้าบันทึก จึงไม่วนกลับมาเรียกซ้ำ
  * คืนรายการข้อความสั้น ๆ ว่าแก้อะไรไปบ้าง และรายการที่แก้ไม่สำเร็จ
@@ -25,8 +26,23 @@ const without = (arr, v) => arr.filter((x) => key(x) !== key(v));
 
 /** โครงการที่เคยรับผิดชอบ (ช่อง PastProjects เก็บบรรทัดละโครงการ) */
 export const PAST_KEY = 'PastProjects';
-export const pastOf = (person) => uniq(String((person && person[PAST_KEY]) || '').split(/\r?\n/).map(key).filter(Boolean));
-const pastText = (arr) => uniq(arr.map(key).filter(Boolean)).join('\n');
+/** ประวัติเป็นรายการ { title, date } · date = วันที่ย้ายออก (YYYY-MM-DD) หรือ '' ถ้าไม่ทราบ */
+export function pastEntries(person) {
+  const seen = new Map();
+  String((person && person[PAST_KEY]) || '').split(/\r?\n/).forEach((line) => {
+    const [t, d] = line.split('|');
+    const title = key(t);
+    if (!title) return;
+    const date = (String(d || '').match(/\d{4}-\d{2}-\d{2}/) || [''])[0];
+    seen.set(title, { title, date: date || (seen.get(title) || {}).date || '' });
+  });
+  return [...seen.values()];
+}
+export const pastOf = (person) => pastEntries(person).map((e) => e.title);
+const pastText = (entries) => entries.map((e) => (e.date ? `${e.title} | ${e.date}` : e.title)).join('\n');
+const today = () => new Date().toLocaleDateString('sv-SE');
+const dropPast = (entries, title) => entries.filter((e) => e.title !== key(title));
+const addPast = (entries, title) => [...dropPast(entries, title), { title: key(title), date: today() }];
 /** โครงการที่ยังดำเนินงานอยู่ (ไม่ใช่ส่งมอบแล้ว / ปิดโครงการ) */
 export const isActiveProject = (pj) => !!pj && !/^(ส่งมอบแล้ว|ปิดโครงการ)/.test(String(pj.Status || '').trim());
 
@@ -67,12 +83,12 @@ export async function syncFromProject(before, after) {
       else if (!inTeam && has(was, name) && has(next, newTitle)) next = without(next, newTitle); // เอาออกจากทีม
     }
     // ประวัติ: เปลี่ยนชื่อโครงการ → แก้ชื่อในประวัติด้วย · ออกจากโครงการ → เก็บไว้ในประวัติ · กลับเข้า → เอาออกจากประวัติ
-    const past = pastOf(person);
-    let nextPast = renamed ? past.map((x) => (key(x) === oldTitle ? (newTitle || x) : x)) : past;
+    const past = pastEntries(person);
+    let nextPast = renamed ? past.map((e) => (e.title === oldTitle ? { ...e, title: newTitle || e.title } : e)) : past;
     const label = newTitle || oldTitle;
     const left = (has(cur, label) || (renamed && has(cur, oldTitle))) && !has(next, label);
-    if (left) nextPast = [...nextPast, label];
-    if (newTitle && has(next, newTitle)) nextPast = without(nextPast, newTitle);
+    if (left) nextPast = addPast(nextPast, label);
+    if (newTitle && has(next, newTitle)) nextPast = dropPast(nextPast, newTitle);
     const pastChanged = pastText(nextPast) !== pastText(past);
     const projChanged = !(next.length === cur.length && next.every((x, i) => key(x) === key(cur[i])));
     if (!projChanged && !pastChanged) return;
@@ -130,10 +146,10 @@ export async function syncFromPerson(before, after) {
   // ประวัติของคนนี้: โครงการที่เอาติ๊กออก → เก็บใน PastProjects · ติ๊กกลับ → เอาออกจากประวัติ
   const id = (after && after.id) || (before && before.id);
   if (after && id) {
-    const past = pastOf(after.PastProjects != null ? after : before);
+    const past = pastEntries(after.PastProjects != null ? after : before);
     let nextPast = past;
-    was.filter((t) => !has(now, t)).forEach((t) => { nextPast = [...nextPast, t]; });
-    now.forEach((t) => { nextPast = without(nextPast, t); });
+    was.filter((t) => !has(now, t)).forEach((t) => { nextPast = addPast(nextPast, t); });
+    now.forEach((t) => { nextPast = dropPast(nextPast, t); });
     if (pastText(nextPast) !== pastText(past)) {
       jobs.push({ list: 'directory', id, data: { [PAST_KEY]: pastText(nextPast) }, note: `บันทึกประวัติโครงการของ ${newName}` });
     }

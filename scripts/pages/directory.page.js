@@ -5,7 +5,8 @@ import { hydratePhotos } from '../services/photos.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
 import { toArray as rawArray } from '../admin/entity-form.js';
-import { pastOf, isActiveProject } from '../services/project-sync.js';
+import { pastEntries, isActiveProject } from '../services/project-sync.js';
+import { thaiDateShort } from '../utils/format.js';
 
 /** แปลงค่าหลายรายการให้เป็นข้อความเสมอ กันกรณีที่ยังหลุดมาเป็นออบเจ็กต์ */
 const toArray = (v) => rawArray(v)
@@ -296,7 +297,7 @@ async function fillPersonProjects(p) {
   const byTitle = (t) => all.find((pj) => k(pj.Title) === t);
   const current = [...mine].filter(Boolean)
     .sort((a, b) => Number(isActiveProject(byTitle(b))) - Number(isActiveProject(byTitle(a))) || a.localeCompare(b, 'th'));
-  const past = pastOf(p).filter((t) => !mine.has(t));
+  const past = pastEntries(p).filter((e) => !mine.has(e.title));
   if (!current.length && !past.length) { box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML = `<h4>โครงการที่รับผิดชอบ</h4>
@@ -306,7 +307,8 @@ async function fillPersonProjects(p) {
         : pj ? ` <span class="pv-done">(${esc(String(pj.Status || '').trim() || 'ปิดโครงการ')})</span>` : '';
       return `<li>${esc(t)}${tag}</li>`;
     }).join('')}</ul>` : '<div class="dim">— ไม่มีโครงการที่รับผิดชอบอยู่ —</div>'}
-    ${past.length ? `<h4 class="pv-past-h">เคยรับผิดชอบ</h4><ul class="pv-pj pv-past">${past.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
+    ${past.length ? `<h4 class="pv-past-h">เคยรับผิดชอบ</h4><ul class="pv-pj pv-past">${past.map((e) => `<li>${esc(e.title)}${
+      e.date ? ` <span class="pv-done">(ย้ายออก ${esc(thaiDateShort(e.date + 'T00:00:00'))})</span>` : ''}</li>`).join('')}</ul>` : ''}`;
 }
 
 export function openPerson(p, back, backLabel = '← กลับไปที่โครงการ') {
@@ -344,7 +346,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
           ${oversees.length ? `<div class="pv-block"><h4>ดูแลฝ่าย</h4>
             <ul>${oversees.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
 
-          <div class="pv-block pv-projects" id="pv-projects"${projects.length || pastOf(p).length ? '' : ' hidden'}>
+          <div class="pv-block pv-projects" id="pv-projects"${projects.length || pastEntries(p).length ? '' : ' hidden'}>
             <h4>โครงการที่รับผิดชอบ</h4>
             <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
         </div>
