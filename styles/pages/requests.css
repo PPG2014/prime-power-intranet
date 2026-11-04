@@ -570,8 +570,19 @@
 .tl-moved { margin-top: 3px; font-size: 11.5px; color: #8a5a00; background: #fff6e5; border-radius: 6px; padding: 1px 8px; display: inline-block; }
 .rq-detail-head .tl-moved { margin: 4px 0 0; flex-basis: 100%; width: fit-content; }
 
-/* ปฏิทินด้านขวาของแบบฟอร์มที่จองเป็นช่วงเวลา (จองรถ / คิว Messenger / คิวงานติดตั้ง) */
-.rq-mine.has-cal { position: static; }
-.rq-cal { margin-bottom: var(--gap); }
-.rq-cal-h { font-weight: 700; font-size: 14px; color: var(--navy, #0b3a75); margin: 0 0 6px 2px; }
-.rq-cal .qc-panel { position: static; }
+/* ปฏิทินแบบแผงเลื่อนจากด้านขวา (จองรถ / คิว Messenger / คิวงานติดตั้ง) */
+.rq-cal-btn { font-weight: 600; }
+.rq-drawer { position: fixed; inset: 0; z-index: 900; pointer-events: none; }
+.rq-drawer-back { position: absolute; inset: 0; background: rgba(10, 30, 60, .28); opacity: 0; transition: opacity .25s; }
+.rq-drawer-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); background: var(--bg, #f3f6fa);
+  transform: translateX(100%); visibility: hidden; transition: transform .28s ease, visibility 0s linear .28s;
+  display: flex; flex-direction: column; }
+.rq-drawer.open { pointer-events: auto; }
+.rq-drawer.open .rq-drawer-back { opacity: 1; }
+.rq-drawer.open .rq-drawer-panel { transform: translateX(0); visibility: visible; transition: transform .28s ease;
+  box-shadow: -12px 0 32px rgba(10, 30, 60, .18); }
+.rq-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 18px;
+  background: var(--navy, #0b3a75); color: #fff; font-size: 15px; }
+.rq-drawer-x { background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer; padding: 2px 6px; }
+.rq-drawer-body { flex: 1; overflow-y: auto; padding: 14px; overscroll-behavior: contain; }
+.rq-drawer-body .qc-panel { position: static; }

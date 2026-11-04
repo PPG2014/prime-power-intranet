@@ -470,6 +470,7 @@ export async function render(ctx) {
                   <select id="rq-perpage">${[...new Set([...PER_PAGE_CHOICES, REVIEW_PER])].sort((a, b) => a - b)
                     .map((n) => `<option value="${n}" ${n === REVIEW_PER ? 'selected' : ''}>${n}</option>`).join('')}</select> รายการ</label>`
     : reviewPages > 1 ? `<span class="dim">หน้าละ ${REVIEW_PER} รายการ</span>` : ''}
+                ${calFor ? `<button class="btn-mini rq-cal-btn" id="rq-cal-open" title="เปิดปฏิทินด้านขวา">📅 ${esc(calTitle(calFor.kind))}</button>` : ''}
                 ${isPRTab && prRegisterOk ? '<a class="btn-mini" href="#/pr-register" title="ค้นหา กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนใบขอสั่งซื้อ (PR)</a>' : ''}
                 ${isPRTab ? '' : `<a class="btn-mini" href="#/register/${esc(shownGroup.code)}" title="สรุปรวมคำขอของแบบฟอร์มนี้ กรองรายวัน/เดือน/ปี และส่งออก Excel">📋 ทะเบียนคำขอ · ส่งออก Excel</a>`}
               </div>`;
@@ -489,9 +490,7 @@ export async function render(ctx) {
             </div></div>`}
         </main>`}
 
-        <aside class="rq-mine${calFor ? ' has-cal' : ''}">
-          ${calFor ? `<div class="rq-cal"><div class="rq-cal-h">📅 ${calFor.kind === 'car' ? 'ปฏิทินการใช้รถยนต์บริษัทฯ'
-            : calFor.kind === 'install' ? 'ปฏิทินคิวงานติดตั้ง PPE' : 'ปฏิทินคิว Messenger'}</div><div id="queue-cal"></div></div>` : ''}
+        <aside class="rq-mine">
           <div class="panel">
             <div class="panel-head">📄 คำขอของฉัน
               <span class="panel-meta">${unreadCount ? `<span class="tab-badge">${unreadCount} ใหม่</span> ` : ''}${mineFiltered.length} รายการ</span></div>
@@ -521,8 +520,52 @@ export async function render(ctx) {
         </aside>
       </div>
     </div>
-  </section>`;
+  </section>
+  ${calFor ? `<div class="rq-drawer${calOpen ? ' open' : ''}" id="rq-drawer" aria-hidden="${!calOpen}">
+    <div class="rq-drawer-back" id="rq-cal-back"></div>
+    <div class="rq-drawer-panel" role="dialog" aria-label="${esc(calTitle(calFor.kind))}">
+      <div class="rq-drawer-head"><b>📅 ${esc(calTitle(calFor.kind))}</b>
+        <button class="rq-drawer-x" id="rq-cal-close" title="ปิด (Esc)">✕</button></div>
+      <div class="rq-drawer-body"><div id="queue-cal"></div></div>
+    </div>
+  </div>` : ''}`;
 }
+
+/** ปฏิทินแบบแผงเลื่อนจากด้านขวา — โหลดปฏิทินเมื่อเปิดครั้งแรก · Esc / คลิกพื้นหลัง = ปิด */
+function bindCalDrawer() {
+  const dr = document.getElementById('rq-drawer');
+  if (!dr || !calFor) { calOpen = false; return; }
+  let loaded = false;
+  const load = () => {
+    if (loaded) return;
+    loaded = true;
+    import('../components/queue-calendar.js').then(({ mountQueueCalendar }) =>
+      mountQueueCalendar(calFor.code, { kind: calFor.kind, fresh: false })).catch(() => {});
+  };
+  const set = (on) => {
+    calOpen = on;
+    dr.classList.toggle('open', on);
+    dr.setAttribute('aria-hidden', String(!on));
+    if (on) load();
+  };
+  if (calOpen) load();
+  $('#rq-cal-open').onclick = () => set(!calOpen);
+  $('#rq-cal-close').onclick = () => set(false);
+  $('#rq-cal-back').onclick = () => set(false);
+  if (!bindCalDrawer.esc) {
+    bindCalDrawer.esc = true;
+    document.addEventListener('keydown', (e) => {
+      const d = document.getElementById('rq-drawer');
+      if (e.key === 'Escape' && d && d.classList.contains('open') && !document.getElementById('qc-full')?.querySelector('*')) {
+        d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); calOpen = false;
+      }
+    });
+  }
+}
+
+/** ชื่อปฏิทินตามชนิดแบบฟอร์ม */
+const calTitle = (kind) => (kind === 'car' ? 'ปฏิทินการใช้รถยนต์บริษัทฯ' : kind === 'install' ? 'ปฏิทินคิวงานติดตั้ง PPE' : 'ปฏิทินคิว Messenger');
+let calOpen = false;   // ค้างเปิดไว้ตอนหน้ารีเฟรชเอง/เปลี่ยนตัวกรอง
 
 /**
  * ปุ่มแก้ไข/ยกเลิกของผู้ยื่น
@@ -1620,10 +1663,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 
 export function mount(ctx) {
   bindPersonCards();
-  if (calFor && document.getElementById('queue-cal')) {
-    import('../components/queue-calendar.js').then(({ mountQueueCalendar }) =>
-      mountQueueCalendar(calFor.code, { kind: calFor.kind, fresh: false })).catch(() => {});
-  }   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
+  bindCalDrawer();   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
   // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
   onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));
   onClick('rqst', (st) => quick({ reviewStatus: st || '', reviewPage: 1 }));
