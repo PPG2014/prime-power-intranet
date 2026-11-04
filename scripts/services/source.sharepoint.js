@@ -400,29 +400,37 @@ export async function create(name, item) {
 const emptyMulti = (v) => (Array.isArray(v) ? v : String(v ?? '').split(',')).every((x) => !String(x ?? '').trim());
 async function clearMulti(name, lid, id, item) {
   const keys = Object.entries(LOOKUPS[name] || {})
-    .filter(([key, [, many]]) => many && key in item && emptyMulti(item[key])).map(([key]) => key + 'LookupId');
+    .filter(([key, [, many]]) => many && key in item && emptyMulti(item[key])).map(([key]) => key);
   if (!keys.length) return [];
   const url = `/lists/${lid}/items/${id}/fields`;
   const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
-  let cur = await call(url).catch(() => ({}));
+  // Graph ส่ง Lookup หลายค่ามาเป็น "Team": [{ LookupId, LookupValue }] (ไม่มี TeamLookupId) → ต้องดูทั้งสองชื่อ
+  // อ่านไม่ได้ (null) = ไม่รู้ค่าปัจจุบัน → ล้างไปเลย
+  const read = () => call(url).catch(() => null);
+  const hasValue = (cur, key) => !cur || !isEmpty(cur[key + 'LookupId']) || !isEmpty(cur[key]);
+  let cur = await read();
   const failed = [];
-  for (const k of keys) {
-    if (isEmpty(cur[k])) continue;
+  for (const key of keys) {
+    if (!hasValue(cur, key)) continue;
+    const k = key + 'LookupId';
     const tries = [
       { [k + '@odata.type']: 'Collection(Edm.Int32)', [k]: [] },
       { [k]: null },
       { [k]: '' },
       { [k + '@odata.type']: 'Collection(Edm.String)', [k]: [] },
+      { [key]: null },
     ];
     let ok = false;
     for (const body of tries) {
       try {
         await call(url, { method: 'PATCH', body: JSON.stringify(body) });
-        cur = await call(url).catch(() => cur);
-        if (isEmpty(cur[k])) { ok = true; break; }
-      } catch (e) { /* รูปแบบนี้ไม่ผ่าน ลองแบบถัดไป */ }
+        const after = await read();
+        if (after) cur = after;
+        if (!after || !hasValue(after, key)) { ok = true; break; }   // อ่านกลับไม่ได้แต่ PATCH ผ่าน → ถือว่าล้างแล้ว
+        console.warn(`[clear ${name}.${key}] PATCH ผ่านแต่ค่ายังอยู่`, body, after[key] ?? after[k]);
+      } catch (e) { console.warn(`[clear ${name}.${key}] ไม่ผ่าน`, body, e.message); }
     }
-    if (!ok) failed.push(`${k.replace(/LookupId$/, '')} (ล้างค่าเดิมให้ว่างไม่สำเร็จ — ค่าเดิมยังค้างอยู่ใน SharePoint)`);
+    if (!ok) failed.push(`${key} (ล้างค่าเดิมให้ว่างไม่สำเร็จ — ค่าเดิมยังค้างอยู่ใน SharePoint)`);
   }
   return failed;
 }
