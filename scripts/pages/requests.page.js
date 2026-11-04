@@ -22,6 +22,7 @@ import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
 import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
 import { isEmpWelfare, empWelfareFields } from '../templates/emp-welfare.js';
+import { personRef, personRefs, bindPersonCards } from '../components/person-card.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -641,6 +642,8 @@ async function openRequest(req) {
       }
       const val = Array.isArray(v) ? v.map((x) => (x && typeof x === 'object' ? (x.name || x.Title || '') : x)).join(', ')
         : isDate ? thaiDateShort(v) : v;
+      // ชื่อบุคลากร (ผู้ยื่น / ช่องเลือกบุคลากร) → ชี้หรือคลิกแล้วเห็นการ์ดบุคลากร
+      if (k === 'std_emp_name' || (f && f.FieldType === 'person')) return `<div class="rq-ans"><span>${esc(label)}</span><b>${personRefs(val)}</b></div>`;
       return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(val)}</b></div>`;
     }).join('');
 
@@ -689,7 +692,7 @@ async function openRequest(req) {
           }
           // แสดงรายชื่อผู้มีสิทธิ์อนุมัติของขั้นที่ยังไม่มีคนกด · ยกเว้นขั้นผู้ทบทวน (รายชื่อยาวทั้งฝ่าย)
           const names = !acts.length && !HIDE_NAMES_STEP.test(String(s.StepName || ''))
-            ? `<div class="tl-people">${esc(who.join(', '))}</div>` : '';
+            ? `<div class="tl-people">${personRefs(who.join(', '))}</div>` : '';
           if (!who.some((x) => meIds.includes(x)) || now.some((a) => (a.byList || [String(a.by).trim()]).some((x) => meIds.includes(x)))
             || req.Status !== 'รออนุมัติ') return names;
           return names + (n === cur ? '<div class="tl-people tl-me">ถึงคิวคุณแล้ว</div>'
@@ -704,7 +707,7 @@ async function openRequest(req) {
             h < 24 ? `${h.toFixed(1)} ชม.` : `${(h / 24).toFixed(1)} วัน`}</div>`;
         })() : ''}
         ${acts.map((a) => `<div class="tl-act ${a.action === 'ไม่อนุมัติ' ? 'bad' : a.action === 'ส่งกลับแก้ไข' ? 'back' : a.action === 'ข้าม' ? 'skip' : a.action === PURCHASE_ACTION ? 'buy' : 'ok'}">
-          <b>${esc(a.action)}</b> · ${esc(a.by)}${isPR(req.FormCode) && a.action === 'อนุมัติ' && !a.sig
+          <b>${esc(a.action)}</b> · ${personRefs(a.by)}${isPR(req.FormCode) && a.action === 'อนุมัติ' && !a.sig
             ? ' <span class="tl-nosig" title="อนุมัติจากการ์ด Teams/อีเมล จึงไม่มีลายเซ็นในขั้นนี้">⚠ ไม่มีลายเซ็น</span>' : ''}<br><span class="tl-when">${esc(thaiDateTime(a.at))}${
             tookMap.has(a.at + '|' + a.by) ? ` · ${esc(took(tookMap.get(a.at + '|' + a.by)))}` : ''}</span>
           ${a.note ? (a.action === PURCHASE_ACTION || (a.action === 'ข้าม' && /จัดซื้อ/.test(a.note))
@@ -721,7 +724,7 @@ async function openRequest(req) {
       <div class="rq-detail">
         <div class="rq-detail-head">
           ${statusPill(req.Status)}
-          <span class="dim">ยื่นโดย ${esc(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
+          <span class="dim">ยื่นโดย ${personRef(req.RequesterName)} · ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}</span>
           ${isPR(req.FormCode) && prValues(req).pr_no ? `<span class="rq-prline">PR No. <b>${esc(prValues(req).pr_no)}</b>${
             prValues(req).pr_date ? ` · ออก ${esc(thaiNumDate(prValues(req).pr_date))}` : ''}</span>` : ''}
           ${isCarRequest(req) ? carLine(req) : ''}
@@ -1143,7 +1146,7 @@ function carTimeline(log) {
   return `<div class="tl-step tl-ok"><div class="tl-dot"></div><div class="tl-body">
     <div class="tl-name">🚗 การใช้รถ</div>
     ${acts.map((a) => `<div class="tl-act ${a.action === 'ยกเลิก' ? 'bad' : 'buy'}">
-      <b>${esc(a.action)}</b> · ${esc(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}</span>
+      <b>${esc(a.action)}</b> · ${personRefs(a.by)}<br><span class="tl-when">${esc(thaiDateTime(a.at))}</span>
       ${a.note ? `<div class="tl-note tl-note-buy">${esc(a.note)}</div>` : ''}</div>`).join('')}
   </div></div>`;
 }
@@ -1573,6 +1576,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 }
 
 export function mount(ctx) {
+  bindPersonCards();   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
   // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
   onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));
   onClick('rqst', (st) => quick({ reviewStatus: st || '', reviewPage: 1 }));
