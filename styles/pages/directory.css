@@ -212,3 +212,9 @@
 .org-tier.is-multi { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--gap-sm); width: 100%; }
 .org-tier.is-multi .staff-card { width: auto; }
+
+/* หน้ารายละเอียดบุคลากร: โครงการปัจจุบัน (สีเขียว) / เคยรับผิดชอบ (สีเทา) */
+.pv-now { color: #1e7f4f; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+.pv-done { color: var(--muted); font-size: 12.5px; }
+.pv-past-h { margin-top: 10px; }
+.pv-past li { color: var(--muted); }
