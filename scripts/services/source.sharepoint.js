@@ -392,11 +392,47 @@ export async function create(name, item) {
   return { ...res, skipped, dropped };
 }
 
+/**
+ * ช่อง Lookup หลายค่าที่ผู้ใช้ล้างจนว่าง (เช่น เอาคนสุดท้ายออกจากทีม / เอาติ๊กโครงการสุดท้ายออก)
+ * resolveOut ไม่ส่งอาร์เรย์ว่าง (Graph มักตอบ generalException) → ค่าเดิมค้างอยู่ใน SharePoint
+ * จึงล้างแยกอีกรอบ: อ่านค่าปัจจุบันก่อน ว่างอยู่แล้วไม่ต้องทำ · ไม่ว่าง → ลองหลายรูปแบบจนกว่าจะว่างจริง
+ */
+const emptyMulti = (v) => (Array.isArray(v) ? v : String(v ?? '').split(',')).every((x) => !String(x ?? '').trim());
+async function clearMulti(name, lid, id, item) {
+  const keys = Object.entries(LOOKUPS[name] || {})
+    .filter(([key, [, many]]) => many && key in item && emptyMulti(item[key])).map(([key]) => key + 'LookupId');
+  if (!keys.length) return [];
+  const url = `/lists/${lid}/items/${id}/fields`;
+  const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
+  let cur = await call(url).catch(() => ({}));
+  const failed = [];
+  for (const k of keys) {
+    if (isEmpty(cur[k])) continue;
+    const tries = [
+      { [k + '@odata.type']: 'Collection(Edm.Int32)', [k]: [] },
+      { [k]: null },
+      { [k]: '' },
+      { [k + '@odata.type']: 'Collection(Edm.String)', [k]: [] },
+    ];
+    let ok = false;
+    for (const body of tries) {
+      try {
+        await call(url, { method: 'PATCH', body: JSON.stringify(body) });
+        cur = await call(url).catch(() => cur);
+        if (isEmpty(cur[k])) { ok = true; break; }
+      } catch (e) { /* รูปแบบนี้ไม่ผ่าน ลองแบบถัดไป */ }
+    }
+    if (!ok) failed.push(`${k.replace(/LookupId$/, '')} (ล้างค่าเดิมให้ว่างไม่สำเร็จ — ค่าเดิมยังค้างอยู่ใน SharePoint)`);
+  }
+  return failed;
+}
+
 export async function update(name, id, item) {
   const lid = await listId(name);
   const { fields, skipped } = await keepKnown(name, await resolveOut(name, item));
   const { res, dropped } = await send(name, fields, (f) =>
     call(`/lists/${lid}/items/${id}/fields`, { method: 'PATCH', body: JSON.stringify(f) }));
+  dropped.push(...await clearMulti(name, lid, id, item));
   if (skipped.length || dropped.length)
     console.warn(`[update ${name}] SharePoint ไม่รับบางช่อง:`, { skipped, dropped });
   return { ...res, skipped, dropped };
