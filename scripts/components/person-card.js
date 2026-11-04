@@ -56,6 +56,8 @@ function place(el) {
   let top = r.bottom + 6;
   if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 6);   // ไม่พอด้านล่าง → แสดงด้านบน
   box.style.left = `${left}px`; box.style.top = `${top}px`;
+  // รูปขยายตอนชี้: การ์ดอยู่ครึ่งล่างของจอ → ขยายขึ้นด้านบน ไม่ล้นจอ
+  box.classList.toggle('pcard-up', top + 300 > innerHeight);
 }
 function hide() {
   clearTimeout(showT); clearTimeout(hideT);
