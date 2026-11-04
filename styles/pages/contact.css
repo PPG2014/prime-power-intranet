@@ -42,3 +42,10 @@
 .ext-mail { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
 .ext-mail a { color: var(--blue); overflow-wrap: anywhere; }
 .ext-mail a:hover { text-decoration: underline; }
+
+/* หน้าติดต่อ: ลิงก์ไปหน้ากล่องรับฟังความคิดเห็น */
+.feedback-link { display: flex; align-items: center; gap: 14px; margin-top: var(--gap); padding: 16px 20px; text-decoration: none; color: inherit; }
+.feedback-link:hover { border-color: var(--blue-light); box-shadow: var(--shadow); }
+.fb-link-ic { font-size: 28px; }
+.fb-link-go { margin-left: auto; font-size: 26px; color: var(--blue); }
+.fb-page-panel { margin-top: 0; }

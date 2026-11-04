@@ -310,18 +310,23 @@ string(union(json(if(empty(outputs('latest')?['body/ApprovalLog']), '[]', output
 - Id, Title · **Status** (พิมพ์) `ไม่อนุมัติ` · **ApprovalLog** (fx) `outputs('newLog')` · **PAState** (พิมพ์) `DONE`
 
 ## กล่อง 13 — แจ้งผู้ยื่น ทางอีเมลและ Teams (สาขา True · ใต้ byResult นอกกรอบ)
-**A) Send an email (V2)**
-- **To** (fx) `triggerOutputs()?['body/RequesterEmail']`
-- **Subject** (fx) `concat('ผลคำขอ ', triggerOutputs()?['body/Title'], ': ', outputs('resultText'))`
-- **Body** (fx)
+**0) Compose → Rename `resultBody`** (ทำก่อนกล่องอีเมล)
+- **Inputs** (fx)
 ```
 concat('ผลการพิจารณา: <b>', outputs('resultText'), '</b><br>โดย: ', variables('varBy'), '<br>เหตุผล: ', if(empty(variables('varNote')), '-', variables('varNote')), '<br><br><a href="https://ppg2014.github.io/prime-power-intranet/#/requests">เปิดดูคำขอ</a>')
 ```
 
+**A) Send an email (V2)**
+- **To** (fx) `triggerOutputs()?['body/RequesterEmail']`
+- **Subject** (fx) `concat('ผลคำขอ ', triggerOutputs()?['body/Title'], ': ', outputs('resultText'))`
+- **Body**: เลือก **Outputs** ของ `resultBody` จาก Dynamic content (⚡) — หรือกด **fx** แล้วใส่ `outputs('resultBody')`
+  > ⚠ **อย่าวางสูตรยาวลงช่อง Body ตรง ๆ** — ช่อง Body เป็นตัวแก้ไขแบบ HTML ถ้าวางสูตรเป็นข้อความ (ไม่ได้กด fx)
+  > ผู้ยื่นจะได้อีเมลที่มีตัวสูตร `concat('ผลการพิจารณา: <b>', …)` แทนข้อความ
+
 **B) Post message in a chat or channel** (Microsoft Teams)
 - **Post as** Flow bot · **Post in** Chat with Flow bot
 - **Recipient** (fx) `triggerOutputs()?['body/RequesterEmail']`
-- **Message** (fx) ใช้สูตรเดียวกับ Body ด้านบน
+- **Message**: เลือก **Outputs** ของ `resultBody` เช่นเดียวกับ Body ด้านบน
 
 **Save** · คำเตือน "circular loop" = ปกติ ปิดได้ (เงื่อนไข PENDING + lockItem กันวนไว้แล้ว)
 
