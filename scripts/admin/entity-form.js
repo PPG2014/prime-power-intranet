@@ -26,6 +26,10 @@ export const toFiles = (v) => {
   try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; }
   catch (e) { return []; }
 };
+/** รายการแนบที่เป็นลิงก์ (เช่น Google Drive / OneDrive) — เก็บรวมในช่องไฟล์แนบ kind = 'LINK' */
+export const isLink = (a) => !!a && a.kind === 'LINK';
+/** ชื่อโดเมนของลิงก์ (แสดงเป็นข้อมูลประกอบ) */
+export const linkHost = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
 
 /**
  * ค่าหลายรายการอาจมาได้สามแบบ
@@ -127,7 +131,13 @@ export async function formBody(schema, record = {}) {
       draftFiles = toFiles(v);
       input = `<div class="file-field">
         <div class="file-list" id="${id}_list"></div>
-        <label class="btn-mini upload-btn" for="${id}_input">+ แนบไฟล์</label>
+        <div class="file-btns"><label class="btn-mini upload-btn" for="${id}_input">+ แนบไฟล์</label>${f.links
+          ? `<button type="button" class="btn-mini" id="${id}_linkbtn">🔗 + แนบลิงก์</button>` : ''}</div>
+        ${f.links ? `<div class="link-add" id="${id}_linkbox" hidden>
+          <input type="url" id="${id}_linkurl" placeholder="วางลิงก์ เช่น https://drive.google.com/…">
+          <input type="text" id="${id}_linkname" placeholder="ชื่อที่แสดง (ไม่ใส่ก็ได้)">
+          <div class="link-add-acts"><button type="button" class="btn-mini primary" id="${id}_linkok">เพิ่มลิงก์</button>
+          <button type="button" class="btn-mini" id="${id}_linkcancel">ยกเลิก</button></div></div>` : ''}
         <input type="file" id="${id}_input" multiple hidden
           accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.dwg">
         <div class="photo-status" id="${id}_status"></div>
@@ -292,8 +302,9 @@ export function collect(schema) {
   }
   // เติมชนิดและขนาดไฟล์จากไฟล์แนบไฟล์แรก เฉพาะช่องที่ผู้ใช้ยังไม่ได้กรอกเอง
   if (schema.fields.some((f) => f.type === 'files') && draftFiles.length) {
-    if ('FileFormat' in out && !out.FileFormat) out.FileFormat = draftFiles[0].kind;
-    if ('FileSize' in out && !out.FileSize)     out.FileSize   = draftFiles[0].sizeText;
+    const first = draftFiles.find((a) => !isLink(a));   // ชนิด/ขนาดเอาจากไฟล์จริง · มีแต่ลิงก์ → ชนิด = ลิงก์
+    if ('FileFormat' in out && !out.FileFormat) out.FileFormat = first ? first.kind : 'ลิงก์';
+    if ('FileSize' in out && !out.FileSize && first) out.FileSize = first.sizeText;
   }
 
   const err = $('#form-error');
@@ -384,17 +395,38 @@ export function bindFiles(schema) {
     const draw = () => {
       box.innerHTML = draftFiles.length
         ? draftFiles.map((a, k) => `<div class="file-row">
-            <span class="file-icon">${/^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
-            <span class="file-name">${esc(a.name)}</span>
-            <span class="file-meta">${esc(a.kind)} · ${esc(a.sizeText || fileSize(a.size))}</span>
+            <span class="file-icon">${isLink(a) ? '🔗' : /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(a.kind) ? '🖼' : '📄'}</span>
+            <span class="file-name">${isLink(a) ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a>` : esc(a.name)}</span>
+            <span class="file-meta">${isLink(a) ? `ลิงก์ · ${esc(linkHost(a.url))}` : `${esc(a.kind)} · ${esc(a.sizeText || fileSize(a.size))}`}</span>
             <button type="button" class="btn-mini danger" data-rm="${k}">ลบ</button>
           </div>`).join('')
-        : '<div class="file-empty">ยังไม่มีไฟล์แนบ</div>';
+        : `<div class="file-empty">ยังไม่มีไฟล์แนบ${f.links ? 'หรือลิงก์' : ''}</div>`;
       box.querySelectorAll('[data-rm]').forEach((b) => {
         b.onclick = () => { draftFiles.splice(+b.dataset.rm, 1); draw(); };
       });
     };
     draw();
+
+    // แนบลิงก์ (Google Drive / OneDrive / เว็บไซต์) — ช่องที่เปิด links: true
+    const lb = $('#' + id + '_linkbox');
+    if (lb) {
+      const url = $('#' + id + '_linkurl'); const nm = $('#' + id + '_linkname');
+      $('#' + id + '_linkbtn').onclick = () => { lb.hidden = false; url.focus(); };
+      $('#' + id + '_linkcancel').onclick = () => { lb.hidden = true; url.value = ''; nm.value = ''; };
+      const add = () => {
+        let u = url.value.trim();
+        if (u && !/^[a-z]+:\/\//i.test(u)) u = 'https://' + u;
+        if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(u)) {
+          status.className = 'photo-status bad'; status.textContent = 'ลิงก์ไม่ถูกต้อง — ต้องขึ้นต้นด้วย https://'; url.focus(); return;
+        }
+        draftFiles.push({ name: nm.value.trim() || linkHost(u) || u, url: u, kind: 'LINK' });
+        url.value = ''; nm.value = ''; lb.hidden = true;
+        status.className = 'photo-status ok'; status.textContent = 'เพิ่มลิงก์แล้ว — กดบันทึกเพื่อเก็บ';
+        draw();
+      };
+      $('#' + id + '_linkok').onclick = add;
+      [url, nm].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }));
+    }
 
     input.onchange = async (ev) => {
       const picked = [...ev.target.files];
