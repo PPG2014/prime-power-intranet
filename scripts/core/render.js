@@ -16,7 +16,7 @@ export function renderNav() {
     .filter((p) => p.meta.nav && (!p.meta.adminOnly || state.isAdmin || (p.meta.hrAllowed && state.isHR)))
     .sort((a, b) => a.meta.order - b.meta.order)
     .map((p) => `<a href="#/${p.meta.route}"
-        ${state.route === p.meta.route ? 'aria-current="page"' : ''}>${esc(p.meta.title)}${badgeOf(p.meta.route)}</a>`)
+        ${state.route === p.meta.route ? 'aria-current="page"' : ''}${p.meta.navTitle ? ` title="${esc(p.meta.title)}"` : ''}>${esc(p.meta.navTitle || p.meta.title)}${badgeOf(p.meta.route)}</a>`)
     .join('');
   // ตอนเมนูพับเป็นปุ่ม ☰ ให้ปุ่มแสดงยอดรวมแทน
   const nb = state.navBadges || {};

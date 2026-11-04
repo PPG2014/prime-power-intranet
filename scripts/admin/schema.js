@@ -379,7 +379,7 @@ export const SCHEMA = {
 
   feedback: {
     title: 'ความคิดเห็นที่ได้รับ', icon: '💬', list: 'feedback', spName: 'Feedback',
-    hint: 'ข้อเสนอแนะที่ส่งมาจากหน้าติดต่อ · เปลี่ยนสถานะเพื่อติดตามว่าเรื่องไหนดำเนินการแล้ว',
+    hint: 'ข้อเสนอแนะที่ส่งมาจากเมนู 💬 กล่องรับฟังความคิดเห็น · เปลี่ยนสถานะเพื่อติดตามว่าเรื่องไหนดำเนินการแล้ว',
     columns: ['Title', 'Content', 'SubmittedBy', 'Status'],
     labels: { Title: 'เรื่อง', Content: 'รายละเอียด', SubmittedBy: 'ผู้เสนอ', Status: 'สถานะ' },
     fields: [

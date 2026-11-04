@@ -13,6 +13,7 @@ import * as documents from './documents.page.js';
 import * as reports   from './reports.page.js';
 import * as directory from './directory.page.js';
 import * as contact   from './contact.page.js';
+import * as feedback  from './feedback.page.js';
 import * as admin     from './admin.page.js';
 import * as health    from './health.page.js';
 import * as appraisal from './appraisal.page.js';
@@ -22,6 +23,6 @@ import * as access    from './access.page.js';
 import * as formRegister from './form-register.page.js';
 import * as formGuide from './form-guide.page.js';
 
-export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, admin, health, appraisal, search, prRegister, access, formRegister, formGuide];
+export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, feedback, admin, health, appraisal, search, prRegister, access, formRegister, formGuide];
 
 export const pageByRoute = (route) => pages.find((p) => p.meta.route === route);
