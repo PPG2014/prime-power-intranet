@@ -532,3 +532,36 @@
   .ex-att-body img { max-height: 262mm; }
   .ex-att[hidden] { display: none !important; }
 }
+
+/* แบบฟอร์มขอเบิกสวัสดิการของพนักงาน — ตามต้นฉบับ Excel (กรอบ หัวเรื่องแถบเทา ช่องติ๊ก ช่องลงนาม 4 ช่อง) */
+.ew-doc { color: #000; font-size: 13.5px; line-height: 1.75; }
+.ew-frame { border: 1.5px solid #000; padding: 0 0 0; }
+.ew-lh { margin: 6px auto 6px; width: calc(100% - 20px); }
+.ew-title { background: #efefef; color: #000; text-align: center; font-size: 19px; font-weight: 700; margin: 0; padding: 2px 0;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ew-date { text-align: right; padding: 2px 10px 0; }
+.ew-to { padding: 0 8px; }
+.ew-row { padding: 0 8px; }
+.ew-ind { padding-left: 72px; margin-top: 10px; }
+.ew-fill { display: inline-block; border-bottom: 1px dotted #000; min-height: 1.3em; padding: 0 6px; text-align: center; vertical-align: bottom; }
+.ew-w-date { min-width: 140px; } .ew-w-name2 { min-width: 200px; } .ew-w-code { min-width: 100px; }
+.ew-w-pos { min-width: 240px; } .ew-w-dept { min-width: 180px; } .ew-w-amt { min-width: 70px; }
+.ew-w-other { min-width: 240px; } .ew-w-doc { min-width: 260px; text-align: left; }
+.ew-w-sign { min-width: 190px; } .ew-w-name { min-width: 200px; }
+.ew-h { padding: 6px 8px 0; }
+.ew-opts { padding: 4px 0 6px 80px; }
+.ew-opt { display: flex; align-items: center; gap: 10px; min-height: 26px; }
+.ew-ol { min-width: 215px; }
+.ew-box { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border: 1.3px solid #000;
+  font-size: 13px; font-weight: 700; line-height: 1; flex: none; }
+.ew-docs { display: grid; grid-template-columns: 250px 1fr; padding: 14px 8px 18px; }
+.ew-signs { width: 100%; border-collapse: collapse; }
+.ew-doc .ew-signs td { width: 50%; border: 0; border-top: 1px solid #000; background: none; vertical-align: top; text-align: center; padding: 2px 6px 4px; }
+.ew-doc .ew-signs td + td { border-left: 1px solid #000; }
+.ew-doc .ew-signs tr, .ew-doc .ew-signs td { background: #fff !important; }
+.ew-st b { font-size: 14px; }
+.ew-ss { min-height: 1.6em; }
+.ew-sl { height: 40px; border-bottom: 1px dotted #000; margin: 0 4px 2px; display: flex; align-items: flex-end; justify-content: center; }
+.ew-sl img { max-height: 38px; max-width: 160px; }
+.ew-note { border-top: 1px solid #000; padding: 1px 6px; font-size: 13px; }
+@media print { .ew-signs, .ew-note { break-inside: avoid; page-break-inside: avoid; } .ew-opt, .ew-row { white-space: nowrap; } }

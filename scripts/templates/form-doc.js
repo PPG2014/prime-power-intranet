@@ -10,6 +10,7 @@ import { LETTERHEAD } from '../core/letterhead.js';
 import { lineCols, lineTotal, toLineRows, showIfMatches } from '../components/form-renderer.js';
 import { isTravel, renderTravel } from './travel-expense.js';
 import { isWelfareRoom, renderWelfareRoom } from './welfare-room.js';
+import { isEmpWelfare, renderEmpWelfare } from './emp-welfare.js';
 import { isMemo, renderMemo } from './memo.js';
 
 const isTrue = (v) => v === true || v === 'Yes' || v === 'ใช่';
@@ -92,6 +93,7 @@ export function renderFormDoc({ form = {}, fields = [], values = {}, docNo = '',
   requester = {}, approvals = [], empCode = '', position = '', dept = '', finalSign = null }) {
   // ฟอร์มที่มีแม่แบบตามต้นฉบับ ใช้แม่แบบนั้นแทน
   if (isMemo(form)) return renderMemo({ fields, values, empCode, requester, approvals, person: { position, dept } });
+  if (isEmpWelfare(form)) return renderEmpWelfare({ fields, values, empCode, requester, approvals, person: { position, dept }, submitted });
   if (isWelfareRoom(form)) return renderWelfareRoom({ fields, values, empCode, requester, finalSign, position, submitted });
   if (isTravel(form, fields)) return renderTravel({ form, fields, values, empCode, requester, approvals });
   const shown = fields.filter((f) => f.FieldType !== 'section' && showIfMatches(f.ShowIf, values));

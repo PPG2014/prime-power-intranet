@@ -21,6 +21,7 @@ import { findMe, myEmails } from '../services/me.js';
 import { projectText } from '../services/om.js';
 import { ensurePeople } from '../services/names.js';
 import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
+import { isEmpWelfare, empWelfareFields } from '../templates/emp-welfare.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -135,6 +136,14 @@ export async function formFieldsOf(code) {
     // จองคิวงานติดตั้ง PPE: ช่องกำหนดในโค้ด (services/install.js)
     const own = await formFieldsRaw(code);
     return own.length ? own : INSTALL_FIELDS;
+  }
+  {
+    // ขอเบิกสวัสดิการของพนักงาน: ไม่ได้ตั้งช่องใน FormFields → ใช้ช่องที่กำหนดในโค้ด (ดูจากชื่อแบบฟอร์ม)
+    const own = await formFieldsRaw(code);
+    if (!own.length) {
+      const row = (await list('formCatalog').catch(() => [])).find((c) => String(c.FormCode || '').trim() === String(code || '').trim());
+      if (isEmpWelfare(row)) return empWelfareFields(code);
+    }
   }
   if (isSolar(code)) {
     // ใบจองโซลาร์ใช้หน้ากรอกเฉพาะ ช่องข้อมูลกำหนดในโค้ด (ไม่ต้องตั้ง FormFields ใน SharePoint)
