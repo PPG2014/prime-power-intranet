@@ -344,7 +344,13 @@ function bindImport(s) {
 }
 
 async function openEditor(key, record) {
-  const s = SCHEMA[key];
+  let s = SCHEMA[key];
+  // ตั้งค่าที่เป็นรายชื่ออีเมล: เลือกจากทะเบียนบุคลากรแทนการพิมพ์ (กันพิมพ์อีเมลผิด) · บันทึกเป็น "a, b" บรรทัดเดียว
+  if (key === 'settings' && record && EMAIL_LIST_SETTINGS.includes(String(record.Title || '').trim())) {
+    s = { ...s, fields: s.fields.map((f) => (f.key === 'Value' ? { ...f, type: 'people', full: true, emailsOnly: true,
+      label: 'ค่า — เลือกรายชื่อจากทะเบียนบุคลากร', help: 'ติ๊กเลือกคน (กรองตามฝ่าย/ค้นหาชื่อได้) · ระบบเก็บเป็นอีเมลของคนที่เลือก คั่นด้วยจุลภาค' }
+      : f.key === 'Title' ? { ...f, help: 'ชื่อค่านี้ใช้อ้างอิงในระบบ ห้ามเปลี่ยน' } : f)) };
+  }
   const isNew = !record;
   // รอบประเมิน: เลือกรายชื่อแล้วกรอกข้อมูลทดลองงานและวันลาของแต่ละคนได้ในหน้าต่างเดียวกัน
   const isCycle = key === 'appraisalCycles';
