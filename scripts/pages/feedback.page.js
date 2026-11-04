@@ -62,10 +62,6 @@ export async function render(ctx) {
             <div class="field-error" id="fb-error" hidden></div>
             <button class="btn btn-primary" id="fb-send">ส่งความคิดเห็น</button>
           </div>`}
-        <div class="panel-note">
-          ระบบบันทึกวันเวลาที่ส่งไว้เพื่อจัดลำดับการติดตาม
-          แม้เลือกไม่ระบุชื่อ ผู้ดูแล SharePoint ก็ยังตรวจสอบย้อนหลังได้ตามระบบบันทึกของ Microsoft 365
-        </div>
       </div>
     </div>
   </section>`;
