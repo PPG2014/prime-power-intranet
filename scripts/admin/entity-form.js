@@ -179,13 +179,18 @@ export async function formBody(schema, record = {}) {
     } else if (f.type === 'people') {
       // เลือกบุคลากรจากทะเบียน กรองตามฝ่ายและค้นหาชื่อได้ เก็บเป็นอีเมลบรรทัดละคน
       const staff = (await list('directory').catch(() => []))
-        .filter((x) => x.IsActive !== false)
+        .filter((x) => x.IsActive !== false && (!f.emailsOnly || String(x.Email || '').includes('@')))
         .sort((a, b) => String(a.Department || '').localeCompare(String(b.Department || ''), 'th')
           || String(a.Title || '').localeCompare(String(b.Title || ''), 'th'));
-      const picked = new Set(String(v || '').split(/\r?\n/).map((x) => x.trim().toLowerCase()).filter(Boolean));
+      // ค่าเดิมคั่นได้ทั้งบรรทัดใหม่ จุลภาค และ ; (ตั้งค่าระบบที่เป็นรายชื่ออีเมลเก็บแบบ "a, b")
+      const raw = String(v || '').split(/\r?\n|[,;]/).map((x) => x.trim()).filter(Boolean);
+      const picked = new Set(raw.map((x) => x.toLowerCase()));
       const on = (p) => picked.has(String(p.Email || '').trim().toLowerCase())
         || picked.has(String(p.Title || '').trim().toLowerCase());
       const depts = [...new Set(staff.map((p) => String(p.Department || '').trim()).filter(Boolean))];
+      // ค่าเดิมที่ไม่มีในทะเบียน (เช่น บัญชีกลางของระบบ) ยังคงไว้ ไม่หายตอนบันทึก — เอาติ๊กออกได้
+      const known = new Set(staff.flatMap((p) => [String(p.Email || '').trim().toLowerCase(), String(p.Title || '').trim().toLowerCase()]));
+      const others = raw.filter((x) => !known.has(x.toLowerCase()));
 
       input = `<div class="people-pick" id="${id}">
         <div class="people-tools">
@@ -195,6 +200,9 @@ export async function formBody(schema, record = {}) {
           <span class="people-count"></span>
         </div>
         <div class="check-list people-list">
+          ${others.map((x) => `<label class="check-item" data-dept="">
+            <input type="checkbox" value="${esc(x)}" checked>
+            <span>${esc(x)}<span class="dim"> · ไม่อยู่ในทะเบียนบุคลากร</span></span></label>`).join('')}
           ${staff.map((p) => `<label class="check-item" data-dept="${esc(String(p.Department || '').trim())}">
             <input type="checkbox" value="${esc(p.Email || p.Title)}" ${on(p) ? 'checked' : ''}>
             <span>${esc(p.Title)}<span class="dim"> · ${esc(p.Position || '')}${

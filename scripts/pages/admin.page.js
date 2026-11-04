@@ -31,6 +31,8 @@ const VIRTUAL = {
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
+/** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
+const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers'];
 const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
@@ -342,7 +344,13 @@ function bindImport(s) {
 }
 
 async function openEditor(key, record) {
-  const s = SCHEMA[key];
+  let s = SCHEMA[key];
+  // ตั้งค่าที่เป็นรายชื่ออีเมล: เลือกจากทะเบียนบุคลากรแทนการพิมพ์ (กันพิมพ์อีเมลผิด) · บันทึกเป็น "a, b" บรรทัดเดียว
+  if (key === 'settings' && record && EMAIL_LIST_SETTINGS.includes(String(record.Title || '').trim())) {
+    s = { ...s, fields: s.fields.map((f) => (f.key === 'Value' ? { ...f, type: 'people', full: true, emailsOnly: true,
+      label: 'ค่า — เลือกรายชื่อจากทะเบียนบุคลากร', help: 'ติ๊กเลือกคน (กรองตามฝ่าย/ค้นหาชื่อได้) · ระบบเก็บเป็นอีเมลของคนที่เลือก คั่นด้วยจุลภาค' }
+      : f.key === 'Title' ? { ...f, help: 'ชื่อค่านี้ใช้อ้างอิงในระบบ ห้ามเปลี่ยน' } : f)) };
+  }
   const isNew = !record;
   // รอบประเมิน: เลือกรายชื่อแล้วกรอกข้อมูลทดลองงานและวันลาของแต่ละคนได้ในหน้าต่างเดียวกัน
   const isCycle = key === 'appraisalCycles';
@@ -430,6 +438,11 @@ async function openEditor(key, record) {
         }
       }
       if (s.history) data.UpdatedDate = new Date().toISOString();
+      // ตั้งค่าที่เป็นรายชื่ออีเมล: ขึ้นบรรทัดใหม่/; /เว้นวรรค → คั่นด้วย ", " บรรทัดเดียว
+      // (โฟลว์แจ้งเตือนความคิดเห็นใช้ค่านี้เป็นช่อง To ของอีเมล — มีบรรทัดใหม่ปนจะ error ว่าอีเมลผิดรูปแบบ)
+      if (s.list === 'settings' && EMAIL_LIST_SETTINGS.includes(String(data.Title || '').trim()) && typeof data.Value === 'string') {
+        data.Value = data.Value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).join(', ');
+      }
 
       const res = isNew ? await create(s.list, data)
                         : await update(s.list, record.id, data);

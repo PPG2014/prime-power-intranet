@@ -47,9 +47,9 @@ Title eq 'FeedbackRecipients'
 **Send an email (V2)** → Rename `mailFeedback`
 - **To** (fx):
 ```
-replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], ''), ' ', ''), ',', ';')
+replace(replace(replace(replace(replace(coalesce(first(outputs('recipients')?['body/value'])?['Value'], ''), ' ', ''), decodeUriComponent('%0D'), ''), decodeUriComponent('%0A'), ','), ',,', ','), ',', ';')
 ```
-> ช่อง To ของ Outlook ต้องคั่นหลายอีเมลด้วย **;** — สูตรนี้แปลงจุลภาคในตั้งค่าระบบให้เอง
+> ช่อง To ของ Outlook ต้องคั่นหลายอีเมลด้วย **;** และห้ามมีการขึ้นบรรทัดใหม่ — สูตรนี้ตัดเว้นวรรค/บรรทัดใหม่ แล้วแปลงจุลภาคเป็น ; ให้เอง
 - **Subject** (fx):
 ```
 concat('[ความคิดเห็นใหม่] ', coalesce(triggerOutputs()?['body/Title'], 'ไม่ระบุเรื่อง'))
@@ -60,10 +60,13 @@ concat('[ความคิดเห็นใหม่] ', coalesce(triggerOutpu
 
 ### 4.1 — ประกอบเนื้อหาอีเมล (ทำก่อนกล่อง mailFeedback)
 ในสาขา True กด **+** เหนือ `mailFeedback` → **Compose** (Data Operation) → Rename `bodyHtml`
-- **Inputs** (fx):
+- **Inputs** (fx) — อีเมลแบบทางการ: หัวข้อสีน้ำเงินเข้ม ตัวหนา · กรอบรายละเอียด · ลายเซ็น Intranet Prime Power Group ท้ายอีเมล
 ```
-concat('มีความคิดเห็นใหม่ส่งเข้ามาในระบบ<br><br><b>เรื่อง:</b> ', coalesce(triggerOutputs()?['body/Title'], '-'), '<br><b>ผู้เสนอ:</b> ', if(empty(triggerOutputs()?['body/SubmittedBy']), 'ไม่ระบุชื่อ', triggerOutputs()?['body/SubmittedBy']), '<br><b>อีเมล:</b> ', coalesce(triggerOutputs()?['body/SubmittedEmail'], '-'), '<br><b>ส่งเมื่อ:</b> ', formatDateTime(triggerOutputs()?['body/Created'], 'dd/MM/yyyy HH:mm'), '<br><br><b>รายละเอียด</b><br>', replace(coalesce(triggerOutputs()?['body/Content'], '-'), decodeUriComponent('%0A'), '<br>'), '<br><br>เปิดดูและบันทึกการดำเนินการได้ที่หน้าจัดการข้อมูล: https://ppg2014.github.io/prime-power-intranet/#/admin')
+concat('<div style="font-family:Tahoma,Arial,sans-serif;font-size:14px;color:#1f2937;line-height:1.7">', '<p style="margin:0 0 12px">เรียน ผู้เกี่ยวข้อง</p>', '<p style="margin:0 0 16px">ระบบ Intranet Prime Power Group ได้รับข้อเสนอแนะใหม่ผ่านกล่องรับฟังความคิดเห็น โดยมีรายละเอียดดังนี้</p>', '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin:0 0 16px">', '<tr><td style="padding:3px 18px 3px 0;color:#0B3A75;font-weight:bold;white-space:nowrap;vertical-align:top">เรื่องที่ต้องการเสนอ</td><td style="padding:3px 0">', replace(replace(coalesce(triggerOutputs()?['body/Title'], '-'), '&', '&amp;'), '<', '&lt;'), '</td></tr>', '<tr><td style="padding:3px 18px 3px 0;color:#0B3A75;font-weight:bold;white-space:nowrap;vertical-align:top">ผู้เสนอ</td><td style="padding:3px 0">', if(empty(triggerOutputs()?['body/SubmittedBy']), 'ไม่ประสงค์ระบุชื่อ', triggerOutputs()?['body/SubmittedBy']), '</td></tr>', '<tr><td style="padding:3px 18px 3px 0;color:#0B3A75;font-weight:bold;white-space:nowrap;vertical-align:top">อีเมล</td><td style="padding:3px 0">', coalesce(triggerOutputs()?['body/SubmittedEmail'], '-'), '</td></tr>', '<tr><td style="padding:3px 18px 3px 0;color:#0B3A75;font-weight:bold;white-space:nowrap;vertical-align:top">วันที่ส่ง</td><td style="padding:3px 0">', convertFromUtc(triggerOutputs()?['body/Created'], 'SE Asia Standard Time', 'dd/MM/yyyy HH:mm'), ' น.</td></tr>', '</table>', '<p style="margin:0 0 6px;color:#0B3A75;font-weight:bold">รายละเอียด</p>', '<div style="margin:0 0 20px;padding:12px 16px;background:#F3F7FC;border-left:4px solid #0B3A75">', replace(replace(replace(coalesce(triggerOutputs()?['body/Content'], '-'), '&', '&amp;'), '<', '&lt;'), decodeUriComponent('%0A'), '<br>'), '</div>', '<p style="margin:0 0 28px">จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการต่อไป</p>', '<p style="margin:0 0 6px;font-family:Arial,sans-serif">Best Regards,</p>', '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>', '<td style="padding:0 26px 0 0;vertical-align:top"><img src="https://ppg2014.github.io/prime-power-intranet/assets/img/email-signature.png" width="280" height="135" alt="Prime Power Group" style="display:block;border:0"></td>', '<td style="vertical-align:top;font-family:Arial,sans-serif;font-size:13px;color:#333333;line-height:1.6">', '<b style="font-size:15px;color:#111111">Intranet Prime Power Group</b><br><br>', 'Prime Power Construction Co., Ltd.<br>99 Moo. 7 T. Bang Talat, A. Pak Kret, Nonthaburi 11120<br><br>', '+66 2 147 5098-99<br><br>', '<a href="https://www.primepowerconstruction.com" style="color:#1f4e79;text-decoration:none">www.primepowerconstruction.com</a>', '</td></tr></table>', '</div>')
 ```
+- เวลาใน "วันที่ส่ง" แปลงเป็นเวลาไทยแล้ว (`convertFromUtc` … `SE Asia Standard Time`) — เดิมแสดงเป็นเวลา UTC (ช้ากว่าจริง 7 ชั่วโมง)
+- รูปลายเซ็นอยู่ที่ `assets/img/email-signature.png` ในเว็บ (รูปลายเซ็นของบริษัท) — เปลี่ยนรูปได้โดยแทนไฟล์นี้ ไม่ต้องแก้โฟลว์
+- ถ้า Outlook ไม่แสดงรูป ให้กด "ดาวน์โหลดรูปภาพ" ครั้งแรก (รูปมาจากเว็บภายนอกกล่องจดหมาย)
 
 > สูตรทุกตัวต้องใช้เครื่องหมาย `'` ตรง ๆ — ถ้าคัดลอกจากแอปที่เปลี่ยนเป็น ‘ ’ (ตัวโค้ง) สูตรจะ error · วางในแท็บ **fx** แล้วกด Add/Update
 
@@ -87,4 +90,5 @@ concat('มีความคิดเห็นใหม่ส่งเข้า
 | 3.1 กด Save แล้วขึ้น *contains invalid expression(s)* | ย้ายสูตร Body ไปไว้ใน Compose `bodyHtml` ตามข้อ 4.1 · ตรวจว่า `'` ไม่ใช่ตัวโค้ง ‘ ’ |
 | 4. รอบนั้น **Succeeded** | กดเข้าไปดูกล่องที่แดง แล้วส่งภาพมาให้ผู้ดูแลเว็บ |
 | 5. Succeeded แต่ `hasRecipient` ไป **False** | ชื่อค่าใน Settings ต้องสะกด `FeedbackRecipients` ตรงทุกตัว ไม่มีช่องว่างหัวท้าย |
+| 5.1 `mailFeedback` แดง: *Input parameter 'emailMessage/To' is required to be of type 'String/email'* | ค่าผู้รับมีการขึ้นบรรทัดใหม่ปน (เช่น พิมพ์อีเมลละบรรทัด) → เปิดแถว `FeedbackRecipients` ในตั้งค่าระบบแล้วกดบันทึกอีกครั้ง (เว็บจัดให้เป็นบรรทัดเดียวคั่นด้วย `, ` เอง) · และเปลี่ยนสูตร To ในกล่อง 4 เป็นสูตรล่าสุดด้านบน แล้วกด **Resubmit** |
 | 6. Succeeded และส่งเมลแล้ว แต่ไม่เจอ | ดูโฟลเดอร์ **Junk/Other** และ Quarantine ของ Microsoft 365 |
