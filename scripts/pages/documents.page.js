@@ -4,7 +4,13 @@ import { groupByDepartment } from '../utils/dept.js';
 import { state, setState } from '../core/state.js';
 import { openModal } from '../components/modal.js';
 import { thaiDateShort } from '../utils/format.js';
-import { toFiles } from '../admin/entity-form.js';
+import { toFiles, isLink, linkHost } from '../admin/entity-form.js';
+
+/** ไฟล์จริง (ดาวน์โหลดได้) กับลิงก์ (เปิดในแท็บใหม่) แยกกัน */
+const realFiles = (d) => toFiles(d.Files).filter((a) => !isLink(a));
+const linksOf = (d) => toFiles(d.Files).filter(isLink);
+const attachCell = (d) => [realFiles(d).length ? `📎 ${realFiles(d).length}` : '', linksOf(d).length ? `🔗 ${linksOf(d).length}` : '']
+  .filter(Boolean).join(' ') || '—';
 
 export const meta = { route: 'documents', title: 'เอกสาร/คู่มือ', nav: true, order: 7, adminOnly: false };
 
@@ -45,9 +51,10 @@ export async function render(ctx) {
               <td><button class="linky" data-doc="${d.id}">${d.Icon} ${esc(d.Title)}</button></td>
               ${tab !== 'ไฟล์ดาวน์โหลด' ? `<td>${esc(thaiDateShort(d.LastUpdated))}</td>`
                 : `<td class="code">${esc(d.FileFormat || '')}</td><td>${esc(d.FileSize || '')}</td>`}
-              <td>${toFiles(d.Files).length ? '📎 ' + toFiles(d.Files).length : '—'}</td>
+              <td>${attachCell(d)}</td>
               <td class="col-actions"><span class="doc-acts">
-                ${toFiles(d.Files).length ? `<button class="btn-mini doc-dl" data-dl="${d.id}" title="${toFiles(d.Files).length > 1 ? `ดาวน์โหลดไฟล์แนบทั้ง ${toFiles(d.Files).length} ไฟล์` : 'ดาวน์โหลดไฟล์'}">⬇ ดาวน์โหลด</button>` : ''}
+                ${realFiles(d).length ? `<button class="btn-mini doc-dl" data-dl="${d.id}" title="${realFiles(d).length > 1 ? `ดาวน์โหลดไฟล์แนบทั้ง ${realFiles(d).length} ไฟล์` : 'ดาวน์โหลดไฟล์'}">⬇ ดาวน์โหลด</button>` : ''}
+                ${linksOf(d).length === 1 ? `<a class="btn-mini doc-link" href="${esc(linksOf(d)[0].url)}" target="_blank" rel="noopener" title="${esc(linksOf(d)[0].url)}">🔗 เปิดลิงก์</a>` : ''}
                 <button class="btn-mini" data-doc="${d.id}">${tab === 'คู่มือ' ? 'เปิดอ่าน' : 'เปิดดู'}</button></span></td>
             </tr>`).join('')}</tbody>
           </table></div>
@@ -62,7 +69,8 @@ export function mount(ctx) {
   onClick('doc', (id) => {
     const d = rows.find((r) => String(r.id) === String(id));
     if (!d) return;
-    const files = toFiles(d.Files);
+    const files = realFiles(d);
+    const links = linksOf(d);
     openModal({
       title: d.Title, wide: true,
       body: `
@@ -77,6 +85,10 @@ export function mount(ctx) {
             <span class="doc-file-meta">${esc(a.kind)} · ${esc(a.sizeText || '')}</span>
           </a><button class="btn-mini doc-dl" data-dlone="${i}" title="ดาวน์โหลด ${esc(a.name)}">⬇</button></div>`).join('')}
           ${files.length > 1 ? `<button class="btn-mini doc-dl doc-dl-all" data-dl="${d.id}">⬇ ดาวน์โหลดทั้งหมด ${files.length} ไฟล์</button>` : ''}</div>` : ''}
+        ${links.length ? `<div class="doc-files"><h4>ลิงก์ ${links.length} รายการ</h4>
+          ${links.map((a) => `<div class="doc-file-row"><a class="doc-file" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.url)}">
+            <span>🔗</span><b>${esc(a.name)}</b>
+            <span class="doc-file-meta">${esc(linkHost(a.url))} ↗</span></a></div>`).join('')}</div>` : ''}
 `,
     });
     onClick('dl', (x, el) => download(x, el));
@@ -89,7 +101,7 @@ export function mount(ctx) {
 function download(id, el) {
   const d = rows.find((r) => String(r.id) === String(id));
   if (!d) return;
-  const files = toFiles(d.Files);
+  const files = realFiles(d);
   // ไฟล์เดียว: ตั้งชื่อตามชื่อเอกสาร · หลายไฟล์: ใช้ชื่อไฟล์เดิมของแต่ละไฟล์ (ชื่อต่างกัน)
   saveFiles(files.length === 1 ? [{ ...files[0], name: docFileName(d, files[0]) }] : files, el);
 }

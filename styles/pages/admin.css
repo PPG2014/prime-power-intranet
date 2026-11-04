@@ -329,3 +329,11 @@ td[data-col="Badge"] { white-space: nowrap; }
 .hol-row .hol-name { flex: 1; min-width: 200px; }
 .hol-paste { margin-top: 10px; font-size: 13.5px; }
 .hol-paste textarea { display: block; width: 100%; max-width: 520px; margin: 6px 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+
+/* ช่องไฟล์แนบ: ปุ่มแนบลิงก์ + กล่องกรอกลิงก์ */
+.file-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.link-add { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; background: #f7fafd; }
+.link-add[hidden] { display: none; }
+.link-add input { width: 100%; }
+.link-add-acts { display: flex; gap: 6px; }
+.file-row .file-name a { color: var(--blue); text-decoration: underline; word-break: break-all; }
