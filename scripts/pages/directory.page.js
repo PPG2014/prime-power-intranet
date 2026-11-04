@@ -5,6 +5,7 @@ import { hydratePhotos } from '../services/photos.js';
 import { list } from '../services/data.js';
 import { groupByDepartment, groupOrder, extensionOf, sections } from '../utils/dept.js';
 import { toArray as rawArray } from '../admin/entity-form.js';
+import { pastOf, isActiveProject } from '../services/project-sync.js';
 
 /** แปลงค่าหลายรายการให้เป็นข้อความเสมอ กันกรณีที่ยังหลุดมาเป็นออบเจ็กต์ */
 const toArray = (v) => rawArray(v)
@@ -95,11 +96,6 @@ const card = (p, cls = '') => `
       <div class="staff-name">${esc(p.Title)} ${p.Nickname ? `<em>(${esc(p.Nickname)})</em>` : ''}</div>
       <div class="staff-en">${esc(p.NameEN)}</div>
       <div class="staff-pos">${esc(p.Position)}</div>
-      ${toArray(p.Project).length
-        ? `<div class="project-tag" title="${esc(toArray(p.Project).join(' · '))}">🏗 ${
-            toArray(p.Project).length > 1
-              ? `${toArray(p.Project).length} โครงการ`
-              : esc(toArray(p.Project)[0])}</div>` : ''}
       ${toArray(p.Oversees).length > 1
         ? `<div class="oversee-tag" title="${esc(toArray(p.Oversees).join(' · '))}"
             >ดูแล ${toArray(p.Oversees).length} ฝ่าย</div>` : ''}
@@ -282,6 +278,37 @@ export async function render(ctx) {
  * หน้าอื่นเรียกใช้ได้ เช่นกดชื่อผู้รับผิดชอบในหน้าต่างโครงการ
  * ส่ง back มาด้วยเพื่อให้มีปุ่มย้อนกลับไปยังหน้าต่างเดิม
  */
+/**
+ * โครงการที่รับผิดชอบในหน้ารายละเอียดบุคลากร (เติมหลังเปิดหน้าต่าง เพราะต้องโหลดสถานะโครงการ)
+ *   ปัจจุบัน = ติ๊กในช่องโครงการ หรือเป็นผู้รับผิดชอบหลัก/ทีมงานของโครงการ · โครงการที่ยังดำเนินงานอยู่ → (โครงการปัจจุบัน) สีเขียว
+ *   เคยรับผิดชอบ = ประวัติ PastProjects (ระบบบันทึกเมื่อย้ายออกจากโครงการ)
+ */
+async function fillPersonProjects(p) {
+  const box = document.getElementById('pv-projects');
+  if (!box) return;
+  const all = await list('projects').catch(() => []);
+  const k = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const me = k(p.Title);
+  const mine = new Set(toArray(p.Project).map(k));
+  all.forEach((pj) => {
+    if (k(pj.Owner) === me || toArray(pj.Team).map(k).includes(me)) mine.add(k(pj.Title));
+  });
+  const byTitle = (t) => all.find((pj) => k(pj.Title) === t);
+  const current = [...mine].filter(Boolean)
+    .sort((a, b) => Number(isActiveProject(byTitle(b))) - Number(isActiveProject(byTitle(a))) || a.localeCompare(b, 'th'));
+  const past = pastOf(p).filter((t) => !mine.has(t));
+  if (!current.length && !past.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<h4>โครงการที่รับผิดชอบ</h4>
+    ${current.length ? `<ul class="pv-pj">${current.map((t) => {
+      const pj = byTitle(t);
+      const tag = pj && isActiveProject(pj) ? ' <span class="pv-now">(โครงการปัจจุบัน)</span>'
+        : pj ? ` <span class="pv-done">(${esc(String(pj.Status || '').trim() || 'ปิดโครงการ')})</span>` : '';
+      return `<li>${esc(t)}${tag}</li>`;
+    }).join('')}</ul>` : '<div class="dim">— ไม่มีโครงการที่รับผิดชอบอยู่ —</div>'}
+    ${past.length ? `<h4 class="pv-past-h">เคยรับผิดชอบ</h4><ul class="pv-pj pv-past">${past.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
+}
+
 export function openPerson(p, back, backLabel = '← กลับไปที่โครงการ') {
   const projects = toArray(p.Project);
   const oversees = toArray(p.Oversees);
@@ -317,8 +344,9 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
           ${oversees.length ? `<div class="pv-block"><h4>ดูแลฝ่าย</h4>
             <ul>${oversees.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
 
-          ${projects.length ? `<div class="pv-block"><h4>โครงการที่รับผิดชอบ</h4>
-            <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+          <div class="pv-block pv-projects" id="pv-projects"${projects.length || pastOf(p).length ? '' : ' hidden'}>
+            <h4>โครงการที่รับผิดชอบ</h4>
+            <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
         </div>
       </div>`,
     footer: back ? `<button class="btn-mini" id="pv-back">${esc(backLabel)}</button>` : '',
@@ -327,6 +355,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
   hydratePhotos($('#overlay-root'));
   bindCopyButtons($('#overlay-root'));
   bindPhotoZoom($('#overlay-root .pv-photo'));
+  fillPersonProjects(p);
   if (back) $('#pv-back').onclick = back;
 }
 

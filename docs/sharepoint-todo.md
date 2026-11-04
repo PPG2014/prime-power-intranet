@@ -143,6 +143,7 @@
 | คอลัมน์ | ชนิด | หมายเหตุ |
 |---|---|---|
 | Project | Lookup → Projects.Title | **Allow multiple values** · ต้องสร้าง Projects ก่อน |
+| PastProjects | Multiple lines of text (**Plain text**) | ประวัติ "เคยรับผิดชอบ" — ระบบเขียนให้เองเมื่อย้ายคนออกจากโครงการ (บรรทัดละโครงการ) · ไม่สร้าง = ระบบไม่เก็บประวัติ แต่ส่วนอื่นใช้ได้ปกติ |
 
 ตรวจว่ามีครบแล้วหรือยัง — `Section` (Lookup → Sections), `Level` (Choice),
 `Oversees` (Lookup → Departments แบบหลายค่า), `PhotoUrl`

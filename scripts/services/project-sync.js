@@ -8,6 +8,9 @@
  * - เปลี่ยนชื่อโครงการ/ชื่อคน          → แก้ชื่อในอีกฝั่งให้ทั้งหมด
  * - ลบโครงการ/ลบคน                  → เอาชื่อออกจากอีกฝั่ง
  *
+ * ประวัติ: คนที่ออกจากโครงการ (เอาออกจากทีม / เอาติ๊กออก / ลบโครงการ) → ชื่อโครงการไปอยู่ในช่อง PastProjects ของคนนั้น
+ *   (บรรทัดละโครงการ) · กลับเข้าโครงการเดิม → เอาออกจากประวัติ · ไม่มีคอลัมน์ PastProjects ใน SharePoint = ระบบข้ามไปเอง
+ *
  * เขียนตรงด้วย update() ไม่ผ่านหน้าบันทึก จึงไม่วนกลับมาเรียกซ้ำ
  * คืนรายการข้อความสั้น ๆ ว่าแก้อะไรไปบ้าง และรายการที่แก้ไม่สำเร็จ
  */
@@ -19,6 +22,13 @@ const names = (v) => toArray(v).map(key).filter(Boolean);
 const uniq = (a) => [...new Set(a)];
 const has = (arr, v) => arr.some((x) => key(x) === key(v));
 const without = (arr, v) => arr.filter((x) => key(x) !== key(v));
+
+/** โครงการที่เคยรับผิดชอบ (ช่อง PastProjects เก็บบรรทัดละโครงการ) */
+export const PAST_KEY = 'PastProjects';
+export const pastOf = (person) => uniq(String((person && person[PAST_KEY]) || '').split(/\r?\n/).map(key).filter(Boolean));
+const pastText = (arr) => uniq(arr.map(key).filter(Boolean)).join('\n');
+/** โครงการที่ยังดำเนินงานอยู่ (ไม่ใช่ส่งมอบแล้ว / ปิดโครงการ) */
+export const isActiveProject = (pj) => !!pj && !/^(ส่งมอบแล้ว|ปิดโครงการ)/.test(String(pj.Status || '').trim());
 
 /** คนทั้งหมดของโครงการ = ผู้รับผิดชอบหลัก + ทีมงาน */
 const peopleOf = (p) => uniq([...names(p && p.Owner), ...names(p && p.Team)]);
@@ -56,10 +66,23 @@ export async function syncFromProject(before, after) {
       if ((inTeam || hadOld) && !has(next, newTitle)) next = [...next, newTitle];           // เพิ่มเข้าทีม / ตามชื่อใหม่
       else if (!inTeam && has(was, name) && has(next, newTitle)) next = without(next, newTitle); // เอาออกจากทีม
     }
-    if (next.length === cur.length && next.every((x, i) => key(x) === key(cur[i]))) return;
+    // ประวัติ: เปลี่ยนชื่อโครงการ → แก้ชื่อในประวัติด้วย · ออกจากโครงการ → เก็บไว้ในประวัติ · กลับเข้า → เอาออกจากประวัติ
+    const past = pastOf(person);
+    let nextPast = renamed ? past.map((x) => (key(x) === oldTitle ? (newTitle || x) : x)) : past;
+    const label = newTitle || oldTitle;
+    const left = (has(cur, label) || (renamed && has(cur, oldTitle))) && !has(next, label);
+    if (left) nextPast = [...nextPast, label];
+    if (newTitle && has(next, newTitle)) nextPast = without(nextPast, newTitle);
+    const pastChanged = pastText(nextPast) !== pastText(past);
+    const projChanged = !(next.length === cur.length && next.every((x, i) => key(x) === key(cur[i])));
+    if (!projChanged && !pastChanged) return;
     const added = newTitle && has(next, newTitle) && !has(cur, newTitle);
-    jobs.push({ list: 'directory', id: person.id, data: { Project: next },
-      note: `${added ? 'เพิ่ม' : renamed && newTitle ? 'แก้ชื่อ' : 'เอา'}โครงการ${added || (renamed && newTitle) ? 'ให้' : 'ออกจาก'} ${name}` });
+    const data = {};
+    if (projChanged) data.Project = next;
+    if (pastChanged) data[PAST_KEY] = pastText(nextPast);
+    jobs.push({ list: 'directory', id: person.id, data,
+      note: projChanged ? `${added ? 'เพิ่ม' : renamed && newTitle ? 'แก้ชื่อ' : 'เอา'}โครงการ${added || (renamed && newTitle) ? 'ให้' : 'ออกจาก'} ${name}${left ? ' (เก็บในประวัติ)' : ''}`
+        : `แก้ประวัติโครงการของ ${name}` });
   });
   return apply(jobs);
 }
@@ -104,6 +127,17 @@ export async function syncFromPerson(before, after) {
       note: `${joined ? 'เพิ่มเข้า' : renamed && newName ? 'แก้ชื่อใน' : 'เอาออกจาก'}ทีมโครงการ ${title}`
         + ('Owner' in data && !data.Owner ? ' (ผู้รับผิดชอบหลักว่างลง)' : '') });
   });
+  // ประวัติของคนนี้: โครงการที่เอาติ๊กออก → เก็บใน PastProjects · ติ๊กกลับ → เอาออกจากประวัติ
+  const id = (after && after.id) || (before && before.id);
+  if (after && id) {
+    const past = pastOf(after.PastProjects != null ? after : before);
+    let nextPast = past;
+    was.filter((t) => !has(now, t)).forEach((t) => { nextPast = [...nextPast, t]; });
+    now.forEach((t) => { nextPast = without(nextPast, t); });
+    if (pastText(nextPast) !== pastText(past)) {
+      jobs.push({ list: 'directory', id, data: { [PAST_KEY]: pastText(nextPast) }, note: `บันทึกประวัติโครงการของ ${newName}` });
+    }
+  }
   return apply(jobs);
 }
 

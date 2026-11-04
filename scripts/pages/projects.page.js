@@ -1,4 +1,5 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
+import { pastOf } from '../services/project-sync.js';
 import { list } from '../services/data.js';
 import { state, setState } from '../core/state.js';
 import { thaiDateShort } from '../utils/format.js';
@@ -316,6 +317,16 @@ function openProject(p) {
               ${toArray(p.Team).map((n) => personChip(n, 'ทีมงาน')).join('')}
             </div>
           </div>` : ''}
+        ${(() => {
+          // เคยรับผิดชอบ = คนที่ย้ายออกจากโครงการนี้แล้ว (ประวัติ PastProjects ในข้อมูลบุคลากร)
+          const k = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+          const now = new Set([k(p.Owner), ...toArray(p.Team).map(k)]);
+          const past = staff.filter((x) => pastOf(x).includes(k(p.Title)) && !now.has(k(x.Title)));
+          return past.length ? `<details class="pp-block pp-past">
+            <summary><h4>เคยรับผิดชอบ <span class="dim">(${past.length} คน)</span></h4></summary>
+            <div class="pp-grid">${past.map((x) => personChip(x.Title, 'เคยรับผิดชอบ')).join('')}</div>
+          </details>` : '';
+        })()}
       </div>`,
     footer: `<button class="btn-mini" data-vhistory="${p.id}">🕓 ประวัติความคืบหน้า</button>
              <button class="btn-mini" data-vexport="${p.id}">⬇ ส่งออกรายงาน</button>

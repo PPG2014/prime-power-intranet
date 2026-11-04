@@ -444,3 +444,10 @@
 @font-face { font-family: 'Report Sarabun'; src: url('../../assets/fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 600 800; }
 .rpx-img, .rpx-img * { font-family: 'Report Sarabun', sans-serif !important; }
 
+
+/* รายละเอียดโครงการ: คนที่เคยรับผิดชอบ (ย้ายออกแล้ว) — พับไว้ กดเพื่อดู */
+.pp-past summary { cursor: pointer; list-style: none; }
+.pp-past summary::-webkit-details-marker { display: none; }
+.pp-past summary h4::before { content: '▸ '; color: var(--muted); }
+.pp-past[open] summary h4::before { content: '▾ '; }
+.pp-past .pp-chip { opacity: .75; }
