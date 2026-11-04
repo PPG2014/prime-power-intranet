@@ -114,6 +114,11 @@
 .pcard-photo { width: 70px; height: 90px; flex: none; border-radius: 8px; overflow: hidden; background: #eef2f6;
   display: flex; align-items: center; justify-content: center; }
 .pcard-photo img { width: 100%; height: 100%; object-fit: cover; }
+/* ชี้ที่รูป → รูปขยายใหญ่ (3 เท่า) ทับการ์ด · การ์ดอยู่ครึ่งล่างของจอ ขยายขึ้นด้านบนแทน */
+.pcard-photo { position: relative; z-index: 1; cursor: zoom-in; transition: transform .18s ease, box-shadow .18s ease; transform-origin: top left; }
+.pcard-photo:hover { transform: scale(3); z-index: 5; box-shadow: 0 10px 30px rgba(0,0,0,.35); border-radius: 4px; }
+.pcard.pcard-up .pcard-photo { transform-origin: bottom left; }
+@media (prefers-reduced-motion: reduce) { .pcard-photo { transition: none; } }
 .pcard-photo span { font-size: 22px; font-weight: 700; color: #a9b2ba; }
 .pcard-info { min-width: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
 .pcard-name { font-weight: 700; font-size: 14.5px; color: var(--navy); }
