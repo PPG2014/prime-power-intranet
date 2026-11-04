@@ -52,8 +52,11 @@ const peopleOf = (p) => uniq([...names(p && p.Owner), ...names(p && p.Team)]);
 async function apply(jobs) {
   const done = [], failed = [];
   for (const j of jobs) {
-    try { await update(j.list, j.id, j.data); done.push(j.note); }
-    catch (e) { failed.push(`${j.note} — ${e.message}`); }
+    try {
+      const res = await update(j.list, j.id, j.data);
+      const lost = (res && res.dropped) || [];   // SharePoint ไม่รับบางช่อง/ล้างค่าไม่ได้ → ถือว่าไม่สำเร็จ ไม่ใช่เงียบ
+      if (lost.length) failed.push(`${j.note} — ${lost.join(' · ')}`); else done.push(j.note);
+    } catch (e) { failed.push(`${j.note} — ${e.message}`); }
   }
   if (jobs.length) { clearDataCache('directory'); clearDataCache('projects'); }
   return { done, failed };

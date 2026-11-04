@@ -816,11 +816,13 @@ export async function openProjectEditor(record, onSaved) {
         } catch (e) { console.warn('บันทึกประวัติไม่สำเร็จ:', e.message); }
       }
       data.UpdatedDate = new Date().toISOString();
-      await update(sc.list, record.id, data);
+      const res = await update(sc.list, record.id, data);
       const sync = syncSummary(await syncFromProject(record, { ...record, ...data }), 'ช่องโครงการของบุคลากร');
+      const lost = [...((res && res.skipped) || []), ...((res && res.dropped) || [])];
       clearCaches();
       closeModal();
-      if (sync) alert('บันทึกแล้ว\n\n' + sync);
+      const msg = [lost.length ? 'บางช่องยังไม่ถูกบันทึก\n  ' + lost.join('\n  ') : '', sync].filter(Boolean).join('\n\n');
+      if (msg) alert('บันทึกแล้ว\n\n' + msg);
       if (onSaved) onSaved();
     } catch (e) {
       console.error(e);
