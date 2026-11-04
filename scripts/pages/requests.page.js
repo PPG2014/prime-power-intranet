@@ -24,6 +24,7 @@ import { isSolar, SOLAR_FIELDS, SCHEDULE } from '../services/solar.js';
 import { isEmpWelfare, empWelfareFields } from '../templates/emp-welfare.js';
 import { personRef, personRefs, bindPersonCards } from '../components/person-card.js';
 import { pastEntries } from '../services/project-sync.js';
+import { QUEUE_FIELDS } from '../services/booking.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
@@ -44,6 +45,7 @@ let me = '';
 let meIds = [];
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
 let notInDir = false; // หาผู้ใช้ในทะเบียนบุคลากรไม่เจอ → ระบบไม่รู้ว่าเป็นผู้อนุมัติใบไหน
+let calFor = null;    // ปฏิทินของแบบฟอร์มที่เลือก (จองรถ / คิว Messenger / คิวงานติดตั้ง) { code, kind } หรือ null
 let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดตามได้ทุกใบตามฝ่าย (ดูอย่างเดียวถ้าไม่ได้อยู่ในเส้นทาง)
 
 /**
@@ -373,6 +375,15 @@ export async function render(ctx) {
   const activeTab = (groups.some((g) => g.code === state.reviewTab) && state.reviewTab)
     || (groups[0] && groups[0].code) || '';
   const shownGroup = groups.find((g) => g.code === activeTab) || groups[0];
+  // แบบฟอร์มที่จองเป็นช่วงเวลา → แสดงปฏิทินด้านขวา (ตัวเดียวกับหน้ากรอกแบบฟอร์ม)
+  calFor = null;
+  if (shownGroup) {
+    const rowsData = shownGroup.rows.map(carData);
+    const kind = shownGroup.rows.some(isCarRequest) ? 'car'
+      : isInstallCode(shownGroup.code) ? 'install'
+      : rowsData.some((d) => d && d[QUEUE_FIELDS.date] && d[QUEUE_FIELDS.from]) ? 'queue' : '';
+    if (kind) calFor = { code: shownGroup.code, kind };
+  }
   const reviewStatus = state.reviewStatus || '';
   const isPRTab = !!shownGroup && isPR(shownGroup.code);
   // แถบกรองสถานะ: ใบขอสั่งซื้อ = สถานะจัดซื้อ · แบบฟอร์มที่มีสถานะติดตามงาน (เช่น ค่าแรงผู้รับเหมา)
@@ -478,7 +489,9 @@ export async function render(ctx) {
             </div></div>`}
         </main>`}
 
-        <aside class="rq-mine">
+        <aside class="rq-mine${calFor ? ' has-cal' : ''}">
+          ${calFor ? `<div class="rq-cal"><div class="rq-cal-h">📅 ${calFor.kind === 'car' ? 'ปฏิทินการใช้รถยนต์บริษัทฯ'
+            : calFor.kind === 'install' ? 'ปฏิทินคิวงานติดตั้ง PPE' : 'ปฏิทินคิว Messenger'}</div><div id="queue-cal"></div></div>` : ''}
           <div class="panel">
             <div class="panel-head">📄 คำขอของฉัน
               <span class="panel-meta">${unreadCount ? `<span class="tab-badge">${unreadCount} ใหม่</span> ` : ''}${mineFiltered.length} รายการ</span></div>
@@ -1606,7 +1619,11 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 }
 
 export function mount(ctx) {
-  bindPersonCards();   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
+  bindPersonCards();
+  if (calFor && document.getElementById('queue-cal')) {
+    import('../components/queue-calendar.js').then(({ mountQueueCalendar }) =>
+      mountQueueCalendar(calFor.code, { kind: calFor.kind, fresh: false })).catch(() => {});
+  }   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
   // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
   onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));
   onClick('rqst', (st) => quick({ reviewStatus: st || '', reviewPage: 1 }));
