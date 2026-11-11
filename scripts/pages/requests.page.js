@@ -264,7 +264,8 @@ function resubInfo(req) {
   const i = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
   if (i < 0) return null;
   const back = [...log.slice(0, i)].reverse().find((l) => l.action === 'ส่งกลับแก้ไข');
-  return { at: log[i].at, by: log[i].by, sentBackBy: back ? back.by : '' };
+  if (!back) return null;   // ผู้ยื่นแก้ไขเองก่อนมีใครอนุมัติ (ไม่ได้ถูกส่งกลับ) ไม่นับ
+  return { at: log[i].at, by: log[i].by, sentBackBy: back.by || '' };
 }
 
 function requestRow(req, opts = {}) {
