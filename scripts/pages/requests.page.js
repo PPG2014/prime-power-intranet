@@ -253,6 +253,21 @@ function searchText(req) {
 }
 const matchQ = (req, q) => q.split(/\s+/).every((w) => searchText(req).includes(w));
 
+/**
+ * คำขอที่ถูกส่งกลับแก้ไข แล้วผู้ยื่นแก้ไขและยื่นกลับมาใหม่ (กำลังรออนุมัติรอบใหม่)
+ * คืน { at, by, sentBackBy } หรือ null · sentBackBy = ผู้ที่ส่งกลับแก้ไขรอบก่อน
+ */
+const RESUB_FILTER = '__resub';
+function resubInfo(req) {
+  if (String(req.Status || '').trim() !== 'รออนุมัติ') return null;
+  const log = parseLog(req.ApprovalLog);
+  const i = log.map((l) => l.action).lastIndexOf('ยื่นใหม่');
+  if (i < 0) return null;
+  const back = [...log.slice(0, i)].reverse().find((l) => l.action === 'ส่งกลับแก้ไข');
+  if (!back) return null;   // ผู้ยื่นแก้ไขเองก่อนมีใครอนุมัติ (ไม่ได้ถูกส่งกลับ) ไม่นับ
+  return { at: log[i].at, by: log[i].by, sentBackBy: back.by || '' };
+}
+
 function requestRow(req, opts = {}) {
   const steps = req._steps || stepCache[req.FormCode] || [];
   const cur = +req.CurrentStep || 1;
@@ -269,6 +284,8 @@ function requestRow(req, opts = {}) {
       <div class="rq-foot">
         ${statusPill(req.Status)}
         ${req.Status === 'รออนุมัติ' && curName ? `<span class="rq-step">รอ: ${esc(curName)}</span>` : ''}
+        ${(() => { const rs = resubInfo(req); return rs ? `<span class="rq-resub" title="ผู้ยื่นแก้ไขและยื่นกลับมาใหม่เมื่อ ${esc(thaiDateTime(rs.at))}${
+          rs.sentBackBy ? ` (ส่งกลับแก้ไขโดย ${esc(rs.sentBackBy)})` : ''} · เริ่มอนุมัติใหม่ตั้งแต่ลำดับแรก">🔁 แก้ไขกลับมาแล้ว</span>` : ''; })()}
         ${needChip(req)}
         ${isCarRequest(req) && carData(req).car_plate ? `<span class="rq-pstatus">🚗 ${esc(carData(req).car_plate)}${carData(req).car_returned_at ? ' · คืนแล้ว' : ''}</span>` : ''}
         ${opts.showRequester ? `<span class="rq-by">${esc(req.RequesterName || '')}</span>` : ''}
@@ -281,7 +298,7 @@ function requestRow(req, opts = {}) {
     return buy || prNo ? `<span class="rq-prgrp">${buy}${prNo}</span>` : '';
   })()}
         <time title="ยื่นเมื่อ ${esc(thaiDateTime(req.SubmittedDate))}">${esc(thaiDateTime(req.SubmittedDate))}</time>
-        ${opts.canAct ? '<span class="rq-act-flag">ถึงคิวคุณ</span>' : ''}
+        ${opts.canAct ? `<span class="rq-act-flag${resubInfo(req) ? ' again' : ''}">${resubInfo(req) ? 'ถึงคิวคุณอีกครั้ง' : 'ถึงคิวคุณ'}</span>` : ''}
         ${opts.waiting ? '<span class="rq-wait-flag" title="คุณอยู่ลำดับถัดไป ดูได้อย่างเดียวจนกว่าจะถึงคิว">👁 ยังไม่ถึงคิว</span>' : ''}
         ${opts.unread ? '<span class="rq-new-flag">● มีความเคลื่อนไหว</span>' : ''}
       </div>
@@ -392,7 +409,8 @@ export async function render(ctx) {
   const reviewPStatus = pFilters.includes(state.reviewPStatus) ? state.reviewPStatus : '';
   const isNeedTab = !!shownGroup && NEED_DATE_FORMS.includes(shownGroup.code);
   const reviewNeed = isNeedTab ? (state.reviewNeed || '') : '';
-  const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus || String(r.Status || '').trim() === reviewStatus)
+  const shownRows = shownGroup ? shownGroup.rows.filter((r) => (!reviewStatus
+      || (reviewStatus === RESUB_FILTER ? !!resubInfo(r) : String(r.Status || '').trim() === reviewStatus))
     && (!reviewPStatus || purchaseStatusOf(r) === reviewPStatus)
     && (!reviewNeed || needInfo(r)?.tone === reviewNeed)) : [];
   // แบ่งหน้า: เกิน 40 ใบต่อแบบฟอร์ม → แสดงทีละหน้า ไม่ต้องเลื่อนหายาว
@@ -413,6 +431,8 @@ export async function render(ctx) {
   const actableCount = toReview.filter((r) =>
     roleOnRequest(r, r._steps || [], meIds).canActNow).length;
 
+  const resubCount = toReview.filter((r) => resubInfo(r) && roleOnRequest(r, r._steps || [], meIds).canActNow).length;
+
   return `
   <section class="page page-requests">
     <div class="wrap">
@@ -427,6 +447,7 @@ export async function render(ctx) {
           <div class="rq-head-row">
             <h2>${seeAll ? 'คำขอทั้งหมด' : watchForms.length ? 'คำขอที่ต้องดำเนินการ / ติดตาม' : 'คำขอที่ต้องดำเนินการ'}</h2>
             ${actableCount ? `<span class="rq-badge">${actableCount} รายการถึงคิวคุณ</span>` : ''}
+            ${resubCount ? `<span class="rq-badge resub" title="ถูกส่งกลับแก้ไข แล้วผู้ยื่นแก้ไขกลับมา — ถึงคิวคุณอีกครั้ง">🔁 ${resubCount} ใบแก้ไขกลับมาแล้ว</span>` : ''}
           </div>
 
           ${toReview.length ? `<div class="rq-search">
@@ -449,6 +470,14 @@ export async function render(ctx) {
                 <button data-rqst="" aria-pressed="${!reviewStatus}">ทั้งหมด <b>${shownGroup.rows.length}</b></button>
                 ${chips.map((st) => `<button data-rqst="${esc(st)}" class="st-${STATUS_TONE[st] || 'gray'}" aria-pressed="${st === reviewStatus}">${esc(st)}${
                   st === 'รออนุมัติ' && cnt(st) ? ` <span class="tab-badge" title="รออนุมัติ ${cnt(st)} ใบ">${cnt(st)}</span>` : ` <b>${cnt(st)}</b>`}</button>`).join('')}
+                ${(() => {   // คำขอที่แก้ไขแล้วยื่นกลับมา (รออนุมัติรอบใหม่) · ตัวเลขแดง = ใบที่ถึงคิวคุณ
+                  const rs = shownGroup.rows.filter((r) => resubInfo(r));
+                  if (!rs.length && reviewStatus !== RESUB_FILTER) return '';
+                  const mineNow = rs.filter((r) => roleOnRequest(r, r._steps || [], meIds).canActNow).length;
+                  return `<button data-rqst="${RESUB_FILTER}" class="st-amber rq-resub-chip" aria-pressed="${reviewStatus === RESUB_FILTER}"
+                    title="ถูกส่งกลับแก้ไข แล้วผู้ยื่นแก้ไขและยื่นกลับมาใหม่${mineNow ? ` · ถึงคิวคุณ ${mineNow} ใบ` : ''}">🔁 แก้ไขกลับมา${
+                    mineNow ? ` <span class="tab-badge">${mineNow}</span>` : ''} <b>${rs.length}</b></button>`;
+                })()}
               </div>${pFilters.length ? `<div class="rq-stfilter rq-pfilter" role="group" aria-label="กรองตาม${shownTrack ? shownTrack.label : 'สถานะจัดซื้อ'}">
                 <span class="rq-pf-label">${shownTrack ? `${shownTrack.icon} ${shownTrack.label}` : '📦 สถานะจัดซื้อ'}</span>
                 <button data-rqpst="" aria-pressed="${!reviewPStatus}">ทั้งหมด</button>

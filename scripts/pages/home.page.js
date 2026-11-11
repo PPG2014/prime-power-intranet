@@ -12,6 +12,20 @@ import { localDay } from '../services/car.js';
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
 let newsRows = [];
+
+/** ป้ายข่าว: NEW วิบวับ (อัตโนมัติ 7 วันแรกนับจากวันที่ประกาศ หรือเลือกป้าย "ใหม่") · สำคัญ / ด่วน เลือกในหน้าจัดการข้อมูล */
+const NEW_DAYS = 7;
+const NEW_BADGE = '<b class="news-new" aria-label="ข่าวใหม่"><i>NEW</i></b>';
+const badgeOf = (n) => String((n && n.Badge) || '').trim();
+function isNewNews(n) {
+  if (badgeOf(n) === 'ใหม่') return true;
+  const d = n && n.PublishDate ? new Date(n.PublishDate) : null;
+  if (!d || isNaN(d)) return false;
+  const age = (Date.now() - d.getTime()) / 86400000;
+  return age >= -1 && age <= NEW_DAYS;
+}
+const newsTag = (n) => (badgeOf(n) === 'ด่วน' ? '<b class="news-tag urgent">ด่วน</b> '
+  : badgeOf(n) === 'สำคัญ' ? '<b class="news-tag important">สำคัญ</b> ' : '');
 let msgCodeList = [];   // รหัสฟอร์มจองคิว Messenger ทุกตัว ใช้เปิดปฏิทินคิวทั้งหมด
 
 export async function render(ctx) {
@@ -80,8 +94,8 @@ export async function render(ctx) {
             ${pinned.length ? `<ul class="side-list">
               ${pinned.map((n) => `<li>
                 <button data-news="${n.id}">
-                  <span class="st">${n.IsPinned ? '<b class="pin">ปักหมุด</b> ' : ''}${esc(n.Title)}</span>
-                  <time>${esc(thaiDateShort(n.PublishDate))}</time>
+                  <span class="st">${n.IsPinned ? '<b class="pin">ปักหมุด</b> ' : ''}${newsTag(n)}${esc(n.Title)}</span>
+                  <span class="news-when"><time>${esc(thaiDateShort(n.PublishDate))}</time>${isNewNews(n) ? NEW_BADGE : ''}</span>
                 </button></li>`).join('')}</ul>`
               : '<div class="side-empty">ยังไม่มีข่าวประกาศ</div>'}
           </div>
@@ -166,7 +180,7 @@ export function mount(ctx) {
     openModal({
       title: n.Title, wide: true,
       body: `
-        <div class="doc-meta"><span>${esc(thaiDateShort(n.PublishDate))}</span></div>
+        <div class="doc-meta"><span>${esc(thaiDateShort(n.PublishDate))}</span>${newsTag(n)}${isNewNews(n) ? NEW_BADGE : ''}</div>
         ${imgs.length ? `<div class="news-imgs">${imgs.map((a) => `
           <a class="news-img" href="${esc(a.url)}" target="_blank" rel="noopener" title="เปิดรูปขนาดเต็ม">
             <img data-photo="${esc(a.url)}" alt="${esc(a.name || n.Title)}" loading="lazy"></a>`).join('')}</div>` : ''}

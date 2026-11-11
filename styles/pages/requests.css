@@ -595,3 +595,10 @@
 .rq-drawer-tab:hover { background: #0d4a94; padding-right: 10px; }
 .rq-tab-txt { writing-mode: vertical-rl; letter-spacing: .5px; }
 @media (max-width: 640px) { .rq-drawer-tab { top: auto; bottom: 90px; } }
+
+/* แก้ไขแล้วยื่นกลับมาใหม่ (หลังถูกส่งกลับแก้ไข) */
+.rq-resub { font-size: 11.5px; font-weight: 700; color: #8a4b00; background: #ffe9c2; border: 1px solid #f5c26b; border-radius: 20px; padding: 1px 9px; }
+.rq-act-flag.again { background: #d9480f; animation: rq-again 1.6s ease-in-out infinite; }
+@keyframes rq-again { 0%, 100% { box-shadow: 0 0 0 0 rgba(217, 72, 15, .55); } 50% { box-shadow: 0 0 0 6px rgba(217, 72, 15, 0); } }
+.rq-badge.resub { background: #d9480f; }
+@media (prefers-reduced-motion: reduce) { .rq-act-flag.again { animation: none; } }
