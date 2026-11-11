@@ -132,7 +132,8 @@ function statusPill(s) {
 }
 
 /** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
-const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ' };
+const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ',
+  inst_ok_from: 'วันเข้าติดตั้งที่กำหนด', inst_ok_to: 'ติดตั้งถึงวันที่ (ที่กำหนด)' };
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
 export async function formFieldsOf(code) {
@@ -744,7 +745,7 @@ async function openRequest(req) {
           ${v.map(row=>`<tr>${cols.map(c=>`<td>${esc(row[c[0].trim()]||'')}</td>`).join('')}</tr>`).join('')}
           </table></div>`;
       }
-      const isDate = (f && f.FieldType === 'date') || k === 'std_date' || k === 'pr_date'
+      const isDate = (f && f.FieldType === 'date') || k === 'std_date' || k === 'pr_date' || k === IF.okFrom || k === IF.okTo
         || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
       // ไฟล์แนบ: กดเปิดได้ (รูปภาพโชว์ตัวอย่างด้วย)
       if (Array.isArray(v) && v.some((x) => x && typeof x === 'object' && x.url)) {
