@@ -176,6 +176,7 @@ Column settings → Edit → Choices ใส่ตามลำดับนี้ 
 | คอลัมน์ | ชนิด |
 |---|---|
 | Badge | Single line of text |
+| SortOrder | Number (จัดลำดับข่าวเองในหน้าจัดการข้อมูล) |
 
 `Documents` ที่ต้องแก้คือตัวที่เราสร้างเอง GUID `0a41f646-cfff-44c4-b0fd-782cb61e19db`
 ไม่ใช่คลังเอกสารที่ติดมากับไซต์ซึ่งชื่อซ้ำกัน

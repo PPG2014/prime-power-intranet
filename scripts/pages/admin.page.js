@@ -94,7 +94,10 @@ export async function render(ctx) {
         || ((+a[s.sortField] || 0) - (+b[s.sortField] || 0))
         || ((+b.id || 0) - (+a.id || 0)));   // วันที่อ่านไม่ได้ ใช้รายการที่เพิ่มทีหลังขึ้นก่อน
     } else if (s.sortField) {
-      rows.sort((a, b) => (+a[s.sortField] || 0) - (+b[s.sortField] || 0));
+      // tieDesc: ลำดับเท่ากัน (เช่นยังไม่ได้จัดลำดับ = 0) → วันที่ล่าสุดขึ้นก่อน
+      const t = (x) => { const d = new Date(x[s.tieDesc]); return isNaN(d) ? 0 : d.getTime(); };
+      rows.sort((a, b) => ((+a[s.sortField] || 0) - (+b[s.sortField] || 0))
+        || (s.tieDesc ? (t(b) - t(a)) || ((+b.id || 0) - (+a.id || 0)) : 0));
     }
   } catch (err) {
     console.error(err);
@@ -628,7 +631,13 @@ export function mount(ctx) {
     const changed = order.map((r, k) => ({ r, n: k + 1 })).filter(({ r, n }) => +r[f] !== n);
     let done = 0;
     for (let k = 0; k < changed.length; k += 6) {
-      await Promise.all(changed.slice(k, k + 6).map(({ r, n }) => update(s.list, r.id, { [f]: n })));
+      const res = await Promise.all(changed.slice(k, k + 6).map(({ r, n }) => update(s.list, r.id, { [f]: n })));
+      // ไม่มีคอลัมน์ลำดับใน SharePoint → ลำดับบันทึกไม่ได้ แจ้งครั้งเดียวแล้วหยุด (ไม่งั้นดูเหมือนกดแล้วไม่เกิดอะไร)
+      if (res.some((x) => x && (x.skipped || []).includes(f))) {
+        clearCaches(); rerender();
+        alert(`จัดลำดับไม่ได้ — List "${s.spName || s.list}" ใน SharePoint ยังไม่มีคอลัมน์ ${f}\n\nเพิ่มคอลัมน์ชื่อ ${f} ชนิด Number แล้วลองใหม่`);
+        return;
+      }
       done = Math.min(changed.length, k + 6);
       onProgress(done, changed.length);
     }
