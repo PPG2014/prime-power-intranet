@@ -57,8 +57,12 @@ export async function render(ctx) {
   const popular = forms
     .filter((f) => f.IsActive !== false && (f.Badge === 'ใช้บ่อย' || f.Badge === 'ใหม่'))
     .slice(0, 6);
+  // ปักหมุดขึ้นก่อน → ลำดับที่จัดไว้ในหน้าจัดการข้อมูล (SortOrder) → วันที่ล่าสุด (ข่าวที่ยังไม่ได้จัดลำดับอยู่บนสุดของกลุ่ม)
+  const newsTime = (n) => { const d = new Date(n.PublishDate); return isNaN(d) ? 0 : d.getTime(); };
   const pinned = [...newsRows]
-    .sort((a, b) => (b.IsPinned ? 1 : 0) - (a.IsPinned ? 1 : 0))
+    .sort((a, b) => ((b.IsPinned ? 1 : 0) - (a.IsPinned ? 1 : 0))
+      || ((+a.SortOrder || 0) - (+b.SortOrder || 0))
+      || (newsTime(b) - newsTime(a)) || ((+b.id || 0) - (+a.id || 0)))
     .slice(0, 6);
   const manuals = docs.filter((d) => d.DocType === 'คู่มือ' && d.IsActive !== false).slice(0, 5);
 

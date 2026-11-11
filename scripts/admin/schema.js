@@ -328,7 +328,8 @@ export const SCHEMA = {
 
   news: {
     title: 'ข่าวประกาศ', icon: '📢', list: 'news', spName: 'News',
-    search: true, facets: ['IsPinned'], dateDesc: 'PublishDate',
+    // จัดลำดับเองได้ (ลาก/↑↓/พิมพ์เลข) · ข่าวที่ยังไม่ได้จัดลำดับ (ข่าวใหม่) ขึ้นบนสุด เรียงตามวันที่ล่าสุด
+    search: true, facets: ['IsPinned'], sortField: 'SortOrder', tieDesc: 'PublishDate',
     columns: ['Title', 'PublishDate', 'IsPinned', 'Files'],
     labels: { Title: 'หัวข้อ', PublishDate: 'วันที่', IsPinned: 'ปักหมุด', Files: 'ไฟล์แนบ' },
     fields: [
