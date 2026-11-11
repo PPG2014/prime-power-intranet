@@ -9,6 +9,9 @@ import { toast } from '../components/toast.js';
 import { HOLIDAY_SETTING, holidays, holidaysSaved, parseHolidays, thDay } from '../services/install.js';
 
 let draft = [];
+/** ปีที่ผู้ใช้กดพับ/กางเอง (จำไว้ระหว่างที่หน้านี้เปิดอยู่) · ค่าเริ่มต้น: ปีนี้และปีถัดไปกาง ปีที่ผ่านแล้วพับ */
+const openYears = new Set();
+const closedYears = new Set();
 let saved = '';
 const fmt = (rows) => JSON.stringify(parseHolidays(JSON.stringify(rows.filter((r) => r.date))));
 const dirty = () => fmt(draft) !== saved;
@@ -43,14 +46,30 @@ function paint() {
     </div>
     ${dirty() ? `<div class="om-unsaved">${saved ? 'มีการแก้ไขที่ยังไม่บันทึก' : 'กรอกวันหยุดบริษัทฯ ปี 2569 ไว้ให้แล้ว — ตรวจแล้วกด 💾 บันทึก'}</div>` : ''}
     <section class="om-group">
-      <ol class="om-items hol-items">
-        ${draft.map((r, i) => `<li class="hol-row">
+      ${(() => {
+        // จัดกลุ่มตามปี พ.ศ. (เรียงวันที่ในกลุ่ม) · ปีที่ผ่านไปแล้วพับไว้ · แถวที่ยังไม่เลือกวันอยู่กลุ่มท้าย
+        const row = (r, i) => `<li class="hol-row">
           <input type="date" class="hol-date" data-i="${i}" value="${esc(r.date)}">
           <span class="dim hol-dow">${r.date ? `${esc(dow(r.date))} · ${esc(thDay(r.date))}` : ''}</span>
           <input class="om-iname hol-name" data-i="${i}" value="${esc(r.name)}" placeholder="ชื่อวันหยุด เช่น วันพ่อแห่งชาติ" maxlength="120">
           <button class="btn-mini danger" data-hol="del" data-i="${i}" title="ลบ">✕</button>
-        </li>`).join('') || '<div class="empty">ยังไม่มีวันหยุด — นับเฉพาะเสาร์-อาทิตย์เป็นวันหยุด</div>'}
-      </ol>
+        </li>`;
+        if (!draft.length) return '<div class="empty">ยังไม่มีวันหยุด — นับเฉพาะเสาร์-อาทิตย์เป็นวันหยุด</div>';
+        const groups = new Map();
+        draft.forEach((r, i) => { const y = r.date ? r.date.slice(0, 4) : ''; if (!groups.has(y)) groups.set(y, []); groups.get(y).push([r, i]); });
+        const years = [...groups.keys()].filter(Boolean).sort();
+        const html = years.map((y) => {
+          const rows = groups.get(y).sort(([a], [b]) => a.date.localeCompare(b.date));
+          const open = openYears.has(y) || (!closedYears.has(y) && +y >= year);
+          return `<details class="hol-year" data-year="${y}" ${open ? 'open' : ''}>
+            <summary><b>ปี พ.ศ. ${+y + 543}</b> <span class="dim">(ค.ศ. ${y}) · ${rows.length} วัน</span>${+y === year ? ' <span class="hol-now">ปีนี้</span>' : ''}</summary>
+            <ol class="om-items hol-items">${rows.map(([r, i]) => row(r, i)).join('')}</ol>
+          </details>`;
+        }).join('');
+        const blank = groups.get('') || [];
+        return html + (blank.length ? `<div class="hol-year hol-blank"><div class="hol-blank-h">ยังไม่ได้เลือกวันที่ <span class="dim">· เลือกวันแล้วจะย้ายไปอยู่ในปีนั้นเอง</span></div>
+          <ol class="om-items hol-items">${blank.map(([r, i]) => row(r, i)).join('')}</ol></div>` : '');
+      })()}
       <button class="btn-mini om-add" data-hol="add">＋ เพิ่มวันหยุด</button>
       <details class="hol-paste"><summary>วางหลายวันพร้อมกัน</summary>
         <textarea id="hol-text" rows="5" placeholder="2026-12-05 วันพ่อแห่งชาติ&#10;2026-12-10 วันรัฐธรรมนูญ&#10;2026-12-31 วันสิ้นปี"></textarea>
@@ -88,9 +107,19 @@ export function bindHolidayEditor() {
     const t = e.target;
     if (t.classList.contains('hol-name')) { draft[+t.dataset.i].name = t.value; refresh(); }
   });
+  box.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.classList || !d.classList.contains('hol-year') || !d.dataset.year) return;
+    (d.open ? openYears : closedYears).add(d.dataset.year);
+    (d.open ? closedYears : openYears).delete(d.dataset.year);
+  }, true);
   box.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.classList.contains('hol-date')) { draft[+t.dataset.i].date = t.value; paint(); }
+    if (t.classList.contains('hol-date')) {
+      draft[+t.dataset.i].date = t.value;
+      if (t.value) { openYears.add(t.value.slice(0, 4)); closedYears.delete(t.value.slice(0, 4)); }   // กางปีที่แถวนี้ย้ายไปอยู่
+      paint();
+    }
   });
   box.addEventListener('click', (e) => {
     const b = e.target.closest('[data-hol]');
