@@ -15,7 +15,7 @@ let newsRows = [];
 
 /** ป้ายข่าว: NEW วิบวับ (อัตโนมัติ 7 วันแรกนับจากวันที่ประกาศ หรือเลือกป้าย "ใหม่") · สำคัญ / ด่วน เลือกในหน้าจัดการข้อมูล */
 const NEW_DAYS = 7;
-const NEW_BADGE = '<b class="news-new" aria-label="ข่าวใหม่">NEW</b>';
+const NEW_BADGE = '<b class="news-new" aria-label="ข่าวใหม่"><i>NEW</i></b>';
 const badgeOf = (n) => String((n && n.Badge) || '').trim();
 function isNewNews(n) {
   if (badgeOf(n) === 'ใหม่') return true;
