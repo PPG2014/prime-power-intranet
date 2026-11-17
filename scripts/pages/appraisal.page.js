@@ -12,7 +12,7 @@ import {
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
-import { summarize, hasCustom, loadKpiConfig } from '../services/kpi.js';
+import { summarize, hasCustom, loadKpiConfig, kpiPhase, kpiFcBySelf } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
@@ -35,6 +35,8 @@ let allCycles = [];        // ทุกรอบ ใช้เปิดใบป�
 let myHistory = [];        // ใบประเมินของฉันทุกรอบ (ดูย้อนหลัง)
 let shownId = null;        // ใบที่แสดงเป็นหลักด้านบน (ทำเครื่องหมายในตารางประวัติ)
 let dirAll = [];           // ทะเบียนบุคลากร (ใช้ใน Dashboard KPI)
+/** ฝ่ายบุคคลคนนี้ตรวจใบนี้ได้ (กำหนดตัวไว้ในใบ หรือไม่กำหนด = ทุกคนในฝ่ายบุคคล) */
+const hrCanRow = (r) => canHrReview(r, { email: myEmail, isHR: state.isHR, isAdmin: state.isAdmin });
 /** ใบนี้เป็นแบบประเมิน KPI ประจำปี */
 const isKpi = (r) => sheetIsKpi(r) || isKpiSet(cycleOfSheet(r, allCycles)?.FormSet);
 /**
@@ -56,10 +58,10 @@ const TONE = {
   [STAGES[3]]: 'head', [STAGES[4]]: 'ack', [DONE]: 'done',
 };
 const dt = (v) => (v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-/** ชื่อสถานะที่แสดง · ขั้นฝ่ายบุคคลคือช่วงที่พนักงานกับฝ่ายบุคคลลงนามพร้อมกัน */
-const LABEL = { [STAGES[2]]: 'พนักงานรับทราบ · ฝ่ายบุคคลตรวจสอบ', [STAGES[3]]: 'รอผู้บริหาร' };
+/** ชื่อสถานะที่แสดง · ขั้นฝ่ายบุคคลคือช่วงที่บุคลากรกับฝ่ายบุคคลลงนามพร้อมกัน */
+const LABEL = { [STAGES[2]]: 'บุคลากรรับทราบ · ฝ่ายบุคคลตรวจสอบ', [STAGES[3]]: 'รอผู้บริหาร', [STAGES[4]]: 'บุคลากรรับทราบ' };
 const pill = (s, r = null) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(
-  (r && isKpiSet(r.FormSet) ? kpiStatusLabel(s) : LABEL[clean(s)]) || clean(s) || '—')}</span>`;
+  (r && isKpiSet(r.FormSet) ? kpiStatusLabel(s, r) : LABEL[clean(s)]) || clean(s) || '—')}</span>`;
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
@@ -136,7 +138,9 @@ export async function render(ctx) {
   const myRows = rows.filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
     .sort((a, b) => (+b.id || 0) - (+a.id || 0));
   const mineMain = myRows.find((r) => needsEmpSign(r)
-    || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok)) || myRows[0] || null;
+    || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok
+      && (!isKpi(r) || kpiPhase(r) === 'self'))
+    || (isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' && kpiFcBySelf(r))) || myRows[0] || null;
 
   // ประวัติการประเมินของฉันทุกรอบ รวมรอบที่แสดงอยู่ด้านบน — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
   allCycles = await list('appraisalCycles').catch(() => []);
@@ -290,7 +294,10 @@ function paneMeCurrent(mine) {
 function kpiMine(mine) {
   const st = clean(mine.Status);
   const g = stageOpen(cycleOf(mine), S_SELF);
-  const canSelf = st === S_SELF && !noSelf(mine) && g.ok;
+  const ph = kpiPhase(mine);
+  const canSelf = st === S_SELF && ph === 'self' && !noSelf(mine) && g.ok;
+  const due = (extraOf(mine).kpi || {}).selfDue;
+  const ownFc = st === S_SELF && ph === 'fc' && kpiFcBySelf(mine);   // MG: กำหนดหัวข้อเฉพาะตำแหน่งของตัวเอง
   const seeAll = [S_ACK, DONE].includes(st);
   const sum = summarize(mine);
   return `
@@ -303,12 +310,15 @@ function kpiMine(mine) {
     ${kpiTrackHtml(mine)}
     <div class="panel ap-ack kpi-mine">
       <h3>แบบประเมิน KPI ประจำปี</h3>
-      <p class="dim">${canSelf ? 'ประเมินตนเองได้แล้ว · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency'
+      <p class="dim">${canSelf ? `ประเมินตนเองได้แล้ว${due ? ` · <b>ภายในวันที่ ${esc(new Date(due).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</b>` : ''} · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency`
+        : ownFc ? 'ขั้นแรก: กำหนด Functional Competency เฉพาะตำแหน่งของคุณเอง (ข้อตัวแดง) แล้วส่งให้ฝ่ายบุคคลตรวจสอบ · ฝ่ายบุคคลจะเปิดให้ประเมินตนเองเมื่อตรวจหัวข้อแล้ว'
+        : st === S_SELF && ph === 'fc' ? 'รอผู้บังคับบัญชากำหนด Functional Competency เฉพาะตำแหน่ง · ฝ่ายบุคคลจะเปิดให้ประเมินตนเองเมื่อตรวจหัวข้อแล้ว'
+        : st === S_SELF && ph === 'fcHr' ? 'ฝ่ายบุคคลกำลังตรวจหัวข้อเฉพาะตำแหน่ง · จะเปิดให้ประเมินตนเองเร็ว ๆ นี้'
         : st === S_SELF ? esc(noSelf(mine) ? 'รอบนี้ผู้บังคับบัญชาเป็นผู้ประเมิน' : (g.why || 'ยังไม่เปิดให้ประเมินตนเอง'))
           : st === S_ACK ? 'ฝ่ายบุคคลส่งผลการประเมินให้รับทราบแล้ว · เปิดดูผลและลงนามรับทราบ'
             : st === DONE ? 'ลงนามรับทราบผลแล้ว · เปิดดูและพิมพ์เอกสารได้' : 'ส่งแบบประเมินตนเองแล้ว · ผลจะแสดงเมื่อฝ่ายบุคคลส่งให้รับทราบ'}
-        ${!hasCustom(mine) && st === S_SELF ? '<br>ผู้บังคับบัญชายังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง (จะเพิ่มเข้ามาในแบบประเมินเมื่อกำหนดแล้ว)' : ''}</p>
-      <button class="btn btn-primary" data-apopen="${mine.id}">${canSelf ? '✍ เปิดแบบประเมินตนเอง'
+        </p>
+      <button class="btn btn-primary" data-apopen="${mine.id}">${ownFc ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : canSelf ? '✍ เปิดแบบประเมินตนเอง'
         : st === S_ACK ? '✍ เปิดเพื่อลงนามรับทราบ' : '📄 เปิดดูแบบประเมิน'}</button>
     </div>
     ${logBox(mine)}`;
@@ -333,12 +343,12 @@ function paneTeam(team) {
           <td>${esc(clean(r.EmployeeName))}${liveCycles.length > 1 ? `<div class="dim">${esc(clean(r.CycleName))}</div>` : ''}</td>
           <td>${esc(clean(r.Section) || clean(r.Department))}</td>
           <td>${pill(r.Status, r)}${clean(r.Status) === S_SELF && !noSelf(r)
-            ? '<div class="ap-wait">รอพนักงานประเมินตนเองก่อน</div>' : ''}</td>
+            ? '<div class="ap-wait">รอบุคลากรประเมินตนเองก่อน</div>' : ''}</td>
           <td class="num">${selfFix(r)}</td>
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
             clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน'
-              : isKpi(r) && clean(r.Status) === S_SELF && !hasCustom(r) ? 'กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
+              : isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' && !kpiFcBySelf(r) ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
         </tr>`).join('')}</tbody></table>`
         : '<div class="empty">ยังไม่มีลูกทีมในรอบนี้</div>'}
     </div>`;
@@ -409,7 +419,7 @@ function paneAll() {
   });
 
   return `
-    ${kpiDashboardHtml(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle })}
+    ${kpiDashboardHtml(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle, hrCan: hrCanRow })}
     <div class="ap-stats">
       <div><b>${rows.length}</b><span>ใบประเมินทั้งหมด</span></div>
       <div><b>${pct}%</b><span>เสร็จสมบูรณ์</span></div>
@@ -421,7 +431,7 @@ function paneAll() {
       <div class="panel-head">ความคืบหน้าตามฝ่าย
         <span class="panel-meta">
           <button class="btn-mini" id="ap-csv">⬇ ส่งออก CSV</button>
-          <button class="btn-mini" id="ap-gen" title="ปกติระบบสร้างให้เองเมื่อเปิดหน้านี้ ปุ่มนี้ใช้เมื่อเพิ่งเพิ่มพนักงานใหม่">↻ ตรวจและสร้างใบที่ยังขาด</button>
+          <button class="btn-mini" id="ap-gen" title="ปกติระบบสร้างให้เองเมื่อเปิดหน้านี้ ปุ่มนี้ใช้เมื่อเพิ่งเพิ่มบุคลากรใหม่">↻ ตรวจและสร้างใบที่ยังขาด</button>
         </span></div>
       <table class="ap-table">
         <thead><tr><th>ฝ่าย</th><th class="num">ทั้งหมด</th><th class="num">เสร็จแล้ว</th><th class="num">คะแนนเฉลี่ย</th></tr></thead>
@@ -508,11 +518,11 @@ function statusTrack(row) {
   const sg = signsOf(row);
   const fromSign = (x) => (x && x.at ? { by: x.name, at: x.at } : {});
   const steps = [
-    ...(noSelf(row) ? [] : [{ label: 'พนักงานประเมินตนเอง', now: st === S_SELF,
+    ...(noSelf(row) ? [] : [{ label: 'บุคลากรประเมินตนเอง', now: st === S_SELF,
       done: st === S_SELF ? {} : at(/ส่งแบบประเมินตนเอง/) }]),
     { label: 'ผู้ประเมินให้คะแนนและลงนาม', now: st === S_MGR,
       done: st === S_MGR ? {} : fromSign(sg.evaluator) },
-    { label: 'พนักงานรับทราบและลงนาม', now: needsEmpSign(row), done: fromSign(sg.employee) },
+    { label: 'บุคลากรรับทราบและลงนาม', now: needsEmpSign(row), done: fromSign(sg.employee) },
     { label: 'ฝ่ายบุคคลตรวจสอบและลงนาม', now: st === S_HR && !hrSigned(row), done: fromSign(sg.hr) },
     { label: 'ฝ่ายบุคคลส่งให้ผู้บริหาร', now: st === S_HR && empSigned(row) && hrSigned(row),
       done: [S_BOSS, S_ACK, DONE].includes(st) ? at(/ส่งให้ผู้บริหาร/) : {} },
@@ -709,7 +719,8 @@ function startWatch() {
 export function mount(ctx) {
   startWatch();
   onClick('aptab', (k) => setState({ apTab: k }));
-  bindKpiDashboard(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle });
+  bindKpiDashboard(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle, hrCan: hrCanRow,
+    by: (me && clean(me.Title)) || state.user?.name || '', rerender: () => rerender() });
   bindRubricDrawer();
 
   const rerender = async () => {
@@ -828,7 +839,7 @@ async function openSheet(row, rerender) {
     && clean(row.EvaluatorEmail).toLowerCase() === myEmail;
   const isHrTurn = st === S_HR && canHrReview(row, who());
   const isBossTurn = st === S_BOSS && canBossApprove(row, who());
-  // พนักงานลงนามรับทราบได้ทันทีที่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล
+  // บุคลากรลงนามรับทราบได้ทันทีที่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล
   const isEmpTurn = needsEmpSign(row) && clean(row.EmployeeEmail).toLowerCase() === myEmail;
   const readyForBoss = !!(sg.evaluator && sg.evaluator.at) && empSigned(row);
 
@@ -839,7 +850,7 @@ async function openSheet(row, rerender) {
   const score = scoreOf(secs, answers);
 
   // ผลสรุปกรอกได้เฉพาะขั้นฝ่ายบุคคลตรวจสอบ/ส่งผู้บริหาร และขั้นผู้บริหารอนุมัติ
-  // ขั้นผู้ประเมินให้คะแนน และพนักงานรับทราบ → ช่องเทา แก้ไม่ได้
+  // ขั้นผู้ประเมินให้คะแนน และบุคลากรรับทราบ → ช่องเทา แก้ไม่ได้
   const hrAtBoss = !!state.isHR && st === S_BOSS && !isBossTurn;   // ฝ่ายบุคคลแก้ผลสรุปได้ระหว่างรอผู้บริหาร
   const sumEdit = isHrTurn || isBossTurn || hrAtBoss;
   const resultOpt = (v, label) => `<label><input type="radio" name="sum-result" value="${v}"
@@ -870,7 +881,7 @@ async function openSheet(row, rerender) {
         <div class="ap-actions"><button class="btn btn-primary" id="ap-emp-ack2">✓ ลงนามรับทราบ</button></div>
       </div>` : ''}
       ${isProbation(cycle?.FormSet) ? attendanceBar(row) : ''}
-      ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
+      ${row.SelfComment ? `<div class="panel-note">ความเห็นบุคลากร: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
 
       <div class="panel ap-summary${sumEdit ? '' : ' ap-sum-locked'}">
@@ -913,10 +924,10 @@ async function openSheet(row, rerender) {
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⬇ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
       ${hrAtBoss ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
-      ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้พนักงานรับทราบ / ฝ่ายบุคคล</button>' : ''}
+      ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้บุคลากรรับทราบ / ฝ่ายบุคคล</button>' : ''}
       ${isHrTurn ? `<button class="btn-mini" id="ap-hr-sign">💾 บันทึกลายเซ็นฝ่ายบุคคล</button>
                     <button class="btn btn-primary" id="ap-hr-send" ${readyForBoss ? ''
-    : 'disabled title="รอพนักงานลงนามรับทราบก่อน"'}>ส่งให้ผู้บริหาร</button>` : ''}
+    : 'disabled title="รอบุคลากรลงนามรับทราบก่อน"'}>ส่งให้ผู้บริหาร</button>` : ''}
       ${isBossTurn ? '<button class="btn btn-primary" id="ap-approve">บันทึกผล</button>' : ''}
       ${isEmpTurn ? '<button class="btn btn-primary" id="ap-emp-ack">✓ ลงนามรับทราบ</button>' : ''}`,
   });

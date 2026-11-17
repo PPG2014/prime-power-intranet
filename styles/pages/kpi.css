@@ -146,3 +146,16 @@
 .kc-code { width: 86px; }
 .kc-rubric textarea { resize: vertical; min-height: 2.4em; }
 .kc-rubric td:nth-child(3) { width: 200px; }
+
+/* งานรอฝ่ายบุคคล (Dashboard) · ฝ่ายบุคคลตรวจหัวข้อ (ใบประเมิน) */
+.kpi-hrq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-bottom: 6px; }
+.kpi-hrq-box { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+.kpi-hrq-box > b { font-size: 1.5em; color: #003462; line-height: 1; }
+.kpi-hrq-box.on { border-color: #f5d29a; background: #fff8e6; }
+.kpi-hrq-box label { display: flex; flex-direction: column; gap: 3px; font-size: .85em; }
+.kpi-hrq-box input[type=date] { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.kpi-hrbox { border-color: #f5d29a; background: #fffdf5; }
+.kpi-hrrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.kpi-hrrow label { display: flex; flex-direction: column; gap: 4px; font-size: .9em; }
+.kpi-hrrow input[type=date] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.kpi-cnote { margin-top: 6px; font-size: .86em; }

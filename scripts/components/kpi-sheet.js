@@ -2,11 +2,11 @@
  * หน้าต่างใบประเมิน KPI ประจำปี (ใช้แทนหน้าต่างแบบผ่านงานเมื่อชุดแบบประเมินเป็น KPI)
  *
  * คนเดียวกันเห็นต่างกันตามบทบาทและขั้นของใบ:
- *   พนักงาน         ประเมินตนเอง (ขั้นประเมินตนเอง) · ลงนามรับทราบ (ขั้นพนักงานรับทราบ)
+ *   บุคลากร         ประเมินตนเอง (ขั้นประเมินตนเอง) · ลงนามรับทราบ (ขั้นบุคลากรรับทราบ)
  *                   เห็นคะแนนหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งผลให้รับทราบแล้วเท่านั้น
  *   ผู้บังคับบัญชา   กำหนดหัวข้อเฉพาะตำแหน่ง (ตัวแดงในไฟล์) · ให้คะแนน + ข้อเสนอแนะ + ลงนาม
  *   ผู้บริหาร (MD)   ให้คะแนน + ข้อเสนอแนะ + ลงนาม (เห็นคะแนนของผู้บังคับบัญชาประกอบ)
- *   ฝ่ายบุคคล       กำหนดหัวข้อแทนได้ · ตรวจผลขั้นสุดท้าย (HR Final Check) แล้วส่งให้พนักงานรับทราบ
+ *   ฝ่ายบุคคล       กำหนดหัวข้อแทนได้ · ตรวจผลขั้นสุดท้าย (HR Final Check) แล้วส่งให้บุคลากรรับทราบ
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
@@ -18,12 +18,15 @@ import {
 import {
   PARTS, SCALE, FORM_LABEL, catsOf, partScore, summarize, kpiGrade, customSlots,
   customProblems, saveCustom, saveScores, hrFinal, kpiSteps, formOfRow, kpiOf, ratingsOf, hasCustom,
+  kpiPhase, submitCustom, returnCustom, approveCustom, hrToMd, kpiFcBySelf, kpiFcWho,
   verOf, rubricOf, gradesOf, bonusOf, loadKpiConfig,
 } from '../services/kpi.js';
 import { drawerHtml, bindRubricDrawer } from './rubric-drawer.js';
 
 /** ชุดเกณฑ์ของใบที่เปิดอยู่ (เปิดได้ทีละใบ) */
 let VER;
+/** ผู้กำหนดหัวข้อเฉพาะตำแหน่งของใบที่เปิดอยู่ (MG = ผู้จัดการกำหนดเอง · GA = หัวหน้างาน) */
+let FC_WHO = 'หัวหน้างาน';
 
 const COL = { self: 'บุคลากร', sup: 'ผู้บังคับบัญชา', md: 'ผู้บริหาร' };
 const REC = [['s', '1. สิ่งที่บุคลากรปฏิบัติได้อย่างมีประสิทธิภาพ (Strength)'],
@@ -43,19 +46,30 @@ export function kpiRole(row, ctx) {
   const isEmp = low(row.EmployeeEmail) === low(ctx.myEmail);
   const isEval = !!clean(row.EvaluatorEmail) && low(row.EvaluatorEmail) === low(ctx.myEmail);
   const open = !!ctx.cycle && clean(ctx.cycle.Status) === 'เปิด';
+  const ph = kpiPhase(row);
+  const hrOk = open && canHrReview(row, who);
   const r = {
-    st, isEmp, isEval,
-    self: isEmp && st === S_SELF && !noSelf(row) && stageOpen(ctx.cycle, S_SELF).ok,
+    st, ph, isEmp, isEval,
+    self: isEmp && st === S_SELF && ph === 'self' && !noSelf(row) && stageOpen(ctx.cycle, S_SELF).ok,
     sup: isEval && st === S_MGR && stageOpen(ctx.cycle, S_MGR).ok,
     md: open && st === S_BOSS && canBossApprove(row, who),
-    hr: open && st === S_HR && canHrReview(row, who),
+    hrMid: hrOk && st === S_HR && ph === 'mid',          // ฝ่ายบุคคลตรวจผลหัวหน้า ส่งผู้บริหาร
+    hr: hrOk && st === S_HR && ph === 'final',           // ฝ่ายบุคคลลงนาม ส่งบุคลากรรับทราบ
+    fcHr: hrOk && st === S_SELF && ph === 'fcHr',        // ฝ่ายบุคคลตรวจหัวข้อ เปิดประเมินตนเอง
     ack: isEmp && st === S_ACK,
-    custom: open && [S_SELF, S_MGR].includes(st) && (isEval || ctx.isHR || ctx.isAdmin),
   };
+  // แก้หัวข้อเฉพาะตำแหน่ง (ขั้นกำหนดหัวข้อ):
+  //   แบบ MG → ผู้จัดการ (ผู้ถูกประเมิน) กำหนดเอง ผู้บังคับบัญชาแก้ไม่ได้
+  //   แบบ GA → ผู้บังคับบัญชากำหนด
+  //   ฝ่ายบุคคลทำแทนได้ทั้งสองแบบ และแก้ได้ตอนตรวจหัวข้อ
+  // ใบเก่าที่ข้ามขั้นกำหนดหัวข้อ (แบบ GA) หัวหน้ายังเพิ่มได้ระหว่างประเมิน
+  const bySelf = kpiFcBySelf(row);
+  r.fcSubmit = open && st === S_SELF && ph === 'fc' && ((bySelf ? isEmp : isEval) || ctx.isHR || ctx.isAdmin);
+  r.custom = r.fcSubmit || r.fcHr || (!bySelf && r.sup && !hasCustom(row));
   r.edit = r.self ? 'self' : r.sup ? 'sup' : r.md ? 'md' : null;
-  // พนักงานเห็นผลของหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งให้รับทราบแล้ว
+  // บุคลากรเห็นผลของหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งให้รับทราบแล้ว
   // ใบของตัวเอง: รอฝ่ายบุคคลส่งผลก่อนเสมอ แม้เป็นฝ่ายบุคคล/ผู้ดูแลระบบ
-  r.seeOthers = !isEmp || [S_ACK, DONE].includes(st) || isEval || r.md || r.hr;
+  r.seeOthers = !isEmp || [S_ACK, DONE].includes(st) || isEval || r.md || r.hr || r.hrMid;
   return r;
 }
 
@@ -90,7 +104,7 @@ function partTable(part, label, cats, cols, data, role) {
           ${cols.map((x) => `<td class="num kpi-col${x === role.edit ? ' kpi-active' : ''}">${scaleSelect(x, it.id, data[x][it.id], x === role.edit)}</td>`).join('')}
         </tr>`).join('')}
         ${c.budget && !c.items.some((it) => it.custom) ? `<tr class="kpi-custom kpi-missing"><td class="kpi-no">${c.no}.${c.items.length + 1}</td>
-          <td colspan="${2 + cols.length}">Functional Competency เฉพาะตำแหน่ง — ให้หัวหน้างานกำหนด (น้ำหนักรวมไม่เกิน ${c.budget}) · <i>ยังไม่ได้กำหนด</i></td></tr>` : ''}
+          <td colspan="${2 + cols.length}">Functional Competency เฉพาะตำแหน่ง — ให้${FC_WHO}กำหนด (น้ำหนักรวมไม่เกิน ${c.budget}) · <i>ยังไม่ได้กำหนด</i></td></tr>` : ''}
         <tr class="kpi-sub"><td></td><td>คะแนนถ่วงน้ำหนักหมวด ${c.no} <span class="dim">(เต็ม ${c.weight})</span></td><td></td>
           ${cols.map((x) => `<td class="num" data-sub="${x}-${c.key}">${f1(sc[x].cats[c.key])}</td>`).join('')}</tr>`).join('')}
       </tbody>
@@ -166,16 +180,17 @@ function infoHtml(row, person, cycle) {
     <div><i>ผู้บังคับบัญชา (ผู้ประเมิน)</i><b>${esc(clean(row.EvaluatorName)) || '<span class="kpi-no-ok">ยังไม่ได้กำหนด</span>'}</b></div>
     <div><i>ผู้บริหาร (MD)</i><b>${esc(clean(ro.approver && ro.approver.name)) || 'กรรมการผู้จัดการ'}</b></div>
     ${period ? `<div><i>รอบผลงาน</i><b>${esc(period)}</b></div>` : ''}
+    ${(x.kpi || {}).selfDue ? `<div><i>ประเมินตนเองภายใน</i><b>${esc(thDate((x.kpi || {}).selfDue))}</b></div>` : ''}
   </div>
   <div class="ap-attbar kpi-att"><span class="dim">สถิติการปฏิบัติงาน${period ? ` (${esc(period)})` : ''}</span>
     ${has ? KPI_ATT.map(([k, label, unit]) => `<span><b>${esc(String(a[k] || 0))}</b> ${label} <i>${unit}</i></span>`).join('')
       : '<span class="dim">ฝ่ายทรัพยากรบุคคลยังไม่ได้กรอก (กรอกที่ จัดการข้อมูล → สร้างแบบประเมิน)</span>'}</div>`;
 }
 
-/** หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง (ข้อตัวแดง) — เพิ่มได้หลายข้อ น้ำหนักรวมไม่เกินที่กำหนด */
-function customHtml(form, custom) {
+/** กำหนดหัวข้อเฉพาะตำแหน่ง (ข้อตัวแดง) — เพิ่มได้หลายข้อ น้ำหนักรวมไม่เกินที่กำหนด */
+function customHtml(form, custom, role = {}) {
   return `<div class="panel kpi-cust" id="kpi-cust">
-    <div class="panel-head">✏️ Functional Competency เฉพาะตำแหน่ง <span class="panel-meta">หัวหน้างานกำหนด · เพิ่มได้หลายข้อ น้ำหนักรวมแต่ละหมวดห้ามเกินที่กำหนด</span></div>
+    <div class="panel-head">✏️ Functional Competency เฉพาะตำแหน่ง <span class="panel-meta">${FC_WHO}กำหนด · เพิ่มได้หลายข้อ น้ำหนักรวมแต่ละหมวดห้ามเกินที่กำหนด</span></div>
     ${customSlots(form, VER).map((s) => {
       const rows = custom[s.key] || [];
       const used = rows.reduce((t, x) => t + (+x.weight || 0), 0);
@@ -191,7 +206,12 @@ function customHtml(form, custom) {
       </div>`;
     }).join('')}
     <div class="field-error" id="kpi-cerr" hidden></div>
-    <div class="ap-actions"><button class="btn btn-primary" id="kpi-csave">💾 บันทึกหัวข้อเฉพาะตำแหน่ง</button></div>
+    <div class="ap-actions">
+      <button class="btn${role.fcSubmit ? '-mini' : ' btn-primary'}" id="kpi-csave">💾 บันทึก${role.fcSubmit ? 'ร่าง' : 'หัวข้อเฉพาะตำแหน่ง'}</button>
+      ${role.fcSubmit ? '<button class="btn btn-primary" id="kpi-csubmit">📤 ส่งให้ฝ่ายบุคคลตรวจสอบ</button>' : ''}
+    </div>
+    ${role.fcSubmit ? '<div class="dim kpi-cnote">ส่งแล้วฝ่ายบุคคลจะตรวจหัวข้อ และเปิดให้บุคลากรประเมินตนเอง · ไม่มีหัวข้อเพิ่มก็กดส่งได้</div>' : ''}
+    ${role.fcHr ? '<div class="dim kpi-cnote">ฝ่ายบุคคลแก้หัวข้อได้ (กดบันทึก) แล้วกด "อนุมัติหัวข้อ · เปิดให้ประเมินตนเอง" ด้านล่าง</div>' : ''}
   </div>`;
 }
 
@@ -253,15 +273,24 @@ export async function openKpiSheet(row, ctx) {
   const { openModal } = await import('./modal.js');
   await loadKpiConfig();
   VER = verOf(row);
+  FC_WHO = kpiFcWho(row);
   const dir = await list('directory').catch(() => []);
   const person = dir.find((p) => low(p.Email) === low(row.EmployeeEmail)) || {};
   const role = kpiRole(row, ctx);
   const form = formOfRow(row);
   const k = kpiOf(row);
   let custom = JSON.parse(JSON.stringify(k.custom || {}));
+  /** หัวข้อเฉพาะตำแหน่งที่แก้ในจอแต่ยังไม่ได้บันทึก */
+  const customDirty = () => {
+    const now = {};
+    $$('.kpi-ct').forEach((el) => { (now[el.dataset.slot] = now[el.dataset.slot] || []).push(el.value.trim()); });
+    const was = Object.fromEntries(Object.entries(k.custom || {}).map(([kk, a]) => [kk, a.map((x) => x.title)]));
+    return JSON.stringify(Object.fromEntries(Object.entries(now).filter(([, a]) => a.some(Boolean))))
+      !== JSON.stringify(Object.fromEntries(Object.entries(was).filter(([, a]) => a.length)));
+  };
   const sg = signsOf(row);
   const data = { self: { ...ratingsOf(row, 'self') }, sup: { ...ratingsOf(row, 'sup') }, md: { ...ratingsOf(row, 'md') }, rec: k.rec || {} };
-  // คอลัมน์ที่เห็น: พนักงานก่อนรับทราบผลเห็นเฉพาะของตัวเอง · ใบที่ไม่มีขั้นประเมินตนเองไม่ต้องมีคอลัมน์ตนเอง
+  // คอลัมน์ที่เห็น: บุคลากรก่อนรับทราบผลเห็นเฉพาะของตัวเอง · ใบที่ไม่มีขั้นประเมินตนเองไม่ต้องมีคอลัมน์ตนเอง
   const cols = ['self', 'sup', 'md'].filter((c) => (c === 'self' ? !noSelf(row) || Object.keys(data.self).length : role.seeOthers));
   const sum = summarize(row);
   const by = ctx.userName || '';
@@ -269,14 +298,21 @@ export async function openKpiSheet(row, ctx) {
 
   const body = `
     <div class="ap-stats small">
-      <div><b>${esc(LABELS[role.st] || role.st)}</b><span>สถานะ</span></div>
+      <div><b>${esc(kpiStatusLabel(role.st, row))}</b><span>สถานะ</span></div>
       <div><b>${role.seeOthers ? f1(sum.parts.skill.final) : '—'}</b><span>Part 1 (สุดท้าย)</span></div>
       <div><b>${role.seeOthers ? f1(sum.parts.behavior.final) : '—'}</b><span>Part 2 (สุดท้าย)</span></div>
       <div><b>${role.seeOthers && sum.final !== null ? `${f1(sum.final)} · ${esc(sum.grade)}` : '—'}</b><span>คะแนน / เกรดสุดท้าย</span></div>
     </div>
     ${kpiTrackHtml(row)}
     ${infoHtml(row, person, ctx.cycle)}
-    ${role.custom ? customHtml(form, custom) : ''}
+    ${role.custom ? customHtml(form, custom, role) : ''}
+    ${role.fcHr ? `<div class="panel kpi-hrbox"><div class="panel-head">ฝ่ายบุคคลตรวจหัวข้อเฉพาะตำแหน่ง</div>
+      <div class="kpi-hrrow">
+        <label>ให้บุคลากรประเมินตนเองภายในวันที่ <span class="dim">(ไม่บังคับ)</span>
+          <input type="date" id="kpi-selfdue" value="${esc(k.selfDue || (ctx.cycle && String(ctx.cycle.EndDate || '').slice(0, 10)) || '')}"></label>
+        <span class="dim">${hasCustom(row) ? `${FC_WHO}กำหนดหัวข้อแล้ว` : `${FC_WHO}ไม่ได้เพิ่มหัวข้อเฉพาะตำแหน่ง`} · ${esc(clean(row.EvaluatorName) || 'ยังไม่มีผู้ประเมิน')}</span>
+      </div></div>` : ''}
+    ${role.hrMid ? '<div class="panel-note kpi-howto">ตรวจคะแนนและข้อเสนอแนะของผู้บังคับบัญชา แล้วกด <b>ส่งให้ผู้บริหารประเมิน</b> · ต้องแก้ให้กด "ส่งกลับให้ผู้บังคับบัญชา"</div>' : ''}
     ${role.edit ? `<div class="panel-note kpi-howto">ให้คะแนนรายข้อ 0–10 (ทีละ 0.5) ในคอลัมน์ <b>${COL[role.edit]}</b> ตามเกณฑ์ที่แถบ <b>📋 เกณฑ์การประเมิน</b> ด้านซ้ายจอ (ชี้เมาส์ที่แถบเพื่อเปิด) ·
       ระบบคิดคะแนนถ่วงน้ำหนักให้ทันที · กด "บันทึกร่าง" เก็บไว้ทำต่อได้</div>` : ''}
     ${PARTS.map(([part, label]) => partTable(part, label, catsOf(form, part, k.custom || {}, VER), cols, data, role)).join('')}
@@ -285,7 +321,7 @@ export async function openKpiSheet(row, ctx) {
       <textarea id="kpi-comment" rows="2">${esc(role.edit === 'self' ? (row.SelfComment || '') : role.edit === 'sup' ? (row.MgrComment || '') : (row.HeadComment || ''))}</textarea></label>` : ''}
     <div class="panel"><div class="panel-head">ลงนาม</div>
       ${role.edit === 'self' ? `<div class="panel-note kpi-howto">ขั้นประเมินตนเอง<b>ยังไม่ต้องลงนาม</b> — กดส่งแบบประเมินได้เลย ·
-        พนักงานลงนามรับทราบผลได้เมื่อผู้บริหารประเมินและลงนามแล้ว และฝ่ายทรัพยากรบุคคลตรวจสอบและส่งผลกลับมาให้</div>` : ''}
+        บุคลากรลงนามรับทราบผลได้เมื่อผู้บริหารประเมินและลงนามแล้ว และฝ่ายทรัพยากรบุคคลตรวจสอบและส่งผลกลับมาให้</div>` : ''}
       <div class="ap-signs">
         ${signBox('ผู้บังคับบัญชา (Proposed by)', { name: clean(row.EvaluatorName), ...sg.evaluator }, 'evaluator', role.sup, 'ลงนามเมื่อผู้บังคับบัญชาประเมินเสร็จ')}
         ${signBox('ผู้บริหาร (Approved by)', sg.approver || {}, 'approver', role.md, 'ลงนามเมื่อผู้บริหารประเมินเสร็จ')}
@@ -295,16 +331,20 @@ export async function openKpiSheet(row, ctx) {
     ${logHtml(row)}`;
 
   const footer = `
-    ${role.sup && !noSelf(row) ? '<button class="btn-mini warn" data-kback="self">↩ ส่งกลับให้พนักงานแก้</button>' : ''}
+    ${role.sup && !noSelf(row) ? '<button class="btn-mini warn" data-kback="self">↩ ส่งกลับให้บุคลากรแก้</button>' : ''}
     ${role.md ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
     ${role.hr ? '<button class="btn-mini warn" data-kback="md">↩ ส่งกลับให้ผู้บริหาร</button>' : ''}
+    ${role.hrMid ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
+    ${role.fcHr ? `<button class="btn-mini warn" id="kpi-fcback">↩ ส่งหัวข้อกลับให้${kpiFcBySelf(row) ? 'ผู้จัดการ' : 'หัวหน้า'}แก้</button>` : ''}
     <button class="btn-mini" id="kpi-print">⬇ พิมพ์แบบประเมิน</button>
     <button class="btn-mini" id="kpi-close">ปิด</button>
     ${role.edit ? '<button class="btn-mini" id="kpi-draft">💾 บันทึกร่าง</button>' : ''}
     ${role.self ? '<button class="btn btn-primary" id="kpi-submit">ส่งแบบประเมินตนเอง (ยังไม่ต้องลงนาม)</button>' : ''}
-    ${role.sup ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ผู้บริหาร</button>' : ''}
+    ${role.sup ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ฝ่ายบุคคลตรวจสอบ</button>' : ''}
     ${role.md ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ฝ่ายบุคคล</button>' : ''}
-    ${role.hr ? '<button class="btn btn-primary" id="kpi-hr">ตรวจแล้ว · ส่งให้พนักงานรับทราบ</button>' : ''}
+    ${role.fcHr ? `<button class="btn btn-primary" id="kpi-fcok">✓ อนุมัติหัวข้อ · ${noSelf(row) ? 'ส่งให้ผู้บังคับบัญชาประเมิน' : 'เปิดให้ประเมินตนเอง'}</button>` : ''}
+    ${role.hrMid ? '<button class="btn btn-primary" id="kpi-hrmid">ตรวจแล้ว · ส่งให้ผู้บริหารประเมิน</button>' : ''}
+    ${role.hr ? '<button class="btn btn-primary" id="kpi-hr">ลงนาม · ส่งให้บุคลากรรับทราบ</button>' : ''}
     ${role.ack ? '<button class="btn btn-primary" id="kpi-ack">✓ ลงนามรับทราบผล</button>' : ''}`;
 
   const close = openModal({ title, wide: true, body, footer });
@@ -329,7 +369,7 @@ export async function openKpiSheet(row, ctx) {
   $('#kpi-print').onclick = async () => {
     const { printKpi } = await import('../templates/kpi-print.js');
     const rt = collect();
-    // พนักงานก่อนได้รับแจ้งผล: เอกสารมีเฉพาะคะแนนของตัวเอง
+    // บุคลากรก่อนได้รับแจ้งผล: เอกสารมีเฉพาะคะแนนของตัวเอง
     if (!role.seeOthers) { rt.sup = {}; rt.md = {}; }
     printKpi(row, { person, cycle: ctx.cycle, ratings: rt, hideOthers: !role.seeOthers });
   };
@@ -374,7 +414,7 @@ export async function openKpiSheet(row, ctx) {
     };
     const repaint = () => {
       const next = document.createElement('div');
-      next.innerHTML = customHtml(form, custom);
+      next.innerHTML = customHtml(form, custom, role);
       host.innerHTML = next.firstElementChild.innerHTML;
       bindCustom();
     };
@@ -401,16 +441,30 @@ export async function openKpiSheet(row, ctx) {
           const add = $(`[data-cadd="${key}"]`, host); if (add) add.disabled = used >= slot.budget;
         };
       });
-      $('#kpi-csave').onclick = async () => {
+      const cleaned = () => {
         keepInputs();
         const clean2 = Object.fromEntries(Object.entries(custom).map(([kk, a]) => [kk, a.filter((x) => String(x.title).trim() || x.weight)
           .map((x) => ({ id: x.id, title: String(x.title).trim(), weight: +x.weight || 0 }))]));
         const bad = customProblems(form, clean2, VER);
         const err = $('#kpi-cerr');
-        if (bad.length) { err.hidden = false; err.innerHTML = bad.map(esc).join('<br>'); return; }
-        const b = $('#kpi-csave'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
-        try { await saveCustom(row, clean2, by); custom = clean2; await reopenAfter(); } catch (e) { b.disabled = false; b.textContent = '💾 บันทึกหัวข้อเฉพาะตำแหน่ง'; fail(e); }
+        if (bad.length) { err.hidden = false; err.innerHTML = bad.map(esc).join('<br>'); return null; }
+        return clean2;
       };
+      $('#kpi-csave').onclick = async () => {
+        const clean2 = cleaned(); if (!clean2) return;
+        const b = $('#kpi-csave'); const label = b.textContent; b.disabled = true; b.textContent = 'กำลังบันทึก…';
+        try { await saveCustom(row, clean2, by); custom = clean2; await reopenAfter(); } catch (e) { b.disabled = false; b.textContent = label; fail(e); }
+      };
+      const cs = $('#kpi-csubmit');
+      if (cs) {
+        cs.onclick = async () => {
+          const clean2 = cleaned(); if (!clean2) return;
+          const n = Object.values(clean2).reduce((t, a) => t + a.length, 0);
+          if (!confirm(n ? `ส่งหัวข้อเฉพาะตำแหน่ง ${n} ข้อ ให้ฝ่ายบุคคลตรวจสอบ?` : 'ยังไม่ได้เพิ่มหัวข้อเฉพาะตำแหน่ง — ส่งให้ฝ่ายบุคคลตรวจสอบเลยหรือไม่?')) return;
+          cs.disabled = true; cs.textContent = 'กำลังส่ง…';
+          try { await submitCustom(row, clean2, by); await done(); } catch (e) { cs.disabled = false; cs.textContent = '📤 ส่งให้ฝ่ายบุคคลตรวจสอบ'; fail(e); }
+        };
+      }
     };
     bindCustom();
   }
@@ -456,6 +510,30 @@ export async function openKpiSheet(row, ctx) {
       try { await hrFinal(row, { sign, by }); await done(); } catch (e) { hb.disabled = false; fail(e); }
     };
   }
+  const fcOk = $('#kpi-fcok');
+  if (fcOk) {
+    fcOk.onclick = async () => {
+      if ($('#kpi-csave') && customDirty() && !confirm('มีหัวข้อที่แก้ไว้แต่ยังไม่ได้บันทึก — อนุมัติโดยไม่บันทึกที่แก้?')) return;
+      fcOk.disabled = true;
+      try { await approveCustom(row, { by, due: ($('#kpi-selfdue') || {}).value || '' }); await done(); } catch (e) { fcOk.disabled = false; fail(e); }
+    };
+  }
+  const fcBack = $('#kpi-fcback');
+  if (fcBack) {
+    fcBack.onclick = async () => {
+      const note = prompt(`เหตุผล / สิ่งที่ให้${FC_WHO}แก้`);
+      if (note === null) return;
+      fcBack.disabled = true;
+      try { await returnCustom(row, note.trim(), by); await done(); } catch (e) { fcBack.disabled = false; fail(e); }
+    };
+  }
+  const hm = $('#kpi-hrmid');
+  if (hm) {
+    hm.onclick = async () => {
+      hm.disabled = true;
+      try { await hrToMd(row, { by }); await done(); } catch (e) { hm.disabled = false; fail(e); }
+    };
+  }
   const ab = $('#kpi-ack');
   if (ab) {
     ab.onclick = async () => {
@@ -469,6 +547,7 @@ export async function openKpiSheet(row, ctx) {
   $$('[data-kback]').forEach((b) => {
     b.onclick = async () => {
       const to = { self: S_SELF, sup: S_MGR, md: S_BOSS }[b.dataset.kback];
+      // ส่งกลับให้บุคลากรแก้ → กลับไปขั้นประเมินตนเอง (ไม่ใช่ขั้นกำหนดหัวข้อ)
       const note = prompt(`เหตุผลที่ส่งกลับขั้น "${to}"`);
       if (note === null) return;
       b.disabled = true;
@@ -479,6 +558,9 @@ export async function openKpiSheet(row, ctx) {
 
 const LABELS = {
   [S_SELF]: 'ประเมินตนเอง', [S_MGR]: 'ผู้บังคับบัญชาประเมิน', [S_BOSS]: 'ผู้บริหาร (MD) ประเมิน',
-  [S_HR]: 'ฝ่ายบุคคลตรวจสอบ', [S_ACK]: 'พนักงานรับทราบ', [DONE]: 'เสร็จสมบูรณ์',
+  [S_HR]: 'ฝ่ายบุคคลตรวจสอบ', [S_ACK]: 'บุคลากรรับทราบ', [DONE]: 'เสร็จสมบูรณ์',
+  fc: 'กำหนดหัวข้อเฉพาะตำแหน่ง', fcHr: 'ฝ่ายบุคคลตรวจหัวข้อ', self: 'ประเมินตนเอง',
+  mid: 'ฝ่ายบุคคลตรวจสอบ (ก่อนส่งผู้บริหาร)', final: 'ฝ่ายบุคคลลงนาม',
 };
-export const kpiStatusLabel = (st) => LABELS[clean(st)] || clean(st) || '—';
+/** ชื่อขั้นของใบ KPI — ส่งใบมาด้วยจะได้ชื่อขั้นย่อย (กำหนดหัวข้อ / ตรวจหัวข้อ / ตรวจก่อนส่งผู้บริหาร / ลงนาม) */
+export const kpiStatusLabel = (st, row = null) => (row && LABELS[kpiPhase({ ...row, Status: st })]) || LABELS[clean(st)] || clean(st) || '—';

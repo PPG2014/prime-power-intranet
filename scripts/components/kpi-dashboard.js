@@ -5,13 +5,13 @@
  */
 import { esc, $ } from '../core/dom.js';
 import { toCsv, downloadText } from '../utils/csv.js';
-import { clean, noSelf, afterCutoff, isKpiSet, sheetIsKpi, rolesOf } from '../services/appraisal.js';
-import { summarize, kpiSteps, formOfRow, hasCustom } from '../services/kpi.js';
+import { clean, noSelf, afterCutoff, isKpiSet, sheetIsKpi, rolesOf, S_SELF, S_HR } from '../services/appraisal.js';
+import { summarize, kpiSteps, formOfRow, hasCustom, kpiPhase, approveCustom, hrToMd } from '../services/kpi.js';
 import { kpiStatusLabel } from './kpi-sheet.js';
 
 const low = (v) => clean(v).toLowerCase();
-const STEP_COLS = [['fc', 'Functional Competency'], ['self', 'พนักงานประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
-  ['md', 'MD ประเมิน'], ['hr', 'HR Final Check'], ['ack', 'ลงนามรับทราบ']];
+const STEP_COLS = [['fc', 'กำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'บุคลากรประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
+  ['hrMid', 'HR ตรวจ · ส่ง MD'], ['md', 'MD ประเมิน'], ['hr', 'HR ลงนาม'], ['ack', 'ลงนามรับทราบ']];
 const STATE_TH = { done: 'เสร็จสิ้น', now: 'กำลังดำเนินการ', wait: 'ยังไม่เริ่ม', na: 'N/A' };
 const mark = (s) => ({ done: '<span class="kpi-ok">✓</span>', now: '<span class="kpi-now">●</span>', wait: '<span class="dim">○</span>', na: '<span class="dim">—</span>' }[s] || '');
 
@@ -28,7 +28,40 @@ function trackOf(r, dirByEmail) {
   return { r, p, steps, sum, issues };
 }
 
-export function kpiDashboardHtml(rows, { dir = [], cycle = null } = {}) {
+/** ใบที่รอฝ่ายบุคคลแยกตามขั้น (hrCan = ฝ่ายบุคคลคนนี้ตรวจใบนั้นได้) */
+const hrQueue = (rows, hrCan = () => true) => {
+  const k = rows.filter((r) => sheetIsKpi(r));
+  const at = (st, ph) => k.filter((r) => clean(r.Status) === st && kpiPhase(r) === ph);
+  return {
+    fc: at(S_SELF, 'fc'),
+    fcHr: at(S_SELF, 'fcHr').filter(hrCan),
+    mid: at(S_HR, 'mid').filter(hrCan),
+    final: at(S_HR, 'final').filter(hrCan),
+  };
+};
+const names = (list) => list.map((r) => clean(r.EmployeeName)).slice(0, 8).join(', ') + (list.length > 8 ? ` และอีก ${list.length - 8} คน` : '');
+
+/** งานรอฝ่ายบุคคล + ปุ่มทำทีละหลายใบ */
+function hrQueueHtml(q, cycle) {
+  const due = cycle && String(cycle.EndDate || '').slice(0, 10);
+  return `<div class="kpi-hrq">
+    <h4 class="ap-sec">งานรอฝ่ายบุคคล</h4>
+    <div class="kpi-hrq-grid">
+      <div class="kpi-hrq-box"><b>${q.fc.length}</b><span>รอกำหนดหัวข้อ <span class="dim">(GA หัวหน้า · MG ผู้จัดการเอง)</span></span>
+        ${q.fc.length ? `<details><summary class="dim">ดูรายชื่อ</summary><div class="dim">${esc(names(q.fc))}</div></details>` : ''}</div>
+      <div class="kpi-hrq-box${q.fcHr.length ? ' on' : ''}"><b>${q.fcHr.length}</b><span>รอฝ่ายบุคคลตรวจหัวข้อ</span>
+        ${q.fcHr.length ? `<label class="dim">ประเมินตนเองภายใน <input type="date" id="kpi-bulkdue" value="${esc(due || '')}"></label>
+          <button class="btn-mini" id="kpi-bulkfc">✓ อนุมัติหัวข้อทั้งหมด · เปิดประเมินตนเอง</button>` : ''}</div>
+      <div class="kpi-hrq-box${q.mid.length ? ' on' : ''}"><b>${q.mid.length}</b><span>หัวหน้าประเมินแล้ว · รอส่งผู้บริหาร</span>
+        ${q.mid.length ? '<button class="btn-mini" id="kpi-bulkmd">➜ ส่งให้ผู้บริหารประเมินทั้งหมด</button>' : ''}</div>
+      <div class="kpi-hrq-box${q.final.length ? ' on' : ''}"><b>${q.final.length}</b><span>ผู้บริหารประเมินแล้ว · รอฝ่ายบุคคลลงนาม</span>
+        ${q.final.length ? '<span class="dim">เปิดใบเพื่อลงนามทีละใบ (ใช้ลายเซ็น)</span>' : ''}</div>
+    </div>
+    <div class="dim">ตรวจทีละใบได้จากปุ่ม "เปิด" ในตาราง Tracker ด้านล่าง · ปุ่มทั้งหมดทำเฉพาะใบที่คุณมีสิทธิ์ตรวจ</div>
+  </div>`;
+}
+
+export function kpiDashboardHtml(rows, { dir = [], cycle = null, hrCan = () => true } = {}) {
   const kpiRows = rows.filter((r) => sheetIsKpi(r));
   if (!kpiRows.length) return '';
   const dirByEmail = new Map(dir.map((p) => [low(p.Email), p]));
@@ -77,6 +110,8 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null } = {}) {
     ${Object.keys(grades).length ? `<div class="kpi-grades">${['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'].filter((g) => grades[g])
       .map((g) => `<span><b>${g}</b> ${grades[g]} คน</span>`).join('')}</div>` : ''}
 
+    ${hrQueueHtml(hrQueue(kpiRows, hrCan), cycle)}
+
     <h4 class="ap-sec">Progress Tracking</h4>
     <div class="kpi-scroll"><table class="ap-table">
       <thead><tr><th>ขั้นตอน</th><th class="num">ยังไม่เริ่ม</th><th class="num">กำลังดำเนินการ</th><th class="num">เสร็จสิ้น</th><th class="num">N/A</th></tr></thead>
@@ -118,7 +153,7 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null } = {}) {
         <td class="num">${x.sum.grades.skill.sup || '—'} / ${x.sum.grades.skill.md || '—'}</td>
         <td class="num">${x.sum.grades.behavior.sup || '—'} / ${x.sum.grades.behavior.md || '—'}</td>
         <td class="num"><b>${esc(x.sum.grade || '—')}</b></td>
-        <td>${esc(kpiStatusLabel(x.r.Status))}</td>
+        <td>${esc(kpiStatusLabel(x.r.Status, x.r))}</td>
         <td class="num"><button class="btn-mini" data-apopen="${x.r.id}">เปิด</button></td></tr>`).join('')}</tbody>
     </table></div>
     <div class="panel-note">เกณฑ์พิจารณาโบนัส/ปรับเงินเดือน: Skill/Functional ≥ C+ และ Behavioral ≥ B ทั้งจากผู้บังคับบัญชาและผู้บริหาร ·
@@ -126,9 +161,29 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null } = {}) {
   </div>`;
 }
 
-export function bindKpiDashboard(rows, { dir = [], cycle = null } = {}) {
+export function bindKpiDashboard(rows, { dir = [], cycle = null, hrCan = () => true, by = '', rerender = null } = {}) {
   const b = $('#kpi-csv');
   if (!b) return;
+  // ทำทีละหลายใบ
+  const bulk = async (btn, list, what, fn) => {
+    if (!list.length || !confirm(`${what} ${list.length} ใบ?\n${names(list)}`)) return;
+    btn.disabled = true;
+    const bad = [];
+    let n = 0;
+    for (const r of list) {
+      // eslint-disable-next-line no-await-in-loop
+      try { await fn(r); } catch (e) { bad.push(`${clean(r.EmployeeName)} — ${e.message}`); }
+      n += 1; btn.textContent = `กำลังทำ ${n}/${list.length}…`;
+    }
+    alert(`เรียบร้อย ${list.length - bad.length} ใบ${bad.length ? `\n\nไม่สำเร็จ ${bad.length} ใบ\n${bad.slice(0, 10).join('\n')}` : ''}`);
+    if (rerender) await rerender();
+  };
+  const q = hrQueue(rows, hrCan);
+  const bf = $('#kpi-bulkfc');
+  if (bf) bf.onclick = () => bulk(bf, q.fcHr, 'อนุมัติหัวข้อเฉพาะตำแหน่งและเปิดให้ประเมินตนเอง',
+    (r) => approveCustom(r, { by, due: ($('#kpi-bulkdue') || {}).value || '' }));
+  const bm = $('#kpi-bulkmd');
+  if (bm) bm.onclick = () => bulk(bm, q.mid, 'ส่งให้ผู้บริหาร (MD) ประเมิน', (r) => hrToMd(r, { by }));
   b.onclick = () => {
     const dirByEmail = new Map(dir.map((p) => [low(p.Email), p]));
     const t = rows.filter((r) => sheetIsKpi(r)).map((r) => trackOf(r, dirByEmail));
@@ -144,7 +199,7 @@ export function bindKpiDashboard(rows, { dir = [], cycle = null } = {}) {
       'Grade (Behavior MS)': x.sum.grades.behavior.sup, 'Grade (Behavior MD)': x.sum.grades.behavior.md,
       'คะแนนสุดท้าย': x.sum.final ?? '', 'Grade': x.sum.grade,
       'ผ่านเกณฑ์โบนัส': x.sum.eligible === null ? '' : x.sum.eligible ? 'ผ่าน' : 'ไม่ผ่าน',
-      'สถานะ': kpiStatusLabel(x.r.Status), 'หมายเหตุ': x.issues.join(' · '),
+      'สถานะ': kpiStatusLabel(x.r.Status, x.r), 'หมายเหตุ': x.issues.join(' · '),
     }))));
   };
 }
