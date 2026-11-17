@@ -190,9 +190,10 @@ function customHtml(form, custom) {
   </div>`;
 }
 
-function signBox(title, data = {}, role, editable) {
-  return `<div class="ap-signbox">
+function signBox(title, data = {}, role, editable, wait = '') {
+  return `<div class="ap-signbox${!editable && !data.at ? ' kpi-signwait' : ''}">
     <div class="ap-signhead">${esc(title)}${data.at ? `<span class="dim"> · ${esc(dt(data.at))}</span>` : ''}</div>
+    ${!editable && !data.at && wait ? `<div class="kpi-waitnote">🔒 ${esc(wait)}</div>` : ''}
     <label>ชื่อผู้ลงนาม<input type="text" id="sg-${role}-name" value="${esc(data.name || '')}" ${editable ? '' : 'disabled'}></label>
     <label>บันทึกเพิ่มเติม<textarea id="sg-${role}-note" rows="2" ${editable ? '' : 'disabled'}>${esc(data.note || '')}</textarea></label>
     ${signaturePad(role, data.url || '', editable)}
@@ -255,11 +256,13 @@ export async function openKpiSheet(row, ctx) {
     ${role.edit ? `<label class="ap-comment">ความเห็นเพิ่มเติม (${COL[role.edit]})
       <textarea id="kpi-comment" rows="2">${esc(role.edit === 'self' ? (row.SelfComment || '') : role.edit === 'sup' ? (row.MgrComment || '') : (row.HeadComment || ''))}</textarea></label>` : ''}
     <div class="panel"><div class="panel-head">ลงนาม</div>
+      ${role.edit === 'self' ? `<div class="panel-note kpi-howto">ขั้นประเมินตนเอง<b>ยังไม่ต้องลงนาม</b> — กดส่งแบบประเมินได้เลย ·
+        พนักงานลงนามรับทราบผลได้เมื่อผู้บริหารประเมินและลงนามแล้ว และฝ่ายทรัพยากรบุคคลตรวจสอบและส่งผลกลับมาให้</div>` : ''}
       <div class="ap-signs">
-        ${signBox('ผู้บังคับบัญชา (Proposed by)', { name: clean(row.EvaluatorName), ...sg.evaluator }, 'evaluator', role.sup)}
-        ${signBox('ผู้บริหาร (Approved by)', sg.approver || {}, 'approver', role.md)}
-        ${signBox('ฝ่ายทรัพยากรบุคคล (HR Final Check)', sg.hr || {}, 'hr', role.hr)}
-        ${signBox('บุคลากรรับทราบผล (Staff)', { name: clean(row.EmployeeName), ...sg.employee }, 'employee', role.ack)}
+        ${signBox('ผู้บังคับบัญชา (Proposed by)', { name: clean(row.EvaluatorName), ...sg.evaluator }, 'evaluator', role.sup, 'ลงนามเมื่อผู้บังคับบัญชาประเมินเสร็จ')}
+        ${signBox('ผู้บริหาร (Approved by)', sg.approver || {}, 'approver', role.md, 'ลงนามเมื่อผู้บริหารประเมินเสร็จ')}
+        ${signBox('ฝ่ายทรัพยากรบุคคล (HR Final Check)', sg.hr || {}, 'hr', role.hr, 'ลงนามหลังผู้บริหารลงนามแล้ว')}
+        ${signBox('บุคลากรรับทราบผล (Staff)', { name: clean(row.EmployeeName), ...sg.employee }, 'employee', role.ack, 'เปิดให้ลงนามเมื่อฝ่ายทรัพยากรบุคคลส่งผลให้รับทราบ')}
       </div></div>
     ${logHtml(row)}`;
 
@@ -270,7 +273,7 @@ export async function openKpiSheet(row, ctx) {
     <button class="btn-mini" id="kpi-print">⬇ พิมพ์แบบประเมิน</button>
     <button class="btn-mini" id="kpi-close">ปิด</button>
     ${role.edit ? '<button class="btn-mini" id="kpi-draft">💾 บันทึกร่าง</button>' : ''}
-    ${role.self ? '<button class="btn btn-primary" id="kpi-submit">ส่งแบบประเมินตนเอง</button>' : ''}
+    ${role.self ? '<button class="btn btn-primary" id="kpi-submit">ส่งแบบประเมินตนเอง (ยังไม่ต้องลงนาม)</button>' : ''}
     ${role.sup ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ผู้บริหาร</button>' : ''}
     ${role.md ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ฝ่ายบุคคล</button>' : ''}
     ${role.hr ? '<button class="btn btn-primary" id="kpi-hr">ตรวจแล้ว · ส่งให้พนักงานรับทราบ</button>' : ''}

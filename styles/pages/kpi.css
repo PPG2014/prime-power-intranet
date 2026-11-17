@@ -57,6 +57,8 @@
 .kpi-rubric table { margin-top: 6px; font-size: .86em; }
 .kpi-rubric th { width: 44px; }
 .kpi-rubric .kpi-band td, .kpi-rubric .kpi-band th { border-top: 2px solid #c7d2e0; }
+.kpi-signwait { opacity: .75; background: #f3f4f6; }
+.kpi-waitnote { font-size: .84em; color: #6b7280; margin: 2px 0 6px; }
 .kpi-log summary { cursor: pointer; list-style: none; }
 
 /* Dashboard */
