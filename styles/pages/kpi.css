@@ -159,3 +159,15 @@
 .kpi-hrrow label { display: flex; flex-direction: column; gap: 4px; font-size: .9em; }
 .kpi-hrrow input[type=date] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
 .kpi-cnote { margin-top: 6px; font-size: .86em; }
+
+/* ส่วนบนของใบ: ข้อมูลซ้าย · ขั้นตอนการประเมินในกล่องขวา */
+.kpi-top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; margin-bottom: 12px; }
+.kpi-top-l .ap-stats { margin-top: 0; }
+.kpi-top-r { border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; padding: 10px 14px 4px; }
+.kpi-steps-h { font-weight: 700; color: #003462; font-size: .92em; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.kpi-top-r .ap-track { margin: 0; }
+.kpi-top-r .ap-step { padding-bottom: 9px; }
+.kpi-top-r .ap-step-body b { font-size: .86em; }
+.kpi-top-r .ap-step-body span { font-size: .8em; }
+.kpi-top .kpi-info { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+@media (max-width: 900px) { .kpi-top { grid-template-columns: 1fr; } }

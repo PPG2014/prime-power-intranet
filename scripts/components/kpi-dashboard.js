@@ -8,6 +8,7 @@ import { toCsv, downloadText } from '../utils/csv.js';
 import { clean, noSelf, afterCutoff, isKpiSet, sheetIsKpi, rolesOf, S_SELF, S_HR } from '../services/appraisal.js';
 import { summarize, kpiSteps, formOfRow, hasCustom, kpiPhase, approveCustom, hrToMd } from '../services/kpi.js';
 import { kpiStatusLabel } from './kpi-sheet.js';
+import { personRef, bindPersonCards } from './person-card.js';
 
 const low = (v) => clean(v).toLowerCase();
 const STEP_COLS = [['fc', 'กำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'บุคลากรประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
@@ -130,8 +131,8 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null, hrCan = () => t
     ${issues.length ? `<div class="panel-note kpi-warn">ใบที่ต้องแก้ ${issues.length} ใบ — กำหนดผู้ประเมินได้ที่ จัดการข้อมูล → สร้างแบบประเมิน → ✎ แก้ไข (ตาราง "ผู้ประเมินและผู้อนุมัติของแต่ละใบ")</div>
       <details${issues.length <= 10 ? ' open' : ''}><summary class="dim">ดูรายชื่อ ${issues.length} ใบ</summary>
       <div class="kpi-scroll"><table class="ap-table"><thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th>ผู้ประเมินปัจจุบัน</th><th>ปัญหา</th><th></th></tr></thead>
-      <tbody>${issues.map((x) => `<tr><td>${esc(clean(x.r.EmployeeName))}</td><td>${esc(clean(x.r.Department))}</td>
-        <td>${esc(clean(x.r.EvaluatorName)) || '—'}</td><td class="kpi-no-ok">${esc(x.issues.filter((i) => !/FC/.test(i)).join(' · '))}</td>
+      <tbody>${issues.map((x) => `<tr><td>${personRef(clean(x.r.EmployeeName))}</td><td>${esc(clean(x.r.Department))}</td>
+        <td>${personRef(clean(x.r.EvaluatorName)) || '—'}</td><td class="kpi-no-ok">${esc(x.issues.filter((i) => !/FC/.test(i)).join(' · '))}</td>
         <td class="num"><button class="btn-mini" data-apopen="${x.r.id}">เปิด</button></td></tr>`).join('')}</tbody></table></div></details>`
       : '<div class="panel-note">✓ ทุกใบมีผู้ประเมิน และไม่มีใครเป็นผู้ประเมินตัวเอง</div>'}
 
@@ -147,8 +148,8 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null, hrCan = () => t
         ${STEP_COLS.map(([, l]) => `<th class="num">${esc(l)}</th>`).join('')}
         <th class="num">Skill<br>MS / MD</th><th class="num">Behavior<br>MS / MD</th><th class="num">Grade</th><th>สถานะ</th><th></th></tr></thead>
       <tbody>${t.map((x) => `<tr>
-        <td>${esc(clean(x.r.EmployeeName))}${x.issues.length ? ` <span class="kpi-no-ok" title="${esc(x.issues.join(' · '))}">⚠</span>` : ''}</td>
-        <td>${esc(clean(x.r.Department))}</td><td>${esc(clean(x.r.EvaluatorName)) || '—'}</td><td>${formOfRow(x.r)}</td>
+        <td>${personRef(clean(x.r.EmployeeName))}${x.issues.length ? ` <span class="kpi-no-ok" title="${esc(x.issues.join(' · '))}">⚠</span>` : ''}</td>
+        <td>${esc(clean(x.r.Department))}</td><td>${personRef(clean(x.r.EvaluatorName)) || '—'}</td><td>${formOfRow(x.r)}</td>
         ${STEP_COLS.map(([k]) => `<td class="num" title="${STATE_TH[x.steps[k] || 'na']}">${mark(x.steps[k] || 'na')}</td>`).join('')}
         <td class="num">${x.sum.grades.skill.sup || '—'} / ${x.sum.grades.skill.md || '—'}</td>
         <td class="num">${x.sum.grades.behavior.sup || '—'} / ${x.sum.grades.behavior.md || '—'}</td>
@@ -164,6 +165,7 @@ export function kpiDashboardHtml(rows, { dir = [], cycle = null, hrCan = () => t
 export function bindKpiDashboard(rows, { dir = [], cycle = null, hrCan = () => true, by = '', rerender = null } = {}) {
   const b = $('#kpi-csv');
   if (!b) return;
+  bindPersonCards();
   // ทำทีละหลายใบ
   const bulk = async (btn, list, what, fn) => {
     if (!list.length || !confirm(`${what} ${list.length} ใบ?\n${names(list)}`)) return;
