@@ -2,11 +2,11 @@
  * หน้าต่างใบประเมิน KPI ประจำปี (ใช้แทนหน้าต่างแบบผ่านงานเมื่อชุดแบบประเมินเป็น KPI)
  *
  * คนเดียวกันเห็นต่างกันตามบทบาทและขั้นของใบ:
- *   พนักงาน         ประเมินตนเอง (ขั้นประเมินตนเอง) · ลงนามรับทราบ (ขั้นพนักงานรับทราบ)
+ *   บุคลากร         ประเมินตนเอง (ขั้นประเมินตนเอง) · ลงนามรับทราบ (ขั้นบุคลากรรับทราบ)
  *                   เห็นคะแนนหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งผลให้รับทราบแล้วเท่านั้น
  *   ผู้บังคับบัญชา   กำหนดหัวข้อเฉพาะตำแหน่ง (ตัวแดงในไฟล์) · ให้คะแนน + ข้อเสนอแนะ + ลงนาม
  *   ผู้บริหาร (MD)   ให้คะแนน + ข้อเสนอแนะ + ลงนาม (เห็นคะแนนของผู้บังคับบัญชาประกอบ)
- *   ฝ่ายบุคคล       กำหนดหัวข้อแทนได้ · ตรวจผลขั้นสุดท้าย (HR Final Check) แล้วส่งให้พนักงานรับทราบ
+ *   ฝ่ายบุคคล       กำหนดหัวข้อแทนได้ · ตรวจผลขั้นสุดท้าย (HR Final Check) แล้วส่งให้บุคลากรรับทราบ
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list } from '../services/data.js';
@@ -54,7 +54,7 @@ export function kpiRole(row, ctx) {
     sup: isEval && st === S_MGR && stageOpen(ctx.cycle, S_MGR).ok,
     md: open && st === S_BOSS && canBossApprove(row, who),
     hrMid: hrOk && st === S_HR && ph === 'mid',          // ฝ่ายบุคคลตรวจผลหัวหน้า ส่งผู้บริหาร
-    hr: hrOk && st === S_HR && ph === 'final',           // ฝ่ายบุคคลลงนาม ส่งพนักงานรับทราบ
+    hr: hrOk && st === S_HR && ph === 'final',           // ฝ่ายบุคคลลงนาม ส่งบุคลากรรับทราบ
     fcHr: hrOk && st === S_SELF && ph === 'fcHr',        // ฝ่ายบุคคลตรวจหัวข้อ เปิดประเมินตนเอง
     ack: isEmp && st === S_ACK,
   };
@@ -67,7 +67,7 @@ export function kpiRole(row, ctx) {
   r.fcSubmit = open && st === S_SELF && ph === 'fc' && ((bySelf ? isEmp : isEval) || ctx.isHR || ctx.isAdmin);
   r.custom = r.fcSubmit || r.fcHr || (!bySelf && r.sup && !hasCustom(row));
   r.edit = r.self ? 'self' : r.sup ? 'sup' : r.md ? 'md' : null;
-  // พนักงานเห็นผลของหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งให้รับทราบแล้ว
+  // บุคลากรเห็นผลของหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งให้รับทราบแล้ว
   // ใบของตัวเอง: รอฝ่ายบุคคลส่งผลก่อนเสมอ แม้เป็นฝ่ายบุคคล/ผู้ดูแลระบบ
   r.seeOthers = !isEmp || [S_ACK, DONE].includes(st) || isEval || r.md || r.hr || r.hrMid;
   return r;
@@ -210,7 +210,7 @@ function customHtml(form, custom, role = {}) {
       <button class="btn${role.fcSubmit ? '-mini' : ' btn-primary'}" id="kpi-csave">💾 บันทึก${role.fcSubmit ? 'ร่าง' : 'หัวข้อเฉพาะตำแหน่ง'}</button>
       ${role.fcSubmit ? '<button class="btn btn-primary" id="kpi-csubmit">📤 ส่งให้ฝ่ายบุคคลตรวจสอบ</button>' : ''}
     </div>
-    ${role.fcSubmit ? '<div class="dim kpi-cnote">ส่งแล้วฝ่ายบุคคลจะตรวจหัวข้อ และเปิดให้พนักงานประเมินตนเอง · ไม่มีหัวข้อเพิ่มก็กดส่งได้</div>' : ''}
+    ${role.fcSubmit ? '<div class="dim kpi-cnote">ส่งแล้วฝ่ายบุคคลจะตรวจหัวข้อ และเปิดให้บุคลากรประเมินตนเอง · ไม่มีหัวข้อเพิ่มก็กดส่งได้</div>' : ''}
     ${role.fcHr ? '<div class="dim kpi-cnote">ฝ่ายบุคคลแก้หัวข้อได้ (กดบันทึก) แล้วกด "อนุมัติหัวข้อ · เปิดให้ประเมินตนเอง" ด้านล่าง</div>' : ''}
   </div>`;
 }
@@ -290,7 +290,7 @@ export async function openKpiSheet(row, ctx) {
   };
   const sg = signsOf(row);
   const data = { self: { ...ratingsOf(row, 'self') }, sup: { ...ratingsOf(row, 'sup') }, md: { ...ratingsOf(row, 'md') }, rec: k.rec || {} };
-  // คอลัมน์ที่เห็น: พนักงานก่อนรับทราบผลเห็นเฉพาะของตัวเอง · ใบที่ไม่มีขั้นประเมินตนเองไม่ต้องมีคอลัมน์ตนเอง
+  // คอลัมน์ที่เห็น: บุคลากรก่อนรับทราบผลเห็นเฉพาะของตัวเอง · ใบที่ไม่มีขั้นประเมินตนเองไม่ต้องมีคอลัมน์ตนเอง
   const cols = ['self', 'sup', 'md'].filter((c) => (c === 'self' ? !noSelf(row) || Object.keys(data.self).length : role.seeOthers));
   const sum = summarize(row);
   const by = ctx.userName || '';
@@ -308,7 +308,7 @@ export async function openKpiSheet(row, ctx) {
     ${role.custom ? customHtml(form, custom, role) : ''}
     ${role.fcHr ? `<div class="panel kpi-hrbox"><div class="panel-head">ฝ่ายบุคคลตรวจหัวข้อเฉพาะตำแหน่ง</div>
       <div class="kpi-hrrow">
-        <label>ให้พนักงานประเมินตนเองภายในวันที่ <span class="dim">(ไม่บังคับ)</span>
+        <label>ให้บุคลากรประเมินตนเองภายในวันที่ <span class="dim">(ไม่บังคับ)</span>
           <input type="date" id="kpi-selfdue" value="${esc(k.selfDue || (ctx.cycle && String(ctx.cycle.EndDate || '').slice(0, 10)) || '')}"></label>
         <span class="dim">${hasCustom(row) ? `${FC_WHO}กำหนดหัวข้อแล้ว` : `${FC_WHO}ไม่ได้เพิ่มหัวข้อเฉพาะตำแหน่ง`} · ${esc(clean(row.EvaluatorName) || 'ยังไม่มีผู้ประเมิน')}</span>
       </div></div>` : ''}
@@ -321,7 +321,7 @@ export async function openKpiSheet(row, ctx) {
       <textarea id="kpi-comment" rows="2">${esc(role.edit === 'self' ? (row.SelfComment || '') : role.edit === 'sup' ? (row.MgrComment || '') : (row.HeadComment || ''))}</textarea></label>` : ''}
     <div class="panel"><div class="panel-head">ลงนาม</div>
       ${role.edit === 'self' ? `<div class="panel-note kpi-howto">ขั้นประเมินตนเอง<b>ยังไม่ต้องลงนาม</b> — กดส่งแบบประเมินได้เลย ·
-        พนักงานลงนามรับทราบผลได้เมื่อผู้บริหารประเมินและลงนามแล้ว และฝ่ายทรัพยากรบุคคลตรวจสอบและส่งผลกลับมาให้</div>` : ''}
+        บุคลากรลงนามรับทราบผลได้เมื่อผู้บริหารประเมินและลงนามแล้ว และฝ่ายทรัพยากรบุคคลตรวจสอบและส่งผลกลับมาให้</div>` : ''}
       <div class="ap-signs">
         ${signBox('ผู้บังคับบัญชา (Proposed by)', { name: clean(row.EvaluatorName), ...sg.evaluator }, 'evaluator', role.sup, 'ลงนามเมื่อผู้บังคับบัญชาประเมินเสร็จ')}
         ${signBox('ผู้บริหาร (Approved by)', sg.approver || {}, 'approver', role.md, 'ลงนามเมื่อผู้บริหารประเมินเสร็จ')}
@@ -331,7 +331,7 @@ export async function openKpiSheet(row, ctx) {
     ${logHtml(row)}`;
 
   const footer = `
-    ${role.sup && !noSelf(row) ? '<button class="btn-mini warn" data-kback="self">↩ ส่งกลับให้พนักงานแก้</button>' : ''}
+    ${role.sup && !noSelf(row) ? '<button class="btn-mini warn" data-kback="self">↩ ส่งกลับให้บุคลากรแก้</button>' : ''}
     ${role.md ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
     ${role.hr ? '<button class="btn-mini warn" data-kback="md">↩ ส่งกลับให้ผู้บริหาร</button>' : ''}
     ${role.hrMid ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
@@ -344,7 +344,7 @@ export async function openKpiSheet(row, ctx) {
     ${role.md ? '<button class="btn btn-primary" id="kpi-submit">ลงนามและส่งให้ฝ่ายบุคคล</button>' : ''}
     ${role.fcHr ? `<button class="btn btn-primary" id="kpi-fcok">✓ อนุมัติหัวข้อ · ${noSelf(row) ? 'ส่งให้ผู้บังคับบัญชาประเมิน' : 'เปิดให้ประเมินตนเอง'}</button>` : ''}
     ${role.hrMid ? '<button class="btn btn-primary" id="kpi-hrmid">ตรวจแล้ว · ส่งให้ผู้บริหารประเมิน</button>' : ''}
-    ${role.hr ? '<button class="btn btn-primary" id="kpi-hr">ลงนาม · ส่งให้พนักงานรับทราบ</button>' : ''}
+    ${role.hr ? '<button class="btn btn-primary" id="kpi-hr">ลงนาม · ส่งให้บุคลากรรับทราบ</button>' : ''}
     ${role.ack ? '<button class="btn btn-primary" id="kpi-ack">✓ ลงนามรับทราบผล</button>' : ''}`;
 
   const close = openModal({ title, wide: true, body, footer });
@@ -369,7 +369,7 @@ export async function openKpiSheet(row, ctx) {
   $('#kpi-print').onclick = async () => {
     const { printKpi } = await import('../templates/kpi-print.js');
     const rt = collect();
-    // พนักงานก่อนได้รับแจ้งผล: เอกสารมีเฉพาะคะแนนของตัวเอง
+    // บุคลากรก่อนได้รับแจ้งผล: เอกสารมีเฉพาะคะแนนของตัวเอง
     if (!role.seeOthers) { rt.sup = {}; rt.md = {}; }
     printKpi(row, { person, cycle: ctx.cycle, ratings: rt, hideOthers: !role.seeOthers });
   };
@@ -547,7 +547,7 @@ export async function openKpiSheet(row, ctx) {
   $$('[data-kback]').forEach((b) => {
     b.onclick = async () => {
       const to = { self: S_SELF, sup: S_MGR, md: S_BOSS }[b.dataset.kback];
-      // ส่งกลับให้พนักงานแก้ → กลับไปขั้นประเมินตนเอง (ไม่ใช่ขั้นกำหนดหัวข้อ)
+      // ส่งกลับให้บุคลากรแก้ → กลับไปขั้นประเมินตนเอง (ไม่ใช่ขั้นกำหนดหัวข้อ)
       const note = prompt(`เหตุผลที่ส่งกลับขั้น "${to}"`);
       if (note === null) return;
       b.disabled = true;
@@ -558,7 +558,7 @@ export async function openKpiSheet(row, ctx) {
 
 const LABELS = {
   [S_SELF]: 'ประเมินตนเอง', [S_MGR]: 'ผู้บังคับบัญชาประเมิน', [S_BOSS]: 'ผู้บริหาร (MD) ประเมิน',
-  [S_HR]: 'ฝ่ายบุคคลตรวจสอบ', [S_ACK]: 'พนักงานรับทราบ', [DONE]: 'เสร็จสมบูรณ์',
+  [S_HR]: 'ฝ่ายบุคคลตรวจสอบ', [S_ACK]: 'บุคลากรรับทราบ', [DONE]: 'เสร็จสมบูรณ์',
   fc: 'กำหนดหัวข้อเฉพาะตำแหน่ง', fcHr: 'ฝ่ายบุคคลตรวจหัวข้อ', self: 'ประเมินตนเอง',
   mid: 'ฝ่ายบุคคลตรวจสอบ (ก่อนส่งผู้บริหาร)', final: 'ฝ่ายบุคคลลงนาม',
 };

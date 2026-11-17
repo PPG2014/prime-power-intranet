@@ -10,9 +10,9 @@
  *   คะแนนสุดท้าย = Part 1 50% + Part 2 50%
  *
  * ขั้นตอนของใบ KPI (ต่างจากแบบผ่านงาน):
- *   หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง → ฝ่ายบุคคลตรวจหัวข้อ + เปิดให้ประเมินตนเอง → พนักงานประเมินตนเอง
+ *   หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง → ฝ่ายบุคคลตรวจหัวข้อ + เปิดให้ประเมินตนเอง → บุคลากรประเมินตนเอง
  *   → ผู้บังคับบัญชาประเมินและลงนาม → ฝ่ายบุคคลตรวจสอบ ส่งให้ผู้บริหาร → ผู้บริหาร (MD) ประเมินและลงนาม
- *   → ฝ่ายบุคคลลงนาม (HR Final Check) → พนักงานลงนามรับทราบ → เสร็จสมบูรณ์
+ *   → ฝ่ายบุคคลลงนาม (HR Final Check) → บุคลากรลงนามรับทราบ → เสร็จสมบูรณ์
  *   ใช้ชื่อสถานะเดิมของระบบ + ขั้นย่อยใน Extra.kpi.phase (ดู kpiPhase ใน appraisal.js)
  */
 import { update } from './data.js';
@@ -193,7 +193,7 @@ export async function returnCustom(row, note, by) {
 }
 
 /**
- * ฝ่ายบุคคลตรวจหัวข้อแล้ว เปิดให้พนักงานประเมินตนเอง (กำหนดวันสุดท้ายได้)
+ * ฝ่ายบุคคลตรวจหัวข้อแล้ว เปิดให้บุคลากรประเมินตนเอง (กำหนดวันสุดท้ายได้)
  * รอบที่ไม่มีขั้นประเมินตนเอง → ส่งให้ผู้บังคับบัญชาประเมินเลย
  */
 export async function approveCustom(row, { by, due = '', note = '' }) {
@@ -242,7 +242,7 @@ export async function saveScores(row, who, data, by, submit = false) {
   return update('appraisals', row.id, patch);
 }
 
-/** ฝ่ายบุคคลตรวจสอบขั้นสุดท้าย (HR Final Check) แล้วส่งให้พนักงานรับทราบ */
+/** ฝ่ายบุคคลตรวจสอบขั้นสุดท้าย (HR Final Check) แล้วส่งให้บุคลากรรับทราบ */
 export async function hrFinal(row, { sign, by, note = '' }) {
   const sum = summarize(row);
   if (sum.final === null) throw new Error('ยังไม่มีคะแนนครบทั้งผู้บังคับบัญชาและผู้บริหาร');
@@ -251,7 +251,7 @@ export async function hrFinal(row, { sign, by, note = '' }) {
   x.kpi = { ...(x.kpi || {}), scores: { total: sum.total, final: sum.final, grade: sum.grade, grades: sum.grades, eligible: sum.eligible } };
   return update('appraisals', row.id, {
     Status: S_ACK, FinalScore: sum.final, Grade: sum.grade, Extra: JSON.stringify(x),
-    Log: addLog(row, 'ฝ่ายบุคคลลงนาม (HR Final Check) ส่งให้พนักงานรับทราบ', by, note),
+    Log: addLog(row, 'ฝ่ายบุคคลลงนาม (HR Final Check) ส่งให้บุคลากรรับทราบ', by, note),
   });
 }
 
@@ -274,12 +274,12 @@ export function kpiSteps(row, { noSelf: skipSelf = false } = {}) {
   const steps = [
     { key: 'fc', label: `${kpiFcBySelf(row) ? 'ผู้จัดการ' : 'หัวหน้า'}กำหนด Functional Competency`, ...pick({ by: k.customBy, at: k.customAt }) },
     { key: 'fcHr', label: 'ฝ่ายบุคคลตรวจหัวข้อ · เปิดประเมินตนเอง', ...pick(k.fcOk) },
-    ...(skipSelf ? [] : [{ key: 'self', label: 'พนักงานประเมินตนเอง', ...pick(last(/ส่งแบบประเมินตนเอง/)) }]),
+    ...(skipSelf ? [] : [{ key: 'self', label: 'บุคลากรประเมินตนเอง', ...pick(last(/ส่งแบบประเมินตนเอง/)) }]),
     { key: 'sup', label: 'ผู้บังคับบัญชาประเมินและลงนาม', ...pick(sg.evaluator, 'name') },
     { key: 'hrMid', label: 'ฝ่ายบุคคลตรวจสอบ · ส่งผู้บริหาร', ...pick(k.hrMid) },
     { key: 'md', label: 'ผู้บริหาร (MD) ประเมินและลงนาม', ...pick(sg.approver, 'name') },
     { key: 'hr', label: 'ฝ่ายบุคคลลงนาม (HR Final Check)', ...pick(sg.hr, 'name') },
-    { key: 'ack', label: 'พนักงานลงนามรับทราบ', ...pick(sg.employee, 'name') },
+    { key: 'ack', label: 'บุคลากรลงนามรับทราบ', ...pick(sg.employee, 'name') },
   ];
   return steps.map((s) => ({ ...s, state: state(s.key) }));
 }

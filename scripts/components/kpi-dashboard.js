@@ -10,7 +10,7 @@ import { summarize, kpiSteps, formOfRow, hasCustom, kpiPhase, approveCustom, hrT
 import { kpiStatusLabel } from './kpi-sheet.js';
 
 const low = (v) => clean(v).toLowerCase();
-const STEP_COLS = [['fc', 'กำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'พนักงานประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
+const STEP_COLS = [['fc', 'กำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'บุคลากรประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
   ['hrMid', 'HR ตรวจ · ส่ง MD'], ['md', 'MD ประเมิน'], ['hr', 'HR ลงนาม'], ['ack', 'ลงนามรับทราบ']];
 const STATE_TH = { done: 'เสร็จสิ้น', now: 'กำลังดำเนินการ', wait: 'ยังไม่เริ่ม', na: 'N/A' };
 const mark = (s) => ({ done: '<span class="kpi-ok">✓</span>', now: '<span class="kpi-now">●</span>', wait: '<span class="dim">○</span>', na: '<span class="dim">—</span>' }[s] || '');

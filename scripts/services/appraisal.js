@@ -7,9 +7,9 @@
  *   - สิทธิ์อิงจากข้อมูลจริง ไม่มีการเลือกบทบาทเอง
  *
  * ขั้นตอน: (ประเมินตนเอง) → หัวหน้าประเมินและลงนาม
- *        → พนักงานรับทราบและลงนาม + ฝ่ายบุคคลตรวจสอบและลงนาม (ทำพร้อมกันได้ · สถานะ "ฝ่ายบุคคลตรวจสอบ")
+ *        → บุคลากรรับทราบและลงนาม + ฝ่ายบุคคลตรวจสอบและลงนาม (ทำพร้อมกันได้ · สถานะ "ฝ่ายบุคคลตรวจสอบ")
  *        → ฝ่ายบุคคลส่งให้ผู้บริหาร (เมื่อครบ 3 ลายเซ็น) → ผู้บริหารรับทราบ/อนุมัติ (ลงนามหรือไม่ก็ได้) → เสร็จสมบูรณ์
- * สถานะ "พนักงานรับทราบ" เหลือไว้สำหรับใบเก่าที่ผู้บริหารอนุมัติไปก่อนพนักงานเซ็น
+ * สถานะ "บุคลากรรับทราบ" เหลือไว้สำหรับใบเก่าที่ผู้บริหารอนุมัติไปก่อนบุคลากรเซ็น
  */
 import { list, create, update } from './data.js';
 import { loadKpiConfig, currentKpiVer } from './kpi-config.js';
@@ -190,7 +190,7 @@ export const teamOf = (rows, email) => rows.filter((r) =>
 /** ขั้นตอนที่รออยู่ตรงกับรอบหรือไม่ (รอบล็อกขั้นไหน ทำได้เฉพาะขั้นนั้น) */
 /**
  * ขั้นตอนที่ตั้งในรอบใช้ควบคุมแค่ 2 ขั้นแรก (ประเมินตนเอง / หัวหน้าประเมิน)
- * ขั้นฝ่ายบุคคล ผู้บริหาร และพนักงานรับทราบ ดูจากสถานะของใบนั้นโดยตรง
+ * ขั้นฝ่ายบุคคล ผู้บริหาร และบุคลากรรับทราบ ดูจากสถานะของใบนั้นโดยตรง
  * เพราะแต่ละใบเดินไม่พร้อมกัน ไม่ต้องรอ HR เลื่อนขั้นทั้งรอบ
  */
 export function stageOpen(cycle, stage) {
@@ -200,7 +200,7 @@ export function stageOpen(cycle, stage) {
   const cur = clean(cycle.Stage) || S_SELF;
   if (cur === stage) return { ok: true };
   // เปิดขั้นหัวหน้าประเมินแล้ว คนที่ยังไม่ได้ประเมินตนเองยังส่งตามหลังได้
-  // ไม่งั้นใบนั้นค้าง: พนักงานทำไม่ได้ หัวหน้าก็ยังทำไม่ได้เพราะใบยังไม่ถึงขั้นหัวหน้า
+  // ไม่งั้นใบนั้นค้าง: บุคลากรทำไม่ได้ หัวหน้าก็ยังทำไม่ได้เพราะใบยังไม่ถึงขั้นหัวหน้า
   if (stage === S_SELF && cur === S_MGR) return { ok: true, late: true };
   return { ok: false, why: `ขณะนี้ระบบเปิดเฉพาะขั้นตอน "${cur}"` };
 }
@@ -223,7 +223,7 @@ const signed = (x) => !!(x && x.at);
 export const empSigned = (row) => signed(signsOf(row).employee);
 export const hrSigned = (row) => signed(signsOf(row).hr);
 
-/** รอพนักงานลงนามรับทราบอยู่หรือไม่ (ทำได้ตั้งแต่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล) */
+/** รอบุคลากรลงนามรับทราบอยู่หรือไม่ (ทำได้ตั้งแต่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล) */
 export const needsEmpSign = (row) => {
   const st = clean(row && row.Status);
   if (sheetIsKpi(row)) return st === S_ACK;
@@ -281,7 +281,7 @@ export function appraisalTodo({ cycle, cycles = null, rows, email, person = null
   const who = { email, person, isAdmin, isHR };
   const me = lowEmail(email);
 
-  // KPI: ขั้นประเมินตนเองแบ่งเป็น หัวหน้ากำหนดหัวข้อ → ฝ่ายบุคคลตรวจหัวข้อ → พนักงานประเมิน
+  // KPI: ขั้นประเมินตนเองแบ่งเป็น หัวหน้ากำหนดหัวข้อ → ฝ่ายบุคคลตรวจหัวข้อ → บุคลากรประเมิน
   const ph = (r) => (sheetIsKpi(r) ? kpiPhase(r) : '');
   out.me = rows.filter((r) => lowEmail(r.EmployeeEmail) === me
     && ((st(r) === S_SELF && !noSelf(r) && stageOpen(cyc(r), S_SELF).ok && (!sheetIsKpi(r) || ph(r) === 'self'))
@@ -307,9 +307,9 @@ export function appraisalTodo({ cycle, cycles = null, rows, email, person = null
  * ขั้นย่อยของใบ KPI (เก็บใน Extra.kpi.phase ไม่เพิ่มค่าในคอลัมน์ Status)
  *   สถานะ "ประเมินตนเอง":    fc   = หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง
  *                            fcHr = ฝ่ายบุคคลตรวจหัวข้อ แล้วเปิดให้ประเมินตนเอง
- *                            self = พนักงานประเมินตนเอง
+ *                            self = บุคลากรประเมินตนเอง
  *   สถานะ "ฝ่ายบุคคลตรวจสอบ": mid   = หลังผู้บังคับบัญชาประเมิน → ฝ่ายบุคคลตรวจแล้วส่งให้ผู้บริหาร
- *                            final = หลังผู้บริหารประเมิน → ฝ่ายบุคคลลงนาม ส่งให้พนักงานรับทราบ
+ *                            final = หลังผู้บริหารประเมิน → ฝ่ายบุคคลลงนาม ส่งให้บุคลากรรับทราบ
  *   สถานะอื่นคืนชื่อสถานะเดิม
  */
 export function kpiPhase(row) {
@@ -525,7 +525,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
 
 /**
  * ขั้นแรกของใบที่สร้างใหม่: รอบที่ตั้งขั้นตอนเป็น "หัวหน้าประเมิน" (เช่นประเมินทดลองงาน)
- * เริ่มที่หัวหน้าเลย ไม่ต้องให้พนักงานประเมินตนเองก่อน
+ * เริ่มที่หัวหน้าเลย ไม่ต้องให้บุคลากรประเมินตนเองก่อน
  */
 export const firstStage = (cycle) => (clean(cycle && cycle.Stage) === S_MGR ? S_MGR : S_SELF);
 
@@ -578,11 +578,11 @@ export async function submitManager(row, answers, comment, score, by, extra = nu
     MgrData: JSON.stringify(answers), MgrComment: comment,
     MgrScore: score, Status: S_HR,
     Extra: JSON.stringify(x),
-    Log: addLog(row, 'ผู้ประเมินสรุปผลและลงนาม ส่งให้พนักงานรับทราบและฝ่ายบุคคลตรวจสอบ', by, sign?.note || ''),
+    Log: addLog(row, 'ผู้ประเมินสรุปผลและลงนาม ส่งให้บุคลากรรับทราบและฝ่ายบุคคลตรวจสอบ', by, sign?.note || ''),
   });
 }
 
-/** ฝ่ายบุคคลตรวจสอบและลงนาม (ยังไม่ส่งต่อ ใช้ตอนรอพนักงานลงนาม) */
+/** ฝ่ายบุคคลตรวจสอบและลงนาม (ยังไม่ส่งต่อ ใช้ตอนรอบุคลากรลงนาม) */
 export async function hrSign(row, { sign, by, note = '', summary = null }) {
   const x = { ...extraOf(row), ...(summary ? { summary } : {}) };
   x.sign = { ...(x.sign || {}), hr: { ...sign, at: new Date().toISOString() } };
@@ -593,14 +593,14 @@ export async function hrSign(row, { sign, by, note = '', summary = null }) {
 }
 
 /**
- * ฝ่ายบุคคลส่งให้ผู้บริหาร — ต้องมีลายเซ็นผู้ประเมิน พนักงาน และฝ่ายบุคคลครบ
+ * ฝ่ายบุคคลส่งให้ผู้บริหาร — ต้องมีลายเซ็นผู้ประเมิน บุคลากร และฝ่ายบุคคลครบ
  * sign = ลายเซ็นฝ่ายบุคคลที่เพิ่งลง (ถ้าลงไว้แล้วไม่ต้องส่ง)
  */
 export async function hrReview(row, { sign = null, by, note = '', summary = null }) {
   const x = { ...extraOf(row), ...(summary ? { summary } : {}) };
   if (sign) x.sign = { ...(x.sign || {}), hr: { ...sign, at: new Date().toISOString() } };
   const sg = x.sign || {};
-  const missing = [!signed(sg.evaluator) && 'ผู้ประเมิน', !signed(sg.employee) && 'พนักงาน',
+  const missing = [!signed(sg.evaluator) && 'ผู้ประเมิน', !signed(sg.employee) && 'บุคลากร',
     !signed(sg.hr) && 'ฝ่ายบุคคล'].filter(Boolean);
   if (missing.length) throw new Error(`ยังขาดลายเซ็น: ${missing.join(', ')}`);
   return update('appraisals', row.id, {
@@ -615,7 +615,7 @@ export async function executiveDecide(row, { approved, finalScore, sign, by, not
   // ลายเซ็นผู้บริหารไม่บังคับ — ไม่ได้เซ็นก็บันทึกชื่อผู้กดและเวลาไว้
   x.sign = { ...(x.sign || {}), approver: { ...(sign || {}), name: (sign && sign.name) || by, approved, at: new Date().toISOString() } };
   const g = gradeOf(finalScore, scheme);
-  // ใบเก่าที่พนักงานยังไม่ได้เซ็น ส่งต่อให้พนักงานรับทราบ · ใบตามขั้นตอนใหม่พนักงานเซ็นไว้แล้ว จบเลย
+  // ใบเก่าที่บุคลากรยังไม่ได้เซ็น ส่งต่อให้บุคลากรรับทราบ · ใบตามขั้นตอนใหม่บุคลากรเซ็นไว้แล้ว จบเลย
   const next = !approved ? S_MGR : (signed((x.sign || {}).employee) ? DONE : S_ACK);
   return update('appraisals', row.id, {
     FinalScore: finalScore, Grade: g[1], HeadComment: note,
@@ -630,7 +630,7 @@ export const approveSheet = (row, finalScore, note, by) =>
 
 /** ส่งกลับให้แก้ไข ระบุขั้นที่ต้องการให้กลับไป */
 export async function sendBack(row, toStage, note, by) {
-  // กลับไปให้หัวหน้าแก้ ผลอาจเปลี่ยน → ลายเซ็นพนักงาน ฝ่ายบุคคล ผู้บริหารต้องลงใหม่
+  // กลับไปให้หัวหน้าแก้ ผลอาจเปลี่ยน → ลายเซ็นบุคลากร ฝ่ายบุคคล ผู้บริหารต้องลงใหม่
   const x = { ...extraOf(row) };
   if (toStage === S_MGR || toStage === S_SELF) {
     const { evaluator } = x.sign || {};
@@ -642,7 +642,7 @@ export async function sendBack(row, toStage, note, by) {
   });
 }
 
-/** พนักงานรับทราบผล พร้อมลงลายเซ็น */
+/** บุคลากรรับทราบผล พร้อมลงลายเซ็น */
 export async function acknowledge(row, note, by, sigUrl = '') {
   const x = { ...extraOf(row) };
   x.sign = { ...(x.sign || {}), employee: { name: by, note, url: sigUrl, at: new Date().toISOString() } };
@@ -650,6 +650,6 @@ export async function acknowledge(row, note, by, sigUrl = '') {
     // ใบเก่า (ผู้บริหารอนุมัติแล้ว) จบที่นี่ · ขั้นตอนใหม่ยังอยู่ขั้นฝ่ายบุคคล รอฝ่ายบุคคลส่งผู้บริหาร
     Status: clean(row.Status) === S_ACK ? DONE : clean(row.Status),
     AckDate: new Date().toISOString(), Extra: JSON.stringify(x),
-    Log: addLog(row, 'พนักงานรับทราบผลและลงนาม', by, note),
+    Log: addLog(row, 'บุคลากรรับทราบผลและลงนาม', by, note),
   });
 }
