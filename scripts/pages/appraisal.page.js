@@ -832,7 +832,7 @@ async function openSheet(row, rerender) {
             <div class="dim">ลงนามได้ที่กล่อง "ลงนามรับทราบผลการประเมิน" ด้านบน</div></div>`
     : signBlock('ผู้ถูกประเมินรับทราบ', sg.employee, 'employee', false,
       sg.employee && sg.employee.at ? `<div class="dim">ลงนามรับทราบแล้ว</div>` : '')}
-          ${signBlock('4.2 ฝ่ายทรัพยากรมนุษย์', sg.hr, 'hr', isHrTurn)}
+          ${signBlock('4.2 ฝ่ายทรัพยากรบุคคล', sg.hr, 'hr', isHrTurn)}
           ${signBlock('4.3 ผู้บริหาร (ลงนามหรือไม่ก็ได้)', sg.approver, 'approver', isBossTurn, isBossTurn
     ? `<div class="ap-sum"><label><input type="radio" name="boss-ok" value="1" checked> อนุมัติ</label>
          <label><input type="radio" name="boss-ok" value="0"> ไม่อนุมัติ</label></div>
@@ -930,7 +930,7 @@ async function openSheet(row, rerender) {
 
   const hrSignNow = async () => {
     const sign = await signOf('hr');
-    if (!sign.name && !sign.url) throw new Error('กรอกชื่อผู้ลงนามหรือเซ็นในช่องฝ่ายทรัพยากรมนุษย์ก่อน');
+    if (!sign.name && !sign.url) throw new Error('กรอกชื่อผู้ลงนามหรือเซ็นในช่องฝ่ายทรัพยากรบุคคลก่อน');
     return sign;
   };
   const hrSave2 = $('#ap-hr-sign');
