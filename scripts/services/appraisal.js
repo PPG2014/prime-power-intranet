@@ -507,8 +507,8 @@ export async function hrReview(row, { sign = null, by, note = '', summary = null
 }
 
 /** ผู้บริหารอนุมัติ / ไม่อนุมัติ พร้อมลงนาม */
-export async function executiveDecide(row, { approved, finalScore, sign, by, note = '', scheme = 'มาตรฐาน' }) {
-  const x = { ...extraOf(row) };
+export async function executiveDecide(row, { approved, finalScore, sign, by, note = '', scheme = 'มาตรฐาน', summary = null }) {
+  const x = { ...extraOf(row), ...(summary ? { summary } : {}) };
   // ลายเซ็นผู้บริหารไม่บังคับ — ไม่ได้เซ็นก็บันทึกชื่อผู้กดและเวลาไว้
   x.sign = { ...(x.sign || {}), approver: { ...(sign || {}), name: (sign && sign.name) || by, approved, at: new Date().toISOString() } };
   const g = gradeOf(finalScore, scheme);
