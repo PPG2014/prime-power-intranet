@@ -15,12 +15,12 @@
  *   ใช้ชื่อสถานะเดิมของระบบ: หัวหน้าประเมิน → ผู้บริหารอนุมัติ → ฝ่ายบุคคลตรวจสอบ → พนักงานรับทราบ
  */
 import { update } from './data.js';
-import { KPI_FORMS } from './kpi-forms.js';
+import { kpiDef, resolveVer, loadKpiConfig } from './kpi-config.js';
 import {
-  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE, GRADE_SCHEMES,
+  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
 } from './appraisal.js';
 
-export { KPI_FORMS, KPI_RUBRIC } from './kpi-forms.js';
+export { loadKpiConfig };
 export const KPI_SET = 'ประเมิน KPI ประจำปี';
 export const PARTS = [
   ['skill', 'Part 1: Skill / Functional Competency ผลสัมฤทธิ์งาน', 'ด้านสมรรถนะ'],
@@ -37,18 +37,25 @@ const r2 = (n) => Math.round(n * 100) / 100;
 export const formTypeOf = kpiFormOf;
 export const kpiOf = (row) => extraOf(row || {}).kpi || {};
 export const formOfRow = (row) => (kpiOf(row).form === 'MG' ? 'MG' : 'GA');
+/** ชุดเกณฑ์ (รายปี) ที่ใบนี้ใช้ — จำไว้ตอนสร้างใบ · ใบเก่าที่ไม่ได้ระบุใช้ชุดปัจจุบัน */
+export const verOf = (row) => resolveVer(kpiOf(row).ver);
+/** เกณฑ์ให้คะแนนรายข้อ · ช่วงเกรด · เกณฑ์โบนัส ของชุดนั้น */
+export const rubricOf = (ver) => kpiDef(ver).rubric;
+export const gradesOf = (ver) => kpiDef(ver).grades;
+export const bonusOf = (ver) => kpiDef(ver).bonus;
 
 /** หมวดที่ให้หัวหน้ากำหนดหัวข้อเพิ่มเอง (key, ชื่อ, น้ำหนักสูงสุดที่เพิ่มได้) */
-export const customSlots = (form) => KPI_FORMS[form].skill
+export const customSlots = (form, ver) => (kpiDef(ver).forms[form] || kpiDef(ver).forms.GA).skill
   .filter((c) => c.budget).map((c) => ({ key: `s${c.no}`, no: c.no, name: c.name, budget: c.budget }));
 
 /**
  * หมวดและหัวข้อของ Part หนึ่ง พร้อมหัวข้อที่หัวหน้าเพิ่มเอง
  * คืน [{ key, no, name, weight, budget, items: [{ id, code, title, weight, custom }] }]
  */
-export function catsOf(form, part, custom = {}) {
+export function catsOf(form, part, custom = {}, ver) {
   const p = part === 'skill' ? 's' : 'b';
-  return (KPI_FORMS[form] || KPI_FORMS.GA)[part].map((c) => {
+  const F = kpiDef(ver).forms;
+  return (F[form] || F.GA)[part].map((c) => {
     const key = `${p}${c.no}`;
     const items = c.items.map(([code, title, weight]) => ({ id: `${key}_${code}`, code, title, weight, custom: false }));
     (custom[key] || []).forEach((x, i) => {
@@ -78,17 +85,16 @@ export function partScore(cats, ans = {}) {
   return { score: r2(score), complete: total > 0 && rated === total, rated, total, cats: per };
 }
 
-/** เกรดตามเกณฑ์ KPI (A 92–100 · B+ 85.5 · B 75 · C+ 64.5 · C 55 · D+ 45.5 · D 40 · F ต่ำกว่า 40) */
-export const kpiGrade = (score) => {
-  const t = GRADE_SCHEMES.KPI;
+/** เกรดตามช่วงคะแนนของชุดเกณฑ์ (มาตรฐาน: A 92–100 · B+ 85.5 · B 75 · C+ 64.5 · C 55 · D+ 45.5 · D 40 · F ต่ำกว่า 40) */
+export const kpiGrade = (score, ver) => {
+  const t = gradesOf(ver);
   return (t.find((g) => score >= g[0]) || t[t.length - 1]);
 };
-const RANK = GRADE_SCHEMES.KPI.map((g) => g[1]);
 /** เกรด a ดีเท่ากับหรือดีกว่า b */
-export const gradeAtLeast = (a, b) => RANK.indexOf(a) > -1 && RANK.indexOf(a) <= RANK.indexOf(b);
-
-/** เกณฑ์ขั้นต่ำเพื่อพิจารณาโบนัส/ปรับเงินเดือน: Part 1 ≥ C+ และ Part 2 ≥ B ทั้งจากผู้บังคับบัญชาและผู้บริหาร */
-export const BONUS_RULE = { skill: 'C+', behavior: 'B' };
+export const gradeAtLeast = (a, b, ver) => {
+  const rank = gradesOf(ver).map((g) => g[1]);
+  return rank.indexOf(a) > -1 && rank.indexOf(a) <= rank.indexOf(b);
+};
 
 /** คะแนนของผู้ประเมินแต่ละคนในใบนี้ */
 export const ratingsOf = (row, who) => (who === 'md' ? (kpiOf(row).md || {}) : answersOf(row, who === 'self' ? 'self' : 'mgr'));
@@ -99,15 +105,17 @@ export const ratingsOf = (row, who) => (who === 'md' ? (kpiOf(row).md || {}) : a
  */
 export function summarize(row, { ratings = {}, custom = null, form = null } = {}) {
   const f = form || formOfRow(row);
+  const ver = verOf(row);
+  const BONUS_RULE = bonusOf(ver);
   const cu = custom || kpiOf(row).custom || {};
   const r = {
     self: ratings.self || ratingsOf(row, 'self'),
     sup: ratings.sup || ratingsOf(row, 'sup'),
     md: ratings.md || ratingsOf(row, 'md'),
   };
-  const out = { form: f, parts: {} };
+  const out = { form: f, ver, parts: {} };
   PARTS.forEach(([part]) => {
-    const cats = catsOf(f, part, cu);
+    const cats = catsOf(f, part, cu, ver);
     const s = {};
     ['self', 'sup', 'md'].forEach((w) => { s[w] = partScore(cats, r[w]); });
     const has = (x) => x.rated > 0;
@@ -118,23 +126,24 @@ export function summarize(row, { ratings = {}, custom = null, form = null } = {}
   const tot = (w) => (sk[w].rated || bh[w].rated ? r2((sk[w].score + bh[w].score) / 2) : null);
   out.total = { self: tot('self'), sup: tot('sup'), md: tot('md') };
   out.final = sk.final !== null && bh.final !== null ? r2((sk.final + bh.final) / 2) : null;
-  out.grade = out.final !== null ? kpiGrade(out.final)[1] : '';
+  out.grade = out.final !== null ? kpiGrade(out.final, ver)[1] : '';
   // สิทธิ์โบนัส: ผ่านเกณฑ์ขั้นต่ำครบทุกด้าน จากผู้ประเมินทั้งสองระดับ
-  const g = (part, w) => (out.parts[part][w].rated ? kpiGrade(out.parts[part][w].score)[1] : '');
+  const g = (part, w) => (out.parts[part][w].rated ? kpiGrade(out.parts[part][w].score, ver)[1] : '');
   out.grades = {
     skill: { sup: g('skill', 'sup'), md: g('skill', 'md') },
     behavior: { sup: g('behavior', 'sup'), md: g('behavior', 'md') },
   };
   const ready = ['skill', 'behavior'].every((p) => out.grades[p].sup && out.grades[p].md);
   out.eligible = ready ? ['skill', 'behavior'].every((p) =>
-    gradeAtLeast(out.grades[p].sup, BONUS_RULE[p]) && gradeAtLeast(out.grades[p].md, BONUS_RULE[p])) : null;
+    gradeAtLeast(out.grades[p].sup, BONUS_RULE[p], ver) && gradeAtLeast(out.grades[p].md, BONUS_RULE[p], ver)) : null;
+  out.bonus = BONUS_RULE;
   return out;
 }
 
 /** หัวข้อเฉพาะตำแหน่ง: ตรวจว่าครบและน้ำหนักไม่เกิน · คืนข้อความปัญหา (ว่าง = ผ่าน) */
-export function customProblems(form, custom = {}) {
+export function customProblems(form, custom = {}, ver) {
   const out = [];
-  customSlots(form).forEach((s) => {
+  customSlots(form, ver).forEach((s) => {
     const rows = custom[s.key] || [];
     const sum = rows.reduce((t, x) => t + (+x.weight || 0), 0);
     rows.forEach((x, i) => {
@@ -154,7 +163,7 @@ const putKpi = (row, patch) => ({ ...extraOf(row), kpi: { ...kpiOf(row), ...patc
 
 /** บันทึกหัวข้อเฉพาะตำแหน่ง (หัวหน้างาน / ฝ่ายบุคคล) */
 export async function saveCustom(row, custom, by) {
-  const bad = customProblems(formOfRow(row), custom);
+  const bad = customProblems(formOfRow(row), custom, verOf(row));
   if (bad.length) throw new Error(bad.join('\n'));
   const n = Object.values(custom).reduce((t, a) => t + a.length, 0);
   return update('appraisals', row.id, {

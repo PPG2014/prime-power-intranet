@@ -5,7 +5,10 @@
  */
 import { esc } from '../core/dom.js';
 import { clean, extraOf, rolesOf, signsOf } from '../services/appraisal.js';
-import { PARTS, FORM_LABEL, catsOf, partScore, summarize, kpiGrade, formOfRow, kpiOf, ratingsOf } from '../services/kpi.js';
+import { PARTS, FORM_LABEL, catsOf, partScore, summarize, kpiGrade as gradeIn, formOfRow, kpiOf, ratingsOf, verOf } from '../services/kpi.js';
+
+let VER;
+const kpiGrade = (sc) => gradeIn(sc, VER);
 import { KPI_ATT } from '../components/kpi-sheet.js';
 import { openPRWindow } from './pr-fm-pur-004.js';
 
@@ -66,6 +69,7 @@ function signLine(title, s = {}, fallback = '') {
 
 export function renderKpi(row, { person = {}, cycle = null, ratings = null, hideOthers = false } = {}) {
   const form = formOfRow(row);
+  VER = verOf(row);
   const k = kpiOf(row);
   const x = extraOf(row);
   // คะแนนที่กำลังกรอกในหน้าต่าง (ยังไม่บันทึก) หรือคะแนนที่บันทึกในใบ
@@ -80,7 +84,7 @@ export function renderKpi(row, { person = {}, cycle = null, ratings = null, hide
   const ro = rolesOf(row);
   const pages = PARTS.map(([part, label], i) => `<div class="kp-page">
     ${head(row, person, cycle, label)}
-    ${table(catsOf(form, part, k.custom || {}), R)}
+    ${table(catsOf(form, part, k.custom || {}, VER), R)}
     ${hideOthers ? '' : recs(k.rec || {}, part)}
     ${i === 1 ? `
       <table class="kp-sum"><thead><tr><th>สรุปผลการประเมิน</th><th>ผู้บังคับบัญชา</th><th>ผู้บริหาร</th><th>ผลสุดท้าย (50 : 50)</th></tr></thead>

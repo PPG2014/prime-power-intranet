@@ -12,6 +12,7 @@
  * สถานะ "พนักงานรับทราบ" เหลือไว้สำหรับใบเก่าที่ผู้บริหารอนุมัติไปก่อนพนักงานเซ็น
  */
 import { list, create, update } from './data.js';
+import { loadKpiConfig, currentKpiVer } from './kpi-config.js';
 
 export const STAGES = ['ประเมินตนเอง', 'หัวหน้าประเมิน', 'ฝ่ายบุคคลตรวจสอบ', 'ผู้บริหารอนุมัติ', 'พนักงานรับทราบ'];
 export const [S_SELF, S_MGR, S_HR, S_BOSS, S_ACK] = STAGES;
@@ -369,6 +370,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
     .map((x) => x.trim().toLowerCase()).filter(Boolean));
 
   const kpi = isKpiSet(cycle.FormSet);
+  if (kpi) await loadKpiConfig({ fresh: true });     // ใบใหม่จำชุดเกณฑ์ปัจจุบันไว้
   const staff = dir.filter((p) => p.IsActive !== false && clean(p.Email)
     && !have.has(clean(p.Email).toLowerCase())
     && (!onlyList || wanted.has(clean(p.Email).toLowerCase()) || wanted.has(clean(p.Title).toLowerCase()))
@@ -395,7 +397,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
         startDate: p.StartDate ? String(p.StartDate).slice(0, 10) : '',
         rounds: mergeRounds(p.StartDate, cycle,
           allSheets.filter((r) => clean(r.EmployeeEmail).toLowerCase() === clean(p.Email).toLowerCase())),
-        ...(kpi ? { kpi: { form: kpiFormOf(p) } } : {}),
+        ...(kpi ? { kpi: { form: kpiFormOf(p), ver: currentKpiVer() } } : {}),
       }),
     }).catch((e) => { failed.push(`${clean(p.Title)} — ${e.message}`); return null; });
     if (row) made.push(row);
@@ -448,6 +450,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
   if (onlyList && !wanted.has(clean(me.Email).toLowerCase()) && !wanted.has(clean(me.Title).toLowerCase())) return 0;
   const kpi = isKpiSet(cycle.FormSet);
   if (kpi && afterCutoff(me, cycle)) return 0;
+  if (kpi) await loadKpiConfig();
 
   const byName = new Map(dir.map((p) => [clean(p.Title), p]));
   const ev = evaluatorFor(me, byName, kpi);
@@ -466,7 +469,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
       ...(firstStage(cycle) === S_MGR ? { noSelf: true } : {}),
       startDate: me.StartDate ? String(me.StartDate).slice(0, 10) : '',
       rounds: mergeRounds(me.StartDate, cycle, prev),
-      ...(kpi ? { kpi: { form: kpiFormOf(me) } } : {}),
+      ...(kpi ? { kpi: { form: kpiFormOf(me), ver: currentKpiVer() } } : {}),
     }),
   });
   return 1;

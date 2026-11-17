@@ -16,9 +16,14 @@ import {
   rolesOf, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
 } from '../services/appraisal.js';
 import {
-  PARTS, SCALE, KPI_RUBRIC, FORM_LABEL, BONUS_RULE, catsOf, partScore, summarize, kpiGrade, customSlots,
+  PARTS, SCALE, FORM_LABEL, catsOf, partScore, summarize, kpiGrade, customSlots,
   customProblems, saveCustom, saveScores, hrFinal, kpiSteps, formOfRow, kpiOf, ratingsOf, hasCustom,
+  verOf, rubricOf, gradesOf, bonusOf, loadKpiConfig,
 } from '../services/kpi.js';
+import { drawerHtml, bindRubricDrawer } from './rubric-drawer.js';
+
+/** ชุดเกณฑ์ของใบที่เปิดอยู่ (เปิดได้ทีละใบ) */
+let VER;
 
 const COL = { self: 'บุคลากร', sup: 'ผู้บังคับบัญชา', md: 'ผู้บริหาร' };
 const REC = [['s', '1. สิ่งที่บุคลากรปฏิบัติได้อย่างมีประสิทธิภาพ (Strength)'],
@@ -91,7 +96,7 @@ function partTable(part, label, cats, cols, data, role) {
       </tbody>
       <tfoot><tr class="kpi-tot"><td></td><td>คะแนนรวม ${esc(label.split(':')[0])} <span class="dim">(เต็ม 100)</span></td><td></td>
         ${cols.map((x) => `<td class="num"><b data-tot="${x}-${part}">${sc[x].rated ? f1(sc[x].score) : '—'}</b>
-          <div class="kpi-g" data-gr="${x}-${part}">${sc[x].rated ? kpiGrade(sc[x].score)[1] : ''}</div></td>`).join('')}</tr></tfoot>
+          <div class="kpi-g" data-gr="${x}-${part}">${sc[x].rated ? kpiGrade(sc[x].score, VER)[1] : ''}</div></td>`).join('')}</tr></tfoot>
     </table></div>
     ${recBlock(part, cols, role, data.rec)}
   </div>`;
@@ -118,16 +123,16 @@ function summaryHtml(sum, role) {
   const show = role.seeOthers;
   const cell = (part, w) => {
     const p = sum.parts[part][w];
-    return p.rated ? `${f1(p.score)} <b class="kpi-gb">${kpiGrade(p.score)[1]}</b>` : '—';
+    return p.rated ? `${f1(p.score)} <b class="kpi-gb">${kpiGrade(p.score, VER)[1]}</b>` : '—';
   };
-  const fin = (v) => (v === null ? '—' : `${f1(v)} <b class="kpi-gb">${kpiGrade(v)[1]}</b>`);
+  const fin = (v) => (v === null ? '—' : `${f1(v)} <b class="kpi-gb">${kpiGrade(v, VER)[1]}</b>`);
   return `<div class="panel kpi-sum" id="kpi-sum">
     <div class="panel-head">สรุปผลการประเมิน <span class="panel-meta">ผู้บังคับบัญชา 50% + ผู้บริหาร 50% · Part 1 50% + Part 2 50% · คะแนนประเมินตนเองไม่นำมาคิด</span></div>
     ${show ? `<div class="kpi-scroll"><table class="ap-table kpi-sumtbl">
       <thead><tr><th>ส่วนการประเมิน</th><th class="num">ตนเอง</th><th class="num">ผู้บังคับบัญชา</th><th class="num">ผู้บริหาร</th><th class="num">ผลสุดท้าย</th><th>เกณฑ์ขั้นต่ำ (โบนัส)</th></tr></thead>
       <tbody>${PARTS.map(([part, label, short]) => `<tr><td>${esc(label.split(':')[0])} ${esc(short)}</td>
         <td class="num">${cell(part, 'self')}</td><td class="num">${cell(part, 'sup')}</td><td class="num">${cell(part, 'md')}</td>
-        <td class="num">${fin(sum.parts[part].final)}</td><td>${BONUS_RULE[part]} ขึ้นไป ทั้งสองผู้ประเมิน</td></tr>`).join('')}
+        <td class="num">${fin(sum.parts[part].final)}</td><td>${esc(sum.bonus[part])} ขึ้นไป ทั้งสองผู้ประเมิน</td></tr>`).join('')}
       </tbody>
       <tfoot><tr><td><b>คะแนนรวม</b></td><td class="num">${f1(sum.total.self)}</td><td class="num">${f1(sum.total.sup)}</td>
         <td class="num">${f1(sum.total.md)}</td><td class="num"><b class="kpi-final">${fin(sum.final)}</b></td>
@@ -171,7 +176,7 @@ function infoHtml(row, person, cycle) {
 function customHtml(form, custom) {
   return `<div class="panel kpi-cust" id="kpi-cust">
     <div class="panel-head">✏️ Functional Competency เฉพาะตำแหน่ง <span class="panel-meta">หัวหน้างานกำหนด · เพิ่มได้หลายข้อ น้ำหนักรวมแต่ละหมวดห้ามเกินที่กำหนด</span></div>
-    ${customSlots(form).map((s) => {
+    ${customSlots(form, VER).map((s) => {
       const rows = custom[s.key] || [];
       const used = rows.reduce((t, x) => t + (+x.weight || 0), 0);
       return `<div class="kpi-slot" data-slot="${s.key}">
@@ -200,12 +205,34 @@ function signBox(title, data = {}, role, editable, wait = '') {
   </div>`;
 }
 
-function rubricHtml() {
-  return `<details class="kpi-rubric"><summary>📋 เกณฑ์การให้คะแนนรายข้อ (0–10)</summary>
-    <table class="ap-table"><tbody>${KPI_RUBRIC.map(([s, t, band, g]) => `<tr${band ? ' class="kpi-band"' : ''}>
-      <th class="num">${s}</th><td>${band ? `<b>${esc(band)}</b> · ` : ''}${esc(t)}</td><td class="num">${esc(g)}</td></tr>`).join('')}</tbody></table>
-    <div class="dim">เกรด: A 92–100 · B+ 85.50–91.99 · B 75–85.49 · C+ 64.50–74.99 · C 55–64.49 · D+ 45.50–54.99 · D 40–45.49 · F ต่ำกว่า 40</div>
-  </details>`;
+/** แถบเกณฑ์การประเมินด้านซ้าย (ชี้เมาส์ที่แถบแล้วเด้งออก) — ตามชุดเกณฑ์ของใบนี้ */
+export function kpiDrawerHtml(ver) {
+  const rub = rubricOf(ver);
+  const gr = gradesOf(ver);
+  const bo = bonusOf(ver);
+  const f2 = (n) => (+n).toFixed(2);
+  const range = (i) => (i === 0 ? `${f2(gr[0][0])} ขึ้นไป` : gr[i][0] <= 0 ? `ต่ำกว่า ${f2(gr[i - 1][0])}` : `${f2(gr[i][0])} – ${f2(gr[i - 1][0] - 0.01)}`);
+  const body = `
+    <section class="rb-topic" id="kpirb-tscore"><h4>เกณฑ์ให้คะแนนรายข้อ (0–10 ทีละ 0.5)</h4>
+      <table><thead><tr><th>คะแนน</th><td><b>คำอธิบาย</b></td><th>เกรด</th></tr></thead><tbody>
+      ${rub.slice().reverse().map(([sc, t, band, g]) => `${band ? `<tr class="rb-band"><td colspan="3">${esc(band)}</td></tr>` : ''}
+        <tr><th>${sc}</th><td>${esc(t)}</td><th>${esc(g)}</th></tr>`).join('')}</tbody></table></section>
+    <section class="rb-topic" id="kpirb-tgrade"><h4>ช่วงคะแนนและเกรด</h4>
+      <table><tbody>${gr.map((g, i) => `<tr><th>${esc(g[1])}</th><td>${range(i)}${g[2] ? ` · ${esc(g[2])}` : ''}</td></tr>`).join('')}</tbody></table></section>
+    <section class="rb-topic" id="kpirb-tcalc"><h4>วิธีคิดคะแนนและเกณฑ์โบนัส</h4>
+      <table><tbody>
+        <tr><th>1</th><td>คะแนนข้อ = คะแนนที่ให้ ÷ 10 × น้ำหนักรายข้อ</td></tr>
+        <tr><th>2</th><td>คะแนนหมวด = ผลรวมคะแนนข้อ × น้ำหนักหมวด ÷ น้ำหนักรายข้อรวมของหมวด · รวมทุกหมวดเต็ม 100</td></tr>
+        <tr><th>3</th><td>ผลแต่ละ Part = ผู้บังคับบัญชา 50% + ผู้บริหาร 50% (คะแนนประเมินตนเองไม่นำมาคิด)</td></tr>
+        <tr><th>4</th><td>คะแนนรวม = Part 1 50% + Part 2 50%</td></tr>
+        <tr><th>★</th><td>เกณฑ์พิจารณาโบนัส/ปรับเงินเดือน: Part 1 ได้ <b>${esc(bo.skill)}</b> ขึ้นไป และ Part 2 ได้ <b>${esc(bo.behavior)}</b> ขึ้นไป
+          ทั้งจากผู้บังคับบัญชาและผู้บริหาร</td></tr>
+      </tbody></table></section>`;
+  return drawerHtml({
+    id: 'kpirb', title: `เกณฑ์การประเมิน KPI · ชุด ${ver}`, tab: '📋 เกณฑ์การประเมิน',
+    jumps: [{ id: 'score', label: 'คะแนน 0–10' }, { id: 'grade', label: 'เกรด' }, { id: 'calc', label: 'วิธีคิด / โบนัส' }],
+    body,
+  });
 }
 
 function logHtml(row) {
@@ -224,6 +251,8 @@ function logHtml(row) {
 export async function openKpiSheet(row, ctx) {
   if (!row) return;
   const { openModal } = await import('./modal.js');
+  await loadKpiConfig();
+  VER = verOf(row);
   const dir = await list('directory').catch(() => []);
   const person = dir.find((p) => low(p.Email) === low(row.EmployeeEmail)) || {};
   const role = kpiRole(row, ctx);
@@ -248,10 +277,9 @@ export async function openKpiSheet(row, ctx) {
     ${kpiTrackHtml(row)}
     ${infoHtml(row, person, ctx.cycle)}
     ${role.custom ? customHtml(form, custom) : ''}
-    ${role.edit ? `<div class="panel-note kpi-howto">ให้คะแนนรายข้อ 0–10 (ทีละ 0.5) ในคอลัมน์ <b>${COL[role.edit]}</b> ตามเกณฑ์ด้านล่าง ·
+    ${role.edit ? `<div class="panel-note kpi-howto">ให้คะแนนรายข้อ 0–10 (ทีละ 0.5) ในคอลัมน์ <b>${COL[role.edit]}</b> ตามเกณฑ์ที่แถบ <b>📋 เกณฑ์การประเมิน</b> ด้านซ้ายจอ (ชี้เมาส์ที่แถบเพื่อเปิด) ·
       ระบบคิดคะแนนถ่วงน้ำหนักให้ทันที · กด "บันทึกร่าง" เก็บไว้ทำต่อได้</div>` : ''}
-    ${rubricHtml()}
-    ${PARTS.map(([part, label]) => partTable(part, label, catsOf(form, part, k.custom || {}), cols, data, role)).join('')}
+    ${PARTS.map(([part, label]) => partTable(part, label, catsOf(form, part, k.custom || {}, VER), cols, data, role)).join('')}
     <div id="kpi-sumhost">${summaryHtml(sum, role)}</div>
     ${role.edit ? `<label class="ap-comment">ความเห็นเพิ่มเติม (${COL[role.edit]})
       <textarea id="kpi-comment" rows="2">${esc(role.edit === 'self' ? (row.SelfComment || '') : role.edit === 'sup' ? (row.MgrComment || '') : (row.HeadComment || ''))}</textarea></label>` : ''}
@@ -281,6 +309,13 @@ export async function openKpiSheet(row, ctx) {
 
   const close = openModal({ title, wide: true, body, footer });
   $('.modal')?.classList.add('kpi-modal');
+  // แถบเกณฑ์อยู่นอกกรอบหน้าต่าง (ลอยชิดขอบจอ) · ปิดหน้าต่าง = แถบหายไปด้วย
+  const root = $('#overlay-root');
+  root.insertAdjacentHTML('beforeend', kpiDrawerHtml(VER));
+  bindRubricDrawer('kpirb');
+  new MutationObserver((_, ob) => {
+    if (!$('#kpirb-drawer')) { document.body.classList.remove('rb-open'); ob.disconnect(); }
+  }).observe(root, { childList: true });
   bindSignaturePads();
   const reopen = async () => {
     const { list: l } = await import('../services/data.js');
@@ -317,12 +352,12 @@ export async function openKpiSheet(row, ctx) {
   const recalc = () => {
     const rt = collect();
     PARTS.forEach(([part]) => {
-      const cats = catsOf(form, part, k.custom || {});
+      const cats = catsOf(form, part, k.custom || {}, VER);
       cols.forEach((c) => {
         const s = partScore(cats, rt[c]);
         cats.forEach((cat) => { const el = $(`[data-sub="${c}-${cat.key}"]`); if (el) el.textContent = f1(s.cats[cat.key]); });
         const t = $(`[data-tot="${c}-${part}"]`); if (t) t.textContent = s.rated ? f1(s.score) : '—';
-        const g = $(`[data-gr="${c}-${part}"]`); if (g) g.textContent = s.rated ? kpiGrade(s.score)[1] : '';
+        const g = $(`[data-gr="${c}-${part}"]`); if (g) g.textContent = s.rated ? kpiGrade(s.score, VER)[1] : '';
       });
     });
     $('#kpi-sumhost').innerHTML = summaryHtml(summarize(row, { ratings: rt }), role);
@@ -359,7 +394,7 @@ export async function openKpiSheet(row, ctx) {
       $$('.kpi-cw', host).forEach((el) => {
         el.oninput = () => {
           keepInputs();
-          const key = el.dataset.slot; const slot = customSlots(form).find((s) => s.key === key);
+          const key = el.dataset.slot; const slot = customSlots(form, VER).find((s) => s.key === key);
           const used = (custom[key] || []).reduce((t, x) => t + (+x.weight || 0), 0);
           const tag = $(`[data-left="${key}"]`, host);
           if (tag) { tag.textContent = `ใช้ ${used} / ${slot.budget}`; tag.classList.toggle('over', used > slot.budget); }
@@ -370,7 +405,7 @@ export async function openKpiSheet(row, ctx) {
         keepInputs();
         const clean2 = Object.fromEntries(Object.entries(custom).map(([kk, a]) => [kk, a.filter((x) => String(x.title).trim() || x.weight)
           .map((x) => ({ id: x.id, title: String(x.title).trim(), weight: +x.weight || 0 }))]));
-        const bad = customProblems(form, clean2);
+        const bad = customProblems(form, clean2, VER);
         const err = $('#kpi-cerr');
         if (bad.length) { err.hidden = false; err.innerHTML = bad.map(esc).join('<br>'); return; }
         const b = $('#kpi-csave'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
@@ -394,7 +429,7 @@ export async function openKpiSheet(row, ctx) {
     if (submit) {
       const incomplete = PARTS.filter(([p]) => !s.parts[p][role.edit].complete).map(([, l]) => l.split(':')[0]);
       if (incomplete.length && !confirm(`ยังให้คะแนนไม่ครบทุกข้อใน ${incomplete.join(' และ ')}\nข้อที่ไม่ได้ให้คะแนนจะไม่ถูกนับ ต้องการส่งเลยหรือไม่?`)) return;
-      if (role.edit === 'sup' && customSlots(form).length && !hasCustom(row)
+      if (role.edit === 'sup' && customSlots(form, VER).length && !hasCustom(row)
         && !confirm('ยังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง ส่งต่อเลยหรือไม่?')) return;
     }
     let sign = null;

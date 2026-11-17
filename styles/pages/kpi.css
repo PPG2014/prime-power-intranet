@@ -116,3 +116,33 @@
   body.printing-pr .kp-page:last-child { break-after: auto; }
   .kp-tbl tr { break-inside: avoid; }
 }
+
+/* แถบเกณฑ์ KPI ด้านซ้าย (rubric-drawer.js · id kpirb) */
+.rb-topic tr.rb-band td { background: #eaf2fb; color: var(--navy, #0b3a75); font-weight: 700; }
+.rb-topic thead th, .rb-topic thead td { background: #dbe7f4; }
+
+/* จัดการข้อมูล → 🎯 เกณฑ์ประเมิน KPI (admin/kpi-criteria-editor.js) */
+.kc-bar { flex-wrap: wrap; gap: 8px; align-items: center; }
+.kc-bar select { margin-left: 4px; padding: 4px 8px; font: inherit; }
+.kc-ro { background: #f3f6fa; }
+.kc-warn { background: #fff8e6; border-color: #f5d29a; }
+.kc-tabs, .kc-pick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.kc-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.kc-sum { margin: 4px 0 10px; font-size: .92em; color: #1e7f4f; }
+.kc-sum.bad { color: #b42318; font-weight: 600; }
+.kc-cathead { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.kc-cathead label { display: flex; flex-direction: column; gap: 3px; font-size: .85em; color: var(--muted, #6b7280); }
+.kc-cathead .kc-name { flex: 1; min-width: 220px; }
+.kc-cathead .kc-red { color: #b42318; }
+#kc-editor input, #kc-editor textarea {
+  font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; box-sizing: border-box; width: 100%; }
+#kc-editor input:disabled, #kc-editor textarea:disabled, #kc-editor select:disabled { background: #f7f8fa; color: #374151; }
+#kc-editor input.kc-num { width: 86px; text-align: right; }
+#kc-editor .kc-no input.kc-num { width: 60px; }
+.kc-items { table-layout: fixed; width: 100%; }
+.kc-items th:nth-child(1) { width: 80px; } .kc-items th:nth-child(3) { width: 110px; } .kc-items th:nth-child(4) { width: 44px; }
+.kc-items td.num input.kc-num { margin-left: auto; display: block; }
+.kc-items td, .kc-rubric td, .kc-grades td { vertical-align: top; }
+.kc-code { width: 86px; }
+.kc-rubric textarea { resize: vertical; min-height: 2.4em; }
+.kc-rubric td:nth-child(3) { width: 200px; }

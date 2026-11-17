@@ -12,7 +12,7 @@ import {
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
-import { summarize, hasCustom } from '../services/kpi.js';
+import { summarize, hasCustom, loadKpiConfig } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
@@ -105,6 +105,7 @@ export async function render(ctx) {
   if (cycle && !liveCycles.length) liveCycles = [cycle];
   secs = await criteriaOf(cycle);
   scheme = schemeOf(cycle?.FormSet);
+  if (liveCycles.some((c) => isKpiSet(c.FormSet)) || isKpiSet(cycle?.FormSet)) await loadKpiConfig();   // เกณฑ์ KPI รายปี
   const titles = new Set(liveCycles.map((c) => clean(c.Title)));
   const loadRows = async () => (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
   rows = await loadRows();
