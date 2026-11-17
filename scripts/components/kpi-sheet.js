@@ -22,6 +22,7 @@ import {
   verOf, rubricOf, gradesOf, bonusOf, loadKpiConfig,
 } from '../services/kpi.js';
 import { drawerHtml, bindRubricDrawer } from './rubric-drawer.js';
+import { personRef, bindPersonCards } from './person-card.js';
 
 /** ชุดเกณฑ์ของใบที่เปิดอยู่ (เปิดได้ทีละใบ) */
 let VER;
@@ -162,11 +163,11 @@ export function kpiTrackHtml(row) {
   return `<div class="ap-track kpi-track">${steps.map((s) => `<div class="ap-step ${s.state === 'done' ? 'ok' : s.state === 'now' ? 'now' : 'wait'}">
     <div class="ap-step-dot">${s.state === 'done' ? '✓' : ''}</div>
     <div class="ap-step-body"><b>${esc(s.label)}</b>
-      <span>${s.state === 'now' ? 'กำลังดำเนินการ' : s.state === 'done' ? `${esc(s.by || 'เรียบร้อย')}${s.at ? ` · ${esc(dt(s.at))}` : ''}`
+      <span>${s.state === 'now' ? 'กำลังดำเนินการ' : s.state === 'done' ? `${s.by ? personRef(s.by) : 'เรียบร้อย'}${s.at ? ` · ${esc(dt(s.at))}` : ''}`
         : s.state === 'na' ? 'ไม่ได้กำหนด' : 'รอดำเนินการ'}</span></div></div>`).join('')}</div>`;
 }
 
-function infoHtml(row, person, cycle) {
+function infoHtml(row, person, cycle, mdName = '') {
   const x = extraOf(row);
   const a = x.attendance || {};
   const ro = rolesOf(row);
@@ -174,11 +175,13 @@ function infoHtml(row, person, cycle) {
   const period = cycle && (cycle.PeriodFrom || cycle.PeriodTo)
     ? `${thDate(cycle.PeriodFrom)} – ${thDate(cycle.PeriodTo)}` : '';
   return `<div class="kpi-info">
+    <div><i>ผู้ถูกประเมิน</i><b>${personRef(clean(row.EmployeeName)) || '—'}</b></div>
     <div><i>ตำแหน่ง</i><b>${esc(clean(person.Position) || '—')}</b></div>
     <div><i>ฝ่าย / แผนก</i><b>${esc([clean(row.Department), clean(row.Section)].filter(Boolean).join(' · ') || '—')}</b></div>
     <div><i>แบบประเมิน</i><b>${esc(FORM_LABEL[formOfRow(row)])}</b></div>
-    <div><i>ผู้บังคับบัญชา (ผู้ประเมิน)</i><b>${esc(clean(row.EvaluatorName)) || '<span class="kpi-no-ok">ยังไม่ได้กำหนด</span>'}</b></div>
-    <div><i>ผู้บริหาร (MD)</i><b>${esc(clean(ro.approver && ro.approver.name)) || 'กรรมการผู้จัดการ'}</b></div>
+    <div><i>ผู้บังคับบัญชา (ผู้ประเมิน)</i><b>${personRef(clean(row.EvaluatorName)) || '<span class="kpi-no-ok">ยังไม่ได้กำหนด</span>'}</b></div>
+    <div><i>ผู้บริหาร (MD)</i><b>${mdName ? personRef(mdName) : 'กรรมการผู้จัดการ'}</b></div>
+    ${ro.hr && ro.hr.name ? `<div><i>ฝ่ายบุคคลผู้ตรวจ</i><b>${personRef(clean(ro.hr.name))}</b></div>` : ''}
     ${period ? `<div><i>รอบผลงาน</i><b>${esc(period)}</b></div>` : ''}
     ${(x.kpi || {}).selfDue ? `<div><i>ประเมินตนเองภายใน</i><b>${esc(thDate((x.kpi || {}).selfDue))}</b></div>` : ''}
   </div>
@@ -263,6 +266,47 @@ function logHtml(row) {
       <span class="dim">${esc(dt(l.at))}</span>${l.note ? `<div class="dim">${esc(l.note)}</div>` : ''}</li>`).join('')}</ul></details>`;
 }
 
+/**
+ * ตารางคำนวณค่าคะแนน กรณีคะแนนเต็มไม่เท่ากับ 10 (เหมือนในไฟล์ Excel)
+ * ผลลัพธ์ = คะแนนเต็ม × คะแนนประเมิน (0–10) ÷ 10
+ * id = ชื่อนำหน้า (กรอบย่อยข้างกรอบหลัก / ในกรอบหลักตอนจอแคบ)
+ */
+function calcHtml(id) {
+  return `<div class="kpi-calc" data-calc="${id}">
+    <div class="kpi-calc-row"><label for="${id}-full">คะแนนเต็ม</label>
+      <input type="number" id="${id}-full" class="kpi-calc-full" min="0" step="any" value="25"></div>
+    <div class="kpi-calc-row"><label for="${id}-score">คะแนนประเมิน (0–10)</label>
+      <input type="number" id="${id}-score" class="kpi-calc-score" min="0" max="10" step="0.5" value="6"></div>
+    <div class="kpi-calc-row kpi-calc-out"><span>ผลลัพธ์</span><b class="kpi-calc-res">15.00</b></div>
+    <div class="dim kpi-calc-note">ผลลัพธ์ = คะแนนเต็ม × คะแนนประเมิน ÷ 10 · คลิกช่องคะแนนในตาราง ระบบเติมน้ำหนักของข้อนั้นให้</div>
+  </div>`;
+}
+function bindCalc() {
+  const run = (box) => {
+    const full = +box.querySelector('.kpi-calc-full').value;
+    const sc = +box.querySelector('.kpi-calc-score').value;
+    const ok = box.querySelector('.kpi-calc-full').value !== '' && box.querySelector('.kpi-calc-score').value !== '' && isFinite(full) && isFinite(sc);
+    box.querySelector('.kpi-calc-res').textContent = ok ? ((full * sc) / 10).toFixed(2) : '—';
+    box.querySelector('.kpi-calc-score').classList.toggle('bad', ok && (sc < 0 || sc > 10));
+  };
+  const boxes = $$('.kpi-calc');
+  boxes.forEach((box) => { box.addEventListener('input', () => run(box)); run(box); });
+  // คลิกช่องคะแนนในตาราง → ใส่น้ำหนักของข้อนั้นเป็นคะแนนเต็ม และคะแนนที่เลือกไว้ (ถ้ามี)
+  $$('.kpi-in').forEach((el) => {
+    el.addEventListener('focus', () => {
+      const w = el.closest('tr') && el.closest('tr').querySelector('td.num');
+      boxes.forEach((box) => {
+        if (w && w.textContent.trim() !== '') box.querySelector('.kpi-calc-full').value = w.textContent.trim();
+        if (el.value !== '') box.querySelector('.kpi-calc-score').value = el.value;
+        run(box);
+      });
+    });
+    el.addEventListener('change', () => boxes.forEach((box) => {
+      if (el.value !== '') { box.querySelector('.kpi-calc-score').value = el.value; run(box); }
+    }));
+  });
+}
+
 /* ───────── หน้าต่างใบประเมิน ───────── */
 
 /**
@@ -296,6 +340,9 @@ export async function openKpiSheet(row, ctx) {
   const by = ctx.userName || '';
   const title = `${clean(row.EmployeeName)} · ประเมิน KPI ประจำปี`;
 
+  // ผู้บริหารของใบ: กำหนดไว้ในใบ หรือกรรมการผู้จัดการในทะเบียนบุคลากร
+  const mdName = clean((rolesOf(row).approver || {}).name)
+    || clean((dir.find((p) => clean(p.Position) === 'กรรมการผู้จัดการ' && p.IsActive !== false) || {}).Title);
   const body = `
     <div class="ap-stats small">
       <div><b>${esc(kpiStatusLabel(role.st, row))}</b><span>สถานะ</span></div>
@@ -303,8 +350,9 @@ export async function openKpiSheet(row, ctx) {
       <div><b>${role.seeOthers ? f1(sum.parts.behavior.final) : '—'}</b><span>Part 2 (สุดท้าย)</span></div>
       <div><b>${role.seeOthers && sum.final !== null ? `${f1(sum.final)} · ${esc(sum.grade)}` : '—'}</b><span>คะแนน / เกรดสุดท้าย</span></div>
     </div>
-    ${kpiTrackHtml(row)}
-    ${infoHtml(row, person, ctx.cycle)}
+    ${infoHtml(row, person, ctx.cycle, mdName)}
+    <details class="kpi-steps-in"><summary>ขั้นตอนการประเมิน · ${esc(kpiStatusLabel(role.st, row))}</summary>${kpiTrackHtml(row)}</details>
+    <details class="kpi-steps-in"><summary>🧮 ตารางคำนวณค่าคะแนน (กรณีคะแนนเต็มไม่เท่ากับ 10)</summary>${calcHtml('kcalc-in')}</details>
     ${role.custom ? customHtml(form, custom, role) : ''}
     ${role.fcHr ? `<div class="panel kpi-hrbox"><div class="panel-head">ฝ่ายบุคคลตรวจหัวข้อเฉพาะตำแหน่ง</div>
       <div class="kpi-hrrow">
@@ -349,10 +397,30 @@ export async function openKpiSheet(row, ctx) {
 
   const close = openModal({ title, wide: true, body, footer });
   $('.modal')?.classList.add('kpi-modal');
+  // กรอบย่อย "ขั้นตอนการประเมิน" อยู่นอกกรอบหลัก ชิดด้านขวา (จอแคบ → แสดงในกรอบหลักแทน)
+  {
+    const mask = $('#mask'); const modal = $('.modal');
+    if (mask && modal) {
+      const wrap = document.createElement('div');
+      wrap.className = 'kpi-wrap';
+      mask.insertBefore(wrap, modal);
+      wrap.appendChild(modal);
+      wrap.insertAdjacentHTML('beforeend', `<div class="kpi-sidecol">
+        <aside class="kpi-side" aria-label="ขั้นตอนการประเมิน">
+          <div class="kpi-side-h">ขั้นตอนการประเมิน</div>
+          <div class="kpi-side-b">${kpiTrackHtml(row)}</div></aside>
+        <aside class="kpi-side" aria-label="ตารางคำนวณค่าคะแนน">
+          <div class="kpi-side-h">🧮 ตารางคำนวณค่าคะแนน <span>กรณีคะแนนเต็มไม่เท่ากับ 10</span></div>
+          <div class="kpi-side-b">${calcHtml('kcalc')}</div></aside>
+      </div>`);
+    }
+  }
+  bindCalc();
   // แถบเกณฑ์อยู่นอกกรอบหน้าต่าง (ลอยชิดขอบจอ) · ปิดหน้าต่าง = แถบหายไปด้วย
   const root = $('#overlay-root');
   root.insertAdjacentHTML('beforeend', kpiDrawerHtml(VER));
   bindRubricDrawer('kpirb');
+  bindPersonCards();   // ชี้ชื่อบุคลากร → การ์ดข้อมูล
   new MutationObserver((_, ob) => {
     if (!$('#kpirb-drawer')) { document.body.classList.remove('rb-open'); ob.disconnect(); }
   }).observe(root, { childList: true });
