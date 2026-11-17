@@ -5,7 +5,7 @@
  */
 import { esc, $ } from '../core/dom.js';
 import { toCsv, downloadText } from '../utils/csv.js';
-import { clean, noSelf, afterCutoff, isKpiSet, rolesOf } from '../services/appraisal.js';
+import { clean, noSelf, afterCutoff, isKpiSet, sheetIsKpi, rolesOf } from '../services/appraisal.js';
 import { summarize, kpiSteps, formOfRow, hasCustom } from '../services/kpi.js';
 import { kpiStatusLabel } from './kpi-sheet.js';
 
@@ -29,7 +29,7 @@ function trackOf(r, dirByEmail) {
 }
 
 export function kpiDashboardHtml(rows, { dir = [], cycle = null } = {}) {
-  const kpiRows = rows.filter((r) => isKpiSet(r.FormSet));
+  const kpiRows = rows.filter((r) => sheetIsKpi(r));
   if (!kpiRows.length) return '';
   const dirByEmail = new Map(dir.map((p) => [low(p.Email), p]));
   const t = kpiRows.map((r) => trackOf(r, dirByEmail));
@@ -131,7 +131,7 @@ export function bindKpiDashboard(rows, { dir = [], cycle = null } = {}) {
   if (!b) return;
   b.onclick = () => {
     const dirByEmail = new Map(dir.map((p) => [low(p.Email), p]));
-    const t = rows.filter((r) => isKpiSet(r.FormSet)).map((r) => trackOf(r, dirByEmail));
+    const t = rows.filter((r) => sheetIsKpi(r)).map((r) => trackOf(r, dirByEmail));
     const keys = ['ชื่อ-สกุล', 'อีเมล', 'ฝ่าย', 'แผนก', 'ตำแหน่ง', 'แบบ', 'ผู้บังคับบัญชา', 'ผู้บริหาร (MD)',
       ...STEP_COLS.map(([, l]) => l), 'Grade (Skill MS)', 'Grade (Skill MD)', 'Grade (Behavior MS)', 'Grade (Behavior MD)',
       'คะแนนสุดท้าย', 'Grade', 'ผ่านเกณฑ์โบนัส', 'สถานะ', 'หมายเหตุ'];

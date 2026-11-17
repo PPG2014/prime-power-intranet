@@ -8,7 +8,7 @@ import {
   submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
   signsOf, empSigned, hrSigned, needsEmpSign,
   S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo, noSelf,
-  canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, schemeOf,
+  canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, sheetIsKpi, schemeOf,
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
@@ -36,7 +36,20 @@ let myHistory = [];        // ใบประเมินของฉันท�
 let shownId = null;        // ใบที่แสดงเป็นหลักด้านบน (ทำเครื่องหมายในตารางประวัติ)
 let dirAll = [];           // ทะเบียนบุคลากร (ใช้ใน Dashboard KPI)
 /** ใบนี้เป็นแบบประเมิน KPI ประจำปี */
-const isKpi = (r) => isKpiSet(clean(r && r.FormSet) || clean(cycleOfSheet(r, allCycles)?.FormSet));
+const isKpi = (r) => sheetIsKpi(r) || isKpiSet(cycleOfSheet(r, allCycles)?.FormSet);
+/**
+ * ใบในรอบ KPI ให้ถือเป็นใบ KPI เสมอ (แก้ในหน่วยความจำ) — กันกรณีคอลัมน์ FormSet ของ List Appraisals
+ * เป็น Choice ที่ไม่มีตัวเลือก KPI ทำให้ใบถูกบันทึกเป็นชุดเริ่มต้น (แบบผ่านงาน) แล้วเปิดผิดแบบ
+ */
+const markKpi = (list, cyc) => {
+  list.forEach((r) => {
+    const c = cycleOfSheet(r, cyc);
+    if (isKpiSet(r.FormSet)) return;
+    if (c && isKpiSet(c.FormSet)) r.FormSet = clean(c.FormSet);
+    else if (sheetIsKpi(r)) r.FormSet = 'ประเมิน KPI ประจำปี';
+  });
+  return list;
+};
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
@@ -107,7 +120,7 @@ export async function render(ctx) {
   scheme = schemeOf(cycle?.FormSet);
   if (liveCycles.some((c) => isKpiSet(c.FormSet)) || isKpiSet(cycle?.FormSet)) await loadKpiConfig();   // เกณฑ์ KPI รายปี
   const titles = new Set(liveCycles.map((c) => clean(c.Title)));
-  const loadRows = async () => (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
+  const loadRows = async () => markKpi((await sheets('')).filter((r) => titles.has(clean(r.CycleName))), liveCycles);
   rows = await loadRows();
 
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
@@ -129,7 +142,7 @@ export async function render(ctx) {
   allCycles = await list('appraisalCycles').catch(() => []);
   shownId = mineMain ? mineMain.id : null;
   lastSig = sigOf(allCycles, await list('appraisals').catch(() => []));   // ของที่ใช้วาดรอบนี้ ไว้เทียบกับข้อมูลสด
-  myHistory = (await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
+  myHistory = markKpi((await sheets('')).filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail), allCycles)
     .sort((a, b) => String(b.Created || '').localeCompare(String(a.Created || '')) || (+b.id || 0) - (+a.id || 0));
 
   const mine = mineMain;
@@ -766,15 +779,16 @@ export function mount(ctx) {
       if (!targets.length) { alert('รอบนี้ปิดแล้ว สร้างใบเพิ่มไม่ได้'); return; }
       if (!confirm(`สร้างใบประเมินรอบ ${targets.map((c) => `"${clean(c.Title)}"`).join(', ')} ให้บุคลากรที่ยังไม่มีใบ?`)) return;
       gen.disabled = true;
-      const res = { created: 0, skipped: 0, noManager: 0, failed: [] };
+      const res = { created: 0, skipped: 0, noManager: 0, failed: [], warn: [] };
       for (const c of targets) {
         // eslint-disable-next-line no-await-in-loop
         const one = await generateSheets(c, (d, t) => { gen.textContent = `${clean(c.Title)} · กำลังสร้าง ${d}/${t}…`; });
         res.created += one.created || 0; res.skipped += one.skipped || 0;
-        res.noManager += one.noManager || 0; res.failed.push(...(one.failed || []));
+        res.noManager += one.noManager || 0; res.failed.push(...(one.failed || [])); res.warn.push(...(one.warn || []));
       }
       alert(`สร้างแล้ว ${res.created} ใบ · มีอยู่เดิม ${res.skipped} ใบ`
         + (res.noManager ? `\nมี ${res.noManager} คนที่ยังไม่ได้กำหนดผู้บังคับบัญชา จะไม่มีผู้ประเมิน` : '')
+        + (res.warn.length ? `\n\n${res.warn.join('\n')}` : '')
         + (res.failed.length ? `\n\nสร้างไม่สำเร็จ ${res.failed.length} ใบ\n${res.failed.slice(0, 10).join('\n')}` : ''));
       await rerender();
     };

@@ -33,6 +33,11 @@ export const GRADE_SCHEMES = {
 };
 /** แบบประเมิน KPI ประจำปี (ใช้หัวข้อ/วิธีคิดคะแนนของ services/kpi.js) */
 export const isKpiSet = (formSet) => /KPI/i.test(String(formSet || ''));
+/**
+ * ใบนี้เป็นใบ KPI หรือไม่ — ดูข้อมูล KPI ในใบ (Extra.kpi) ก่อน เพราะถ้าคอลัมน์ FormSet ใน SharePoint เป็น Choice
+ * ที่ไม่มีตัวเลือก KPI ระบบจะบันทึกช่องนั้นไม่ได้ ใบจะได้ค่าเริ่มต้นของคอลัมน์แทน
+ */
+export const sheetIsKpi = (row) => !!(row && extraOf(row).kpi) || isKpiSet(row && row.FormSet);
 /** เกณฑ์เกรดของชุดแบบประเมิน */
 export const schemeOf = (formSet) => (isKpiSet(formSet) ? 'KPI' : /ทดลองงาน|ผ่านงาน/.test(String(formSet || '')) ? 'ทดลองงาน' : 'มาตรฐาน');
 /**
@@ -221,7 +226,7 @@ export const hrSigned = (row) => signed(signsOf(row).hr);
 /** รอพนักงานลงนามรับทราบอยู่หรือไม่ (ทำได้ตั้งแต่หัวหน้าประเมินเสร็จ พร้อมกับฝ่ายบุคคล) */
 export const needsEmpSign = (row) => {
   const st = clean(row && row.Status);
-  if (isKpiSet(row && row.FormSet)) return st === S_ACK;
+  if (sheetIsKpi(row)) return st === S_ACK;
   return st === S_ACK || (st === S_HR && !empSigned(row));
 };
 
@@ -245,7 +250,7 @@ export function canBossApprove(row, { email, person = null, isAdmin = false }) {
   if (ap && ap.email) return isAdmin || lowEmail(ap.email) === lowEmail(email);
   if (isAdmin) return true;
   // KPI ประจำปี: ผู้บริหารที่ประเมินคือ MD (ไม่ได้กำหนดตัวในใบ → กรรมการผู้จัดการ)
-  if (isKpiSet(row && row.FormSet)) return clean(person && person.Position) === 'กรรมการผู้จัดการ';
+  if (sheetIsKpi(row)) return clean(person && person.Position) === 'กรรมการผู้จัดการ';
   return isApproverLevel(person && person.Level)
     && clean(row.Department) === clean(person && person.Department)
     && lowEmail(row.EvaluatorEmail) !== lowEmail(email);
@@ -281,7 +286,7 @@ export function appraisalTodo({ cycle, cycles = null, rows, email, person = null
 
   out.team = teamOf(rows, email).filter((r) => (st(r) === S_MGR && stageOpen(cyc(r), S_MGR).ok)
     // KPI: หัวหน้ายังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง (ทำได้ตั้งแต่ขั้นประเมินตนเอง)
-    || (isKpiSet(r.FormSet) && st(r) === S_SELF && !kpiCustomSet(r))).length;
+    || (sheetIsKpi(r) && st(r) === S_SELF && !kpiCustomSet(r))).length;
 
   out.approve = rows.filter((r) => (st(r) === S_BOSS && canBossApprove(r, who))
     || (st(r) === S_HR && lowEmail((rolesOf(r).hr || {}).email) === me)).length;
@@ -378,6 +383,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
 
   const byName = new Map(dir.map((p) => [clean(p.Title), p]));
   let done = 0;
+  let formSetDropped = 0;    // SharePoint ไม่รับค่า FormSet (คอลัมน์ Choice ไม่มีตัวเลือกนี้)
   const made = [];
   const failed = [];      // สร้างไม่สำเร็จ: "ชื่อ — สาเหตุ" แจ้งผู้ใช้ ไม่เก็บเงียบ
   for (const p of staff) {
@@ -401,13 +407,19 @@ export async function generateSheets(cycle, onProgress = () => {}) {
       }),
     }).catch((e) => { failed.push(`${clean(p.Title)} — ${e.message}`); return null; });
     if (row) made.push(row);
+    if (row && (row.dropped || []).some((d) => /^FormSet/.test(d))) formSetDropped += 1;
     done += 1;
     onProgress(done, staff.length);
   }
-  return { created: made.length, skipped: existing.length, failed,
+  const warn = formSetDropped ? [formSetWarn(cycle.FormSet, formSetDropped)] : [];
+  return { created: made.length, skipped: existing.length, failed, warn,
     noManager: staff.filter((p) => !evaluatorFor(p, byName, kpi).name).length,
     cutoff: kpi ? dir.filter((p) => p.IsActive !== false && afterCutoff(p, cycle)).length : 0 };
 }
+
+/** ข้อความเตือนเมื่อ SharePoint ไม่รับค่าชุดแบบประเมินในใบ */
+export const formSetWarn = (set, n) => `⚠️ SharePoint ไม่รับค่า "${clean(set)}" ในคอลัมน์ FormSet ของ List Appraisals (${n} ใบ)\n`
+  + `  ให้เพิ่มตัวเลือก "${clean(set)}" ในคอลัมน์นี้ (List settings → FormSet) — ระหว่างนี้ระบบยังเปิดเป็นแบบที่ถูกต้องให้`;
 
 /**
  * ผู้ประเมินของใบใหม่ = ผู้บังคับบัญชาในทะเบียนบุคลากร

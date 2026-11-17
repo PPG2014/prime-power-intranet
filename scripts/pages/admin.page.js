@@ -492,6 +492,7 @@ async function openEditor(key, record) {
           + '\n  ถ้าเป็นช่อง ApproverType ให้เพิ่มตัวเลือก "กรรมการผู้จัดการ", "รองกรรมการผู้จัดการด้านปฏิบัติการ",'
           + ' "รองกรรมการผู้จัดการด้านการเงิน" ในคอลัมน์นั้น (หรือเปลี่ยนเป็น Single line of text) แล้วบันทึกอีกครั้ง');
       }
+      if (isCycle && lastSheetWarn.length) notes.push(...lastSheetWarn);
       if (sheetFails.length) {
         notes.push(`สร้างใบประเมินไม่สำเร็จ ${sheetFails.length} ใบ — ข้อมูลในตารางของคนเหล่านี้ยังไม่ถูกบันทึก\n  `
           + sheetFails.slice(0, 10).join('\n  ')
@@ -513,7 +514,9 @@ async function openEditor(key, record) {
  * หลังบันทึกรอบประเมิน: สร้างใบประเมินให้ทุกคนในรายชื่อ แล้วเขียนข้อมูลที่กรอกในตารางลงแต่ละใบ
  * ถ้าเปลี่ยนชื่อรอบ ย้ายใบเดิมไปชื่อใหม่ก่อน ไม่ให้เกิดใบซ้ำ
  */
+let lastSheetWarn = [];
 async function saveCycleSheets(record, data, grid, btn) {
+  lastSheetWarn = [];
   const title = clean(data.Title);
   const oldTitle = record ? clean(record.Title) : '';
   if (oldTitle && oldTitle !== title) {
@@ -544,6 +547,7 @@ async function saveCycleSheets(record, data, grid, btn) {
     await saveCycleGrid(await sheets(title), grid,
       (d, n) => { btn.textContent = `กำลังบันทึกข้อมูลผู้ถูกประเมิน ${d}/${n}…`; });
   }
+  lastSheetWarn = res.warn || [];
   return res.failed;
 }
 
