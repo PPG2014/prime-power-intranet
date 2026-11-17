@@ -203,3 +203,10 @@
 .ap-cycle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: .92em; }
 .ap-cycle select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; max-width: 100%; }
 .ap-docbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+
+/* สรุปผลการประเมิน: ขั้นที่ไม่ใช่ฝ่ายบุคคล/ผู้บริหาร → ช่องเทา แก้ไขไม่ได้ */
+.ap-sum-note { margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; background: #f1f3f5; color: var(--muted); font-size: .86em; }
+.ap-sum-locked .ap-sum, .ap-sum-locked .ap-sum2 { color: var(--muted); }
+.ap-sum-locked .ap-sum2 input { background: #e9ecef; color: #6c757d; border-color: #dee2e6; cursor: not-allowed; }
+.ap-sum-locked .ap-sum input[type=radio] { cursor: not-allowed; }
+.ap-sum-locked .ap-sum label { cursor: not-allowed; }

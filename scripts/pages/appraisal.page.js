@@ -774,8 +774,10 @@ async function openSheet(row, rerender) {
   const answers = editable ? mgrAns : (Object.keys(mgrAns).length ? mgrAns : selfAns);
   const score = scoreOf(secs, answers);
 
-  // ผลสรุปมีชุดเดียว ผู้ประเมินกรอกในขั้นของตน ฝ่ายบุคคลแก้ไขได้ทุกขั้น
-  const sumEdit = isMgrTurn || state.isHR;
+  // ผลสรุปกรอกได้เฉพาะขั้นฝ่ายบุคคลตรวจสอบ/ส่งผู้บริหาร และขั้นผู้บริหารอนุมัติ
+  // ขั้นผู้ประเมินให้คะแนน และพนักงานรับทราบ → ช่องเทา แก้ไม่ได้
+  const hrAtBoss = !!state.isHR && st === S_BOSS && !isBossTurn;   // ฝ่ายบุคคลแก้ผลสรุปได้ระหว่างรอผู้บริหาร
+  const sumEdit = isHrTurn || isBossTurn || hrAtBoss;
   const resultOpt = (v, label) => `<label><input type="radio" name="sum-result" value="${v}"
     ${sum.result === v ? 'checked' : ''} ${sumEdit ? '' : 'disabled'}> ${label}</label>`;
 
@@ -807,8 +809,9 @@ async function openSheet(row, rerender) {
       ${row.SelfComment ? `<div class="panel-note">ความเห็นพนักงาน: ${esc(row.SelfComment)}</div>` : ''}
       ${formTable('mgr', answers, editable, row, editable ? selfAns : null)}
 
-      <div class="panel ap-summary">
+      <div class="panel ap-summary${sumEdit ? '' : ' ap-sum-locked'}">
         <div class="panel-head">สรุปผลการประเมินและลงนาม</div>
+        ${sumEdit ? '' : '<div class="ap-sum-note">🔒 ผลสรุปกรอกโดยฝ่ายบุคคล (ขั้นตรวจสอบและลงนาม / ส่งให้ผู้บริหาร) และผู้บริหาร (ขั้นอนุมัติ)</div>'}
         <div class="ap-sum">
           ${resultOpt('บรรจุ', 'เห็นควรบรรจุ')}
           ${resultOpt('ต่อทดลองงาน', 'ทดลองงานต่อ 30 วัน')}
@@ -829,7 +832,7 @@ async function openSheet(row, rerender) {
             <div class="dim">ลงนามได้ที่กล่อง "ลงนามรับทราบผลการประเมิน" ด้านบน</div></div>`
     : signBlock('ผู้ถูกประเมินรับทราบ', sg.employee, 'employee', false,
       sg.employee && sg.employee.at ? `<div class="dim">ลงนามรับทราบแล้ว</div>` : '')}
-          ${signBlock('4.2 ฝ่ายทรัพยากรมนุษย์', sg.hr, 'hr', isHrTurn)}
+          ${signBlock('4.2 ฝ่ายทรัพยากรบุคคล', sg.hr, 'hr', isHrTurn)}
           ${signBlock('4.3 ผู้บริหาร (ลงนามหรือไม่ก็ได้)', sg.approver, 'approver', isBossTurn, isBossTurn
     ? `<div class="ap-sum"><label><input type="radio" name="boss-ok" value="1" checked> อนุมัติ</label>
          <label><input type="radio" name="boss-ok" value="0"> ไม่อนุมัติ</label></div>
@@ -844,7 +847,7 @@ async function openSheet(row, rerender) {
     footer: `${(isMgrTurn && !noSelf(row)) || isHrTurn || isBossTurn
       ? '<button class="btn-mini warn" id="ap-back">↩ ส่งกลับให้แก้ไข</button>' : ''}
       ${isProbation(cycle?.FormSet) ? '<button class="btn-mini" id="ap-export">⬇ ส่งออกเอกสาร (พิมพ์ให้เซ็น)</button>' : ''}
-      ${state.isHR && !isMgrTurn && !isHrTurn ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
+      ${hrAtBoss ? '<button class="btn-mini" id="ap-hr-save">💾 บันทึกผลสรุป (HR)</button>' : ''}
       <button class="btn-mini" id="ap-close">ปิด</button>
       ${isMgrTurn ? '<button class="btn btn-primary" id="ap-mgr-save">บันทึกและส่งให้พนักงานรับทราบ / ฝ่ายบุคคล</button>' : ''}
       ${isHrTurn ? `<button class="btn-mini" id="ap-hr-sign">💾 บันทึกลายเซ็นฝ่ายบุคคล</button>
@@ -917,7 +920,7 @@ async function openSheet(row, rerender) {
       if (!sc.complete && !confirm('ยังให้คะแนนไม่ครบทุกข้อ ต้องการบันทึกเลยหรือไม่?')) return;
       saveMgr.disabled = true;
       try {
-        const extra = { ...extraOf(row), summary: readSummary() };
+        const extra = { ...extraOf(row) };   // ผลสรุปไม่ใช่ของผู้ประเมิน — คงค่าเดิม
         await submitManager(row, ans, $('#ap-comment').value.trim(), sc.score,
           state.user?.name || '', extra, await signOf('evaluator'));
         close(); await rerender();
@@ -927,7 +930,7 @@ async function openSheet(row, rerender) {
 
   const hrSignNow = async () => {
     const sign = await signOf('hr');
-    if (!sign.name && !sign.url) throw new Error('กรอกชื่อผู้ลงนามหรือเซ็นในช่องฝ่ายทรัพยากรมนุษย์ก่อน');
+    if (!sign.name && !sign.url) throw new Error('กรอกชื่อผู้ลงนามหรือเซ็นในช่องฝ่ายทรัพยากรบุคคลก่อน');
     return sign;
   };
   const hrSave2 = $('#ap-hr-sign');
@@ -962,6 +965,7 @@ async function openSheet(row, rerender) {
           approved, finalScore: +row.MgrScore || 0,
           sign: await signOf('approver'), by: state.user?.name || '',
           note: $('#sg-approver-note') ? $('#sg-approver-note').value.trim() : '', scheme,
+          summary: readSummary(),
         });
         close(); await rerender();
       } catch (e) { ok.disabled = false; alert('บันทึกไม่สำเร็จ — ' + e.message); }

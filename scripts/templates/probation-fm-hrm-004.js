@@ -145,7 +145,7 @@ export function renderProbation(p = {}) {
           <span>${line('', 58)}</span>
         </div>
       </td></tr>
-      <tr class="pb-sig-h"><td>4.1 ผู้ประเมิน</td><td>4.2 ฝ่ายทรัพยากรมนุษย์</td><td>4.3 ผู้อนุมัติ</td></tr>
+      <tr class="pb-sig-h"><td>4.1 ผู้ประเมิน</td><td>4.2 ฝ่ายทรัพยากรบุคคล</td><td>4.3 ผู้อนุมัติ</td></tr>
       <tr class="pb-sig">
         <td>${sigCell(sg.evaluator)}</td>
         <td>${sigCell(sg.hr)}</td>
