@@ -57,13 +57,15 @@ function suggest() {
   const self = plain(($('#f_Title') || {}).value);
   const others = staff.filter((p) => p.IsActive !== false && plain(p.Title) && plain(p.Title) !== self);
 
-  // 1) โครงการ
-  const proj = $$('#f_Project input:checked').map((c) => c.value);
-  for (const name of proj) {
+  // 1) โครงการ — ติ๊กหลายโครงการ: ผู้รับผิดชอบหลักของโครงการไหนก็ถือว่าตรง (alts)
+  //    แนะนำโครงการที่ยังดำเนินงานอยู่ก่อนโครงการที่ส่งมอบ/ปิดแล้ว
+  const closed = (pj) => /^(ส่งมอบแล้ว|ปิดโครงการ)/.test(plain(pj.Status));
+  const cands = $$('#f_Project input:checked').map((c) => c.value).map((name) => {
     const pj = projects.find((x) => plain(x.Title) === name || plain(x.ProjectCode) === name);
     const owner = pj && plain(pj.Owner);
-    if (owner && owner !== self) return { name: owner, why: `ผู้รับผิดชอบหลักโครงการ ${name}` };
-  }
+    return owner && owner !== self ? { name: owner, why: `ผู้รับผิดชอบหลักโครงการ ${name}`, closed: closed(pj) } : null;
+  }).filter(Boolean).sort((a, b) => a.closed - b.closed);
+  if (cands.length) return { ...cands[0], alts: cands };
 
   // 2) ฝ่าย + ระดับ
   const dept = plain(($('#f_Department') || {}).value);
@@ -100,8 +102,12 @@ function apply() {
     hint.innerHTML = `💡 ระบบเลือกให้: <b>${esc(s.name)}</b> <span class="dim">(${esc(s.why)})</span> · แก้เองได้`;
     return;
   }
-  hint.innerHTML = cur === s.name
-    ? `✓ ตรงกับที่ระบบแนะนำ <span class="dim">(${esc(s.why)})</span>`
+  // ติ๊กไว้หลายโครงการ: ผู้บังคับบัญชาที่ตั้งไว้ตรงกับผู้รับผิดชอบหลักของโครงการใดโครงการหนึ่ง = ตรงแล้ว
+  const hit = (s.alts || [s]).find((a) => a.name === cur);
+  const others = [...new Set((s.alts || []).filter((a) => a.name !== cur).map((a) => `${a.name} (${a.why.replace('ผู้รับผิดชอบหลักโครงการ ', '')})`))];
+  hint.innerHTML = hit
+    ? `✓ ตรงกับที่ระบบแนะนำ <span class="dim">(${esc(hit.why)})</span>${others.length
+      ? `<br><span class="dim">ติ๊กไว้หลายโครงการ — ผู้รับผิดชอบหลักของโครงการอื่น: ${esc(others.join(' · '))}</span>` : ''}`
     : `💡 ระบบแนะนำ: <b>${esc(s.name)}</b> <span class="dim">(${esc(s.why)})</span>
        <button type="button" class="btn-mini" id="mgr-use">ใช้คนนี้</button>`;
   const use = $('#mgr-use');
