@@ -10,17 +10,18 @@
  *   คะแนนสุดท้าย = Part 1 50% + Part 2 50%
  *
  * ขั้นตอนของใบ KPI (ต่างจากแบบผ่านงาน):
- *   (หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง) → ประเมินตนเอง → หัวหน้าประเมิน → ผู้บริหาร (MD) ประเมิน
- *   → ฝ่ายบุคคลตรวจสอบ (HR Final Check) → พนักงานรับทราบและลงนาม → เสร็จสมบูรณ์
- *   ใช้ชื่อสถานะเดิมของระบบ: หัวหน้าประเมิน → ผู้บริหารอนุมัติ → ฝ่ายบุคคลตรวจสอบ → พนักงานรับทราบ
+ *   หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง → ฝ่ายบุคคลตรวจหัวข้อ + เปิดให้ประเมินตนเอง → พนักงานประเมินตนเอง
+ *   → ผู้บังคับบัญชาประเมินและลงนาม → ฝ่ายบุคคลตรวจสอบ ส่งให้ผู้บริหาร → ผู้บริหาร (MD) ประเมินและลงนาม
+ *   → ฝ่ายบุคคลลงนาม (HR Final Check) → พนักงานลงนามรับทราบ → เสร็จสมบูรณ์
+ *   ใช้ชื่อสถานะเดิมของระบบ + ขั้นย่อยใน Extra.kpi.phase (ดู kpiPhase ใน appraisal.js)
  */
 import { update } from './data.js';
 import { kpiDef, resolveVer, loadKpiConfig } from './kpi-config.js';
 import {
-  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
+  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, kpiPhase, noSelf, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
 } from './appraisal.js';
 
-export { loadKpiConfig };
+export { loadKpiConfig, kpiPhase };
 export const KPI_SET = 'ประเมิน KPI ประจำปี';
 export const PARTS = [
   ['skill', 'Part 1: Skill / Functional Competency ผลสัมฤทธิ์งาน', 'ด้านสมรรถนะ'],
@@ -172,6 +173,48 @@ export async function saveCustom(row, custom, by) {
   });
 }
 
+/** หัวหน้าส่งหัวข้อเฉพาะตำแหน่งให้ฝ่ายบุคคลตรวจสอบ */
+export async function submitCustom(row, custom, by) {
+  const bad = customProblems(formOfRow(row), custom, verOf(row));
+  if (bad.length) throw new Error(bad.join('\n'));
+  const n = Object.values(custom).reduce((t, a) => t + a.length, 0);
+  return update('appraisals', row.id, {
+    Extra: JSON.stringify(putKpi(row, { custom, customAt: new Date().toISOString(), customBy: by, phase: 'fcHr' })),
+    Log: addLog(row, `หัวหน้ากำหนด Functional Competency เฉพาะตำแหน่ง ${n} ข้อ ส่งให้ฝ่ายบุคคลตรวจสอบ`, by),
+  });
+}
+
+/** ฝ่ายบุคคลส่งหัวข้อกลับให้หัวหน้าแก้ */
+export async function returnCustom(row, note, by) {
+  return update('appraisals', row.id, {
+    Extra: JSON.stringify(putKpi(row, { phase: 'fc' })),
+    Log: addLog(row, 'ฝ่ายบุคคลส่งหัวข้อเฉพาะตำแหน่งกลับให้หัวหน้าแก้', by, note),
+  });
+}
+
+/**
+ * ฝ่ายบุคคลตรวจหัวข้อแล้ว เปิดให้พนักงานประเมินตนเอง (กำหนดวันสุดท้ายได้)
+ * รอบที่ไม่มีขั้นประเมินตนเอง → ส่งให้ผู้บังคับบัญชาประเมินเลย
+ */
+export async function approveCustom(row, { by, due = '', note = '' }) {
+  const skip = noSelf(row);
+  return update('appraisals', row.id, {
+    ...(skip ? { Status: S_MGR } : {}),
+    Extra: JSON.stringify(putKpi(row, { phase: 'self', selfDue: due || '', fcOk: { by, at: new Date().toISOString() } })),
+    Log: addLog(row, skip ? 'ฝ่ายบุคคลตรวจหัวข้อแล้ว ส่งให้ผู้บังคับบัญชาประเมิน'
+      : `ฝ่ายบุคคลตรวจหัวข้อแล้ว เปิดให้ประเมินตนเอง${due ? ` (ภายใน ${due})` : ''}`, by, note),
+  });
+}
+
+/** ฝ่ายบุคคลตรวจผลของผู้บังคับบัญชาแล้ว ส่งให้ผู้บริหาร (MD) ประเมิน */
+export async function hrToMd(row, { by, note = '' }) {
+  return update('appraisals', row.id, {
+    Status: S_BOSS,
+    Extra: JSON.stringify(putKpi(row, { hrMid: { by, at: new Date().toISOString(), note } })),
+    Log: addLog(row, 'ฝ่ายบุคคลตรวจสอบผลผู้บังคับบัญชา ส่งให้ผู้บริหารประเมิน', by, note),
+  });
+}
+
 /**
  * บันทึกคะแนน — who: self | sup | md · submit = ส่งต่อขั้นถัดไป (ไม่ส่ง = บันทึกร่าง)
  * data = { ratings, rec: { skill:{s,i,d}, behavior:{…} }, comment, sign }
@@ -193,8 +236,8 @@ export async function saveScores(row, who, data, by, submit = false) {
   if (who === 'sup') { patch.MgrData = JSON.stringify(data.ratings); patch.MgrScore = sum.total.sup || 0; patch.MgrComment = data.comment || ''; }
   if (who === 'md') { patch.HeadComment = data.comment || ''; }
   if (sum.final !== null) { patch.FinalScore = sum.final; patch.Grade = sum.grade; }
-  const next = { self: S_MGR, sup: S_BOSS, md: S_HR }[who];
-  const label = { self: 'ส่งแบบประเมินตนเอง', sup: 'ผู้บังคับบัญชาประเมินและลงนาม ส่งให้ผู้บริหาร', md: 'ผู้บริหารประเมินและลงนาม ส่งให้ฝ่ายบุคคลตรวจสอบ' }[who];
+  const next = { self: S_MGR, sup: S_HR, md: S_HR }[who];
+  const label = { self: 'ส่งแบบประเมินตนเอง', sup: 'ผู้บังคับบัญชาประเมินและลงนาม ส่งให้ฝ่ายบุคคลตรวจสอบ', md: 'ผู้บริหารประเมินและลงนาม ส่งให้ฝ่ายบุคคลลงนาม' }[who];
   if (submit) { patch.Status = next; patch.Log = addLog(row, label, by, (data.sign && data.sign.note) || ''); }
   return update('appraisals', row.id, patch);
 }
@@ -208,29 +251,36 @@ export async function hrFinal(row, { sign, by, note = '' }) {
   x.kpi = { ...(x.kpi || {}), scores: { total: sum.total, final: sum.final, grade: sum.grade, grades: sum.grades, eligible: sum.eligible } };
   return update('appraisals', row.id, {
     Status: S_ACK, FinalScore: sum.final, Grade: sum.grade, Extra: JSON.stringify(x),
-    Log: addLog(row, 'ฝ่ายบุคคลตรวจสอบผลขั้นสุดท้าย (HR Final Check) ส่งให้พนักงานรับทราบ', by, note),
+    Log: addLog(row, 'ฝ่ายบุคคลลงนาม (HR Final Check) ส่งให้พนักงานรับทราบ', by, note),
   });
 }
 
+/** ลำดับขั้นของใบ KPI (key ของ kpiSteps) */
+export const KPI_ORDER = ['fc', 'fcHr', 'self', 'sup', 'hrMid', 'md', 'hr', 'ack', 'done'];
+/** ขั้นปัจจุบันของใบ (key ใน KPI_ORDER) */
+export function kpiStepKey(row) {
+  const ph = kpiPhase(row);
+  return { fc: 'fc', fcHr: 'fcHr', self: 'self', [S_MGR]: 'sup', mid: 'hrMid', [S_BOSS]: 'md', final: 'hr', [S_ACK]: 'ack', [DONE]: 'done' }[ph] || 'fc';
+}
+
 /** ขั้นตอนของใบ KPI สำหรับแถบสถานะ/Dashboard — คืน [{ key, label, state: done|now|wait|na, by, at }] */
-export function kpiSteps(row, { noSelf = false } = {}) {
-  const st = clean(row.Status);
+export function kpiSteps(row, { noSelf: skipSelf = false } = {}) {
   const x = extraOf(row);
   const sg = x.sign || {};
-  const last = (re) => logOf(row).filter((l) => re.test(l.action || '')).slice(-1)[0] || {};
-  const order = [S_SELF, S_MGR, S_BOSS, S_HR, S_ACK, DONE];
-  const pos = order.indexOf(st);
-  const after = (s) => pos > order.indexOf(s);
   const k = x.kpi || {};
+  const last = (re) => logOf(row).filter((l) => re.test(l.action || '')).slice(-1)[0] || {};
+  const cur = KPI_ORDER.indexOf(kpiStepKey(row));
+  const state = (key) => { const i = KPI_ORDER.indexOf(key); return i < cur ? 'done' : i === cur ? 'now' : 'wait'; };
   const steps = [
-    { key: 'fc', label: 'หัวหน้ากำหนด Functional Competency', state: hasCustom(row) ? 'done' : (pos <= 1 ? 'now' : 'na'),
-      by: k.customBy, at: k.customAt },
-    ...(noSelf ? [] : [{ key: 'self', label: 'พนักงานประเมินตนเอง', state: st === S_SELF ? 'now' : 'done', ...pick(last(/ส่งแบบประเมินตนเอง/)) }]),
-    { key: 'sup', label: 'ผู้บังคับบัญชาประเมิน', state: st === S_MGR ? 'now' : after(S_MGR) ? 'done' : 'wait', ...pick(sg.evaluator, 'name') },
-    { key: 'md', label: 'ผู้บริหาร (MD) ประเมิน', state: st === S_BOSS ? 'now' : after(S_BOSS) ? 'done' : 'wait', ...pick(sg.approver, 'name') },
-    { key: 'hr', label: 'ฝ่ายบุคคลตรวจสอบ (HR Final Check)', state: st === S_HR ? 'now' : after(S_HR) ? 'done' : 'wait', ...pick(sg.hr, 'name') },
-    { key: 'ack', label: 'พนักงานรับทราบและลงนาม', state: st === S_ACK ? 'now' : st === DONE ? 'done' : 'wait', ...pick(sg.employee, 'name') },
+    { key: 'fc', label: 'หัวหน้ากำหนด Functional Competency', ...pick({ by: k.customBy, at: k.customAt }) },
+    { key: 'fcHr', label: 'ฝ่ายบุคคลตรวจหัวข้อ · เปิดประเมินตนเอง', ...pick(k.fcOk) },
+    ...(skipSelf ? [] : [{ key: 'self', label: 'พนักงานประเมินตนเอง', ...pick(last(/ส่งแบบประเมินตนเอง/)) }]),
+    { key: 'sup', label: 'ผู้บังคับบัญชาประเมินและลงนาม', ...pick(sg.evaluator, 'name') },
+    { key: 'hrMid', label: 'ฝ่ายบุคคลตรวจสอบ · ส่งผู้บริหาร', ...pick(k.hrMid) },
+    { key: 'md', label: 'ผู้บริหาร (MD) ประเมินและลงนาม', ...pick(sg.approver, 'name') },
+    { key: 'hr', label: 'ฝ่ายบุคคลลงนาม (HR Final Check)', ...pick(sg.hr, 'name') },
+    { key: 'ack', label: 'พนักงานลงนามรับทราบ', ...pick(sg.employee, 'name') },
   ];
-  return steps;
+  return steps.map((s) => ({ ...s, state: state(s.key) }));
 }
 const pick = (o = {}, nameKey = 'by') => ({ by: o[nameKey] || o.by || '', at: o.at || '' });

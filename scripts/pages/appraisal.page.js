@@ -12,7 +12,7 @@ import {
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
-import { summarize, hasCustom, loadKpiConfig } from '../services/kpi.js';
+import { summarize, hasCustom, loadKpiConfig, kpiPhase } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
@@ -35,6 +35,8 @@ let allCycles = [];        // ทุกรอบ ใช้เปิดใบป�
 let myHistory = [];        // ใบประเมินของฉันทุกรอบ (ดูย้อนหลัง)
 let shownId = null;        // ใบที่แสดงเป็นหลักด้านบน (ทำเครื่องหมายในตารางประวัติ)
 let dirAll = [];           // ทะเบียนบุคลากร (ใช้ใน Dashboard KPI)
+/** ฝ่ายบุคคลคนนี้ตรวจใบนี้ได้ (กำหนดตัวไว้ในใบ หรือไม่กำหนด = ทุกคนในฝ่ายบุคคล) */
+const hrCanRow = (r) => canHrReview(r, { email: myEmail, isHR: state.isHR, isAdmin: state.isAdmin });
 /** ใบนี้เป็นแบบประเมิน KPI ประจำปี */
 const isKpi = (r) => sheetIsKpi(r) || isKpiSet(cycleOfSheet(r, allCycles)?.FormSet);
 /**
@@ -59,7 +61,7 @@ const dt = (v) => (v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium'
 /** ชื่อสถานะที่แสดง · ขั้นฝ่ายบุคคลคือช่วงที่พนักงานกับฝ่ายบุคคลลงนามพร้อมกัน */
 const LABEL = { [STAGES[2]]: 'พนักงานรับทราบ · ฝ่ายบุคคลตรวจสอบ', [STAGES[3]]: 'รอผู้บริหาร' };
 const pill = (s, r = null) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(
-  (r && isKpiSet(r.FormSet) ? kpiStatusLabel(s) : LABEL[clean(s)]) || clean(s) || '—')}</span>`;
+  (r && isKpiSet(r.FormSet) ? kpiStatusLabel(s, r) : LABEL[clean(s)]) || clean(s) || '—')}</span>`;
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
@@ -136,7 +138,8 @@ export async function render(ctx) {
   const myRows = rows.filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
     .sort((a, b) => (+b.id || 0) - (+a.id || 0));
   const mineMain = myRows.find((r) => needsEmpSign(r)
-    || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok)) || myRows[0] || null;
+    || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok
+      && (!isKpi(r) || kpiPhase(r) === 'self'))) || myRows[0] || null;
 
   // ประวัติการประเมินของฉันทุกรอบ รวมรอบที่แสดงอยู่ด้านบน — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
   allCycles = await list('appraisalCycles').catch(() => []);
@@ -290,7 +293,9 @@ function paneMeCurrent(mine) {
 function kpiMine(mine) {
   const st = clean(mine.Status);
   const g = stageOpen(cycleOf(mine), S_SELF);
-  const canSelf = st === S_SELF && !noSelf(mine) && g.ok;
+  const ph = kpiPhase(mine);
+  const canSelf = st === S_SELF && ph === 'self' && !noSelf(mine) && g.ok;
+  const due = (extraOf(mine).kpi || {}).selfDue;
   const seeAll = [S_ACK, DONE].includes(st);
   const sum = summarize(mine);
   return `
@@ -303,11 +308,13 @@ function kpiMine(mine) {
     ${kpiTrackHtml(mine)}
     <div class="panel ap-ack kpi-mine">
       <h3>แบบประเมิน KPI ประจำปี</h3>
-      <p class="dim">${canSelf ? 'ประเมินตนเองได้แล้ว · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency'
+      <p class="dim">${canSelf ? `ประเมินตนเองได้แล้ว${due ? ` · <b>ภายในวันที่ ${esc(new Date(due).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</b>` : ''} · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency`
+        : st === S_SELF && ph === 'fc' ? 'รอผู้บังคับบัญชากำหนด Functional Competency เฉพาะตำแหน่ง · ฝ่ายบุคคลจะเปิดให้ประเมินตนเองเมื่อตรวจหัวข้อแล้ว'
+        : st === S_SELF && ph === 'fcHr' ? 'ฝ่ายบุคคลกำลังตรวจหัวข้อเฉพาะตำแหน่ง · จะเปิดให้ประเมินตนเองเร็ว ๆ นี้'
         : st === S_SELF ? esc(noSelf(mine) ? 'รอบนี้ผู้บังคับบัญชาเป็นผู้ประเมิน' : (g.why || 'ยังไม่เปิดให้ประเมินตนเอง'))
           : st === S_ACK ? 'ฝ่ายบุคคลส่งผลการประเมินให้รับทราบแล้ว · เปิดดูผลและลงนามรับทราบ'
             : st === DONE ? 'ลงนามรับทราบผลแล้ว · เปิดดูและพิมพ์เอกสารได้' : 'ส่งแบบประเมินตนเองแล้ว · ผลจะแสดงเมื่อฝ่ายบุคคลส่งให้รับทราบ'}
-        ${!hasCustom(mine) && st === S_SELF ? '<br>ผู้บังคับบัญชายังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง (จะเพิ่มเข้ามาในแบบประเมินเมื่อกำหนดแล้ว)' : ''}</p>
+        </p>
       <button class="btn btn-primary" data-apopen="${mine.id}">${canSelf ? '✍ เปิดแบบประเมินตนเอง'
         : st === S_ACK ? '✍ เปิดเพื่อลงนามรับทราบ' : '📄 เปิดดูแบบประเมิน'}</button>
     </div>
@@ -338,7 +345,7 @@ function paneTeam(team) {
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
             clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน'
-              : isKpi(r) && clean(r.Status) === S_SELF && !hasCustom(r) ? 'กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
+              : isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
         </tr>`).join('')}</tbody></table>`
         : '<div class="empty">ยังไม่มีลูกทีมในรอบนี้</div>'}
     </div>`;
@@ -409,7 +416,7 @@ function paneAll() {
   });
 
   return `
-    ${kpiDashboardHtml(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle })}
+    ${kpiDashboardHtml(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle, hrCan: hrCanRow })}
     <div class="ap-stats">
       <div><b>${rows.length}</b><span>ใบประเมินทั้งหมด</span></div>
       <div><b>${pct}%</b><span>เสร็จสมบูรณ์</span></div>
@@ -709,7 +716,8 @@ function startWatch() {
 export function mount(ctx) {
   startWatch();
   onClick('aptab', (k) => setState({ apTab: k }));
-  bindKpiDashboard(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle });
+  bindKpiDashboard(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle, hrCan: hrCanRow,
+    by: (me && clean(me.Title)) || state.user?.name || '', rerender: () => rerender() });
   bindRubricDrawer();
 
   const rerender = async () => {

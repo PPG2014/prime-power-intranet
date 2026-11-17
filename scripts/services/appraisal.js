@@ -281,19 +281,45 @@ export function appraisalTodo({ cycle, cycles = null, rows, email, person = null
   const who = { email, person, isAdmin, isHR };
   const me = lowEmail(email);
 
+  // KPI: ขั้นประเมินตนเองแบ่งเป็น หัวหน้ากำหนดหัวข้อ → ฝ่ายบุคคลตรวจหัวข้อ → พนักงานประเมิน
+  const ph = (r) => (sheetIsKpi(r) ? kpiPhase(r) : '');
   out.me = rows.filter((r) => lowEmail(r.EmployeeEmail) === me
-    && ((st(r) === S_SELF && !noSelf(r) && stageOpen(cyc(r), S_SELF).ok) || needsEmpSign(r))).length;
+    && ((st(r) === S_SELF && !noSelf(r) && stageOpen(cyc(r), S_SELF).ok && (!sheetIsKpi(r) || ph(r) === 'self'))
+      || needsEmpSign(r))).length;
 
   out.team = teamOf(rows, email).filter((r) => (st(r) === S_MGR && stageOpen(cyc(r), S_MGR).ok)
-    // KPI: หัวหน้ายังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง (ทำได้ตั้งแต่ขั้นประเมินตนเอง)
-    || (sheetIsKpi(r) && st(r) === S_SELF && !kpiCustomSet(r))).length;
+    // KPI: หัวหน้าต้องกำหนด Functional Competency เฉพาะตำแหน่ง แล้วส่งให้ฝ่ายบุคคลตรวจ
+    || (st(r) === S_SELF && ph(r) === 'fc')).length;
 
+  // ฝ่ายบุคคลตรวจ: ตรวจหัวข้อ (KPI) · ตรวจผลก่อนส่งผู้บริหาร (KPI) · ตรวจสอบและลงนาม
+  const hrTurn = (r) => st(r) === S_HR || (st(r) === S_SELF && ph(r) === 'fcHr');
   out.approve = rows.filter((r) => (st(r) === S_BOSS && canBossApprove(r, who))
-    || (st(r) === S_HR && lowEmail((rolesOf(r).hr || {}).email) === me)).length;
-  out.all = isHR ? rows.filter((r) => st(r) === S_HR && !(rolesOf(r).hr || {}).email).length : 0;
+    || (hrTurn(r) && lowEmail((rolesOf(r).hr || {}).email) === me)).length;
+  out.all = isHR ? rows.filter((r) => hrTurn(r) && !(rolesOf(r).hr || {}).email).length : 0;
 
   out.total = out.me + out.team + out.approve + out.all;
   return out;
+}
+
+/**
+ * ขั้นย่อยของใบ KPI (เก็บใน Extra.kpi.phase ไม่เพิ่มค่าในคอลัมน์ Status)
+ *   สถานะ "ประเมินตนเอง":    fc   = หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง
+ *                            fcHr = ฝ่ายบุคคลตรวจหัวข้อ แล้วเปิดให้ประเมินตนเอง
+ *                            self = พนักงานประเมินตนเอง
+ *   สถานะ "ฝ่ายบุคคลตรวจสอบ": mid   = หลังผู้บังคับบัญชาประเมิน → ฝ่ายบุคคลตรวจแล้วส่งให้ผู้บริหาร
+ *                            final = หลังผู้บริหารประเมิน → ฝ่ายบุคคลลงนาม ส่งให้พนักงานรับทราบ
+ *   สถานะอื่นคืนชื่อสถานะเดิม
+ */
+export function kpiPhase(row) {
+  const st = clean(row && row.Status);
+  const x = extraOf(row || {});
+  const k = x.kpi || {};
+  if (st === S_SELF) {
+    if (['fc', 'fcHr', 'self'].includes(k.phase)) return k.phase;
+    return Object.keys(answersOf(row, 'self')).length ? 'self' : 'fc';
+  }
+  if (st === S_HR) return (x.sign && x.sign.approver && x.sign.approver.at) ? 'final' : 'mid';
+  return st;
 }
 
 /** ใบ KPI นี้หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่งแล้ว */
