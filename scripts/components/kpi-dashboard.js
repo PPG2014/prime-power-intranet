@@ -10,7 +10,7 @@ import { summarize, kpiSteps, formOfRow, hasCustom, kpiPhase, approveCustom, hrT
 import { kpiStatusLabel } from './kpi-sheet.js';
 
 const low = (v) => clean(v).toLowerCase();
-const STEP_COLS = [['fc', 'หัวหน้ากำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'พนักงานประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
+const STEP_COLS = [['fc', 'กำหนด FC'], ['fcHr', 'HR ตรวจหัวข้อ'], ['self', 'พนักงานประเมิน'], ['sup', 'หัวหน้างานประเมิน'],
   ['hrMid', 'HR ตรวจ · ส่ง MD'], ['md', 'MD ประเมิน'], ['hr', 'HR ลงนาม'], ['ack', 'ลงนามรับทราบ']];
 const STATE_TH = { done: 'เสร็จสิ้น', now: 'กำลังดำเนินการ', wait: 'ยังไม่เริ่ม', na: 'N/A' };
 const mark = (s) => ({ done: '<span class="kpi-ok">✓</span>', now: '<span class="kpi-now">●</span>', wait: '<span class="dim">○</span>', na: '<span class="dim">—</span>' }[s] || '');
@@ -47,7 +47,7 @@ function hrQueueHtml(q, cycle) {
   return `<div class="kpi-hrq">
     <h4 class="ap-sec">งานรอฝ่ายบุคคล</h4>
     <div class="kpi-hrq-grid">
-      <div class="kpi-hrq-box"><b>${q.fc.length}</b><span>รอหัวหน้ากำหนดหัวข้อ</span>
+      <div class="kpi-hrq-box"><b>${q.fc.length}</b><span>รอกำหนดหัวข้อ <span class="dim">(GA หัวหน้า · MG ผู้จัดการเอง)</span></span>
         ${q.fc.length ? `<details><summary class="dim">ดูรายชื่อ</summary><div class="dim">${esc(names(q.fc))}</div></details>` : ''}</div>
       <div class="kpi-hrq-box${q.fcHr.length ? ' on' : ''}"><b>${q.fcHr.length}</b><span>รอฝ่ายบุคคลตรวจหัวข้อ</span>
         ${q.fcHr.length ? `<label class="dim">ประเมินตนเองภายใน <input type="date" id="kpi-bulkdue" value="${esc(due || '')}"></label>

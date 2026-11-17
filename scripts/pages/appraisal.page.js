@@ -12,7 +12,7 @@ import {
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
-import { summarize, hasCustom, loadKpiConfig, kpiPhase } from '../services/kpi.js';
+import { summarize, hasCustom, loadKpiConfig, kpiPhase, kpiFcBySelf } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
@@ -139,7 +139,8 @@ export async function render(ctx) {
     .sort((a, b) => (+b.id || 0) - (+a.id || 0));
   const mineMain = myRows.find((r) => needsEmpSign(r)
     || (clean(r.Status) === S_SELF && !noSelf(r) && stageOpen(cycleOf(r), S_SELF).ok
-      && (!isKpi(r) || kpiPhase(r) === 'self'))) || myRows[0] || null;
+      && (!isKpi(r) || kpiPhase(r) === 'self'))
+    || (isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' && kpiFcBySelf(r))) || myRows[0] || null;
 
   // ประวัติการประเมินของฉันทุกรอบ รวมรอบที่แสดงอยู่ด้านบน — เปิดดูและดาวน์โหลดเอกสารย้อนหลังได้ตลอด
   allCycles = await list('appraisalCycles').catch(() => []);
@@ -296,6 +297,7 @@ function kpiMine(mine) {
   const ph = kpiPhase(mine);
   const canSelf = st === S_SELF && ph === 'self' && !noSelf(mine) && g.ok;
   const due = (extraOf(mine).kpi || {}).selfDue;
+  const ownFc = st === S_SELF && ph === 'fc' && kpiFcBySelf(mine);   // MG: กำหนดหัวข้อเฉพาะตำแหน่งของตัวเอง
   const seeAll = [S_ACK, DONE].includes(st);
   const sum = summarize(mine);
   return `
@@ -309,13 +311,14 @@ function kpiMine(mine) {
     <div class="panel ap-ack kpi-mine">
       <h3>แบบประเมิน KPI ประจำปี</h3>
       <p class="dim">${canSelf ? `ประเมินตนเองได้แล้ว${due ? ` · <b>ภายในวันที่ ${esc(new Date(due).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</b>` : ''} · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency`
+        : ownFc ? 'ขั้นแรก: กำหนด Functional Competency เฉพาะตำแหน่งของคุณเอง (ข้อตัวแดง) แล้วส่งให้ฝ่ายบุคคลตรวจสอบ · ฝ่ายบุคคลจะเปิดให้ประเมินตนเองเมื่อตรวจหัวข้อแล้ว'
         : st === S_SELF && ph === 'fc' ? 'รอผู้บังคับบัญชากำหนด Functional Competency เฉพาะตำแหน่ง · ฝ่ายบุคคลจะเปิดให้ประเมินตนเองเมื่อตรวจหัวข้อแล้ว'
         : st === S_SELF && ph === 'fcHr' ? 'ฝ่ายบุคคลกำลังตรวจหัวข้อเฉพาะตำแหน่ง · จะเปิดให้ประเมินตนเองเร็ว ๆ นี้'
         : st === S_SELF ? esc(noSelf(mine) ? 'รอบนี้ผู้บังคับบัญชาเป็นผู้ประเมิน' : (g.why || 'ยังไม่เปิดให้ประเมินตนเอง'))
           : st === S_ACK ? 'ฝ่ายบุคคลส่งผลการประเมินให้รับทราบแล้ว · เปิดดูผลและลงนามรับทราบ'
             : st === DONE ? 'ลงนามรับทราบผลแล้ว · เปิดดูและพิมพ์เอกสารได้' : 'ส่งแบบประเมินตนเองแล้ว · ผลจะแสดงเมื่อฝ่ายบุคคลส่งให้รับทราบ'}
         </p>
-      <button class="btn btn-primary" data-apopen="${mine.id}">${canSelf ? '✍ เปิดแบบประเมินตนเอง'
+      <button class="btn btn-primary" data-apopen="${mine.id}">${ownFc ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : canSelf ? '✍ เปิดแบบประเมินตนเอง'
         : st === S_ACK ? '✍ เปิดเพื่อลงนามรับทราบ' : '📄 เปิดดูแบบประเมิน'}</button>
     </div>
     ${logBox(mine)}`;
@@ -345,7 +348,7 @@ function paneTeam(team) {
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
             clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน'
-              : isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
+              : isKpi(r) && clean(r.Status) === S_SELF && kpiPhase(r) === 'fc' && !kpiFcBySelf(r) ? '✏️ กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
         </tr>`).join('')}</tbody></table>`
         : '<div class="empty">ยังไม่มีลูกทีมในรอบนี้</div>'}
     </div>`;

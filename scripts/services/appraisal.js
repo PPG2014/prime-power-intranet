@@ -285,11 +285,13 @@ export function appraisalTodo({ cycle, cycles = null, rows, email, person = null
   const ph = (r) => (sheetIsKpi(r) ? kpiPhase(r) : '');
   out.me = rows.filter((r) => lowEmail(r.EmployeeEmail) === me
     && ((st(r) === S_SELF && !noSelf(r) && stageOpen(cyc(r), S_SELF).ok && (!sheetIsKpi(r) || ph(r) === 'self'))
+      // KPI แบบ MG: ผู้จัดการกำหนดหัวข้อเฉพาะตำแหน่งของตัวเอง
+      || (st(r) === S_SELF && ph(r) === 'fc' && kpiFcBySelf(r))
       || needsEmpSign(r))).length;
 
   out.team = teamOf(rows, email).filter((r) => (st(r) === S_MGR && stageOpen(cyc(r), S_MGR).ok)
-    // KPI: หัวหน้าต้องกำหนด Functional Competency เฉพาะตำแหน่ง แล้วส่งให้ฝ่ายบุคคลตรวจ
-    || (st(r) === S_SELF && ph(r) === 'fc')).length;
+    // KPI แบบ GA: หัวหน้ากำหนด Functional Competency เฉพาะตำแหน่ง แล้วส่งให้ฝ่ายบุคคลตรวจ
+    || (st(r) === S_SELF && ph(r) === 'fc' && !kpiFcBySelf(r))).length;
 
   // ฝ่ายบุคคลตรวจ: ตรวจหัวข้อ (KPI) · ตรวจผลก่อนส่งผู้บริหาร (KPI) · ตรวจสอบและลงนาม
   const hrTurn = (r) => st(r) === S_HR || (st(r) === S_SELF && ph(r) === 'fcHr');
@@ -322,7 +324,15 @@ export function kpiPhase(row) {
   return st;
 }
 
-/** ใบ KPI นี้หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่งแล้ว */
+/**
+ * ใครกำหนดหัวข้อเฉพาะตำแหน่ง (Functional Competency ตัวแดง)
+ *   แบบ MG (หัวหน้างาน/ผู้จัดการ) → ผู้ถูกประเมินกำหนดเอง ผู้บังคับบัญชาแก้ไม่ได้
+ *   แบบ GA (บุคลากรทั่วไป)       → ผู้บังคับบัญชากำหนด
+ */
+export const kpiFcBySelf = (row) => (extraOf(row || {}).kpi || {}).form === 'MG';
+export const kpiFcWho = (row) => (kpiFcBySelf(row) ? 'ผู้จัดการ (ผู้ถูกประเมิน)' : 'หัวหน้างาน');
+
+/** ใบ KPI นี้กำหนดหัวข้อเฉพาะตำแหน่งแล้ว */
 export const kpiCustomSet = (row) => Object.values((extraOf(row).kpi || {}).custom || {}).some((a) => (a || []).length);
 
 /** บันทึกประวัติการดำเนินการลงใบประเมิน */

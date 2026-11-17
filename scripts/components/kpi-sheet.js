@@ -18,13 +18,15 @@ import {
 import {
   PARTS, SCALE, FORM_LABEL, catsOf, partScore, summarize, kpiGrade, customSlots,
   customProblems, saveCustom, saveScores, hrFinal, kpiSteps, formOfRow, kpiOf, ratingsOf, hasCustom,
-  kpiPhase, submitCustom, returnCustom, approveCustom, hrToMd,
+  kpiPhase, submitCustom, returnCustom, approveCustom, hrToMd, kpiFcBySelf, kpiFcWho,
   verOf, rubricOf, gradesOf, bonusOf, loadKpiConfig,
 } from '../services/kpi.js';
 import { drawerHtml, bindRubricDrawer } from './rubric-drawer.js';
 
 /** ชุดเกณฑ์ของใบที่เปิดอยู่ (เปิดได้ทีละใบ) */
 let VER;
+/** ผู้กำหนดหัวข้อเฉพาะตำแหน่งของใบที่เปิดอยู่ (MG = ผู้จัดการกำหนดเอง · GA = หัวหน้างาน) */
+let FC_WHO = 'หัวหน้างาน';
 
 const COL = { self: 'บุคลากร', sup: 'ผู้บังคับบัญชา', md: 'ผู้บริหาร' };
 const REC = [['s', '1. สิ่งที่บุคลากรปฏิบัติได้อย่างมีประสิทธิภาพ (Strength)'],
@@ -56,10 +58,14 @@ export function kpiRole(row, ctx) {
     fcHr: hrOk && st === S_SELF && ph === 'fcHr',        // ฝ่ายบุคคลตรวจหัวข้อ เปิดประเมินตนเอง
     ack: isEmp && st === S_ACK,
   };
-  // แก้หัวข้อเฉพาะตำแหน่ง: หัวหน้า (หรือฝ่ายบุคคลแทน) ขั้นกำหนดหัวข้อ · ฝ่ายบุคคลขั้นตรวจหัวข้อ
-  // ใบที่ข้ามขั้นกำหนดหัวข้อมาแล้ว (ใบเก่า) หัวหน้ายังเพิ่มได้ระหว่างประเมิน
-  r.fcSubmit = open && st === S_SELF && ph === 'fc' && (isEval || ctx.isHR || ctx.isAdmin);
-  r.custom = r.fcSubmit || r.fcHr || (r.sup && !hasCustom(row));
+  // แก้หัวข้อเฉพาะตำแหน่ง (ขั้นกำหนดหัวข้อ):
+  //   แบบ MG → ผู้จัดการ (ผู้ถูกประเมิน) กำหนดเอง ผู้บังคับบัญชาแก้ไม่ได้
+  //   แบบ GA → ผู้บังคับบัญชากำหนด
+  //   ฝ่ายบุคคลทำแทนได้ทั้งสองแบบ และแก้ได้ตอนตรวจหัวข้อ
+  // ใบเก่าที่ข้ามขั้นกำหนดหัวข้อ (แบบ GA) หัวหน้ายังเพิ่มได้ระหว่างประเมิน
+  const bySelf = kpiFcBySelf(row);
+  r.fcSubmit = open && st === S_SELF && ph === 'fc' && ((bySelf ? isEmp : isEval) || ctx.isHR || ctx.isAdmin);
+  r.custom = r.fcSubmit || r.fcHr || (!bySelf && r.sup && !hasCustom(row));
   r.edit = r.self ? 'self' : r.sup ? 'sup' : r.md ? 'md' : null;
   // พนักงานเห็นผลของหัวหน้า/ผู้บริหารเมื่อฝ่ายบุคคลส่งให้รับทราบแล้ว
   // ใบของตัวเอง: รอฝ่ายบุคคลส่งผลก่อนเสมอ แม้เป็นฝ่ายบุคคล/ผู้ดูแลระบบ
@@ -98,7 +104,7 @@ function partTable(part, label, cats, cols, data, role) {
           ${cols.map((x) => `<td class="num kpi-col${x === role.edit ? ' kpi-active' : ''}">${scaleSelect(x, it.id, data[x][it.id], x === role.edit)}</td>`).join('')}
         </tr>`).join('')}
         ${c.budget && !c.items.some((it) => it.custom) ? `<tr class="kpi-custom kpi-missing"><td class="kpi-no">${c.no}.${c.items.length + 1}</td>
-          <td colspan="${2 + cols.length}">Functional Competency เฉพาะตำแหน่ง — ให้หัวหน้างานกำหนด (น้ำหนักรวมไม่เกิน ${c.budget}) · <i>ยังไม่ได้กำหนด</i></td></tr>` : ''}
+          <td colspan="${2 + cols.length}">Functional Competency เฉพาะตำแหน่ง — ให้${FC_WHO}กำหนด (น้ำหนักรวมไม่เกิน ${c.budget}) · <i>ยังไม่ได้กำหนด</i></td></tr>` : ''}
         <tr class="kpi-sub"><td></td><td>คะแนนถ่วงน้ำหนักหมวด ${c.no} <span class="dim">(เต็ม ${c.weight})</span></td><td></td>
           ${cols.map((x) => `<td class="num" data-sub="${x}-${c.key}">${f1(sc[x].cats[c.key])}</td>`).join('')}</tr>`).join('')}
       </tbody>
@@ -181,10 +187,10 @@ function infoHtml(row, person, cycle) {
       : '<span class="dim">ฝ่ายทรัพยากรบุคคลยังไม่ได้กรอก (กรอกที่ จัดการข้อมูล → สร้างแบบประเมิน)</span>'}</div>`;
 }
 
-/** หัวหน้ากำหนดหัวข้อเฉพาะตำแหน่ง (ข้อตัวแดง) — เพิ่มได้หลายข้อ น้ำหนักรวมไม่เกินที่กำหนด */
+/** กำหนดหัวข้อเฉพาะตำแหน่ง (ข้อตัวแดง) — เพิ่มได้หลายข้อ น้ำหนักรวมไม่เกินที่กำหนด */
 function customHtml(form, custom, role = {}) {
   return `<div class="panel kpi-cust" id="kpi-cust">
-    <div class="panel-head">✏️ Functional Competency เฉพาะตำแหน่ง <span class="panel-meta">หัวหน้างานกำหนด · เพิ่มได้หลายข้อ น้ำหนักรวมแต่ละหมวดห้ามเกินที่กำหนด</span></div>
+    <div class="panel-head">✏️ Functional Competency เฉพาะตำแหน่ง <span class="panel-meta">${FC_WHO}กำหนด · เพิ่มได้หลายข้อ น้ำหนักรวมแต่ละหมวดห้ามเกินที่กำหนด</span></div>
     ${customSlots(form, VER).map((s) => {
       const rows = custom[s.key] || [];
       const used = rows.reduce((t, x) => t + (+x.weight || 0), 0);
@@ -267,6 +273,7 @@ export async function openKpiSheet(row, ctx) {
   const { openModal } = await import('./modal.js');
   await loadKpiConfig();
   VER = verOf(row);
+  FC_WHO = kpiFcWho(row);
   const dir = await list('directory').catch(() => []);
   const person = dir.find((p) => low(p.Email) === low(row.EmployeeEmail)) || {};
   const role = kpiRole(row, ctx);
@@ -303,7 +310,7 @@ export async function openKpiSheet(row, ctx) {
       <div class="kpi-hrrow">
         <label>ให้พนักงานประเมินตนเองภายในวันที่ <span class="dim">(ไม่บังคับ)</span>
           <input type="date" id="kpi-selfdue" value="${esc(k.selfDue || (ctx.cycle && String(ctx.cycle.EndDate || '').slice(0, 10)) || '')}"></label>
-        <span class="dim">${hasCustom(row) ? 'หัวหน้ากำหนดหัวข้อแล้ว' : 'หัวหน้าไม่ได้เพิ่มหัวข้อเฉพาะตำแหน่ง'} · ${esc(clean(row.EvaluatorName) || 'ยังไม่มีผู้ประเมิน')}</span>
+        <span class="dim">${hasCustom(row) ? `${FC_WHO}กำหนดหัวข้อแล้ว` : `${FC_WHO}ไม่ได้เพิ่มหัวข้อเฉพาะตำแหน่ง`} · ${esc(clean(row.EvaluatorName) || 'ยังไม่มีผู้ประเมิน')}</span>
       </div></div>` : ''}
     ${role.hrMid ? '<div class="panel-note kpi-howto">ตรวจคะแนนและข้อเสนอแนะของผู้บังคับบัญชา แล้วกด <b>ส่งให้ผู้บริหารประเมิน</b> · ต้องแก้ให้กด "ส่งกลับให้ผู้บังคับบัญชา"</div>' : ''}
     ${role.edit ? `<div class="panel-note kpi-howto">ให้คะแนนรายข้อ 0–10 (ทีละ 0.5) ในคอลัมน์ <b>${COL[role.edit]}</b> ตามเกณฑ์ที่แถบ <b>📋 เกณฑ์การประเมิน</b> ด้านซ้ายจอ (ชี้เมาส์ที่แถบเพื่อเปิด) ·
@@ -328,7 +335,7 @@ export async function openKpiSheet(row, ctx) {
     ${role.md ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
     ${role.hr ? '<button class="btn-mini warn" data-kback="md">↩ ส่งกลับให้ผู้บริหาร</button>' : ''}
     ${role.hrMid ? '<button class="btn-mini warn" data-kback="sup">↩ ส่งกลับให้ผู้บังคับบัญชา</button>' : ''}
-    ${role.fcHr ? '<button class="btn-mini warn" id="kpi-fcback">↩ ส่งหัวข้อกลับให้หัวหน้าแก้</button>' : ''}
+    ${role.fcHr ? `<button class="btn-mini warn" id="kpi-fcback">↩ ส่งหัวข้อกลับให้${kpiFcBySelf(row) ? 'ผู้จัดการ' : 'หัวหน้า'}แก้</button>` : ''}
     <button class="btn-mini" id="kpi-print">⬇ พิมพ์แบบประเมิน</button>
     <button class="btn-mini" id="kpi-close">ปิด</button>
     ${role.edit ? '<button class="btn-mini" id="kpi-draft">💾 บันทึกร่าง</button>' : ''}
@@ -514,7 +521,7 @@ export async function openKpiSheet(row, ctx) {
   const fcBack = $('#kpi-fcback');
   if (fcBack) {
     fcBack.onclick = async () => {
-      const note = prompt('เหตุผล / สิ่งที่ให้หัวหน้าแก้');
+      const note = prompt(`เหตุผล / สิ่งที่ให้${FC_WHO}แก้`);
       if (note === null) return;
       fcBack.disabled = true;
       try { await returnCustom(row, note.trim(), by); await done(); } catch (e) { fcBack.disabled = false; fail(e); }
@@ -552,7 +559,7 @@ export async function openKpiSheet(row, ctx) {
 const LABELS = {
   [S_SELF]: 'ประเมินตนเอง', [S_MGR]: 'ผู้บังคับบัญชาประเมิน', [S_BOSS]: 'ผู้บริหาร (MD) ประเมิน',
   [S_HR]: 'ฝ่ายบุคคลตรวจสอบ', [S_ACK]: 'พนักงานรับทราบ', [DONE]: 'เสร็จสมบูรณ์',
-  fc: 'หัวหน้ากำหนดหัวข้อ', fcHr: 'ฝ่ายบุคคลตรวจหัวข้อ', self: 'ประเมินตนเอง',
+  fc: 'กำหนดหัวข้อเฉพาะตำแหน่ง', fcHr: 'ฝ่ายบุคคลตรวจหัวข้อ', self: 'ประเมินตนเอง',
   mid: 'ฝ่ายบุคคลตรวจสอบ (ก่อนส่งผู้บริหาร)', final: 'ฝ่ายบุคคลลงนาม',
 };
 /** ชื่อขั้นของใบ KPI — ส่งใบมาด้วยจะได้ชื่อขั้นย่อย (กำหนดหัวข้อ / ตรวจหัวข้อ / ตรวจก่อนส่งผู้บริหาร / ลงนาม) */

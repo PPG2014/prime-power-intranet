@@ -18,10 +18,10 @@
 import { update } from './data.js';
 import { kpiDef, resolveVer, loadKpiConfig } from './kpi-config.js';
 import {
-  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, kpiPhase, noSelf, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
+  clean, extraOf, addLog, answersOf, logOf, kpiFormOf, kpiCustomSet, kpiPhase, kpiFcBySelf, kpiFcWho, noSelf, S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, DONE,
 } from './appraisal.js';
 
-export { loadKpiConfig, kpiPhase };
+export { loadKpiConfig, kpiPhase, kpiFcBySelf, kpiFcWho };
 export const KPI_SET = 'ประเมิน KPI ประจำปี';
 export const PARTS = [
   ['skill', 'Part 1: Skill / Functional Competency ผลสัมฤทธิ์งาน', 'ด้านสมรรถนะ'],
@@ -180,7 +180,7 @@ export async function submitCustom(row, custom, by) {
   const n = Object.values(custom).reduce((t, a) => t + a.length, 0);
   return update('appraisals', row.id, {
     Extra: JSON.stringify(putKpi(row, { custom, customAt: new Date().toISOString(), customBy: by, phase: 'fcHr' })),
-    Log: addLog(row, `หัวหน้ากำหนด Functional Competency เฉพาะตำแหน่ง ${n} ข้อ ส่งให้ฝ่ายบุคคลตรวจสอบ`, by),
+    Log: addLog(row, `${kpiFcWho(row)}กำหนด Functional Competency เฉพาะตำแหน่ง ${n} ข้อ ส่งให้ฝ่ายบุคคลตรวจสอบ`, by),
   });
 }
 
@@ -188,7 +188,7 @@ export async function submitCustom(row, custom, by) {
 export async function returnCustom(row, note, by) {
   return update('appraisals', row.id, {
     Extra: JSON.stringify(putKpi(row, { phase: 'fc' })),
-    Log: addLog(row, 'ฝ่ายบุคคลส่งหัวข้อเฉพาะตำแหน่งกลับให้หัวหน้าแก้', by, note),
+    Log: addLog(row, `ฝ่ายบุคคลส่งหัวข้อเฉพาะตำแหน่งกลับให้${kpiFcWho(row)}แก้`, by, note),
   });
 }
 
@@ -272,7 +272,7 @@ export function kpiSteps(row, { noSelf: skipSelf = false } = {}) {
   const cur = KPI_ORDER.indexOf(kpiStepKey(row));
   const state = (key) => { const i = KPI_ORDER.indexOf(key); return i < cur ? 'done' : i === cur ? 'now' : 'wait'; };
   const steps = [
-    { key: 'fc', label: 'หัวหน้ากำหนด Functional Competency', ...pick({ by: k.customBy, at: k.customAt }) },
+    { key: 'fc', label: `${kpiFcBySelf(row) ? 'ผู้จัดการ' : 'หัวหน้า'}กำหนด Functional Competency`, ...pick({ by: k.customBy, at: k.customAt }) },
     { key: 'fcHr', label: 'ฝ่ายบุคคลตรวจหัวข้อ · เปิดประเมินตนเอง', ...pick(k.fcOk) },
     ...(skipSelf ? [] : [{ key: 'self', label: 'พนักงานประเมินตนเอง', ...pick(last(/ส่งแบบประเมินตนเอง/)) }]),
     { key: 'sup', label: 'ผู้บังคับบัญชาประเมินและลงนาม', ...pick(sg.evaluator, 'name') },
