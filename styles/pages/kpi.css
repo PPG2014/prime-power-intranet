@@ -160,14 +160,22 @@
 .kpi-hrrow input[type=date] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
 .kpi-cnote { margin-top: 6px; font-size: .86em; }
 
-/* ส่วนบนของใบ: ข้อมูลซ้าย · ขั้นตอนการประเมินในกล่องขวา */
-.kpi-top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; margin-bottom: 12px; }
-.kpi-top-l .ap-stats { margin-top: 0; }
-.kpi-top-r { border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; padding: 10px 14px 4px; }
-.kpi-steps-h { font-weight: 700; color: #003462; font-size: .92em; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-.kpi-top-r .ap-track { margin: 0; }
-.kpi-top-r .ap-step { padding-bottom: 9px; }
-.kpi-top-r .ap-step-body b { font-size: .86em; }
-.kpi-top-r .ap-step-body span { font-size: .8em; }
-.kpi-top .kpi-info { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-@media (max-width: 900px) { .kpi-top { grid-template-columns: 1fr; } }
+/* กรอบย่อย "ขั้นตอนการประเมิน" อยู่นอกกรอบหลัก ชิดด้านขวา (components/kpi-sheet.js) */
+.mask > .kpi-wrap { margin: auto 0; display: flex; gap: 14px; align-items: flex-start; justify-content: center; width: 100%; }
+.kpi-wrap > .modal { margin: 0; flex: 1 1 auto; min-width: 0; }
+.kpi-side { flex: 0 0 280px; position: sticky; top: 0; background: var(--surface, #fff); border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 20, 40, .25)); overflow: hidden; }
+.kpi-side-h { background: var(--navy, #003462); color: #fff; font-weight: 600; padding: 14px 16px; font-size: 15px; }
+.kpi-side-b { padding: 14px 14px 4px; max-height: calc(100vh - 140px); overflow-y: auto; }
+.kpi-side .ap-track { margin: 0; }
+.kpi-side .ap-step { padding-bottom: 10px; }
+.kpi-side .ap-step-body b { font-size: .86em; }
+.kpi-side .ap-step-body span { font-size: .8em; }
+.kpi-steps-in { display: none; margin: 4px 0 12px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; background: #f8fafc; }
+.kpi-steps-in summary { cursor: pointer; font-weight: 600; color: #003462; }
+.kpi-steps-in .ap-track { margin: 10px 0 4px; }
+/* จอแคบ: ไม่มีที่ข้างกรอบ → ขั้นตอนอยู่ในกรอบหลัก (กดเปิดดู) */
+@media (max-width: 1180px) {
+  .kpi-side { display: none; }
+  .kpi-steps-in { display: block; }
+}

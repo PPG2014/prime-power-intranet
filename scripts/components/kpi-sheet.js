@@ -303,18 +303,14 @@ export async function openKpiSheet(row, ctx) {
   const mdName = clean((rolesOf(row).approver || {}).name)
     || clean((dir.find((p) => clean(p.Position) === 'กรรมการผู้จัดการ' && p.IsActive !== false) || {}).Title);
   const body = `
-    <div class="kpi-top">
-      <div class="kpi-top-l">
-        <div class="ap-stats small">
-          <div><b>${esc(kpiStatusLabel(role.st, row))}</b><span>สถานะ</span></div>
-          <div><b>${role.seeOthers ? f1(sum.parts.skill.final) : '—'}</b><span>Part 1 (สุดท้าย)</span></div>
-          <div><b>${role.seeOthers ? f1(sum.parts.behavior.final) : '—'}</b><span>Part 2 (สุดท้าย)</span></div>
-          <div><b>${role.seeOthers && sum.final !== null ? `${f1(sum.final)} · ${esc(sum.grade)}` : '—'}</b><span>คะแนน / เกรดสุดท้าย</span></div>
-        </div>
-        ${infoHtml(row, person, ctx.cycle, mdName)}
-      </div>
-      <aside class="kpi-top-r"><div class="kpi-steps-h">ขั้นตอนการประเมิน</div>${kpiTrackHtml(row)}</aside>
+    <div class="ap-stats small">
+      <div><b>${esc(kpiStatusLabel(role.st, row))}</b><span>สถานะ</span></div>
+      <div><b>${role.seeOthers ? f1(sum.parts.skill.final) : '—'}</b><span>Part 1 (สุดท้าย)</span></div>
+      <div><b>${role.seeOthers ? f1(sum.parts.behavior.final) : '—'}</b><span>Part 2 (สุดท้าย)</span></div>
+      <div><b>${role.seeOthers && sum.final !== null ? `${f1(sum.final)} · ${esc(sum.grade)}` : '—'}</b><span>คะแนน / เกรดสุดท้าย</span></div>
     </div>
+    ${infoHtml(row, person, ctx.cycle, mdName)}
+    <details class="kpi-steps-in"><summary>ขั้นตอนการประเมิน · ${esc(kpiStatusLabel(role.st, row))}</summary>${kpiTrackHtml(row)}</details>
     ${role.custom ? customHtml(form, custom, role) : ''}
     ${role.fcHr ? `<div class="panel kpi-hrbox"><div class="panel-head">ฝ่ายบุคคลตรวจหัวข้อเฉพาะตำแหน่ง</div>
       <div class="kpi-hrrow">
@@ -359,6 +355,19 @@ export async function openKpiSheet(row, ctx) {
 
   const close = openModal({ title, wide: true, body, footer });
   $('.modal')?.classList.add('kpi-modal');
+  // กรอบย่อย "ขั้นตอนการประเมิน" อยู่นอกกรอบหลัก ชิดด้านขวา (จอแคบ → แสดงในกรอบหลักแทน)
+  {
+    const mask = $('#mask'); const modal = $('.modal');
+    if (mask && modal) {
+      const wrap = document.createElement('div');
+      wrap.className = 'kpi-wrap';
+      mask.insertBefore(wrap, modal);
+      wrap.appendChild(modal);
+      wrap.insertAdjacentHTML('beforeend', `<aside class="kpi-side" aria-label="ขั้นตอนการประเมิน">
+        <div class="kpi-side-h">ขั้นตอนการประเมิน</div>
+        <div class="kpi-side-b">${kpiTrackHtml(row)}</div></aside>`);
+    }
+  }
   // แถบเกณฑ์อยู่นอกกรอบหน้าต่าง (ลอยชิดขอบจอ) · ปิดหน้าต่าง = แถบหายไปด้วย
   const root = $('#overlay-root');
   root.insertAdjacentHTML('beforeend', kpiDrawerHtml(VER));
