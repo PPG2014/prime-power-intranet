@@ -8,8 +8,11 @@ import {
   submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
   signsOf, empSigned, hrSigned, needsEmpSign,
   S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo, noSelf,
-  canHrReview, canBossApprove, inApproveScope, rolesOf,
+  canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, schemeOf,
 } from '../services/appraisal.js';
+import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
+import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
+import { summarize, hasCustom, loadKpiConfig } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
 import { isProbation, renderProbation } from '../templates/probation-fm-hrm-004.js';
 import { openPRWindow } from '../templates/pr-fm-pur-004.js';
@@ -31,6 +34,9 @@ let cycles = [];           // ทุกรอบ (ฝ่ายบุคคล/�
 let allCycles = [];        // ทุกรอบ ใช้เปิดใบประเมินเก่าของตัวเอง
 let myHistory = [];        // ใบประเมินของฉันทุกรอบ (ดูย้อนหลัง)
 let shownId = null;        // ใบที่แสดงเป็นหลักด้านบน (ทำเครื่องหมายในตารางประวัติ)
+let dirAll = [];           // ทะเบียนบุคลากร (ใช้ใน Dashboard KPI)
+/** ใบนี้เป็นแบบประเมิน KPI ประจำปี */
+const isKpi = (r) => isKpiSet(clean(r && r.FormSet) || clean(cycleOfSheet(r, allCycles)?.FormSet));
 
 const TONE = {
   [STAGES[0]]: 'wait', [STAGES[1]]: 'mgr', [STAGES[2]]: 'hr',
@@ -39,7 +45,8 @@ const TONE = {
 const dt = (v) => (v ? new Date(v).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 /** ชื่อสถานะที่แสดง · ขั้นฝ่ายบุคคลคือช่วงที่พนักงานกับฝ่ายบุคคลลงนามพร้อมกัน */
 const LABEL = { [STAGES[2]]: 'พนักงานรับทราบ · ฝ่ายบุคคลตรวจสอบ', [STAGES[3]]: 'รอผู้บริหาร' };
-const pill = (s) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(LABEL[clean(s)] || clean(s) || '—')}</span>`;
+const pill = (s, r = null) => `<span class="ap-pill ${TONE[clean(s)] || 'wait'}">${esc(
+  (r && isKpiSet(r.FormSet) ? kpiStatusLabel(s) : LABEL[clean(s)]) || clean(s) || '—')}</span>`;
 const fix = (n) => (Number(n) || 0).toFixed(1);
 /** คะแนนประเมินตนเอง · ใบที่ไม่มีขั้นประเมินตนเองแสดง — */
 const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
@@ -57,7 +64,7 @@ async function focusCycle(r) {
   if (!c) return;
   cycle = c;
   secs = await criteriaOf(c);
-  scheme = isProbation(c.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
+  scheme = schemeOf(c.FormSet);
 }
 
 /** ผู้ประเมินส่งผลแล้ว (เลยขั้นหัวหน้าประเมิน) */
@@ -65,9 +72,10 @@ const submitted = (r) => [STAGES[2], STAGES[3], STAGES[4], DONE].includes(clean(
 /** เกรดของใบ: ใช้ที่บันทึกไว้ ถ้ายังไม่มี (ขั้นตอนใหม่บันทึกตอนผู้บริหารอนุมัติ) คิดจากคะแนนผู้ประเมิน */
 function gradeText(r) {
   if (clean(r.Grade)) return clean(r.Grade);
+  if (isKpiSet(r.FormSet)) return '—';   // KPI: เกรดสุดท้ายออกเมื่อผู้บริหารประเมินแล้ว
   const score = +r.FinalScore || +r.MgrScore || 0;
   if (!submitted(r) || !score) return '—';
-  return gradeOf(score, isProbation(clean(r.FormSet) || clean(cycle && cycle.FormSet)) ? 'ทดลองงาน' : 'มาตรฐาน')[1];
+  return gradeOf(score, schemeOf(clean(r.FormSet) || clean(cycle && cycle.FormSet)))[1];
 }
 
 /** ผู้บริหารที่อนุมัติผลได้: ผู้ดูแลระบบ หรือระดับผู้จัดการฝ่ายขึ้นไป */
@@ -81,6 +89,7 @@ export async function render(ctx) {
   myEmail = String(state.user?.email || '').toLowerCase();
   // ใช้ข้อมูลในแคชวาดทันที · startWatch() ดึงรอบ/ใบประเมินล่าสุดตอนเปิดหน้า ถ้าต่างจากที่วาดไว้จะวาดใหม่เอง
   const dir = await list('directory').catch(() => []);
+  dirAll = dir;
   me = dir.find((p) => clean(p.Email).toLowerCase() === myEmail) || null;
 
   // ฝ่ายบุคคล/ผู้ดูแลเลือกดูรอบเก่าได้ · รอบที่ปิดแล้วระบบล็อกทุกขั้น จึงเป็นการดูอย่างเดียว
@@ -95,7 +104,8 @@ export async function render(ctx) {
   cycle = picked || liveCycles[0] || await activeCycle();
   if (cycle && !liveCycles.length) liveCycles = [cycle];
   secs = await criteriaOf(cycle);
-  scheme = isProbation(cycle?.FormSet) ? 'ทดลองงาน' : 'มาตรฐาน';
+  scheme = schemeOf(cycle?.FormSet);
+  if (liveCycles.some((c) => isKpiSet(c.FormSet)) || isKpiSet(cycle?.FormSet)) await loadKpiConfig();   // เกณฑ์ KPI รายปี
   const titles = new Set(liveCycles.map((c) => clean(c.Title)));
   const loadRows = async () => (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
   rows = await loadRows();
@@ -203,7 +213,7 @@ function historyPanel() {
         <thead><tr><th>แบบประเมิน</th><th>สถานะ</th><th class="num">คะแนน</th><th>เกรด</th><th></th></tr></thead>
         <tbody>${myHistory.map((r) => `<tr>
           <td>${esc(clean(r.CycleName))}${r.id === shownId ? ' <span class="dim">· แสดงด้านบน</span>' : ''}</td>
-          <td>${pill(r.Status)}</td>
+          <td>${pill(r.Status, r)}</td>
           <td class="num">${submitted(r) ? fix(r.FinalScore || r.MgrScore) : '—'}</td>
           <td>${esc(gradeText(r))}</td>
           <td class="num"><button class="btn-mini" data-aphopen="${r.id}">📄 เปิดดู</button>
@@ -221,6 +231,7 @@ function paneMeCurrent(mine) {
         : '<br><span class="dim">แจ้งฝ่ายทรัพยากรบุคคลเพื่อสร้างใบประเมิน</span>'}</div></div>`;
   }
 
+  if (isKpi(mine)) return kpiMine(mine);
   const st = clean(mine.Status);
   const self = answersOf(mine, 'self');
   const mgr = answersOf(mine, 'mgr');
@@ -230,7 +241,7 @@ function paneMeCurrent(mine) {
 
   return `
     <div class="ap-stats">
-      <div><b>${pill(st)}</b><span>สถานะของฉัน</span></div>
+      <div><b>${pill(st, mine)}</b><span>สถานะของฉัน</span></div>
       ${skip ? '' : `<div><b>${fix(mine.SelfScore)}</b><span>คะแนนประเมินตนเอง</span></div>`}
       <div><b>${fix(mine.MgrScore)}</b><span>คะแนนจากหัวหน้า</span></div>
       <div><b>${esc(gradeText(mine))}</b><span>เกรดสรุป</span></div>
@@ -262,6 +273,34 @@ function paneMeCurrent(mine) {
     ${logBox(mine)}`;
 }
 
+/** การประเมินของฉัน (KPI ประจำปี) */
+function kpiMine(mine) {
+  const st = clean(mine.Status);
+  const g = stageOpen(cycleOf(mine), S_SELF);
+  const canSelf = st === S_SELF && !noSelf(mine) && g.ok;
+  const seeAll = [S_ACK, DONE].includes(st);
+  const sum = summarize(mine);
+  return `
+    <div class="ap-stats">
+      <div><b>${pill(st, mine)}</b><span>สถานะของฉัน</span></div>
+      ${noSelf(mine) ? '' : `<div><b>${sum.total.self === null ? '—' : sum.total.self.toFixed(2)}</b><span>คะแนนประเมินตนเอง</span></div>`}
+      <div><b>${seeAll && sum.final !== null ? sum.final.toFixed(2) : '—'}</b><span>คะแนนสุดท้าย</span></div>
+      <div><b>${seeAll ? esc(clean(mine.Grade) || sum.grade || '—') : '—'}</b><span>เกรด</span></div>
+    </div>
+    ${kpiTrackHtml(mine)}
+    <div class="panel ap-ack kpi-mine">
+      <h3>แบบประเมิน KPI ประจำปี</h3>
+      <p class="dim">${canSelf ? 'ประเมินตนเองได้แล้ว · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency'
+        : st === S_SELF ? esc(noSelf(mine) ? 'รอบนี้ผู้บังคับบัญชาเป็นผู้ประเมิน' : (g.why || 'ยังไม่เปิดให้ประเมินตนเอง'))
+          : st === S_ACK ? 'ฝ่ายบุคคลส่งผลการประเมินให้รับทราบแล้ว · เปิดดูผลและลงนามรับทราบ'
+            : st === DONE ? 'ลงนามรับทราบผลแล้ว · เปิดดูและพิมพ์เอกสารได้' : 'ส่งแบบประเมินตนเองแล้ว · ผลจะแสดงเมื่อฝ่ายบุคคลส่งให้รับทราบ'}
+        ${!hasCustom(mine) && st === S_SELF ? '<br>ผู้บังคับบัญชายังไม่ได้กำหนด Functional Competency เฉพาะตำแหน่ง (จะเพิ่มเข้ามาในแบบประเมินเมื่อกำหนดแล้ว)' : ''}</p>
+      <button class="btn btn-primary" data-apopen="${mine.id}">${canSelf ? '✍ เปิดแบบประเมินตนเอง'
+        : st === S_ACK ? '✍ เปิดเพื่อลงนามรับทราบ' : '📄 เปิดดูแบบประเมิน'}</button>
+    </div>
+    ${logBox(mine)}`;
+}
+
 /* ───────── ทีมของฉัน ───────── */
 function paneTeam(team) {
   if (!cycle) return '';
@@ -280,12 +319,13 @@ function paneTeam(team) {
         <tbody>${team.map((r) => `<tr>
           <td>${esc(clean(r.EmployeeName))}${liveCycles.length > 1 ? `<div class="dim">${esc(clean(r.CycleName))}</div>` : ''}</td>
           <td>${esc(clean(r.Section) || clean(r.Department))}</td>
-          <td>${pill(r.Status)}${clean(r.Status) === S_SELF && !noSelf(r)
+          <td>${pill(r.Status, r)}${clean(r.Status) === S_SELF && !noSelf(r)
             ? '<div class="ap-wait">รอพนักงานประเมินตนเองก่อน</div>' : ''}</td>
           <td class="num">${selfFix(r)}</td>
           <td class="num">${fix(r.MgrScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">${
-            clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน' : 'ดูรายละเอียด'}</button></td>
+            clean(r.Status) === S_MGR && gOf(r).ok ? 'ประเมิน'
+              : isKpi(r) && clean(r.Status) === S_SELF && !hasCustom(r) ? 'กำหนดหัวข้อเฉพาะตำแหน่ง' : 'ดูรายละเอียด'}</button></td>
         </tr>`).join('')}</tbody></table>`
         : '<div class="empty">ยังไม่มีลูกทีมในรอบนี้</div>'}
     </div>`;
@@ -308,7 +348,7 @@ function paneApprove() {
       ${wait.length ? `<table class="ap-table">
         <thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th class="num">ตนเอง</th><th class="num">หัวหน้า</th><th class="num">เกรด</th><th></th></tr></thead>
         <tbody>${wait.map((r) => {
-          const gr = gradeOf(+r.MgrScore || 0, scheme);
+          const gr = gradeOf(+r.MgrScore || 0, schemeOf(r.FormSet) || scheme);
           return `<tr>
             <td>${esc(clean(r.EmployeeName))}</td>
             <td>${esc(clean(r.Department))}</td>
@@ -329,7 +369,7 @@ function paneApprove() {
         <tbody>${done.map((r) => `<tr>
           <td>${esc(clean(r.EmployeeName))}</td>
           <td>${esc(clean(r.Department))}</td>
-          <td>${pill(r.Status)}</td>
+          <td>${pill(r.Status, r)}</td>
           <td class="num">${fix(r.FinalScore)}</td>
           <td>${esc(clean(r.Grade))}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button></td>
@@ -356,6 +396,7 @@ function paneAll() {
   });
 
   return `
+    ${kpiDashboardHtml(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle })}
     <div class="ap-stats">
       <div><b>${rows.length}</b><span>ใบประเมินทั้งหมด</span></div>
       <div><b>${pct}%</b><span>เสร็จสมบูรณ์</span></div>
@@ -386,7 +427,7 @@ function paneAll() {
           <td>${esc(clean(r.EmployeeName))}</td>
           <td>${esc(clean(r.Department))}</td>
           <td>${esc(clean(r.EvaluatorName))}</td>
-          <td>${pill(r.Status)}</td>
+          <td>${pill(r.Status, r)}</td>
           <td class="num">${fix(r.FinalScore || r.MgrScore || r.SelfScore)}</td>
           <td class="num"><button class="btn-mini" data-apopen="${r.id}">เปิด</button>${isProbation(cycleOf(r)?.FormSet)
             ? ` <button class="btn-mini" data-apexport="${r.id}" title="ส่งออกเอกสาร (พิมพ์ให้เซ็น)">⬇</button>` : ''}</td>
@@ -447,6 +488,7 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
  * ดูจากลายเซ็นในใบเป็นหลัก (ถูกล้างเมื่อส่งกลับให้แก้) ขั้นที่กำลังรอจะขึ้น "กำลังดำเนินการ"
  */
 function statusTrack(row) {
+  if (isKpi(row)) return kpiTrackHtml(row);
   const hist = logOf(row);
   const at = (re) => (hist.filter((l) => re.test(l.action)).slice(-1)[0] || {});
   const st = clean(row.Status);
@@ -654,6 +696,7 @@ function startWatch() {
 export function mount(ctx) {
   startWatch();
   onClick('aptab', (k) => setState({ apTab: k }));
+  bindKpiDashboard(rows, { dir: dirAll, cycle: liveCycles.find((c) => isKpiSet(c.FormSet)) || cycle });
   bindRubricDrawer();
 
   const rerender = async () => {
@@ -706,7 +749,7 @@ export function mount(ctx) {
     const saved = { cycle, secs, scheme };
     cycle = c;
     secs = await criteria(clean(c.FormSet) || clean(r.FormSet));
-    scheme = isProbation(clean(c.FormSet) || clean(r.FormSet)) ? 'ทดลองงาน' : 'มาตรฐาน';
+    scheme = schemeOf(clean(c.FormSet) || clean(r.FormSet));
     try { await fn(); } finally { ({ cycle, secs, scheme } = saved); }
   };
   const hist = (id) => myHistory.find((x) => String(x.id) === String(id));
@@ -754,6 +797,13 @@ export function mount(ctx) {
 async function openSheet(row, rerender) {
   if (!row) return;
   await focusCycle(row);        // ใบของรอบไหน ใช้ขั้นตอนและหัวข้อของรอบนั้น
+  if (isKpi(row)) {
+    openKpiSheet(row, {
+      me, myEmail, isHR: state.isHR, isAdmin: state.isAdmin, cycle: cycleOf(row),
+      userName: (me && clean(me.Title)) || state.user?.name || '', rerender,
+    });
+    return;
+  }
   const { openModal } = await import('../components/modal.js');
   const st = clean(row.Status);
   const x = extraOf(row);

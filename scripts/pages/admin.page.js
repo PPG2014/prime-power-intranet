@@ -21,6 +21,7 @@ import { solarPriceHtml, bindSolarPriceEditor, solarPriceUnsaved } from '../admi
 import { ppeEditorHtml, bindPpeEditor, ppeHasUnsaved } from '../admin/ppe-editor.js';
 import { mileageEditorHtml, bindMileageEditor, mileageHasUnsaved } from '../admin/mileage-editor.js';
 import { holidayEditorHtml, bindHolidayEditor, holidayHasUnsaved } from '../admin/holiday-editor.js';
+import { kpiCriteriaHtml, bindKpiCriteriaEditor, kpiCriteriaUnsaved } from '../admin/kpi-criteria-editor.js';
 
 /** เมนูพิเศษที่ไม่ใช่ตาราง List ตรง ๆ — มีหน้าแก้ไขของตัวเอง (เก็บในตั้งค่าระบบ) */
 const VIRTUAL = {
@@ -28,12 +29,13 @@ const VIRTUAL = {
   ppeProjects: { icon: '🏠', title: 'โครงการ PPE', html: ppeEditorHtml, bind: bindPpeEditor, unsaved: ppeHasUnsaved, label: 'โครงการ PPE' },
   mileage: { icon: '🚗', title: 'ค่าพาหนะ', html: mileageEditorHtml, bind: bindMileageEditor, unsaved: mileageHasUnsaved, label: 'ค่าพาหนะ' },
   holidays: { icon: '📅', title: 'วันหยุดบริษัทฯ', html: holidayEditorHtml, bind: bindHolidayEditor, unsaved: holidayHasUnsaved, label: 'วันหยุดบริษัทฯ' },
+  kpiCriteria: { icon: '🎯', title: 'เกณฑ์ประเมิน KPI', html: kpiCriteriaHtml, bind: bindKpiCriteriaEditor, unsaved: kpiCriteriaUnsaved, label: 'เกณฑ์ประเมิน KPI' },
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
 /** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
 const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers'];
-const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays'];
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays', 'KpiCriteria'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -47,7 +49,10 @@ let formNames = {};
 /** ชุดข้อมูลที่ผู้ใช้นี้แก้ได้ — ผู้ดูแลได้ทุกชุด ฝ่ายบุคคลได้เฉพาะชุดที่ตั้ง hr: true */
 function allowedSets() {
   const all = Object.keys(SCHEMA);
-  if (!state.isAdmin) return [...all.filter((k) => SCHEMA[k].hr), 'mileage', 'holidays'];   // ฝ่ายบุคคลตั้งค่าพาหนะ/วันหยุดได้
+  // เกณฑ์ KPI ต่อจากหัวข้อประเมิน
+  const withKpi = (arr) => { const j = arr.indexOf('appraisalCriteria'); arr.splice(j < 0 ? arr.length : j + 1, 0, 'kpiCriteria'); return arr; };
+  if (!state.isAdmin) return [...withKpi(all.filter((k) => SCHEMA[k].hr)), 'mileage', 'holidays'];   // ฝ่ายบุคคลตั้งค่าพาหนะ/วันหยุด/เกณฑ์ KPI ได้
+  withKpi(all);
   const i = all.indexOf('projects');
   all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'solarPrices', 'mileage', 'holidays');   // ต่อจากทะเบียนโครงการ
   return all;
