@@ -266,6 +266,47 @@ function logHtml(row) {
       <span class="dim">${esc(dt(l.at))}</span>${l.note ? `<div class="dim">${esc(l.note)}</div>` : ''}</li>`).join('')}</ul></details>`;
 }
 
+/**
+ * ตารางคำนวณค่าคะแนน กรณีคะแนนเต็มไม่เท่ากับ 10 (เหมือนในไฟล์ Excel)
+ * ผลลัพธ์ = คะแนนเต็ม × คะแนนประเมิน (0–10) ÷ 10
+ * id = ชื่อนำหน้า (กรอบย่อยข้างกรอบหลัก / ในกรอบหลักตอนจอแคบ)
+ */
+function calcHtml(id) {
+  return `<div class="kpi-calc" data-calc="${id}">
+    <div class="kpi-calc-row"><label for="${id}-full">คะแนนเต็ม</label>
+      <input type="number" id="${id}-full" class="kpi-calc-full" min="0" step="any" value="25"></div>
+    <div class="kpi-calc-row"><label for="${id}-score">คะแนนประเมิน (0–10)</label>
+      <input type="number" id="${id}-score" class="kpi-calc-score" min="0" max="10" step="0.5" value="6"></div>
+    <div class="kpi-calc-row kpi-calc-out"><span>ผลลัพธ์</span><b class="kpi-calc-res">15.00</b></div>
+    <div class="dim kpi-calc-note">ผลลัพธ์ = คะแนนเต็ม × คะแนนประเมิน ÷ 10 · คลิกช่องคะแนนในตาราง ระบบเติมน้ำหนักของข้อนั้นให้</div>
+  </div>`;
+}
+function bindCalc() {
+  const run = (box) => {
+    const full = +box.querySelector('.kpi-calc-full').value;
+    const sc = +box.querySelector('.kpi-calc-score').value;
+    const ok = box.querySelector('.kpi-calc-full').value !== '' && box.querySelector('.kpi-calc-score').value !== '' && isFinite(full) && isFinite(sc);
+    box.querySelector('.kpi-calc-res').textContent = ok ? ((full * sc) / 10).toFixed(2) : '—';
+    box.querySelector('.kpi-calc-score').classList.toggle('bad', ok && (sc < 0 || sc > 10));
+  };
+  const boxes = $$('.kpi-calc');
+  boxes.forEach((box) => { box.addEventListener('input', () => run(box)); run(box); });
+  // คลิกช่องคะแนนในตาราง → ใส่น้ำหนักของข้อนั้นเป็นคะแนนเต็ม และคะแนนที่เลือกไว้ (ถ้ามี)
+  $$('.kpi-in').forEach((el) => {
+    el.addEventListener('focus', () => {
+      const w = el.closest('tr') && el.closest('tr').querySelector('td.num');
+      boxes.forEach((box) => {
+        if (w && w.textContent.trim() !== '') box.querySelector('.kpi-calc-full').value = w.textContent.trim();
+        if (el.value !== '') box.querySelector('.kpi-calc-score').value = el.value;
+        run(box);
+      });
+    });
+    el.addEventListener('change', () => boxes.forEach((box) => {
+      if (el.value !== '') { box.querySelector('.kpi-calc-score').value = el.value; run(box); }
+    }));
+  });
+}
+
 /* ───────── หน้าต่างใบประเมิน ───────── */
 
 /**
@@ -311,6 +352,7 @@ export async function openKpiSheet(row, ctx) {
     </div>
     ${infoHtml(row, person, ctx.cycle, mdName)}
     <details class="kpi-steps-in"><summary>ขั้นตอนการประเมิน · ${esc(kpiStatusLabel(role.st, row))}</summary>${kpiTrackHtml(row)}</details>
+    <details class="kpi-steps-in"><summary>🧮 ตารางคำนวณค่าคะแนน (กรณีคะแนนเต็มไม่เท่ากับ 10)</summary>${calcHtml('kcalc-in')}</details>
     ${role.custom ? customHtml(form, custom, role) : ''}
     ${role.fcHr ? `<div class="panel kpi-hrbox"><div class="panel-head">ฝ่ายบุคคลตรวจหัวข้อเฉพาะตำแหน่ง</div>
       <div class="kpi-hrrow">
@@ -363,11 +405,17 @@ export async function openKpiSheet(row, ctx) {
       wrap.className = 'kpi-wrap';
       mask.insertBefore(wrap, modal);
       wrap.appendChild(modal);
-      wrap.insertAdjacentHTML('beforeend', `<aside class="kpi-side" aria-label="ขั้นตอนการประเมิน">
-        <div class="kpi-side-h">ขั้นตอนการประเมิน</div>
-        <div class="kpi-side-b">${kpiTrackHtml(row)}</div></aside>`);
+      wrap.insertAdjacentHTML('beforeend', `<div class="kpi-sidecol">
+        <aside class="kpi-side" aria-label="ขั้นตอนการประเมิน">
+          <div class="kpi-side-h">ขั้นตอนการประเมิน</div>
+          <div class="kpi-side-b">${kpiTrackHtml(row)}</div></aside>
+        <aside class="kpi-side" aria-label="ตารางคำนวณค่าคะแนน">
+          <div class="kpi-side-h">🧮 ตารางคำนวณค่าคะแนน <span>กรณีคะแนนเต็มไม่เท่ากับ 10</span></div>
+          <div class="kpi-side-b">${calcHtml('kcalc')}</div></aside>
+      </div>`);
     }
   }
+  bindCalc();
   // แถบเกณฑ์อยู่นอกกรอบหน้าต่าง (ลอยชิดขอบจอ) · ปิดหน้าต่าง = แถบหายไปด้วย
   const root = $('#overlay-root');
   root.insertAdjacentHTML('beforeend', kpiDrawerHtml(VER));

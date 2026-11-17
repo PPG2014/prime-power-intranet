@@ -163,10 +163,23 @@
 /* กรอบย่อย "ขั้นตอนการประเมิน" อยู่นอกกรอบหลัก ชิดด้านขวา (components/kpi-sheet.js) */
 .mask > .kpi-wrap { margin: auto 0; display: flex; gap: 14px; align-items: flex-start; justify-content: center; width: 100%; }
 .kpi-wrap > .modal { margin: 0; flex: 1 1 auto; min-width: 0; }
-.kpi-side { flex: 0 0 280px; position: sticky; top: 0; background: var(--surface, #fff); border-radius: var(--radius-lg, 14px);
+.kpi-sidecol { flex: 0 0 280px; position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.kpi-side { background: var(--surface, #fff); border-radius: var(--radius-lg, 14px);
   box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 20, 40, .25)); overflow: hidden; }
 .kpi-side-h { background: var(--navy, #003462); color: #fff; font-weight: 600; padding: 14px 16px; font-size: 15px; }
-.kpi-side-b { padding: 14px 14px 4px; max-height: calc(100vh - 140px); overflow-y: auto; }
+.kpi-side-h span { display: block; font-weight: 400; font-size: 12px; color: #c9dcf0; margin-top: 2px; }
+.kpi-side-b { padding: 14px 14px 4px; max-height: calc(100vh - 420px); min-height: 120px; overflow-y: auto; }
+.kpi-side + .kpi-side .kpi-side-b { max-height: none; padding-bottom: 12px; }
+.kpi-calc { display: flex; flex-direction: column; gap: 8px; }
+.kpi-calc-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .9em; }
+.kpi-calc-row input { width: 92px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; text-align: right; font-weight: 600; }
+.kpi-calc-full { background: #fff59d; }
+.kpi-calc-score { background: #e8f5e9; }
+.kpi-calc-score.bad { background: #fde8e8; color: #b42318; }
+.kpi-calc-out { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 700; }
+.kpi-calc-res { min-width: 92px; text-align: right; padding: 5px 8px; border: 1px solid #9cc3e6; border-radius: 6px; background: #e3f0fb; color: #003462; }
+.kpi-calc-note { font-size: .78em; line-height: 1.4; }
+.kpi-steps-in .kpi-calc { margin: 10px 0 6px; max-width: 360px; }
 .kpi-side .ap-track { margin: 0; }
 .kpi-side .ap-step { padding-bottom: 10px; }
 .kpi-side .ap-step-body b { font-size: .86em; }
@@ -176,6 +189,6 @@
 .kpi-steps-in .ap-track { margin: 10px 0 4px; }
 /* จอแคบ: ไม่มีที่ข้างกรอบ → ขั้นตอนอยู่ในกรอบหลัก (กดเปิดดู) */
 @media (max-width: 1180px) {
-  .kpi-side { display: none; }
+  .kpi-sidecol { display: none; }
   .kpi-steps-in { display: block; }
 }
