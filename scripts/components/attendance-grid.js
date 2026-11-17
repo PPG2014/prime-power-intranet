@@ -7,7 +7,7 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, update } from '../services/data.js';
-import { extraOf, clean, ROUND_DAYS, roundKey, isProbationSet, rolesOf } from '../services/appraisal.js';
+import { extraOf, clean, ROUND_DAYS, roundKey, isProbationSet, rolesOf, isKpiSet, kpiFormOf, afterCutoff } from '../services/appraisal.js';
 
 /** ผู้รับผิดชอบแต่ละขั้นของใบ — คีย์ในตาราง, หัวคอลัมน์, คำอธิบายเมื่อเว้นว่าง */
 const ROLES = [
@@ -16,10 +16,22 @@ const ROLES = [
   ['approver', 'ผู้บริหารอนุมัติ', 'ว่าง = ผู้จัดการฝ่ายของฝ่ายนั้น'],
 ];
 
-const ATT = [
+const ATT_BASE = [
   ['late', 'มาสาย', 'ครั้ง'], ['absent', 'ขาดงาน', 'วัน'], ['personal', 'ลากิจ', 'วัน'],
   ['sick', 'ลาป่วย', 'วัน'], ['other', 'ลาอื่นๆ', 'วัน'],
 ];
+/** KPI ประจำปี: เพิ่ม "ไม่ลงเวลา" (รวมลืมลงเวลาเข้า-ออก) ตามชีทสถิติการปฏิบัติงาน */
+const ATT_KPI = [...ATT_BASE.slice(0, 4), ['noclock', 'ไม่ลงเวลา', 'ครั้ง'], ATT_BASE[4]];
+const kpiForm = () => isKpiSet(($('#f_FormSet') || {}).value);
+const attCols = () => (kpiForm() ? ATT_KPI : ATT_BASE);
+/** ช่องที่เคยกรอกได้ทั้งหมด (ใช้อ่าน/เก็บค่าเดิม) */
+const ATT = ATT_KPI;
+/** หัวคอลัมน์ผู้รับผิดชอบ: แบบ KPI ผู้บริหารคือ MD */
+const rolesCols = () => (kpiForm()
+  ? [['evaluator', 'ผู้บังคับบัญชา (ผู้ประเมิน)', 'ว่าง = ผู้บังคับบัญชาในทะเบียน · ห้ามเป็นตัวเอง'],
+    ['hr', 'ฝ่ายบุคคลตรวจสอบ', 'ว่าง = ทุกคนในรายชื่อ HR'],
+    ['approver', 'ผู้บริหาร (MD) ประเมิน', 'ว่าง = กรรมการผู้จัดการ']]
+  : ROLES);
 const low = (v) => clean(v).toLowerCase();
 /** ครั้งที่ประเมินและ "วันที่ประเมินครั้งนี้" ที่เลือกในฟอร์มตอนนี้ */
 const current = () => ({
@@ -38,7 +50,9 @@ export const cycleGridHost = () => '<div class="ap-attpanel" id="ap-cyclegrid"><
 /** ผู้ถูกประเมินตามที่เลือกในฟอร์มตอนนี้ */
 function people() {
   const scope = ($('#f_Scope') || {}).value || '';
-  const staff = dir.filter((p) => p.IsActive !== false && clean(p.Email));
+  // KPI: เริ่มงานหลังวันตัดรอบ ไม่ต้องประเมิน
+  const cut = { CutoffDate: ($('#f_CutoffDate') || {}).value || '' };
+  const staff = dir.filter((p) => p.IsActive !== false && clean(p.Email) && !(kpiForm() && afterCutoff(p, cut)));
   if (scope !== 'เฉพาะรายชื่อที่ระบุ') return staff;
   const picked = new Set($$('#f_Members input:checked').map((c) => c.value.trim().toLowerCase()));
   return staff.filter((p) => picked.has(low(p.Email)) || picked.has(low(p.Title)));
@@ -46,7 +60,7 @@ function people() {
 
 /** เก็บค่าที่กรอกอยู่ในตารางตอนนี้ไว้ใน draft */
 function keep() {
-  $$('#ap-cyclegrid [data-em]').forEach((el) => {
+  $$('#ap-cyclegrid [data-em]').forEach((el) => {   // input + select (แบบ MG/GA)
     // พิมพ์แก้วันที่เอง → ไม่ใช่ค่าที่ระบบเติมแล้ว
     if (el.dataset.auto && el.dataset.k && el.value !== current().date) delete el.dataset.auto;
     const d = (draft[el.dataset.em] = draft[el.dataset.em] || {});
@@ -97,6 +111,7 @@ function valuesOf(p, title) {
   base.evaluator = clean(sheet && sheet.EvaluatorName) || clean(p.Manager);
   base.hr = clean(ro.hr && ro.hr.name);
   base.approver = clean(ro.approver && ro.approver.name);
+  base.kform = (x.kpi && x.kpi.form) || kpiFormOf(p);
   return { ...base, ...(draft[em] || {}) };
 }
 
@@ -106,6 +121,9 @@ function paint(title) {
   keep();
   const rows = people();
   const probation = isProbationSet(($('#f_FormSet') || {}).value);
+  const kpi = kpiForm();
+  const ROLE_COLS = rolesCols();
+  const ATTS = attCols();
   if (!rows.length) {
     host.innerHTML = `<div class="panel-head">ข้อมูลผู้ถูกประเมิน</div>
       <div class="empty">ติ๊กเลือกรายชื่อผู้ถูกประเมินด้านบน แล้วกรอกข้อมูลได้ที่นี่ทันที</div>`;
@@ -126,19 +144,21 @@ function paint(title) {
       `<option value="${esc(clean(p.Title))}">${esc([clean(p.Position), clean(p.Department)].filter(Boolean).join(' · '))}</option>`).join('')}
     </datalist>
     <div class="panel-head">ผู้ประเมินและผู้อนุมัติของแต่ละใบ
-      <span class="panel-meta">พิมพ์ชื่อแล้วเลือกจากรายการ · ใบละ 1 คน</span></div>
-    <table class="ap-table ap-rolegrid">
+      <span class="panel-meta">พิมพ์ชื่อแล้วเลือกจากรายการ · ใบละ 1 คน${kpi ? ' · แบบ MG = หัวหน้างาน/ผู้จัดการ · GA = บุคลากรทั่วไป' : ''}</span></div>
+    <div class="kpi-scroll"><table class="ap-table ap-rolegrid">
       <thead>
-        <tr><th>ผู้ถูกประเมิน</th>${ROLES.map(([, label, hint]) =>
+        <tr><th>ผู้ถูกประเมิน</th>${kpi ? '<th>แบบ KPI</th>' : ''}${ROLE_COLS.map(([, label, hint]) =>
           `<th>${esc(label)}<br><span class="dim">${esc(hint)}</span></th>`).join('')}</tr>
-        ${rows.length > 1 ? `<tr class="ap-roleall"><td class="dim">ตั้งให้ทุกคน</td>${ROLES.map(([k]) =>
+        ${rows.length > 1 ? `<tr class="ap-roleall"><td class="dim">ตั้งให้ทุกคน</td>${kpi ? '<td></td>' : ''}${ROLE_COLS.map(([k]) =>
           `<td><input class="ap-rolein" list="ap-people" autocomplete="off" data-all="${k}" placeholder="พิมพ์ชื่อแล้วใช้กับทุกคน"></td>`).join('')}</tr>` : ''}
       </thead>
       <tbody>${rows.map((p) => {
         const em = low(p.Email); const v = vals.get(em);
-        return `<tr>${name(p)}${ROLES.map(([k]) => role(em, k, v[k])).join('')}</tr>`;
+        const kf = kpi ? `<td><select class="ap-kform" data-em="${esc(em)}" data-k="kform">
+          ${['GA', 'MG'].map((f) => `<option value="${f}" ${v.kform === f ? 'selected' : ''}>${f}</option>`).join('')}</select></td>` : '';
+        return `<tr data-self="${esc(clean(p.Title))}">${name(p)}${kf}${ROLE_COLS.map(([k]) => role(em, k, v[k])).join('')}</tr>`;
       }).join('')}</tbody>
-    </table>
+    </table></div>
     <div class="field-error" id="ap-roleerr" hidden></div>
 
     ${probation ? `<div class="panel-head">ส่วนที่ 1 : ข้อมูลการทดลองงาน
@@ -156,16 +176,17 @@ function paint(title) {
       </div>`;
     }).join('')}</div>` : ''}
 
-    <div class="panel-head">${probation ? 'ส่วนที่ 2 : ' : ''}บันทึกการมาปฏิบัติงาน</div>
-    <table class="ap-table ap-attgrid">
+    <div class="panel-head">${probation ? 'ส่วนที่ 2 : ' : ''}${kpi ? 'สถิติการปฏิบัติงาน (ในรอบผลงาน)' : 'บันทึกการมาปฏิบัติงาน'}</div>
+    <div class="kpi-scroll"><table class="ap-table ap-attgrid">
       <thead><tr><th>ชื่อ</th>
-        ${ATT.map(([, label, unit]) => `<th class="num">${label}<br><span class="dim">${unit}</span></th>`).join('')}
+        ${ATTS.map(([, label, unit]) => `<th class="num">${label}<br><span class="dim">${unit}</span></th>`).join('')}
       </tr></thead>
       <tbody>${rows.map((p) => {
         const em = low(p.Email); const v = vals.get(em);
-        return `<tr>${name(p)}${ATT.map(([k]) => cell(em, k, v[k])).join('')}</tr>`;
+        return `<tr>${name(p)}${ATTS.map(([k]) => cell(em, k, v[k])).join('')}</tr>`;
       }).join('')}</tbody>
-    </table>
+    </table></div>
+    ${kpi ? '<div class="panel-note">สาย: นับครั้งตั้งแต่นาทีที่ 6 เป็นต้นไป · ไม่ลงเวลา: รวมการลืมลงเวลาเข้า-ออก และวันที่ระบบไม่สามารถใช้งานได้</div>' : ''}
     <div class="panel-note">ระบบสร้างใบประเมินให้ทุกคนในรายชื่อเมื่อกดบันทึก · ผู้ประเมินจะเห็นตัวเลขนี้ในแบบประเมินทันที</div>`;
 
   // ช่อง "ตั้งให้ทุกคน": เลือกชื่อแล้วเติมลงทุกแถวของคอลัมน์นั้น
@@ -200,19 +221,24 @@ const personByName = (n) => dir.find((p) => clean(p.Title) === clean(n) && clean
 export function gridProblems() {
   if (!$('#ap-cyclegrid')) return [];
   const bad = [];
+  const selfEval = [];
   $$('#ap-cyclegrid [data-em].ap-rolein').forEach((el) => {
     const v = el.value.trim();
-    el.classList.toggle('bad', !!v && !personByName(v));
+    // KPI: ผู้ประเมินต้องไม่ใช่คนเดียวกับผู้ถูกประเมิน
+    const own = kpiForm() && el.dataset.k === 'evaluator' && v && v === (el.closest('tr') || {}).dataset?.self;
+    el.classList.toggle('bad', (!!v && !personByName(v)) || !!own);
     if (v && !personByName(v)) bad.push(v);
+    if (own) selfEval.push(v);
   });
   const box = $('#ap-roleerr');
   if (box) {
-    box.hidden = !bad.length;
-    box.textContent = bad.length
-      ? `ไม่พบชื่อในทะเบียนบุคลากร (หรือไม่มีอีเมล): ${[...new Set(bad)].join(', ')} — เลือกชื่อจากรายการที่ขึ้นมา` : '';
-    if (bad.length) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const msg = [bad.length ? `ไม่พบชื่อในทะเบียนบุคลากร (หรือไม่มีอีเมล): ${[...new Set(bad)].join(', ')} — เลือกชื่อจากรายการที่ขึ้นมา` : '',
+      selfEval.length ? `ผู้ประเมินเป็นคนเดียวกับผู้ถูกประเมิน: ${[...new Set(selfEval)].join(', ')} — ใส่ผู้บังคับบัญชาจริงแทน` : ''].filter(Boolean);
+    box.hidden = !msg.length;
+    box.textContent = msg.join(' · ');
+    if (msg.length) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
-  return [...new Set(bad)];
+  return [...new Set([...bad, ...selfEval])];
 }
 
 /** เปิดตารางในฟอร์ม และวาดใหม่ทุกครั้งที่เปลี่ยนรายชื่อ ขอบเขต หรือชุดแบบประเมิน */
@@ -259,7 +285,7 @@ export async function bindCycleGrid(record = {}) {
     const el = $(s);
     if (el) el.addEventListener('change', sync);
   });
-  ['#f_Scope', '#f_FormSet'].forEach((s) => {
+  ['#f_Scope', '#f_FormSet', '#f_CutoffDate'].forEach((s) => {
     const el = $(s);
     if (el) el.addEventListener('change', later);
   });
@@ -275,7 +301,8 @@ export function readCycleGrid() {
   people().forEach((p) => {
     const em = low(p.Email);
     const v = draft[em] || {};
-    const item = { attendance: Object.fromEntries(ATT.map(([k]) => [k, v[k] ?? ''])) };
+    const item = { attendance: Object.fromEntries(attCols().map(([k]) => [k, v[k] ?? ''])) };
+    if (kpiForm() && v.kform) item.kpiForm = v.kform;
     // ผู้รับผิดชอบแต่ละขั้น — เก็บทั้งชื่อและอีเมล (สิทธิ์ในใบประเมินเทียบด้วยอีเมล)
     const pick = (n) => { const q = personByName(n); return q ? { name: clean(q.Title), email: low(q.Email) } : null; };
     if (v.evaluator !== undefined) item.evaluator = pick(v.evaluator);
@@ -306,6 +333,11 @@ export async function saveCycleGrid(sheetRows, data, onProgress = () => {}) {
     }
     item = { ...item };
     delete item.evaluator;
+    // แบบ MG/GA เก็บใน Extra.kpi.form (คงหัวข้อเฉพาะตำแหน่ง/คะแนนเดิมไว้)
+    if (item.kpiForm) {
+      if ((x.kpi || {}).form !== item.kpiForm) item.kpi = { ...(x.kpi || {}), form: item.kpiForm };
+      delete item.kpiForm;
+    }
     if (!x.roles && !Object.keys(item.roles || {}).length) delete item.roles;
     // ไม่ได้กรอกวันลาเลยและใบเดิมก็ยังไม่มี ไม่ต้องเขียนช่องว่างลงไป
     if (!x.attendance && Object.values(item.attendance || {}).every((v) => v === '')) {
