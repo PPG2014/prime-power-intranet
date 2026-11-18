@@ -5,7 +5,7 @@
  *   ยื่นใบยืม-คืน (FM-PUR-006) / บันทึกโอนย้าย (FM-PUR-008) ได้จากหน้านี้ — สถานะในใบอัปเดตทะเบียนให้เอง
  */
 import { esc, $, $$ } from '../core/dom.js';
-import { list, create, update, clearDataCache } from '../services/data.js';
+import { list, create, update, remove, clearDataCache } from '../services/data.js';
 import { state } from '../core/state.js';
 import { personRef, bindPersonCards } from '../components/person-card.js';
 import {
@@ -27,12 +27,21 @@ let canManage = false;
 let forms = [];
 const f = { q: '', status: '', project: '', holder: '', view: 'list' };
 
-/** แก้ไขทะเบียนได้: ผู้ดูแลระบบ · บุคลากรฝ่ายจัดซื้อและคลังสินค้า */
+/**
+ * เพิ่ม / แก้ไข / ลบ เครื่องมือได้: ผู้ดูแลระบบ · บุคลากรฝ่ายจัดซื้อและคลังสินค้า
+ * · ผู้รับผิดชอบที่ระบุในตั้งค่าระบบ EquipmentManagers (อีเมล คั่นด้วยจุลภาค)
+ * คนอื่นดูได้อย่างเดียว
+ */
+export const EQ_MANAGERS_SETTING = 'EquipmentManagers';
 async function manager() {
   if (state.isAdmin) return true;
   const em = low(state.user?.email);
+  if (!em) return false;
   const me = dir.find((p) => low(p.Email) === em) || {};
-  return /จัดซื้อ|คลังสินค้า/.test(`${me.Department || ''} ${me.Section || ''}`);
+  if (/จัดซื้อ|คลังสินค้า/.test(`${me.Department || ''} ${me.Section || ''}`)) return true;
+  const { settings } = await import('../utils/settings.js');
+  const extra = String((await settings())[EQ_MANAGERS_SETTING] || '').split(/[,;\s]+/).map(low).filter(Boolean);
+  return extra.includes(em);
 }
 
 const holderKey = (e) => holderOf(e) || NOBODY;
@@ -115,6 +124,9 @@ export async function render() {
         <label class="btn-mini" for="eq-file">⬆ นำเข้าจาก Excel</label><input type="file" id="eq-file" accept=".xlsx" hidden>` : ''}
       <button class="btn-mini" id="eq-xlsx">⬇ ส่งออก Excel</button>
     </div>
+    <div class="eq-perm ${canManage ? 'on' : ''}">${canManage
+      ? '✏️ คุณเพิ่ม แก้ไข และลบเครื่องมือในทะเบียนนี้ได้ (กด ✎ ท้ายแถวเพื่อแก้ไขหรือลบ)'
+      : '👁 ดูได้อย่างเดียว · การเพิ่ม แก้ไข หรือลบ ทำได้เฉพาะฝ่ายจัดซื้อและคลังสินค้า และผู้รับผิดชอบที่ได้รับสิทธิ์'}</div>
     ${!rows.length ? `<div class="panel-note">ยังไม่มีข้อมูลในทะเบียน${canManage ? ' — กด <b>⬆ นำเข้าจาก Excel</b> แล้วเลือกไฟล์ทะเบียนเครื่องมือเดิม (ระบบจับคู่ชื่อผู้ใช้งานกับหน้าบุคลากรให้)' : ''}
       ${state.isAdmin ? '<br>ต้องสร้าง List <b>Equipment</b> ใน SharePoint ก่อน (ดู docs/sharepoint-todo.md)' : ''}</div>` : ''}
     <div class="ap-stats eq-stats">
@@ -163,9 +175,20 @@ async function openEdit(e = null) {
   const close = openModal({
     title: e ? `แก้ไข ${eqCode(e)}` : 'เพิ่มเครื่องมือ', wide: true,
     body: `<div class="eqf-grid">${FIELDS.map(input).join('')}</div><div class="field-error" id="eqf-err" hidden></div>`,
-    footer: '<button class="btn-mini" id="eqf-cancel">ยกเลิก</button><button class="btn btn-primary" id="eqf-save">💾 บันทึก</button>',
+    footer: `${e ? '<button class="btn-mini danger" id="eqf-del">🗑 ลบเครื่องมือนี้</button><span style="flex:1"></span>' : ''}
+      <button class="btn-mini" id="eqf-cancel">ยกเลิก</button><button class="btn btn-primary" id="eqf-save">💾 บันทึก</button>`,
   });
   $('#eqf-cancel').onclick = close;
+  const del = $('#eqf-del');
+  if (del) {
+    del.onclick = async () => {
+      const busy = holderOf(e) && clean(e.Status) === EQ_INUSE;
+      if (!confirm(`ลบ ${eqCode(e)} ${clean(e.ItemName)} ออกจากทะเบียน?${busy ? `\n\n⚠ ตอนนี้อยู่ระหว่างใช้งานโดย ${holderOf(e)}` : ''}\n\nลบแล้วกู้คืนไม่ได้ (ถ้าแค่เลิกใช้ ให้เปลี่ยนสถานะเป็น "จำหน่าย / ตัดออก" แทน)`)) return;
+      del.disabled = true;
+      try { await remove(EQ_LIST, e.id); clearDataCache(EQ_LIST); close(); rerender(); }
+      catch (x) { del.disabled = false; const err = $('#eqf-err'); err.textContent = 'ลบไม่สำเร็จ — ' + x.message; err.hidden = false; }
+    };
+  }
   $('#eqf-save').onclick = async () => {
     const data = {};
     FIELDS.forEach(([k, , type]) => {

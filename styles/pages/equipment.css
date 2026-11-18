@@ -28,3 +28,5 @@
 .eq-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 14px; max-height: 360px; overflow-y: auto; }
 .eq-map label { display: flex; flex-direction: column; gap: 3px; font-size: .9em; }
 .eq-map select { font: inherit; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.eq-perm { font-size: .88em; color: var(--muted, #6b7280); margin: -4px 0 10px; }
+.eq-perm.on { color: #1e7f4f; }

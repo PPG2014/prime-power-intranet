@@ -34,7 +34,7 @@ const VIRTUAL = {
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
 /** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
-const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers'];
+const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers', 'EquipmentManagers'];
 const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays', 'KpiCriteria'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
