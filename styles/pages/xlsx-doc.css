@@ -1,0 +1,30 @@
+/* แบบฟอร์ม Excel (ISO) แสดงเป็นหน้า A4 สำหรับพิมพ์ / PDF (utils/xlsx-html.js) */
+.xh-doc { background: #e9edf2; padding: 8mm 0; }
+.xh-page { page: xhport; position: relative; margin: 0 auto 8mm; background: #fff; color: #000; overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .12); box-sizing: border-box; }
+.xh-page.land { page: xhland; }
+@page xhport { size: A4 portrait; margin: 0; }
+@page xhland { size: A4 landscape; margin: 0; }
+.xh-head, .xh-foot { position: absolute; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 8px; line-height: 1.15;
+  font-family: Calibri, Carlito, Arial, sans-serif; font-size: 11pt; }
+.xh-foot { align-items: end; }
+.xh-l { text-align: left; } .xh-c { text-align: center; } .xh-r { text-align: right; }
+/* หัว/ท้ายกระดาษย่อตามการย่อหน้า (Excel: Scale with document) */
+.xh-l, .xh-c, .xh-r { transform: scale(var(--xh-s, 1)); }
+.xh-head .xh-l { transform-origin: top left; } .xh-head .xh-c { transform-origin: top center; } .xh-head .xh-r { transform-origin: top right; }
+.xh-foot .xh-l { transform-origin: bottom left; } .xh-foot .xh-c { transform-origin: bottom center; } .xh-foot .xh-r { transform-origin: bottom right; }
+.xh-head img { display: block; }
+.xh-body { position: absolute; overflow: hidden; }
+.xh-scale { transform-origin: top left; }
+.xh-t { border-collapse: collapse; table-layout: fixed; }
+.xh-t td { padding: 0 2px; overflow: visible; line-height: 1.05; border: 0; background: none; height: auto; }
+/* ข้อความยาวล้นไปช่องข้างที่ว่างเหมือน Excel (ไม่ตัดบรรทัด) */
+.xh-v { overflow: visible; }
+.xh-v:not(.w) { position: relative; width: max-content; min-width: 100%; }
+.xh-v.r:not(.w) { margin-left: auto; }
+.xh-v.c:not(.w) { margin: 0 auto; }
+@media print {
+  body.printing-pr .xh-doc { background: none; padding: 0; }
+  body.printing-pr .xh-page { margin: 0; box-shadow: none; break-after: page; }
+  body.printing-pr .xh-page:last-child { break-after: auto; }
+}

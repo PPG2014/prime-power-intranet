@@ -27,7 +27,7 @@ import { pastEntries } from '../services/project-sync.js';
 import { QUEUE_FIELDS } from '../services/booking.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
 import { eqFieldsFor, eqFormKind, applyEqStatus } from '../services/equipment.js';
-import { hasEqXlsx, exportEqXlsx } from '../templates/eq-xlsx.js';
+import { hasEqXlsx, exportEqXlsx, openEqPdf } from '../templates/eq-xlsx.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -1650,7 +1650,8 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
           ${attFiles.length ? `<label class="ex-att-toggle"><input type="checkbox" id="ex-att-on" checked>
             แนบเอกสารประกอบต่อจากหน้าแรก (${attFiles.length} ไฟล์)</label><span class="dim ex-att-msg" id="ex-att-msg"></span>` : ''}
           <button class="btn-mini" id="ex-cancel">ปิด</button>
-          ${hasEqXlsx(req) ? '<button class="btn-mini" id="ex-xlsx" title="ไฟล์ Excel แบบฟอร์มต้นฉบับ ISO พร้อมข้อมูลของคำขอนี้">⬇ Excel ต้นฉบับ ISO</button>' : ''}
+          ${hasEqXlsx(req) ? `<button class="btn-mini" id="ex-xlsx" title="ไฟล์ Excel แบบฟอร์มต้นฉบับ ISO พร้อมข้อมูลของคำขอนี้">⬇ Excel ต้นฉบับ ISO</button>
+            <button class="btn-mini" id="ex-isopdf" title="หน้าตาตามแบบฟอร์มต้นฉบับ ISO">📄 PDF ต้นฉบับ ISO</button>` : ''}
           <button class="btn btn-primary" id="ex-print">พิมพ์ / บันทึกเป็น PDF</button>
         </div>
       </div>
@@ -1667,6 +1668,13 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
       xb.disabled = true; const t = xb.textContent; xb.textContent = 'กำลังสร้างไฟล์…';
       try { await exportEqXlsx(req, { steps, log }); } catch (e) { alert('ส่งออก Excel ไม่สำเร็จ — ' + e.message); }
       xb.disabled = false; xb.textContent = t;
+    };
+  }
+  const pb = document.getElementById('ex-isopdf');
+  if (pb) {
+    pb.onclick = async () => {
+      pb.disabled = true; pb.textContent = 'กำลังเตรียม…';
+      try { await openEqPdf(req, { steps, log }); } catch (e) { alert('เตรียม PDF ไม่สำเร็จ — ' + e.message); pb.disabled = false; pb.textContent = '📄 PDF ต้นฉบับ ISO'; }
     };
   }
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };

@@ -123,6 +123,7 @@ export async function render() {
       ${canManage ? `<button class="btn-mini" id="eq-add">➕ เพิ่มเครื่องมือ</button>
         <label class="btn-mini" for="eq-file">⬆ นำเข้าจาก Excel</label><input type="file" id="eq-file" accept=".xlsx" hidden>` : ''}
       <button class="btn-mini" id="eq-xlsx">⬇ ส่งออก Excel</button>
+      <button class="btn-mini" id="eq-pdf">⬇ ส่งออก PDF</button>
     </div>
     <div class="eq-perm ${canManage ? 'on' : ''}">${canManage
       ? '✏️ คุณเพิ่ม แก้ไข และลบเครื่องมือในทะเบียนนี้ได้ (กด ✎ ท้ายแถวเพื่อแก้ไขหรือลบ)'
@@ -286,6 +287,28 @@ async function exportXlsx() {
   });
 }
 
+/** ส่งออก PDF: ตารางทะเบียนตามตัวกรองปัจจุบัน · A4 แนวนอน · หัวตารางซ้ำทุกหน้า */
+async function exportPdf() {
+  const list2 = filtered();
+  const cond = [f.q && `ค้นหา "${f.q}"`, f.status && `สถานะ ${f.status}`, f.project && `โครงการ ${f.project}`, f.holder && `ผู้ใช้งาน ${f.holder}`].filter(Boolean);
+  const count = (st) => list2.filter((e) => clean(e.Status) === st).length;
+  const html = `<div class="eqp-doc"><div class="eqp-page">
+    <div class="eqp-head"><img src="assets/img/ppc-logo-2024.png" alt="">
+      <div><div class="eqp-title">ทะเบียนเครื่องมือและอุปกรณ์</div>
+        <div class="eqp-sub">ข้อมูล ณ วันที่ ${esc(new Date().toLocaleDateString('th-TH', { dateStyle: 'long' }))}${cond.length ? ` · ${esc(cond.join(' · '))}` : ' · ทั้งหมด'}</div></div>
+      <div class="eqp-sum">ทั้งหมด <b>${list2.length}</b> · ${EQ_INUSE} <b>${count(EQ_INUSE)}</b> · ${EQ_READY} <b>${count(EQ_READY)}</b>
+        · ส่งซ่อม/Cal. <b>${count('ส่งซ่อม') + count('ส่ง Calibration')}</b> · เสีย <b>${count('เสีย')}</b></div></div>
+    <table class="eqp-t"><thead><tr><th>ลำดับ</th><th>รหัสเครื่อง</th><th>รายการ</th><th>ยี่ห้อ</th><th>รุ่น</th><th>Serial no.</th><th>จำนวน</th><th>หน่วย</th>
+      <th>Status</th><th>ผู้ใช้งาน</th><th>โครงการ</th><th>เลขที่ใบยืม</th><th>วันที่ยืม</th><th>Cert. Date</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>${list2.map((e, i) => `<tr><td class="n">${i + 1}</td><td>${esc(eqCode(e))}</td><td>${esc(clean(e.ItemName))}</td><td>${esc(clean(e.Brand))}</td>
+      <td>${esc(clean(e.Model))}</td><td>${esc(clean(e.SerialNo))}</td><td class="n">${esc(clean(e.Qty))}</td><td>${esc(clean(e.Unit))}</td>
+      <td>${esc(clean(e.Status))}</td><td>${esc(holderOf(e))}</td><td>${esc(clean(e.Project))}</td><td>${esc(clean(e.LoanNo))}</td>
+      <td>${esc(day(e.LoanDate))}</td><td>${esc(day(e.CertDate))}</td><td>${esc(clean(e.Remark))}</td></tr>`).join('')}</tbody></table>
+  </div></div>`;
+  const { openPRWindow } = await import('../templates/pr-fm-pur-004.js');
+  openPRWindow(html, 'ทะเบียนเครื่องมือและอุปกรณ์ (PDF)');
+}
+
 async function rerender() { const { render: r } = await import('../core/render.js'); r(); }
 
 export function mount() {
@@ -306,5 +329,6 @@ export function mount() {
   const add = $('#eq-add'); if (add) add.onclick = () => openEdit(null);
   const file = $('#eq-file'); if (file) file.onchange = () => { if (file.files[0]) openImport(file.files[0]); file.value = ''; };
   const xb = $('#eq-xlsx'); if (xb) xb.onclick = exportXlsx;
+  const pb = $('#eq-pdf'); if (pb) pb.onclick = exportPdf;
   if (q && f.q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
 }

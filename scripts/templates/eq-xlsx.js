@@ -113,16 +113,34 @@ export const hasEqXlsx = (req) => !!eqFormKind(clean(req && req.FormCode))
   || /^FM-PUR-00[68]-/i.test(clean(req && req.Title));
 
 /** ส่งออกไฟล์ Excel ต้นฉบับของคำขอนี้ */
-export async function exportEqXlsx(req, { steps = [], log = [] } = {}) {
+export async function exportEqXlsx(req, opts = {}) {
+  const s = await sheetsOf(req, opts);
+  return fillXlsxTemplate(s.url, s.pages, `${s.name}.xlsx`);
+}
+
+/** ข้อมูลหน้า Excel ของคำขอนี้ { url, pages, name } */
+async function sheetsOf(req, { steps = [], log = [] } = {}) {
   const kind = eqFormKind(clean(req.FormCode)) || (/^FM-PUR-006-/i.test(clean(req.Title)) ? 'loan' : 'move');
   const v = valuesOf(req);
   if (kind === 'loan') {
-    const name = `FM-PUR-006 ใบยืม-คืนอุปกรณ์ ${clean(v.br_no) || clean(req.Title)}.xlsx`;
-    return fillXlsxTemplate('assets/forms/FM-PUR-006.xlsx', loanPages(req, log), name);
+    return { url: 'assets/forms/FM-PUR-006.xlsx', pages: loanPages(req, log),
+      name: `FM-PUR-006 ใบยืม-คืนอุปกรณ์ ${clean(v.br_no) || clean(req.Title)}` };
   }
-  const eqRows = await equipment().catch(() => []);
-  const name = `FM-PUR-008 บันทึกโอนย้ายเครื่องมืออุปกรณ์ ${clean(req.Title)}.xlsx`;
-  return fillXlsxTemplate('assets/forms/FM-PUR-008.xlsx', movePages(req, log, steps, eqRows), name);
+  return { url: 'assets/forms/FM-PUR-008.xlsx', pages: movePages(req, log, steps, await equipment().catch(() => [])),
+    name: `FM-PUR-008 บันทึกโอนย้ายเครื่องมืออุปกรณ์ ${clean(req.Title)}` };
+}
+
+/**
+ * PDF หน้าตาตามต้นฉบับ ISO: กรอกไฟล์ Excel ต้นฉบับแล้วแสดงเป็นหน้า A4 (utils/xlsx-html.js)
+ * → หน้าต่างพิมพ์ / บันทึกเป็น PDF
+ */
+export async function openEqPdf(req, opts = {}) {
+  const s = await sheetsOf(req, opts);
+  const blob = await fillXlsxTemplate(s.url, s.pages);
+  const { xlsxToHtml } = await import('../utils/xlsx-html.js');
+  const { html } = await xlsxToHtml(blob);
+  const { openPRWindow } = await import('./pr-fm-pur-004.js');
+  return openPRWindow(html, s.name);
 }
 
 export { loanPages, movePages };
