@@ -8,6 +8,8 @@ import { attachedFiles } from '../components/form-renderer.js';
 import { companySocial } from '../components/company-social.js';
 import { codeOf, stTone, DEAD } from '../services/booking.js';
 import { localDay } from '../services/car.js';
+import { equipment, eqCode, holderOf, EQ_READY, EQ_INUSE, LOAN_CODE, MOVE_CODE } from '../services/equipment.js';
+import { personRef, bindPersonCards } from '../components/person-card.js';
 
 export const meta = { route: 'home', title: 'หน้าแรก', nav: true, order: 1, adminOnly: false };
 
@@ -28,11 +30,97 @@ const newsTag = (n) => (badgeOf(n) === 'ด่วน' ? '<b class="news-tag urge
   : badgeOf(n) === 'สำคัญ' ? '<b class="news-tag important">สำคัญ</b> ' : '');
 let msgCodeList = [];   // รหัสฟอร์มจองคิว Messenger ทุกตัว ใช้เปิดปฏิทินคิวทั้งหมด
 
+/* ───── กล่องเครื่องมือและอุปกรณ์ (ทุกคนเห็น) — ของอยู่ที่ใคร โครงการไหน ไว้ตรวจก่อนขอยืมต่อ ───── */
+let eqRows = null;                  // null = ยังไม่มีรายการ Equipment ใน SharePoint → ไม่แสดงกล่อง
+const eqF = { q: '', g: '' };
+const EQ_GONE = /จำหน่าย|ตัดออก/;
+const eqClean = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+/** กลุ่มสถานะ: ok ว่าง พร้อมยืม · use กำลังใช้งาน · fix ซ่อม / Calibration / เสีย */
+const eqGroup = (e) => {
+  const s = eqClean(e.Status);
+  if (s === EQ_READY) return 'ok';
+  if (s === EQ_INUSE) return 'use';
+  return /ซ่อม|calib|เสีย/i.test(s) ? 'fix' : 'other';
+};
+const EQ_ORDER = { ok: 0, use: 1, fix: 2, other: 3 };
+const eqStText = (e) => (eqGroup(e) === 'ok' ? 'ว่าง พร้อมยืม' : eqClean(e.Status) || 'ไม่ระบุสถานะ');
+const eqName = (e) => [e.ItemName, e.Brand, e.Model].map(eqClean).filter(Boolean).join(' ') || eqCode(e);
+
+function eqItems() {
+  const q = eqClean(eqF.q).toLowerCase();
+  return (eqRows || []).filter((e) => {
+    if (eqF.g && eqGroup(e) !== eqF.g) return false;
+    if (q && !q.split(' ').every((w) => [eqCode(e), e.ItemName, e.Brand, e.Model, e.SerialNo, holderOf(e), e.Project]
+      .some((v) => eqClean(v).toLowerCase().includes(w)))) return false;
+    return true;
+  });
+}
+
+function eqListHtml() {
+  const items = eqItems();
+  if (!items.length) return `<div class="side-empty">${eqF.q || eqF.g ? 'ไม่พบเครื่องมือที่ตรงกับที่ค้นหา' : 'ยังไม่มีเครื่องมือในทะเบียน'}</div>`;
+  return `<ul class="side-list eqs-list">${items.map((e) => {
+    const g = eqGroup(e); const who = holderOf(e); const where = eqClean(e.Project);
+    return `<li><div class="eqs-item" role="link" tabindex="0" data-eqgo="${esc(eqCode(e))}" title="เปิดในทะเบียนเครื่องมือ">
+      <div class="eqs-top"><b>${esc(eqName(e))}</b><span class="eqs-code">${esc(eqCode(e))}</span></div>
+      <div class="eqs-where"><span class="eqs-st ${g}">${esc(eqStText(e))}</span>
+        ${who ? `<span>👤 ${personRef(who)}</span>` : ''}${where ? `<span>📍 ${esc(where)}</span>` : ''}</div>
+    </div></li>`;
+  }).join('')}</ul>`;
+}
+
+function eqPanel(forms) {
+  if (!eqRows) return '';
+  const n = (g) => eqRows.filter((e) => eqGroup(e) === g).length;
+  const hasForm = (code) => forms.some((x) => eqClean(x.FormCode).toUpperCase() === code && x.IsActive !== false);
+  const stat = (g, label) => `<button type="button" class="${g}${eqF.g === g ? ' on' : ''}" data-eqg="${g}" title="กดเพื่อกรอง · กดซ้ำเพื่อดูทั้งหมด"><b>${n(g)}</b><span>${label}</span></button>`;
+  const btns = [hasForm(LOAN_CODE) ? `<a class="btn btn-primary" href="#/form/${LOAN_CODE}">📝 ขอยืมอุปกรณ์</a>` : '',
+    hasForm(MOVE_CODE) ? `<a class="btn-mini" href="#/form/${MOVE_CODE}">🚚 โอนย้าย</a>` : ''].filter(Boolean);
+  return `<div class="panel side-panel eqs">
+    <div class="panel-head">🧰 เครื่องมือและอุปกรณ์
+      <a class="panel-link" href="#/equipment">ทะเบียนทั้งหมด →</a></div>
+    <div class="eqs-stats">${stat('ok', 'ว่าง พร้อมยืม')}${stat('use', 'กำลังใช้งาน')}${stat('fix', 'ซ่อม / Cal')}</div>
+    <div class="eqs-q"><input type="search" id="eqs-q" placeholder="🔍 ค้นหา ชื่อเครื่องมือ · รหัส · ผู้ถือ · โครงการ" value="${esc(eqF.q)}" aria-label="ค้นหาเครื่องมือ"></div>
+    <div id="eqs-body">${eqListHtml()}</div>
+    ${btns.length ? `<div class="eqs-foot">${btns.join('')}</div>` : ''}
+  </div>`;
+}
+
+function mountEqPanel() {
+  const box = $('.eqs');
+  if (!box) return;
+  bindPersonCards();
+  const body = box.querySelector('#eqs-body');
+  const redraw = () => { body.innerHTML = eqListHtml(); };
+  const q = box.querySelector('#eqs-q');
+  let t;
+  q.oninput = () => { clearTimeout(t); t = setTimeout(() => { eqF.q = q.value.trim(); redraw(); }, 200); };
+  box.querySelectorAll('[data-eqg]').forEach((b) => {
+    b.onclick = () => {
+      eqF.g = eqF.g === b.dataset.eqg ? '' : b.dataset.eqg;
+      box.querySelectorAll('[data-eqg]').forEach((x) => x.classList.toggle('on', x.dataset.eqg === eqF.g));
+      redraw();
+    };
+  });
+  // กดรายการ → ทะเบียนเครื่องมือ ค้นหาตัวนั้นให้เลย (กดที่ชื่อผู้ถือ = เปิดการ์ดบุคลากร ไม่ไปหน้าอื่น)
+  const go = (e) => {
+    const it = e.target.closest('[data-eqgo]');
+    if (!it || e.target.closest('.pref')) return;
+    location.hash = `#/equipment?q=${encodeURIComponent(it.dataset.eqgo)}`;
+  };
+  body.addEventListener('click', go);
+  body.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(e); });
+}
+
 export async function render(ctx) {
-  const [forms, news, docs, requests, dashboard] = await Promise.all([
+  const [forms, news, docs, requests, dashboard, eqAll] = await Promise.all([
     list('formCatalog'), list('news'), list('documents'),
     listRecent('requests', RECENT_REQUESTS).catch(() => []), renderDashboard(),
+    equipment().catch(() => null),
   ]);
+  // เครื่องมือที่ยังใช้งาน (ไม่รวมที่จำหน่าย/ตัดออก) · ว่างพร้อมยืมขึ้นก่อน → กำลังใช้งาน → ซ่อม/Cal
+  eqRows = eqAll && eqAll.filter((e) => e.IsActive !== false && !EQ_GONE.test(eqClean(e.Status)))
+    .sort((a, b) => (EQ_ORDER[eqGroup(a)] - EQ_ORDER[eqGroup(b)]) || eqName(a).localeCompare(eqName(b), 'th'));
 
   // คำขอจองคิว Messenger ของวันนี้ ดึงวันที่ที่ขอใช้จากคำตอบในฟอร์ม
   const today = localDay(new Date().toISOString());   // วันที่ตามเวลาไทย
@@ -92,6 +180,8 @@ export async function render(ctx) {
               </li>`).join('')}</ul>`
               : '<div class="side-empty">ยังไม่มีแบบฟอร์มที่ติดป้ายใช้บ่อย</div>'}
           </div>
+
+          ${eqPanel(forms)}
 
           <div class="panel side-panel">
             <div class="panel-head">📢 ข่าวประกาศ</div>
@@ -161,6 +251,7 @@ function fitSidebar() {
 
 export function mount(ctx) {
   mountDashboard();
+  mountEqPanel();
   fitSidebar();
 
   // เดิมลิงก์ไป #/requests?form=… ซึ่งเราเตอร์ไม่รู้จัก เลยค้างอยู่หน้าแรก

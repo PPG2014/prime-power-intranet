@@ -76,3 +76,30 @@
 .doc-meta .news-new, .doc-meta .news-tag { margin-left: 6px; }
 @media (prefers-reduced-motion: reduce) { .news-new i, .news-new i::after, .news-new::before, .news-new::after, .news-tag.urgent { animation: none; }
   .news-new::before, .news-new::after { opacity: 1; } }
+
+/* ---------- กล่องเครื่องมือและอุปกรณ์ (ทุกคนเห็น) ---------- */
+.eqs-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 12px 4px; }
+.eqs-stats button { border: 1px solid var(--line-soft); border-radius: 10px; background: #fff; padding: 6px 4px;
+  text-align: center; cursor: pointer; font: inherit; }
+.eqs-stats button:hover { background: #f4f9fd; }
+.eqs-stats button b { display: block; font-size: 18px; line-height: 1.2; }
+.eqs-stats button span { font-size: 11px; color: var(--dim); }
+.eqs-stats .ok b { color: #1e7f4f; }
+.eqs-stats .use b { color: #0b4f8a; }
+.eqs-stats .fix b { color: #9a5b00; }
+.eqs-stats button.on { border-color: #0b4f8a; background: #f0f6fc; box-shadow: inset 0 0 0 1px #0b4f8a; }
+.eqs-q { padding: 8px 12px; }
+.eqs-q input { width: 100%; box-sizing: border-box; border: 1px solid #d6dee8; border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; }
+.eqs-list { max-height: 300px; overflow: auto; border-top: 1px solid var(--line-soft); }
+.eqs-item { padding: 9px 14px; cursor: pointer; }
+.eqs-item:hover, .eqs-item:focus-visible { background: #f4f9fd; outline: none; }
+.eqs-top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.eqs-top b { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eqs-code { font-size: 11px; color: var(--dim); white-space: nowrap; }
+.eqs-where { font-size: 12px; color: #475569; margin-top: 2px; display: flex; gap: 4px 8px; align-items: center; flex-wrap: wrap; }
+.eqs-st { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #eef2f7; color: #334155; }
+.eqs-st.ok { background: #e9f7ef; color: #1e7f4f; }
+.eqs-st.use { background: #e3f0fb; color: #0b4f8a; }
+.eqs-st.fix { background: #fff4e0; color: #9a5b00; }
+.eqs-foot { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line-soft); }
+.eqs-foot a { flex: 1; text-align: center; justify-content: center; font-size: 12.5px; }

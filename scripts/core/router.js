@@ -6,7 +6,8 @@
 import { setState } from './state.js';
 
 export function parseHash(hash = location.hash) {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  // ตัด query (?holder=… / ?q=…) ออกก่อน — หน้าอ่านค่าเองจาก location.hash
+  const parts = hash.replace(/^#\/?/, '').split('?')[0].split('/').filter(Boolean);
   return { route: parts[0] || 'home', params: { id: parts[1] || null } };
 }
 
