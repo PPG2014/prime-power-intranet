@@ -7,8 +7,27 @@
 .eq-filter select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; max-width: 220px; }
 .eq-view { display: flex; gap: 4px; }
 .eq-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.eq-table { min-width: 1100px; font-size: 13.5px; }
-.eq-table td { vertical-align: top; }
+.page-equipment .wrap { max-width: 1500px; }
+.eq-table { min-width: 1080px; font-size: 13.5px; table-layout: fixed; }
+.eq-table th { white-space: nowrap; font-size: 12.5px; color: #475569; }
+.eq-table td { vertical-align: top; line-height: 1.45; overflow-wrap: anywhere; }
+.eq-table tbody tr:hover td { background: #f7fafd; }
+.eq-table col.c-code { width: 150px; }
+.eq-table col.c-item { width: auto; }
+.eq-table col.c-brand { width: 190px; }
+.eq-table col.c-st { width: 140px; }
+.eq-table col.c-who { width: 165px; }
+.eq-table col.c-prj { width: 110px; }
+.eq-table col.c-loan { width: 140px; }
+.eq-table col.c-cert { width: 105px; }
+.eq-table col.c-act { width: 52px; }
+.eq-table .eq-nw { white-space: nowrap; overflow-wrap: normal; }
+.eq-table .eq-item { min-width: 200px; }
+.eq-b { font-weight: 600; color: #1f2937; }
+.eq-m { color: #334155; }
+.eq-sn, .eq-ld { font-size: 12px; color: var(--dim, #64748b); }
+.eq-ln { font-weight: 600; color: #0b4f8a; }
+.eq-act { text-align: center; }
 .eq-code { font-weight: 700; color: #003462; white-space: nowrap; }
 .eq-rm { font-size: 12px; }
 .eq-st { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: #eef2f7; color: #334155; }
