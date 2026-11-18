@@ -1,0 +1,52 @@
+/* ทะเบียนเครื่องมือและอุปกรณ์ (pages/equipment.page.js) */
+.eq-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 12px; }
+.eq-gap { flex: 1; }
+.eq-stats > div { flex-basis: 130px; }
+.eq-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.eq-filter input[type=search] { flex: 1 1 260px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.eq-filter select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; max-width: 220px; }
+.eq-view { display: flex; gap: 4px; }
+.eq-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.eq-table { min-width: 1100px; font-size: 13.5px; }
+.eq-table td { vertical-align: top; }
+.eq-code { font-weight: 700; color: #003462; white-space: nowrap; }
+.eq-rm { font-size: 12px; }
+.eq-st { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: #eef2f7; color: #334155; }
+.eq-st.eq-use { background: #e3f0fb; color: #0b4f8a; }
+.eq-st.eq-ok { background: #e9f7ef; color: #1e7f4f; }
+.eq-st.eq-fix { background: #fff4e0; color: #9a5b00; }
+.eq-st.eq-bad { background: #fde8e8; color: #b42318; }
+.eq-holders { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.eq-holder { padding: 10px 14px; }
+.eq-holder-h { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; color: #003462; margin-bottom: 6px; }
+.eq-holder ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.eq-holder li { margin: 3px 0; }
+.eqf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; }
+.eqf-grid label { display: flex; flex-direction: column; gap: 4px; font-size: .9em; color: var(--muted, #6b7280); }
+.eqf-grid input, .eqf-grid select, .eqf-grid textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink, #1f2937); }
+.eqf-full { grid-column: 1 / -1; }
+.eq-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 14px; max-height: 360px; overflow-y: auto; }
+.eq-map label { display: flex; flex-direction: column; gap: 3px; font-size: .9em; }
+.eq-map select { font: inherit; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; }
+.eq-perm { font-size: .88em; color: var(--muted, #6b7280); margin: -4px 0 10px; }
+.eq-perm.on { color: #1e7f4f; }
+
+/* ส่งออก PDF ทะเบียนเครื่องมือ (A4 แนวนอน · หัวตารางซ้ำทุกหน้า) */
+.eqp-doc { background: #e9edf2; padding: 6mm 0; }
+.eqp-page { page: eqreg; width: 297mm; min-height: 210mm; box-sizing: border-box; margin: 0 auto; padding: 8mm 8mm 10mm;
+  background: #fff; color: #000; font-size: 8.5pt; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
+@page eqreg { size: A4 landscape; margin: 8mm; }
+.eqp-head { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; border-bottom: 2px solid #003462; padding-bottom: 5px; margin-bottom: 5px; }
+.eqp-head img { height: 12mm; }
+.eqp-title { font-size: 14pt; font-weight: 700; }
+.eqp-sub, .eqp-sum { font-size: 8.5pt; color: #333; }
+.eqp-t { width: 100%; border-collapse: collapse; }
+.eqp-t th, .eqp-t td { border: 0.2mm solid #555; padding: 0.8mm 1.2mm; vertical-align: top; text-align: left; }
+.eqp-t th { background: #ffe598; font-weight: 700; }
+.eqp-t thead { display: table-header-group; }
+.eqp-t tr { break-inside: avoid; }
+.eqp-t .n { text-align: center; }
+@media print {
+  body.printing-pr .eqp-doc { background: none; padding: 0; }
+  body.printing-pr .eqp-page { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; }
+}

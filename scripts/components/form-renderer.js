@@ -46,6 +46,12 @@ export async function loadLookups(fields, { formCode = '' } = {}) {
     || (f.FieldType === 'lineitems' && lineCols(f).some(isVehicleCol)))) {
     lookupData._mileage = await mileageConfig();
   }
+  // ตารางรายการที่มีคอลัมน์เลือกเครื่องมือ (ใบยืม-คืน / ใบโอนย้าย) → โหลดทะเบียนเครื่องมือ
+  if (fields.some((f) => f.FieldType === 'lineitems' && lineCols(f).some((c) => c.type === 'equipment'))) {
+    const eq = await import('../services/equipment.js');
+    lookupData._equip = await eq.equipment().catch(() => []);
+    lookupData._eqmod = eq;
+  }
   const names = [...new Set(fields
     .filter((f) => f.FieldType === 'lookup' || f.FieldType === 'person')
     .map((f) => (f.FieldType === 'person' ? 'directory' : String(f.Options || '').trim()))
@@ -444,6 +450,11 @@ export function bindForm(fields, folder) {
     const initial = toLineRows(getDefault(fields, f));
 
     const cell = (c, val) => {
+      if (c.type === 'equipment') {
+        // เลือกเครื่องมือจากทะเบียน: พิมพ์รหัสหรือชื่อ · เลือกแล้วเติมรายการ/ยี่ห้อ/รุ่น/หน่วยในแถวให้
+        return `<td class="li-eqcell"><input data-k="${c.key}" list="li-eq-${f.FieldKey}" class="li-eq" value="${esc(val ?? '')}"
+          placeholder="รหัส หรือชื่อเครื่องมือ" autocomplete="off"><div class="li-eqinfo"></div></td>`;
+      }
       if (String(c.type).startsWith('choice:')) {
         const opts = c.type.slice(7).split(';').map((x) => x.trim()).filter(Boolean);
         return `<td><select data-k="${c.key}"><option value="">— เลือก —</option>${
@@ -532,11 +543,43 @@ export function bindForm(fields, folder) {
       hint.hidden = !hint.innerHTML;
     };
 
+    // รายชื่อเครื่องมือสำหรับคอลัมน์ equipment (datalist เดียวต่อตาราง)
+    const eqCol = cols.find((c) => c.type === 'equipment');
+    const EQ = lookupData._eqmod;
+    if (eqCol && EQ && !box.querySelector('datalist')) {
+      const dl = document.createElement('datalist');
+      dl.id = `li-eq-${f.FieldKey}`;
+      dl.innerHTML = (lookupData._equip || []).map((e) => `<option value="${esc(EQ.eqCode(e))}">${esc([EQ.eqLabel(e),
+        EQ.holderOf(e) ? `อยู่ที่ ${EQ.holderOf(e)}` : e.Status].filter(Boolean).join(' · '))}</option>`).join('');
+      box.appendChild(dl);
+    }
+    const eqFill = (tr, force) => {
+      if (!eqCol || !EQ) return;
+      const inpEl = tr.querySelector(`[data-k="${eqCol.key}"]`);
+      const info = tr.querySelector('.li-eqinfo');
+      const e = EQ.findEq(lookupData._equip || [], inpEl.value);
+      if (!e) { info.textContent = inpEl.value.trim() ? 'ไม่พบในทะเบียน (พิมพ์รายการเอง)' : ''; info.className = 'li-eqinfo dim'; return; }
+      inpEl.value = EQ.eqCode(e);
+      const set = (key, v) => { const el = tr.querySelector(`[data-k="${key}"]`); if (el && v && (force || !String(el.value).trim())) el.value = v; };
+      set('desc', [e.ItemName, e.Brand, e.Model].filter((x) => String(x || '').trim()).join(' '));
+      set('name', e.ItemName); set('brand', e.Brand); set('model', e.Model); set('unit', e.Unit);
+      set('qty', e.Qty || 1);
+      set('status', 'ยืม');   // ใบยืม-คืน: เลือกจากทะเบียน = ยืม (แก้ได้)
+      const holder = EQ.holderOf(e);
+      info.textContent = [e.Status, holder ? `ผู้ใช้งาน: ${holder}` : '', e.Project ? `โครงการ: ${e.Project}` : ''].filter(Boolean).join(' · ');
+      info.className = `li-eqinfo ${e.Status === EQ.EQ_READY ? 'ok' : 'warn'}`;
+    };
+
     const addRow = (data = {}) => {
       const tr = document.createElement('tr');
       tr.innerHTML = cols.map((c) => cell(c, data[c.key])).join('')
         + '<td class="li-x"><button type="button" class="li-del">✕</button></td>';
       body.appendChild(tr);
+      if (eqCol) {
+        const el = tr.querySelector(`[data-k="${eqCol.key}"]`);
+        el.addEventListener('change', () => eqFill(tr, true));
+        if (el.value) eqFill(tr, false);
+      }
       tr.querySelectorAll('input, select').forEach((el) => { el.oninput = () => { calcRow(tr); recalc(); }; el.onchange = el.oninput; });
       if (vCol) tr.querySelector(`[data-k="${vCol.key}"]`).onchange = () => { applyMode(tr, true); paintHint(); recalc(); };
       if (vCol || vField) applyMode(tr, false);

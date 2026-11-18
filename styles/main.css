@@ -44,6 +44,8 @@
 @import url('pages/appraisal.css');
 @import url('pages/probation.css');
 @import url('pages/kpi.css');
+@import url('pages/equipment.css');
+@import url('pages/xlsx-doc.css');
 
 /* แถบโหลดบางด้านบน ตอบสนองทันทีที่กดเปลี่ยนเมนู */
 body.is-loading::before {

@@ -261,5 +261,35 @@
   "ISORevision": "",
   "SortOrder": 20,
   "IsActive": true
+ },
+ {
+  "id": 21,
+  "Title": "ใบยืม - คืนอุปกรณ์",
+  "FormCode": "FM-PUR-006",
+  "Description": "ยืมเครื่องมือ/อุปกรณ์ไปใช้งานโครงการ · คืนเมื่อเสร็จงาน",
+  "Department": "ฝ่ายจัดซื้อและคลังสินค้า",
+  "Icon": "🧰",
+  "Badge": "ใหม่",
+  "MetaTags": "",
+  "ExternalUrl": "",
+  "ISODocNo": "FM-PUR-006",
+  "ISORevision": "Rev.02",
+  "SortOrder": 30,
+  "IsActive": true
+ },
+ {
+  "id": 22,
+  "Title": "บันทึกโอนย้ายเครื่องมืออุปกรณ์",
+  "FormCode": "FM-PUR-008",
+  "Description": "โอนย้ายเครื่องมือระหว่างโครงการ/ผู้ใช้งาน",
+  "Department": "ฝ่ายจัดซื้อและคลังสินค้า",
+  "Icon": "🚚",
+  "Badge": "ใหม่",
+  "MetaTags": "",
+  "ExternalUrl": "",
+  "ISODocNo": "FM-PUR-008",
+  "ISORevision": "Rev.02",
+  "SortOrder": 31,
+  "IsActive": true
  }
 ]

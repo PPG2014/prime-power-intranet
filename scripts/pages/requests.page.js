@@ -7,7 +7,7 @@ import { thaiDateShort, thaiDateTime } from '../utils/format.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
-  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf, trackOf } from '../services/requests.js';
+  PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf, trackOf, reqCode } from '../services/requests.js';
 import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
@@ -26,6 +26,8 @@ import { personRef, personRefs, bindPersonCards } from '../components/person-car
 import { pastEntries } from '../services/project-sync.js';
 import { QUEUE_FIELDS } from '../services/booking.js';
 import { isInstallCode, INSTALL_FIELDS, INSTALL_STATUS, IF, thRange, installClashes, clashText } from '../services/install.js';
+import { eqFieldsFor, eqFormKind, applyEqStatus } from '../services/equipment.js';
+import { hasEqXlsx, exportEqXlsx, openEqPdf } from '../templates/eq-xlsx.js';
 
 export const meta = { route: 'requests', title: 'ติดตามสถานะ', nav: true, order: 4, adminOnly: false };
 
@@ -132,7 +134,7 @@ function statusPill(s) {
 }
 
 /** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
-const SYSTEM_LABEL = { om_site: 'โครงการ O&M', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ',
+const SYSTEM_LABEL = { br_no: 'Delivered No.', om_site: 'โครงการ O&M', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ',
   inst_ok_from: 'วันเข้าติดตั้งที่กำหนด', inst_ok_to: 'ติดตั้งถึงวันที่ (ที่กำหนด)' };
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */
@@ -148,6 +150,9 @@ export async function formFieldsOf(code) {
     if (!own.length) {
       const row = (await list('formCatalog').catch(() => [])).find((c) => String(c.FormCode || '').trim() === String(code || '').trim());
       if (isEmpWelfare(row)) return empWelfareFields(code);
+      // ใบยืม-คืนอุปกรณ์ / บันทึกโอนย้ายเครื่องมือ: ช่องกำหนดในโค้ด (services/equipment.js)
+      const eq = eqFieldsFor(row || { FormCode: code });
+      if (eq) return eq;
     }
   }
   if (isSolar(code)) {
@@ -1184,7 +1189,14 @@ function bindTrack(req, steps, role) {
     btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
     try {
       const by = me || state.user?.name || '';
-      await decide(req, steps, { action: PURCHASE_ACTION, by, note: [st, when, text].filter(Boolean).join(' — '), formPatch });
+      const saved = await decide(req, steps, { action: PURCHASE_ACTION, by, note: [st, when, text].filter(Boolean).join(' — '), formPatch });
+      // ใบยืม-คืน / ใบโอนย้าย: ปรับผู้ใช้งาน โครงการ และสถานะในทะเบียนเครื่องมือ
+      if (eqFormKind(reqCode(req) || req.FormCode)) {
+        const eq = await applyEqStatus(saved, st).catch((e2) => ({ error: e2.message, updated: [], missing: [] }));
+        const msg = [eq.updated.length ? `อัปเดตทะเบียนเครื่องมือ ${eq.updated.length} รายการ` : '',
+          eq.missing.length ? `ไม่พบในทะเบียน: ${eq.missing.join(', ')}` : '', eq.error ? `อัปเดตทะเบียนไม่สำเร็จ: ${eq.error}` : ''].filter(Boolean);
+        if (msg.length) alert(msg.join('\n'));
+      }
       closeModal();
       const { render: rerender } = await import('../core/render.js');
       rerender();
@@ -1638,6 +1650,8 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
           ${attFiles.length ? `<label class="ex-att-toggle"><input type="checkbox" id="ex-att-on" checked>
             แนบเอกสารประกอบต่อจากหน้าแรก (${attFiles.length} ไฟล์)</label><span class="dim ex-att-msg" id="ex-att-msg"></span>` : ''}
           <button class="btn-mini" id="ex-cancel">ปิด</button>
+          ${hasEqXlsx(req) ? `<button class="btn-mini" id="ex-xlsx" title="ไฟล์ Excel แบบฟอร์มต้นฉบับ ISO พร้อมข้อมูลของคำขอนี้">⬇ Excel ต้นฉบับ ISO</button>
+            <button class="btn-mini" id="ex-isopdf" title="หน้าตาตามแบบฟอร์มต้นฉบับ ISO">📄 PDF ต้นฉบับ ISO</button>` : ''}
           <button class="btn btn-primary" id="ex-print">พิมพ์ / บันทึกเป็น PDF</button>
         </div>
       </div>
@@ -1648,6 +1662,21 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
   const close = () => { win.innerHTML = ''; };
   document.getElementById('ex-close').onclick = close;
   document.getElementById('ex-cancel').onclick = close;
+  const xb = document.getElementById('ex-xlsx');
+  if (xb) {
+    xb.onclick = async () => {
+      xb.disabled = true; const t = xb.textContent; xb.textContent = 'กำลังสร้างไฟล์…';
+      try { await exportEqXlsx(req, { steps, log }); } catch (e) { alert('ส่งออก Excel ไม่สำเร็จ — ' + e.message); }
+      xb.disabled = false; xb.textContent = t;
+    };
+  }
+  const pb = document.getElementById('ex-isopdf');
+  if (pb) {
+    pb.onclick = async () => {
+      pb.disabled = true; pb.textContent = 'กำลังเตรียม…';
+      try { await openEqPdf(req, { steps, log }); } catch (e) { alert('เตรียม PDF ไม่สำเร็จ — ' + e.message); pb.disabled = false; pb.textContent = '📄 PDF ต้นฉบับ ISO'; }
+    };
+  }
   document.getElementById('ex-mask').onclick = (e) => { if (e.target.id === 'ex-mask') close(); };
   // เอกสารแนบ: เตรียมหน้าไว้ตั้งแต่เปิด · ติ๊กออกได้ถ้าไม่ต้องการพิมพ์แนบ
   const attBox = document.getElementById('ex-att');
