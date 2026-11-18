@@ -177,8 +177,7 @@ let people = [];
 const TABS = [['list', '👥 รายชื่อบุคลากร'], ['chart', '🏢 แผนผังองค์กร']];
 const tabBar = (tab) => `<div class="dir-tabs" role="tablist">${TABS.map(([k, label]) => `
   <button type="button" role="tab" data-dirtab="${k}" aria-selected="${tab === k}"
-    ${tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
-  <a class="dir-tab-link" href="#/equipment" title="เครื่องมือแต่ละตัวอยู่ที่ใคร โครงการไหน">🧰 ทะเบียนเครื่องมือและอุปกรณ์</a></div>`;
+    ${tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</div>`;
 
 /** แท็บแผนผังองค์กร — วาดจากข้อมูลบุคลากร ฝ่าย และแผนก */
 async function renderChartTab() {

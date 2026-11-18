@@ -24,6 +24,22 @@ const card = (f) => {
   </a>`;
 };
 
+/**
+ * ทะเบียนเครื่องมือและอุปกรณ์ (#/equipment) — การ์ดท้ายกลุ่มฝ่ายจัดซื้อและคลังสินค้า
+ * แสดงเมื่อกลุ่มฝ่ายจัดซื้อแสดงอยู่ หรือค้นคำที่เกี่ยวข้อง
+ */
+const EQ_CARD = {
+  key: 'ทะเบียนเครื่องมือและอุปกรณ์ equipment ยืม คืน โอนย้าย ฝ่ายจัดซื้อและคลังสินค้า',
+  html: `<a class="form-card form-card-link" href="#/equipment">
+    <div class="form-top"><span class="form-icon">🧰</span><span class="badge badge-app">ทะเบียน</span></div>
+    <div class="form-name">ทะเบียนเครื่องมือและอุปกรณ์</div>
+    <div class="form-desc">เครื่องมือแต่ละตัวอยู่ที่ใคร โครงการไหน สถานะอะไร · อัปเดตเองจากใบยืม-คืนและบันทึกโอนย้าย</div>
+    <div class="form-meta"><span>ดูได้ทุกคน</span><span>ฝ่ายจัดซื้อแก้ไขได้</span></div>
+    <div class="form-go">เปิดทะเบียน →</div>
+  </a>`,
+};
+const isPurchase = (name) => /จัดซื้อ/.test(String(name || ''));
+
 export async function render(ctx) {
   const q = (state.formQuery || '').trim().toLowerCase();
   const chip = state.formChip || 'ทั้งหมด';
@@ -37,6 +53,10 @@ export async function render(ctx) {
 
   const chips = ['ทั้งหมด', ...(await groupByDepartment(all, 'Department', { byRows: true })).map((g) => g.name)];
   const groups = await groupByDepartment(rows, 'Department', { byRows: true });   // ตามลำดับแบบฟอร์มในหน้าจัดการข้อมูล
+  // การ์ดทะเบียนเครื่องมือ: ท้ายกลุ่มฝ่ายจัดซื้อ (ไม่ได้กรองฝ่ายอื่นอยู่ และคำค้นตรงหรือไม่ได้ค้น)
+  const eqHit = (chip === 'ทั้งหมด' || isPurchase(chip)) && (!q || EQ_CARD.key.includes(q));
+  const purchaseDept = (all.find((f) => isPurchase(f.Department)) || {}).Department || 'ฝ่ายจัดซื้อและคลังสินค้า';
+  if (eqHit && !groups.some((g) => isPurchase(g.name))) groups.push({ name: purchaseDept, rows: [] });
 
   return `
   <section class="page page-forms">
@@ -59,13 +79,13 @@ export async function render(ctx) {
           aria-pressed="${chip === c}">${esc(c.replace(/^ฝ่าย/, ''))}</button>`).join('')}
       </div>
 
-      ${rows.length ? groups.map((g) => `
+      ${rows.length || eqHit ? groups.map((g) => `
         <section class="dept-group">
           <div class="dept-head">
             <h2>${esc(g.name)}</h2>
             <span class="dept-meta">${g.rows.length} แบบฟอร์ม</span>
           </div>
-          <div class="form-grid">${g.rows.map(card).join('')}</div>
+          <div class="form-grid">${g.rows.map(card).join('')}${eqHit && isPurchase(g.name) ? EQ_CARD.html : ''}</div>
         </section>`).join('')
       : `<div class="panel"><div class="empty">ไม่พบแบบฟอร์มที่ตรงกับคำค้น</div></div>`}
     </div>

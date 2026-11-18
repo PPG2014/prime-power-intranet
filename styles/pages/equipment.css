@@ -50,3 +50,10 @@
   body.printing-pr .eqp-doc { background: none; padding: 0; }
   body.printing-pr .eqp-page { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; }
 }
+.eq-mapi { display: flex; flex-direction: column; gap: 3px; font-size: .9em; }
+.eq-mapi input { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.eq-cand { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: .85em; color: var(--muted, #6b7280); }
+.eq-cand .chip { font-size: 12px; padding: 2px 8px; }
+.eq-mapok { font-size: .82em; }
+.eq-mapok.ok { color: #1e7f4f; }
+.eq-mapok.bad { color: #b42318; }

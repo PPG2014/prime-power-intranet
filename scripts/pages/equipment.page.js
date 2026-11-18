@@ -3,6 +3,7 @@
  *   ทุกคนดูได้ว่าเครื่องมือแต่ละตัวอยู่ที่ใคร โครงการไหน สถานะอะไร (มุมมองรายการ / แยกตามผู้ใช้งาน)
  *   ฝ่ายจัดซื้อและคลังสินค้า + ผู้ดูแลระบบ: เพิ่ม/แก้ไข · นำเข้าจากไฟล์ Excel (ทะเบียนเดิม) · ส่งออก Excel
  *   ยื่นใบยืม-คืน (FM-PUR-006) / บันทึกโอนย้าย (FM-PUR-008) ได้จากหน้านี้ — สถานะในใบอัปเดตทะเบียนให้เอง
+ *   ทางเข้า: หน้าแบบฟอร์มทั้งหมด → กลุ่มฝ่ายจัดซื้อและคลังสินค้า · ลิงก์ในหน้ารายละเอียดบุคลากร
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, create, update, remove, clearDataCache } from '../services/data.js';
@@ -214,6 +215,14 @@ async function openEdit(e = null) {
 }
 
 /* ───────── นำเข้าจากไฟล์ Excel ───────── */
+
+/** คนที่ชื่อเล่น/ชื่อต้นตรงกับชื่อในไฟล์ (เช่น K.บูม → ทุกคนที่ชื่อเล่น บูม) ให้กดเลือก */
+function candidates(text) {
+  const k = low(String(text).replace(/^(k\.|k\s|คุณ|พี่|น้อง)\s*/i, ''));
+  if (!k) return [];
+  return dir.filter((p) => p.IsActive !== false && p.Title
+    && (low(p.Nickname) === k || low(p.Title).split(' ')[0] === k || low(p.NameEN).split(' ')[0] === k)).slice(0, 6);
+}
 async function openImport(file) {
   const { openModal } = await import('../components/modal.js');
   const { readXlsxTable } = await import('../utils/xlsx-read.js');
@@ -236,19 +245,38 @@ async function openImport(file) {
         <div><b>${items.filter((it) => !isNew(it)).length}</b><span>มีอยู่แล้ว (อัปเดต)</span></div>
         <div><b>${matched}</b><span>จับคู่ผู้ใช้งานกับหน้าบุคลากรได้</span></div>
       </div>
-      ${unmatched.length ? `<div class="panel"><div class="panel-head">ผู้ใช้งานที่จับคู่เองไม่ได้ (${unmatched.length}) <span class="panel-meta">เลือกบุคลากร หรือคงเป็นข้อความเดิม (เช่น Office, Store)</span></div>
-        <div class="eq-map">${unmatched.map((t, i) => `<label><span>${esc(t)} <span class="dim">(${items.filter((it) => it.holderText === t).length})</span></span>
-          <select data-map="${i}"><option value="">— คงเป็นข้อความเดิม —</option>${people.map((p) => `<option value="${esc(p.Email || p.Title)}">${esc(p.Title)}${p.Nickname ? ` (${esc(p.Nickname)})` : ''} · ${esc(p.Department || '')}</option>`).join('')}</select></label>`).join('')}</div></div>` : ''}
+      ${unmatched.length ? `<div class="panel"><div class="panel-head">ผู้ใช้งานที่จับคู่เองไม่ได้ (${unmatched.length}) <span class="panel-meta">พิมพ์ค้นหาชื่อจริง ชื่อเล่น หรือฝ่าย แล้วเลือก · เว้นว่าง = คงเป็นข้อความเดิม (เช่น Office, Store)</span></div>
+        <datalist id="eqi-people">${people.map((p) => `<option value="${esc(p.Title)}">${esc([p.Nickname ? `(${p.Nickname})` : '', p.Department].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+        <div class="eq-map">${unmatched.map((t, i) => {
+          const cand = candidates(t);
+          return `<div class="eq-mapi"><span>${esc(t)} <span class="dim">(${items.filter((it) => it.holderText === t).length})</span></span>
+            <input data-map="${i}" list="eqi-people" placeholder="พิมพ์ชื่อหรือชื่อเล่นเพื่อค้นหา" autocomplete="off">
+            ${cand.length ? `<div class="eq-cand">ชื่อเล่นตรงกัน: ${cand.map((p) => `<button type="button" class="chip" data-cand="${i}" data-name="${esc(p.Title)}">${esc(p.Title)}${p.Department ? ` · ${esc(p.Department)}` : ''}</button>`).join('')}</div>` : ''}
+            <div class="eq-mapok dim" data-mapok="${i}">คงเป็นข้อความเดิม</div></div>`;
+        }).join('')}</div></div>` : ''}
       <div class="panel-note">รายการที่มีรหัสเดียวกันในทะเบียนอยู่แล้วจะอัปเดตตามไฟล์ · รายการไม่มีรหัสจะตั้งรหัสชั่วคราว "ไม่มีรหัส-ลำดับ" ให้แก้ภายหลัง</div>
       <div class="dim" id="eqi-msg"></div>`,
     footer: '<button class="btn-mini" id="eqi-cancel">ยกเลิก</button><button class="btn btn-primary" id="eqi-go">⬆ นำเข้า</button>',
   });
   $('#eqi-cancel').onclick = close;
+  const personOf = (v) => { const k = low(v); return k ? people.find((x) => low(x.Title) === k || low(x.Email) === k) || null : null; };
+  const showOk = (inp) => {
+    const ok = $(`[data-mapok="${inp.dataset.map}"]`);
+    const p = personOf(inp.value);
+    ok.textContent = !inp.value.trim() ? 'คงเป็นข้อความเดิม' : p ? `✓ ${p.Title}${p.Department ? ` · ${p.Department}` : ''}` : 'ไม่พบในทะเบียนบุคลากร — เลือกจากรายการที่ขึ้นมา';
+    ok.className = `eq-mapok ${!inp.value.trim() ? 'dim' : p ? 'ok' : 'bad'}`;
+  };
+  $$('[data-map]').forEach((inp) => { inp.oninput = () => showOk(inp); });
+  $$('[data-cand]').forEach((b) => {
+    b.onclick = () => { const inp = $(`[data-map="${b.dataset.cand}"]`); inp.value = b.dataset.name; showOk(inp); };
+  });
   $('#eqi-go').onclick = async () => {
     const pick = {};
-    $$('[data-map]').forEach((s) => {
-      const p = s.value && people.find((x) => (x.Email || x.Title) === s.value);
-      if (p) pick[unmatched[+s.dataset.map]] = p;
+    const wrong = [...$$('[data-map]')].filter((inp) => inp.value.trim() && !personOf(inp.value));
+    if (wrong.length) { alert(`ไม่พบชื่อในทะเบียนบุคลากร ${wrong.length} ช่อง — เลือกจากรายการที่ขึ้นมา หรือเว้นว่างไว้`); wrong[0].focus(); return; }
+    $$('[data-map]').forEach((inp) => {
+      const p = personOf(inp.value);
+      if (p) pick[unmatched[+inp.dataset.map]] = p;
     });
     const b = $('#eqi-go'); b.disabled = true;
     const msg = $('#eqi-msg');
