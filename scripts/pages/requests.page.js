@@ -865,7 +865,7 @@ async function openRequest(req) {
           </div>
         </div>
 
-        ${renderSlip(slipOf(req))}
+        ${renderSlip(slipOf(req), canReslip(req, steps), log)}
 
         ${role.canActNow ? actionBox(req, role) : role.waiting
           ? '<div class="rq-wait">👁 ดูได้อย่างเดียว · ยังไม่ถึงคิวของคุณ — ระบบจะแจ้งเตือนอีกครั้งเมื่อถึงคิว</div>'
@@ -898,7 +898,8 @@ async function openRequest(req) {
   onClick('exportreq', () => (hasEqXlsx(req)
     ? openEqDoc(req, { steps, log: parseLog(req.ApprovalLog), title: `ส่งออกเอกสาร — ${req.Title}` }).catch((e) => alert('เตรียมเอกสารไม่สำเร็จ — ' + e.message))
     : exportRequest(req, steps, answerRows, { fields: withStandard(fields, formRow), data, formRow })));
-  onClick('viewslip', () => viewSlip(slipOf(req), req));
+  onClick('viewslip', () => viewSlip(slipOf(req), req, canReslip(req, steps) ? () => replaceSlip(req, formRow) : null));
+  onClick('reslip', () => { if (canReslip(req, steps)) replaceSlip(req, formRow); });
   // ใบจองโซลาร์: เอกสารฉบับฝ่ายขาย / ฉบับลูกค้า (A4 หน้าเดียว)
   onClick('solardoc', async (kind) => {
     const [{ openSolarDoc }, { loadSolarPrices }] = await Promise.all([import('../templates/solar-doc.js'), import('../services/solar.js')]);
@@ -1028,19 +1029,72 @@ function solarEntries(data, fields) {
   return entries;
 }
 
-function renderSlip(s) {
+/** บันทึกการแก้ไขหลักฐานการโอนเงิน (แทนสลิปเดิม) */
+const RESLIP_ACTION = 'แก้ไขหลักฐานการโอนเงิน';
+
+/**
+ * ใครแก้ไข/อัปโหลดสลิปใหม่ได้ (กรณีแนบสลิปผิด):
+ *   ผู้อนุมัติในลำดับฝ่ายการเงินของคำขอนี้ (ชื่อลำดับมีคำว่า "การเงิน" เช่น เจ้าหน้าที่การเงิน รับทราบ/จัดเตรียมเอกสาร ·
+ *   ผู้จัดการแผนกการเงิน รับทราบ/โอนเงิน) และผู้ดูแลระบบ
+ */
+function canReslip(req, steps) {
+  if (!slipOf(req)) return false;
+  if (state.isAdmin) return true;
+  const ids = meIds.map((x) => String(x).trim().toLowerCase());
+  return steps.filter((s) => /การเงิน/.test(String(s.StepName || ''))).some((s) =>
+    (s._resolved || String(s.Approvers || '').split(/[,;\n]/)).some((a) => ids.includes(String(a).trim().toLowerCase())));
+}
+
+function renderSlip(s, canEdit = false, log = []) {
   if (!s || !s.url) return '';
   const img = /^(JPG|JPEG|PNG|GIF|WEBP)$/.test(s.kind);
+  const last = log.filter((l) => l.action === RESLIP_ACTION).slice(-1)[0];
   return `<div class="rq-slip"><h4>หลักฐานการโอนเงิน</h4>
     ${img ? `<button type="button" class="rq-slip-thumb" data-viewslip="1" title="กดเพื่อดูรูปขนาดใหญ่"><img data-photo="${esc(s.url)}" alt="สลิป"><span>🔍 กดเพื่อขยาย</span></button>`
-      : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}</div>`;
+      : `<a class="doc-file" href="${esc(s.url)}" target="_blank" rel="noopener">📄 ${esc(s.name)}</a>`}
+    ${last ? `<div class="dim rq-slip-edited">แก้ไขล่าสุดโดย ${esc(last.by || '-')} · ${esc(thaiDateShort(last.at))}</div>` : ''}
+    ${canEdit ? '<button type="button" class="btn-mini rq-reslip" data-reslip="1" title="กรณีแนบสลิปผิด · สลิปเดิมยังอยู่ในประวัติ">✏️ แก้ไข / อัปโหลดสลิปใหม่</button>' : ''}</div>`;
+}
+
+/** อัปโหลดสลิปใหม่แทนสลิปเดิม · ไม่เปลี่ยนสถานะคำขอ · บันทึกในประวัติ (สลิปเดิมยังดูได้จากประวัติ) */
+async function replaceSlip(req, formRow) {
+  const old = slipOf(req);
+  const { pickSlip } = await import('../components/slip-dialog.js');
+  const slip = await pickSlip({ folder: formFolder(formRow, 'สลิปโอนเงิน'), title: 'แก้ไข / อัปโหลดสลิปใหม่ (แทนสลิปเดิม)',
+    intro: 'กรณีแนบสลิปผิด — แนบหลักฐานการโอนเงินที่ถูกต้อง · สถานะคำขอไม่เปลี่ยน · สลิปเดิมยังดูได้ในประวัติการอนุมัติ',
+    okText: '✓ บันทึกสลิปใหม่', cancelAsk: 'ยกเลิกการแก้ไขสลิป? (สลิปเดิมยังอยู่)' });
+  if (!slip) return;
+  const { toast } = await import('../components/toast.js');
+  try {
+    const fresh = (await list('requests', { fresh: true }).catch(() => [])).find((r) => String(r.id) === String(req.id)) || req;
+    const lg = parseLog(fresh.ApprovalLog);
+    const at = lg.filter((l) => l.slip && l.slip.url).slice(-1)[0];
+    const meta = { name: slip.name, url: slip.url, kind: slip.kind, sizeText: slip.sizeText };
+    lg.push({ step: at ? at.step : (+fresh.CurrentStep || 1), action: RESLIP_ACTION, by: me,
+      note: `อัปโหลดสลิปใหม่แทนฉบับเดิม${old && old.name ? ` (${old.name})` : ''}`, at: new Date().toISOString(), slip: meta });
+    const { update } = await import('../services/data.js');
+    await update('requests', req.id, { PaymentSlip: JSON.stringify(slip), ApprovalLog: JSON.stringify(lg) });
+    toast('✓ บันทึกสลิปใหม่แล้ว');
+    // แจ้งผู้ยื่นทาง Teams อีกครั้งพร้อมสลิปใหม่ (ถ้าต้องการ)
+    if (confirm(`แจ้ง ${req.RequesterName || 'ผู้ยื่น'} ทาง Teams พร้อมสลิปใหม่ด้วยหรือไม่?`)) {
+      try {
+        const teams = await import('../services/teams-notify.js');
+        const r = await teams.notifySlipPaid({ req: fresh, slip, by: me, note: 'แก้ไขหลักฐานการโอนเงิน (แทนฉบับก่อนหน้า)', token: await teams.teamsToken() });
+        if (r && r.sent) toast(`✓ แจ้ง ${req.RequesterName || 'ผู้ยื่น'} ทาง Teams แล้ว`);
+      } catch (e) { toast(`บันทึกสลิปแล้ว แต่แจ้งทาง Teams ไม่สำเร็จ — ${e.message}`, 'bad'); }
+    }
+    const now = (await list('requests', { fresh: true }).catch(() => [])).find((r) => String(r.id) === String(req.id));
+    if (now) openRequest({ ...req, ...now, FormCode: formCodeOf({ ...req, ...now }) });
+  } catch (e) {
+    alert('บันทึกสลิปใหม่ไม่สำเร็จ — ' + e.message);
+  }
 }
 
 /**
  * หน้าต่างดูสลิปโอนเงิน (รูปเดียวกับที่ส่งแจ้งผู้ยื่นทาง Teams) · PDF เปิดในแท็บใหม่
  * รูปเต็มความกว้างหน้าต่าง · ชี้เมาส์ = แว่นขยาย · กดที่รูป / ปุ่ม 🔍 = สลับขนาดจริง (เลื่อนดูได้)
  */
-async function viewSlip(s, req) {
+async function viewSlip(s, req, onReslip = null) {
   if (!s || !s.url) return;
   const img = /^(JPG|JPEG|PNG|GIF|WEBP|HEIC)$/i.test(s.kind || '');
   if (!img) { window.open(s.url, '_blank', 'noopener'); return; }
@@ -1056,6 +1110,7 @@ async function viewSlip(s, req) {
         <span class="dim slip-tip">ชี้เมาส์ที่รูปเพื่อขยาย · กดที่รูปเพื่อดูขนาดจริง</span>
         <button type="button" class="btn-mini" data-zoom>🔍 ขนาดจริง</button>
         <a class="btn-mini" href="${esc(s.url)}" target="_blank" rel="noopener">เปิดไฟล์ต้นฉบับ ↗</a>
+        ${onReslip ? '<button type="button" class="btn-mini" data-reslip-view title="กรณีแนบสลิปผิด">✏️ แก้ไข / อัปโหลดสลิปใหม่</button>' : ''}
         <button type="button" class="btn btn-primary" data-x>ปิด</button>
       </div></div>`;
   const stage = layer.querySelector('#slip-stage');
@@ -1089,6 +1144,8 @@ async function viewSlip(s, req) {
   const close = () => { layer.remove(); removeEventListener('keydown', onKey, true); };
   const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
   layer.addEventListener('click', (e) => { if (e.target === layer || e.target.closest('[data-x]')) close(); });
+  const rb = layer.querySelector('[data-reslip-view]');
+  if (rb) rb.onclick = () => { close(); onReslip(); };
   addEventListener('keydown', onKey, true);
   document.body.appendChild(layer);
   const { hydratePhotos } = await import('../services/photos.js');
