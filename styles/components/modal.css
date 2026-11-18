@@ -6,6 +6,7 @@
   overflow: hidden; box-shadow: var(--shadow-lg); box-sizing: border-box; }
 .modal * { box-sizing: border-box; }
 .modal-wide { max-width: 860px; }
+.modal-xl { max-width: 1200px; }
 /* จัดหน้าต่างไว้กลางจอทั้งแนวตั้งและแนวนอน — margin auto ใน flex จัดกลางเมื่อที่พอ
    และไม่ตัดหัวหน้าต่างทิ้งเมื่อหน้าต่างสูงกว่าจอ (ต่างจาก align-items: center) */
 .mask > .modal { margin: auto 0; }

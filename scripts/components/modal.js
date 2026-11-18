@@ -5,7 +5,7 @@ export function openModal({ title, body, footer = '', onClose, wide = false, dis
   const root = $('#overlay-root');
   root.innerHTML = `
     <div class="mask" id="mask">
-      <div class="modal${wide ? ' modal-wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="modal${wide ? ' modal-wide' : ''}${wide === 'xl' ? ' modal-xl' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
         <div class="modal-head">${esc(title)}<button id="modal-x" aria-label="ปิด">✕</button></div>
         <div class="modal-body">${body}</div>
         ${footer ? `<div class="modal-foot">${footer}</div>` : ''}

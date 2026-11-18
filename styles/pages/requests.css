@@ -296,6 +296,15 @@
 .li-view th { text-align: left; background: #fafbfc; padding: 6px 10px; border: 1px solid var(--line-soft); }
 .li-view td { padding: 6px 10px; border: 1px solid var(--line-soft); }
 .li-view td.r { text-align: right; white-space: nowrap; }
+/* ตารางรายการในหน้ารายละเอียดคำขอ: วันที่ไม่ตัดบรรทัด · ข้อความได้พื้นที่กว้าง · ตัวเลขชิดขวา */
+.li-view-wrap { overflow-x: auto; }
+.li-view th { vertical-align: bottom; font-size: 12.5px; line-height: 1.35; }
+.li-view th.r { text-align: right; }
+.li-view td { vertical-align: top; }
+.li-view .nw { white-space: nowrap; }
+.li-view td.li-txt { min-width: 190px; }
+/* หน้าต่างรายละเอียดคำขอแบบกว้างพิเศษ: ฝั่งข้อมูลคำขอกว้างกว่าฝั่งเส้นทางอนุมัติ */
+.modal-xl .rq-cols { grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr); }
 .rq-owner-act { margin-top: var(--gap); padding: 14px 16px; background: #eef6fd;
   border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;
   gap: var(--gap-sm); flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
@@ -606,3 +615,4 @@
 /* แก้ไขหลักฐานการโอนเงิน (เจ้าหน้าที่/ผู้จัดการฝ่ายการเงิน) */
 .rq-reslip { margin-top: 8px; }
 .rq-slip-edited { font-size: 12px; margin-top: 4px; }
+@media (max-width: 1000px) { .modal-xl .rq-cols { grid-template-columns: 1fr; } }
