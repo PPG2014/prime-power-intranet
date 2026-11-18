@@ -104,8 +104,12 @@ export async function render() {
   ]);
   canManage = await manager();
   // ลิงก์จากหน้าบุคลากร: #/equipment?holder=ชื่อ
-  const qh = new URLSearchParams((location.hash.split('?')[1] || '')).get('holder');
+  const hp = new URLSearchParams((location.hash.split('?')[1] || ''));
+  const qh = hp.get('holder');
   if (qh) { f.holder = qh; f.view = 'list'; }
+  // ลิงก์จากกล่องเครื่องมือในหน้าแรก: #/equipment?q=รหัสเครื่องมือ
+  const qq = hp.get('q');
+  if (qq) { f.q = qq; f.view = 'list'; f.status = ''; f.project = ''; f.holder = ''; }
 
   const list2 = filtered();
   const count = (st) => rows.filter((e) => clean(e.Status) === st).length;
@@ -341,7 +345,7 @@ async function rerender() { const { render: r } = await import('../core/render.j
 
 export function mount() {
   bindPersonCards();
-  const set = (k, v) => { f[k] = v; if (k === 'holder' && location.hash.includes('?')) history.replaceState(null, '', '#/equipment'); rerender(); };
+  const set = (k, v) => { f[k] = v; if (location.hash.includes('?')) history.replaceState(null, '', '#/equipment'); rerender(); };
   const q = $('#eq-q');
   if (q) { let t; q.oninput = () => { clearTimeout(t); t = setTimeout(() => set('q', q.value.trim()), 300); }; }
   [['eq-status', 'status'], ['eq-project', 'project'], ['eq-holder', 'holder']].forEach(([id, k]) => {
