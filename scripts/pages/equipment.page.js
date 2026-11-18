@@ -66,22 +66,33 @@ const pill = (s) => (s ? `<span class="eq-st eq-${TONE[s] || 'other'}">${esc(s)}
 const who = (e) => (e.HolderName ? personRef(clean(e.HolderName)) : esc(clean(e.HolderText)) || '<span class="dim">—</span>');
 
 function listView(list) {
+  // จัดคอลัมน์ไม่ให้ตัวหนังสือตกบรรทัด: ยี่ห้อ/รุ่น/S/N รวมคอลัมน์เดียว (คนละบรรทัด) · เลขที่ใบยืม + วันที่ยืม รวมคอลัมน์เดียว
+  // คอลัมน์สั้น (รหัส สถานะ ผู้ใช้งาน วันที่) ไม่ตัดบรรทัด · รายการกว้างสุด
+  const brand = (e) => {
+    const b = clean(e.Brand); const m = clean(e.Model); const sn = clean(e.SerialNo);
+    return `${b ? `<div class="eq-b">${esc(b)}</div>` : ''}${m ? `<div class="eq-m">${esc(m)}</div>` : ''}${sn ? `<div class="eq-sn">S/N ${esc(sn)}</div>` : ''}`
+      || '<span class="dim">—</span>';
+  };
+  const loan = (e) => {
+    const no = clean(e.LoanNo); const d = day(e.LoanDate);
+    return no || d ? `${no ? `<div class="eq-ln">${esc(no)}</div>` : ''}${d ? `<div class="eq-ld">${esc(d)}</div>` : ''}` : '<span class="dim">—</span>';
+  };
   return `<div class="eq-scroll"><table class="ap-table eq-table">
-    <thead><tr><th>รหัส</th><th>รายการ</th><th>ยี่ห้อ / รุ่น</th><th>Serial No.</th><th>สถานะ</th><th>ผู้ใช้งาน</th>
-      <th>โครงการ</th><th>เลขที่ใบยืม</th><th>วันที่ยืม</th><th>Cert. Date</th>${canManage ? '<th></th>' : ''}</tr></thead>
+    <colgroup><col class="c-code"><col class="c-item"><col class="c-brand"><col class="c-st"><col class="c-who"><col class="c-prj">
+      <col class="c-loan"><col class="c-cert">${canManage ? '<col class="c-act">' : ''}</colgroup>
+    <thead><tr><th>รหัส</th><th>รายการ</th><th>ยี่ห้อ / รุ่น / S/N</th><th>สถานะ</th><th>ผู้ใช้งาน</th>
+      <th>โครงการ</th><th>เลขที่ใบยืม / วันที่ยืม</th><th>Cert. Date</th>${canManage ? '<th></th>' : ''}</tr></thead>
     <tbody>${list.map((e) => `<tr>
       <td class="eq-code">${esc(eqCode(e))}</td>
-      <td>${esc(clean(e.ItemName))}${e.Remark ? `<div class="dim eq-rm">${esc(clean(e.Remark))}</div>` : ''}</td>
-      <td>${esc([clean(e.Brand), clean(e.Model)].filter(Boolean).join(' / '))}</td>
-      <td>${esc(clean(e.SerialNo))}</td>
+      <td class="eq-item">${esc(clean(e.ItemName))}${e.Remark ? `<div class="dim eq-rm">${esc(clean(e.Remark))}</div>` : ''}</td>
+      <td class="eq-brand">${brand(e)}</td>
       <td>${pill(clean(e.Status))}</td>
-      <td>${who(e)}</td>
-      <td>${esc(clean(e.Project))}</td>
-      <td>${esc(clean(e.LoanNo))}</td>
-      <td>${esc(day(e.LoanDate))}</td>
-      <td>${esc(day(e.CertDate))}</td>
-      ${canManage ? `<td><button class="btn-mini" data-eqedit="${e.id}">✎</button></td>` : ''}</tr>`).join('')
-      || `<tr><td colspan="11" class="empty">ไม่พบเครื่องมือตามเงื่อนไข</td></tr>`}</tbody></table></div>`;
+      <td class="eq-nw">${who(e)}</td>
+      <td class="eq-prj">${esc(clean(e.Project)) || '<span class="dim">—</span>'}</td>
+      <td class="eq-nw">${loan(e)}</td>
+      <td class="eq-nw">${esc(day(e.CertDate)) || '<span class="dim">—</span>'}</td>
+      ${canManage ? `<td class="eq-act"><button class="btn-mini" data-eqedit="${e.id}" title="แก้ไข / ลบ">✎</button></td>` : ''}</tr>`).join('')
+      || `<tr><td colspan="9" class="empty">ไม่พบเครื่องมือตามเงื่อนไข</td></tr>`}</tbody></table></div>`;
 }
 
 function holderView(list) {
