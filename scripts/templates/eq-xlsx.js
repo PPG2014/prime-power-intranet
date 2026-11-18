@@ -124,10 +124,10 @@ async function sheetsOf(req, { steps = [], log = [] } = {}) {
   const v = valuesOf(req);
   if (kind === 'loan') {
     return { url: 'assets/forms/FM-PUR-006.xlsx', pages: loanPages(req, log),
-      name: `FM-PUR-006 ใบยืม-คืนอุปกรณ์ ${clean(v.br_no) || clean(req.Title)}` };
+      name: `FM-PUR-006 ใบยืม-คืนอุปกรณ์ ${clean(v.br_no) || clean(req.Title) || '(แบบฟอร์ม)'}` };
   }
   return { url: 'assets/forms/FM-PUR-008.xlsx', pages: movePages(req, log, steps, await equipment().catch(() => [])),
-    name: `FM-PUR-008 บันทึกโอนย้ายเครื่องมืออุปกรณ์ ${clean(req.Title)}` };
+    name: `FM-PUR-008 บันทึกโอนย้ายเครื่องมืออุปกรณ์ ${clean(req.Title) || '(แบบฟอร์ม)'}` };
 }
 
 /**
@@ -140,7 +140,21 @@ export async function openEqPdf(req, opts = {}) {
   const { xlsxToHtml } = await import('../utils/xlsx-html.js');
   const { html } = await xlsxToHtml(blob);
   const { openPRWindow } = await import('./pr-fm-pur-004.js');
-  return openPRWindow(html, s.name);
+  await openPRWindow(html, opts.title || s.name);
+  // ปุ่มดาวน์โหลดไฟล์ Excel ต้นฉบับ (ไฟล์เดียวกับที่แสดง) ข้างปุ่มพิมพ์
+  const pr = document.getElementById('pr-print');
+  if (pr) {
+    pr.insertAdjacentHTML('beforebegin', '<button class="btn-mini" id="pr-xlsx">⬇ Excel ต้นฉบับ ISO</button>');
+    document.getElementById('pr-xlsx').onclick = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${s.name}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    };
+  }
 }
+/** เอกสารต้นฉบับ ISO (แสดง + พิมพ์ PDF + ดาวน์โหลด Excel) */
+export const openEqDoc = openEqPdf;
 
 export { loanPages, movePages };
