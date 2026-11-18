@@ -76,3 +76,10 @@
 .eq-mapok { font-size: .82em; }
 .eq-mapok.ok { color: #1e7f4f; }
 .eq-mapok.bad { color: #b42318; }
+
+/* แบ่งหน้า (หน้าละ 25 รายการ) */
+.eq-pager { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; flex-wrap: wrap; }
+.eq-pager.top { border-bottom: 1px solid var(--line-soft, #e5e7eb); justify-content: flex-end; padding: 8px 12px; }
+.eq-pager-info { color: var(--muted, #6b7280); font-size: 13px; padding: 0 8px; }
+.eq-pager-info b { color: var(--navy, #0b4f8a); }
+.eq-pager button[disabled] { opacity: .45; cursor: default; }

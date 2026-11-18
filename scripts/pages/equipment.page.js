@@ -27,7 +27,20 @@ let rows = [];
 let dir = [];
 let canManage = false;
 let forms = [];
-const f = { q: '', status: '', project: '', holder: '', view: 'list' };
+const f = { q: '', status: '', project: '', holder: '', view: 'list', page: 1 };
+const PER_PAGE = 25;   // มุมมองรายการ: หน้าละ 25 รายการ กดถัดไป
+
+/** แถบเลือกหน้า (แสดงเมื่อเกิน 1 หน้า) */
+function pager(page, pages, total, where) {
+  if (pages <= 1) return '';
+  const from = (page - 1) * PER_PAGE + 1; const to = Math.min(page * PER_PAGE, total);
+  const b = (p, label, off, title = '') => `<button class="btn-mini" data-eqpage="${p}" ${off ? 'disabled' : ''}${title ? ` title="${title}"` : ''}>${label}</button>`;
+  return `<div class="eq-pager ${where}" role="navigation" aria-label="เลือกหน้า">
+    ${b(1, '«', page <= 1, 'หน้าแรก')}${b(page - 1, '‹ ก่อนหน้า', page <= 1)}
+    <span class="eq-pager-info">หน้า <b>${page}</b> / ${pages} · รายการที่ ${from}–${to} จาก ${total}</span>
+    ${b(page + 1, 'ถัดไป ›', page >= pages)}${b(pages, '»', page >= pages, 'หน้าสุดท้าย')}
+  </div>`;
+}
 
 /**
  * เพิ่ม / แก้ไข / ลบ เครื่องมือได้: ผู้ดูแลระบบ · บุคลากรฝ่ายจัดซื้อและคลังสินค้า
@@ -117,12 +130,15 @@ export async function render() {
   // ลิงก์จากหน้าบุคลากร: #/equipment?holder=ชื่อ
   const hp = new URLSearchParams((location.hash.split('?')[1] || ''));
   const qh = hp.get('holder');
-  if (qh) { f.holder = qh; f.view = 'list'; }
+  if (qh) { f.holder = qh; f.view = 'list'; f.page = 1; }
   // ลิงก์จากกล่องเครื่องมือในหน้าแรก: #/equipment?q=รหัสเครื่องมือ
   const qq = hp.get('q');
-  if (qq) { f.q = qq; f.view = 'list'; f.status = ''; f.project = ''; f.holder = ''; }
+  if (qq) { f.q = qq; f.view = 'list'; f.status = ''; f.project = ''; f.holder = ''; f.page = 1; }
 
   const list2 = filtered();
+  const pages = Math.max(1, Math.ceil(list2.length / PER_PAGE));
+  f.page = Math.min(Math.max(1, f.page || 1), pages);
+  const pageRows = list2.slice((f.page - 1) * PER_PAGE, f.page * PER_PAGE);
   const count = (st) => rows.filter((e) => clean(e.Status) === st).length;
   const hasForm = (code) => forms.some((x) => clean(x.FormCode).toUpperCase() === code && x.IsActive !== false);
   const me = dir.find((p) => low(p.Email) === low(state.user?.email));
@@ -165,7 +181,8 @@ export async function render() {
         </div>
         <span class="dim">${list2.length} รายการ</span>
       </div>
-      ${f.view === 'holder' ? holderView(list2) : listView(list2)}
+      ${f.view === 'holder' ? holderView(list2)
+    : `${pager(f.page, pages, list2.length, 'top')}${listView(pageRows)}${pager(f.page, pages, list2.length, 'bottom')}`}
     </div>
   </div></section>`;
 }
@@ -356,7 +373,18 @@ async function rerender() { const { render: r } = await import('../core/render.j
 
 export function mount() {
   bindPersonCards();
-  const set = (k, v) => { f[k] = v; if (location.hash.includes('?')) history.replaceState(null, '', '#/equipment'); rerender(); };
+  // เปลี่ยนตัวกรอง/มุมมอง → กลับไปหน้า 1
+  const set = (k, v) => { f[k] = v; f.page = 1; if (location.hash.includes('?')) history.replaceState(null, '', '#/equipment'); rerender(); };
+  $$('[data-eqpage]').forEach((b) => {
+    b.onclick = async () => {
+      f.page = Number(b.dataset.eqpage) || 1;
+      const bottom = b.closest('.eq-pager.bottom');
+      await rerender();
+      // กดจากแถบล่าง → เลื่อนขึ้นไปที่แถบค้นหา/หัวตาราง (เผื่อความสูงแถบเมนูด้านบน)
+      const top = $('.eq-filter');
+      if (bottom && top) window.scrollTo({ top: top.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' });
+    };
+  });
   const q = $('#eq-q');
   if (q) { let t; q.oninput = () => { clearTimeout(t); t = setTimeout(() => set('q', q.value.trim()), 300); }; }
   [['eq-status', 'status'], ['eq-project', 'project'], ['eq-holder', 'holder']].forEach(([id, k]) => {
