@@ -277,7 +277,8 @@ export async function xlsxToHtml(data) {
     const availW = P.w - M.l - M.r; const availH = P.h - M.t - M.b;
     const tableH = rows.reduce((a, r) => a + (rowH[r] ?? defH) * PX_PT, 0);
     // การย่อตามที่ตั้งในไฟล์ (เช่น 80%) แล้วย่อเพิ่มถ้ายังเกินกระดาษ (หนึ่งชีต = หนึ่งหน้า)
-    const scale = Math.min(ps && ps.getAttribute('scale') ? +ps.getAttribute('scale') / 100 : 1, availW / tableW, availH / tableH);
+    // เผื่อความหนาเส้นขอบ (เส้นขวาสุด/ล่างสุดไม่ถูกตัด)
+    const scale = Math.min(ps && ps.getAttribute('scale') ? +ps.getAttribute('scale') / 100 : 1, (availW - 4) / (tableW + 4), (availH - 4) / (tableH + 4));
     const center = kid(root, 'printOptions') && kid(root, 'printOptions').getAttribute('horizontalCentered') === '1';
 
     // หัว/ท้ายกระดาษ + โลโก้ (&G)

@@ -427,6 +427,13 @@ async function downloadBlankForm(form, fields) {
   }
   const res = collectForm(fields);
   const values = res.values || res.partial || {};
+  // ใบยืม-คืน / ใบโอนย้าย: แบบฟอร์มต้นฉบับ ISO (PDF + Excel) เติมค่าที่กรอกแล้ว ที่เหลือเว้นว่างให้เขียนมือ
+  if (eqFormKind(form)) {
+    const { openEqDoc } = await import('../templates/eq-xlsx.js');
+    return openEqDoc({ FormCode: form.FormCode, Title: '', FormData: JSON.stringify(values),
+      RequesterName: (me && me.Title) || state.user?.name || '', SubmittedDate: new Date().toISOString() },
+    { steps: [], log: [], title: `ดาวน์โหลดแบบฟอร์ม — ${form.Title}` }).catch((e) => alert('เตรียมแบบฟอร์มไม่สำเร็จ — ' + e.message));
+  }
   const sig = previewSignature('requester') || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
   const steps = applicableSteps(await stepsOf(form.FormCode).catch(() => []), { FormData: values });
   const html = renderFormDoc({

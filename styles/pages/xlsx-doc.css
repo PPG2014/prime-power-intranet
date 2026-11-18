@@ -28,3 +28,5 @@
   body.printing-pr .xh-page { margin: 0; box-shadow: none; break-after: page; }
   body.printing-pr .xh-page:last-child { break-after: auto; }
 }
+/* ไม่ใช้สีแถวสลับ/ชี้เมาส์ของตารางในเว็บ (สีพื้นมาจากไฟล์ Excel เท่านั้น) */
+.xh-t tr, .xh-t tr:hover, .xh-t tbody tr:nth-child(even) { background: transparent !important; }
