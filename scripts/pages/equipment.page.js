@@ -118,7 +118,7 @@ export async function render() {
     <p class="page-sub">เครื่องมือแต่ละตัวอยู่ที่ใคร โครงการไหน · ปรับอัตโนมัติจากใบยืม-คืนอุปกรณ์ (FM-PUR-006) และบันทึกโอนย้าย (FM-PUR-008)</p>
     <div class="eq-actions">
       ${hasForm(LOAN_CODE) ? `<a class="btn btn-primary" href="#/form/${LOAN_CODE}">📝 ยื่นใบยืม-คืนอุปกรณ์</a>` : ''}
-      ${hasForm(MOVE_CODE) ? `<a class="btn-mini" href="#/form/${MOVE_CODE}">🚚 บันทึกโอนย้ายเครื่องมือ</a>` : ''}
+      ${hasForm(MOVE_CODE) ? `<a class="btn btn-primary" href="#/form/${MOVE_CODE}">🚚 บันทึกโอนย้ายเครื่องมือ</a>` : ''}
       ${me && mine ? `<button class="btn-mini" id="eq-mine">👤 ของฉัน (${mine})</button>` : ''}
       <span class="eq-gap"></span>
       ${canManage ? `<button class="btn-mini" id="eq-add">➕ เพิ่มเครื่องมือ</button>

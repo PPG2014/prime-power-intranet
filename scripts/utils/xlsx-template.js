@@ -156,8 +156,10 @@ export async function fillXlsxTemplate(url, pages, fileName = '') {
     }
     Object.entries(pages[i].cells || {}).forEach(([ref, v]) => setCell(doc, ref, v));
     // หัว/ท้ายกระดาษคัดลอกจากต้นฉบับตรงตัว (ตัวอ่าน XML เปลี่ยนการขึ้นบรรทัด \r\n เป็น \n)
+    // เลขหน้า: ต้นฉบับเว้นว่าง "หน้า  /  " ไว้เขียนมือ → เติมเลขหน้าจริง (หน้านี้ / จำนวนหน้าทั้งหมด)
     const hf = /<headerFooter[\s\S]*?<\/headerFooter>/;
-    const keepHF = (x) => (hf.test(original) ? x.replace(hf, () => original.match(hf)[0]) : x);
+    const pageNo = (h) => h.replace(/หน้า[ \t]*\/[ \t]*(?=\s*(?:<\/odd|<\/even|<\/first|&amp;[LCR]))/g, `หน้า ${i + 1} / ${pages.length}`);
+    const keepHF = (x) => (hf.test(original) ? x.replace(hf, () => pageNo(original.match(hf)[0])) : x);
     zip.file(path, keepHF(ser(doc)), NOF);
   }
   zip.file(wbPath, ser(wb), NOF);
