@@ -9,7 +9,7 @@
  * อัปเดต: npm pack pdfjs-dist แล้วคัดลอก legacy/build/pdf.min.js + pdf.worker.min.js มาทับ
  */
 import { esc } from '../core/dom.js';
-import { photoBlobUrl } from '../services/photos.js';
+import { photoBlobUrl, fileBytes } from '../services/photos.js';
 import { loadScript } from '../utils/page-image.js';
 
 const PDF_LIB = 'assets/vendor/pdfjs/pdf.min.js';
@@ -41,8 +41,10 @@ const page = (head, body) => `<section class="ex-att-page"><div class="ex-att-he
 async function pdfPages(url) {
   const lib = await loadScript(PDF_LIB, 'pdfjsLib');
   lib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
-  const src = await photoBlobUrl(url);   // ไฟล์ใน SharePoint ต้องแนบ token → ได้ blob URL
-  const doc = await lib.getDocument({ url: src, isEvalSupported: false }).promise;
+  // ส่งเนื้อไฟล์ให้ pdf.js โดยตรง (ไฟล์ใน SharePoint ดึงผ่าน Graph พร้อม token)
+  // ไม่ส่งเป็น blob: URL — CSP ของเว็บไม่อนุญาตให้ pdf.js โหลด blob: → "Unexpected server response (0)"
+  const data = await fileBytes(url);
+  const doc = await lib.getDocument({ data, isEvalSupported: false }).promise;
   const n = Math.min(doc.numPages, MAX_PDF_PAGES);
   const out = [];
   for (let i = 1; i <= n; i += 1) {
