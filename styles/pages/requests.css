@@ -602,3 +602,7 @@
 @keyframes rq-again { 0%, 100% { box-shadow: 0 0 0 0 rgba(217, 72, 15, .55); } 50% { box-shadow: 0 0 0 6px rgba(217, 72, 15, 0); } }
 .rq-badge.resub { background: #d9480f; }
 @media (prefers-reduced-motion: reduce) { .rq-act-flag.again { animation: none; } }
+
+/* แก้ไขหลักฐานการโอนเงิน (เจ้าหน้าที่/ผู้จัดการฝ่ายการเงิน) */
+.rq-reslip { margin-top: 8px; }
+.rq-slip-edited { font-size: 12px; margin-top: 4px; }

@@ -6,7 +6,9 @@
 import { esc } from '../core/dom.js';
 import { uploadFile } from '../services/photos.js';
 
-export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบุฝ่าย/สลิปโอนเงิน', title = 'แนบสลิปการโอนเงิน' } = {}) {
+export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบุฝ่าย/สลิปโอนเงิน', title = 'แนบสลิปการโอนเงิน',
+  intro = 'อนุมัติขั้นสุดท้ายแล้วปิดงาน — แนบหลักฐานการโอนเงินก่อน', okText = '✓ ยืนยันอนุมัติและปิดงาน',
+  cancelAsk = 'ยกเลิกการแนบสลิปและยังไม่อนุมัติ?' } = {}) {
   return new Promise((resolve) => {
     let slip = null;
     let busy = false;
@@ -16,7 +18,7 @@ export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบ
       <div class="eta-box slip-box" role="dialog" aria-modal="true" aria-labelledby="slip-title">
         <div class="eta-head" id="slip-title">🧾 ${esc(title)}</div>
         <div class="eta-body">
-          <p>อนุมัติขั้นสุดท้ายแล้วปิดงาน — แนบหลักฐานการโอนเงินก่อน</p>
+          <p>${esc(intro)}</p>
           <label class="slip-drop" id="slip-drop" tabindex="0">
             <input type="file" id="slip-file" accept="image/*,application/pdf" hidden>
             <div class="slip-preview" id="slip-preview">
@@ -29,7 +31,7 @@ export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบ
         </div>
         <div class="eta-foot">
           <button type="button" class="btn-mini" data-slip="0">ยกเลิก</button>
-          <button type="button" class="btn btn-primary" data-slip="1" disabled>✓ ยืนยันอนุมัติและปิดงาน</button>
+          <button type="button" class="btn btn-primary" data-slip="1" disabled>${esc(okText)}</button>
         </div>
       </div>`;
 
@@ -75,7 +77,7 @@ export function pickSlip({ folder = 'แบบฟอร์ม/ไม่ระบ
       take(new File([blob], `slip-${stamp}.${ext}`, { type: blob.type }));
     };
     // แนบไฟล์แล้วจะยกเลิก ต้องยืนยันก่อน กันเผลอกดแล้วสลิปที่อัปโหลดหาย
-    const cancel = () => { if (slip && !confirm('ยกเลิกการแนบสลิปและยังไม่อนุมัติ?')) return; done(null); };
+    const cancel = () => { if (slip && !confirm(cancelAsk)) return; done(null); };
     const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); cancel(); } };
     const done = (v) => {
       layer.remove();
