@@ -11,7 +11,7 @@ export const CONFIG = {
    * ⚠ เปลี่ยนค่านี้ทุกครั้งที่อัปโหลดโค้ดใหม่ เบราว์เซอร์ของผู้ใช้จะโหลดรุ่นใหม่ให้เอง
    *   (ดู scripts/core/version-check.js) ถ้าไม่เปลี่ยน ผู้ใช้อาจได้ไฟล์เก่าค้างอยู่ราว 10 นาที
    */
-  build: '2026-11-17-kpi-calc',
+  build: '2026-11-18-equipment',
 
   /** ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งานนานเกินกี่นาที (services/idle-logout.js) */
   idleMinutes: 60,
@@ -82,6 +82,8 @@ export const CONFIG = {
       appraisals:        '9d803289-3936-4998-8185-970e7e5cc4cd',
       // บันทึกการใช้งาน (services/data.js) — สร้าง List ชื่อ AuditLog แล้วใช้ชื่อนี้ได้เลย หรือเปลี่ยนเป็น GUID
       auditLog:          'AuditLog',
+      // ทะเบียนเครื่องมือและอุปกรณ์ (services/equipment.js) — สร้าง List ชื่อ Equipment ตาม docs/sharepoint-todo.md
+      equipment:         'Equipment',
     },
   },
 

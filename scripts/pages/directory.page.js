@@ -177,7 +177,8 @@ let people = [];
 const TABS = [['list', '👥 รายชื่อบุคลากร'], ['chart', '🏢 แผนผังองค์กร']];
 const tabBar = (tab) => `<div class="dir-tabs" role="tablist">${TABS.map(([k, label]) => `
   <button type="button" role="tab" data-dirtab="${k}" aria-selected="${tab === k}"
-    ${tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</div>`;
+    ${tab === k ? 'aria-current="page"' : ''}>${label}</button>`).join('')}
+  <a class="dir-tab-link" href="#/equipment" title="เครื่องมือแต่ละตัวอยู่ที่ใคร โครงการไหน">🧰 ทะเบียนเครื่องมือและอุปกรณ์</a></div>`;
 
 /** แท็บแผนผังองค์กร — วาดจากข้อมูลบุคลากร ฝ่าย และแผนก */
 async function renderChartTab() {
@@ -311,6 +312,25 @@ async function fillPersonProjects(p) {
       e.date ? ` <span class="pv-done">(ย้ายออก ${esc(thaiDateShort(e.date + 'T00:00:00'))})</span>` : ''}</li>`).join('')}</ul>` : ''}`;
 }
 
+/**
+ * เครื่องมือและอุปกรณ์ที่รับผิดชอบอยู่ (ทะเบียนเครื่องมือ · ผู้ใช้งาน = คนนี้)
+ * ยังไม่มี List Equipment หรือไม่มีเครื่องมือ → ไม่แสดงส่วนนี้
+ */
+async function fillPersonTools(p) {
+  const box = document.getElementById('pv-tools');
+  if (!box) return;
+  const eq = await import('../services/equipment.js');
+  const mine = eq.heldBy(await eq.equipment().catch(() => []), p)
+    .sort((a, b) => eq.eqCode(a).localeCompare(eq.eqCode(b)));
+  if (!mine.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<h4>🧰 เครื่องมือและอุปกรณ์ที่รับผิดชอบ <span class="dim">(${mine.length} รายการ)</span></h4>
+    <ul class="pv-tool-list">${mine.map((e) => `<li><b>${esc(eq.eqCode(e))}</b> ${esc(eq.eqLabel(e))}
+      <span class="pv-tool-meta">${[e.Project ? `โครงการ ${esc(e.Project)}` : '', e.LoanNo ? `ใบยืม ${esc(e.LoanNo)}` : '',
+        e.Status && e.Status !== eq.EQ_INUSE ? `<span class="pv-done">${esc(e.Status)}</span>` : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul>
+    <a class="btn-mini" href="#/equipment?holder=${encodeURIComponent(p.Title || '')}">ดูในทะเบียนเครื่องมือ</a>`;
+}
+
 export function openPerson(p, back, backLabel = '← กลับไปที่โครงการ') {
   const projects = toArray(p.Project);
   const oversees = toArray(p.Oversees);
@@ -349,6 +369,8 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
           <div class="pv-block pv-projects" id="pv-projects"${projects.length || pastEntries(p).length ? '' : ' hidden'}>
             <h4>โครงการที่รับผิดชอบ</h4>
             <ul>${projects.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+
+          <div class="pv-block pv-tools" id="pv-tools" hidden></div>
         </div>
       </div>`,
     footer: back ? `<button class="btn-mini" id="pv-back">${esc(backLabel)}</button>` : '',
@@ -358,6 +380,7 @@ export function openPerson(p, back, backLabel = '← กลับไปที่
   bindCopyButtons($('#overlay-root'));
   bindPhotoZoom($('#overlay-root .pv-photo'));
   fillPersonProjects(p);
+  fillPersonTools(p);
   if (back) $('#pv-back').onclick = back;
 }
 

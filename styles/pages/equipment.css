@@ -1,0 +1,30 @@
+/* ทะเบียนเครื่องมือและอุปกรณ์ (pages/equipment.page.js) */
+.eq-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 12px; }
+.eq-gap { flex: 1; }
+.eq-stats > div { flex-basis: 130px; }
+.eq-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.eq-filter input[type=search] { flex: 1 1 260px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.eq-filter select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; max-width: 220px; }
+.eq-view { display: flex; gap: 4px; }
+.eq-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.eq-table { min-width: 1100px; font-size: 13.5px; }
+.eq-table td { vertical-align: top; }
+.eq-code { font-weight: 700; color: #003462; white-space: nowrap; }
+.eq-rm { font-size: 12px; }
+.eq-st { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: #eef2f7; color: #334155; }
+.eq-st.eq-use { background: #e3f0fb; color: #0b4f8a; }
+.eq-st.eq-ok { background: #e9f7ef; color: #1e7f4f; }
+.eq-st.eq-fix { background: #fff4e0; color: #9a5b00; }
+.eq-st.eq-bad { background: #fde8e8; color: #b42318; }
+.eq-holders { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.eq-holder { padding: 10px 14px; }
+.eq-holder-h { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; color: #003462; margin-bottom: 6px; }
+.eq-holder ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.eq-holder li { margin: 3px 0; }
+.eqf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; }
+.eqf-grid label { display: flex; flex-direction: column; gap: 4px; font-size: .9em; color: var(--muted, #6b7280); }
+.eqf-grid input, .eqf-grid select, .eqf-grid textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink, #1f2937); }
+.eqf-full { grid-column: 1 / -1; }
+.eq-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 14px; max-height: 360px; overflow-y: auto; }
+.eq-map label { display: flex; flex-direction: column; gap: 3px; font-size: .9em; }
+.eq-map select { font: inherit; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; }

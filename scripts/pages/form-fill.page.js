@@ -21,6 +21,7 @@ import { confirmSubmit } from '../components/submit-confirm.js';
 import { printWithNotice } from '../components/eta-notice.js';
 import { formFolder } from '../services/photos.js';
 import { findMe } from '../services/me.js';
+import { eqFieldsFor, eqFormKind } from '../services/equipment.js';
 
 export const meta = { route: 'form', title: 'กรอกแบบฟอร์ม', nav: false, order: 3, adminOnly: false };
 
@@ -117,6 +118,8 @@ export async function render(ctx) {
   if (isInstallCode(code) && !own.length) own = INSTALL_FIELDS;
   // ขอเบิกสวัสดิการของพนักงาน: ช่องกำหนดในโค้ดตามแบบฟอร์มต้นฉบับ (templates/emp-welfare.js)
   if (!own.length && isEmpWelfare(form)) own = empWelfareFields(code);
+  // ใบยืม-คืนอุปกรณ์ (FM-PUR-006) / บันทึกโอนย้ายเครื่องมือ (FM-PUR-008): ช่องตามต้นฉบับ ISO กำหนดในโค้ด
+  if (!own.length) { const eq = eqFieldsFor(form || { FormCode: code }); if (eq) own = eq; }
   // เติมช่องหัวข้อมาตรฐานให้อัตโนมัติ ไม่ต้องกรอกในตาราง
   fields = withStandard(own, form);
 
@@ -518,7 +521,7 @@ export async function saveRequest(values, { flds = fields, files = attachedFiles
     // ช่องที่ระบบ/ผู้อนุมัติเติมเอง (เลข PR ทะเบียนรถ ฯลฯ) ไม่อยู่ในฟอร์มที่ผู้ยื่นแก้ → เก็บค่าเดิมไว้
     try {
       const od = JSON.parse(orig.FormData || '{}') || {};
-      ['pr_no', 'pr_date', 'car_plate', 'car_returned_at', 'q_no'].forEach((k) => {
+      ['pr_no', 'pr_date', 'br_no', 'car_plate', 'car_returned_at', 'q_no'].forEach((k) => {
         if (od[k] !== undefined && values[k] === undefined) values[k] = od[k];
       });
     } catch (e) { /* FormData เดิมอ่านไม่ได้ ข้าม */ }
@@ -551,6 +554,11 @@ export async function saveRequest(values, { flds = fields, files = attachedFiles
 
   // ใบขอสั่งซื้อ: ออกเลข PR อัตโนมัติ (PRyyMMnnn) ตอนยื่น · ตรวจซ้ำอีกครั้งหลังบันทึก
   const prMod = isPR(form.FormCode) ? await import('../services/pr.js') : null;
+  // ใบยืม-คืนอุปกรณ์: Delivered No. (BR + ปี + เดือน + ลำดับ) ออกให้ตอนยื่น แล้วตรวจซ้ำหลังบันทึก
+  const brMod = eqFormKind(form) === 'loan' ? await import('../services/equipment.js') : null;
+  if (brMod && !values.br_no) {
+    values.br_no = brMod.nextBRNo(await list('requests', { fresh: true }).catch(() => []), { start: await brMod.brStart() });
+  }
   if (prMod && !values.pr_no) {
     values.pr_no = prMod.nextPRNo(await list('requests', { fresh: true }).catch(() => []), { start: await prMod.prStart() });
     values.pr_date = prMod.todayISO();
@@ -599,6 +607,11 @@ export async function saveRequest(values, { flds = fields, files = attachedFiles
     const row = (await list('requests', { fresh: true }).catch(() => [])).find((x) => String(x.Title) === String(r.no));
     const prNo = row ? await prMod.assignPRNo(row.id).catch(() => values.pr_no) : values.pr_no;
     if (prNo) sentNo = `${r.no} · PR No. ${prNo}`;
+  }
+  if (brMod) {
+    const row = (await list('requests', { fresh: true }).catch(() => [])).find((x) => String(x.Title) === String(r.no));
+    const brNo = row ? await brMod.assignBRNo(row.id).catch(() => values.br_no) : values.br_no;
+    if (brNo) sentNo = `${r.no} · Delivered No. ${brNo}`;
   }
   if (afterCreate) sentNo = (await afterCreate(r.no, sentNo)) || sentNo;
   return { sentNo, warn, no: r.no };
