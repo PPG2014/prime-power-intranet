@@ -8,6 +8,7 @@ import { esc, $, $$ } from '../core/dom.js';
 import { list, create, update, remove, clearDataCache } from '../services/data.js';
 import { state } from '../core/state.js';
 import { personRef, bindPersonCards } from '../components/person-card.js';
+import { EQ_MANAGERS_SETTING } from '../components/eq-managers-editor.js';
 import {
   EQ_LIST, EQ_STATUS, EQ_READY, EQ_INUSE, LOAN_CODE, MOVE_CODE, equipment, eqCode, eqLabel, holderOf, importRows, matchPerson,
 } from '../services/equipment.js';
@@ -32,7 +33,6 @@ const f = { q: '', status: '', project: '', holder: '', view: 'list' };
  * · ผู้รับผิดชอบที่ระบุในตั้งค่าระบบ EquipmentManagers (อีเมล คั่นด้วยจุลภาค)
  * คนอื่นดูได้อย่างเดียว
  */
-export const EQ_MANAGERS_SETTING = 'EquipmentManagers';
 async function manager() {
   if (state.isAdmin) return true;
   const em = low(state.user?.email);

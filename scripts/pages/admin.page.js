@@ -15,6 +15,7 @@ import { syncFromProject, syncFromPerson, syncSummary } from '../services/projec
 import { render as rerender } from '../core/render.js';
 import { sheets, clean, generateSheets, waitingSelf, skipSelf, S_MGR } from '../services/appraisal.js';
 import { routeHost, bindRouteEditor, routeProblems, saveRoute } from '../components/approval-route-editor.js';
+import { eqManagersHost, bindEqManagers, saveEqManagers } from '../components/eq-managers-editor.js';
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 import { omEditorHtml, bindOmEditor, omHasUnsaved } from '../admin/om-editor.js';
 import { solarPriceHtml, bindSolarPriceEditor, solarPriceUnsaved } from '../admin/solar-price-editor.js';
@@ -375,7 +376,7 @@ async function openEditor(key, record) {
     wide: true,
     body: await formBody(s, record || {})
       + (isCycle ? cycleGridHost() : '')
-      + (isForm ? routeHost() : '')
+      + (isForm ? eqManagersHost() + routeHost() : '')
       + (isNew && !s.readOnly && !isCycle ? `
         <div class="import-row">
           <span>หรือนำเข้าหลายรายการพร้อมกัน</span>
@@ -398,7 +399,7 @@ async function openEditor(key, record) {
   bindChipPickers();
   if (key === 'directory') import('../components/manager-suggest.js').then((m) => m.bindManagerSuggest());
   if (isCycle) bindCycleGrid(record || {});
-  if (isForm) bindRouteEditor(record ? record.FormCode : '');
+  if (isForm) { bindEqManagers(record ? record.FormCode : ''); bindRouteEditor(record ? record.FormCode : ''); }
   $('#cancel').onclick = closeModal;
   $('#save').onclick = async (ev) => {
     const data = collect(s);
@@ -456,6 +457,7 @@ async function openEditor(key, record) {
                         : await update(s.list, record.id, data);
       const sheetFails = isCycle ? await saveCycleSheets(record, data, grid, btn) : [];
       const routeNotes = isForm ? await saveRoute(data.FormCode || (record && record.FormCode)) : [];
+      const eqNotes = isForm ? await saveEqManagers() : [];
       // โครงการ ↔ บุคลากร: แก้ฝั่งหนึ่ง อีกฝั่งอัปเดตตาม
       const after = { ...(record || {}), ...data };
       const sync = s.list === 'projects' ? syncSummary(await syncFromProject(isNew ? null : record, after), 'ช่องโครงการของบุคลากร')
@@ -487,6 +489,7 @@ async function openEditor(key, record) {
           + res.dropped.join('\n  ')
           + '\n  ข้อมูลอื่นบันทึกแล้ว ส่วนช่องเหล่านี้ต้องแก้ใน SharePoint โดยตรง');
       }
+      notes.push(...eqNotes);
       if (routeNotes.length) {
         notes.push('เส้นทางอนุมัติ: SharePoint ไม่รับบางช่องของ List "ApprovalMatrix"\n  ' + routeNotes.join('\n  ')
           + '\n  ถ้าเป็นช่อง ApproverType ให้เพิ่มตัวเลือก "กรรมการผู้จัดการ", "รองกรรมการผู้จัดการด้านปฏิบัติการ",'

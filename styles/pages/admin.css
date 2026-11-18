@@ -345,3 +345,8 @@ td[data-col="Badge"] { white-space: nowrap; }
 .hol-year .hol-items { padding: 10px 14px 12px 36px; margin: 0; }
 .hol-now { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 20px; background: var(--green); color: #fff; font-size: 11.5px; font-weight: 600; }
 .hol-blank-h { padding: 10px 14px; font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--line); background: #fff8e6; border-radius: 10px 10px 0 0; }
+
+/* ผู้รับผิดชอบทะเบียนเครื่องมือ (หน้าต่างแก้ไขแบบฟอร์ม FM-PUR-006 / FM-PUR-008) */
+.eqm-sub { font-weight: 400; font-size: 12.5px; opacity: .85; }
+.eqm-body { padding: 10px 14px; }
+.eqm-note { font-size: 12.5px; margin-top: 4px; }
