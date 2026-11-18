@@ -250,22 +250,51 @@ function shareId(url) {
   return 'u!' + b64.replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
 }
 
+const _blobCache = new Map();
+
+/** ไฟล์ใน SharePoint เป็น Blob (ดึงผ่าน Graph พร้อม token) · จำไว้ใช้ซ้ำ */
+async function spBlob(webUrl) {
+  if (_blobCache.has(webUrl)) return _blobCache.get(webUrl);
+  const token = await getToken();
+  const res = await graphFetch(
+    `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/content`,
+    { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error('โหลดไฟล์ไม่สำเร็จ (' + res.status + ')');
+  const blob = await res.blob();
+  _blobCache.set(webUrl, blob);
+  return blob;
+}
+
 /** คืน blob URL ของรูป (ลิงก์สาธารณะคืนตามเดิม, โหมด mock คืน data URL ตามเดิม) */
 export async function photoBlobUrl(webUrl) {
   if (!webUrl) return '';
   if (CONFIG.dataSource === 'mock') return webUrl;
   if (!/sharepoint\.com/i.test(webUrl)) return webUrl;   // ลิงก์ภายนอก/สาธารณะโหลดเองได้
   if (_photoCache.has(webUrl)) return _photoCache.get(webUrl);
-
-  const token = await getToken();
-  const res = await graphFetch(
-    `https://graph.microsoft.com/v1.0/shares/${shareId(webUrl)}/driveItem/content`,
-    { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error('โหลดรูปไม่สำเร็จ (' + res.status + ')');
-
-  const objUrl = URL.createObjectURL(await res.blob());
+  const objUrl = URL.createObjectURL(await spBlob(webUrl));
   _photoCache.set(webUrl, objUrl);
   return objUrl;
+}
+
+/**
+ * เนื้อไฟล์เป็นไบต์ (Uint8Array ชุดใหม่ทุกครั้ง) — ใช้ส่งให้ pdf.js โดยตรง
+ * ไม่ให้ pdf.js โหลดจาก blob: URL เอง เพราะ CSP (connect-src) ไม่อนุญาต blob: → ขึ้น "Unexpected server response (0)"
+ */
+export async function fileBytes(webUrl) {
+  if (!webUrl) throw new Error('ไม่มีลิงก์ไฟล์');
+  if (/^data:/i.test(webUrl)) {
+    const [head, body = ''] = webUrl.split(',');
+    const bin = /;base64/i.test(head) ? atob(body) : decodeURIComponent(body);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  if (CONFIG.dataSource !== 'mock' && /sharepoint\.com/i.test(webUrl)) {
+    return new Uint8Array(await (await spBlob(webUrl)).arrayBuffer());
+  }
+  const res = await fetch(webUrl);
+  if (!res.ok) throw new Error('โหลดไฟล์ไม่สำเร็จ (' + res.status + ')');
+  return new Uint8Array(await res.arrayBuffer());
 }
 
 /**
