@@ -744,11 +744,18 @@ async function openRequest(req) {
       // เวลาคืนรถ: แสดงทั้งวันและเวลา
       if (k === 'car_returned_at') return `<div class="rq-ans"><span>${esc(label)}</span><b>${esc(thaiDateTime(v))}</b></div>`;
       if (f && f.FieldType === 'lineitems' && Array.isArray(v)) {
-        const cols = String(f.Options||'').split('\n').map(x=>x.split('|'));
+        const cols = String(f.Options || '').split('\n').filter((x) => x.trim()).map((x) => x.split('|'));
+        // ตัวเลข/เงิน ชิดขวาไม่ตัดบรรทัด · วันที่ไม่ตัดบรรทัด · ข้อความ (คำอธิบาย/สถานที่) ได้พื้นที่กว้างสุด
+        const cls = (c) => {
+          const t = String(c[2] || 'text').trim();
+          if (/^(number|money)$/.test(t)) return 'r';
+          if (/date/.test(t) || /วันที่/.test(c[1] || '')) return 'nw';
+          return /^(text|textarea)$/.test(t) ? 'li-txt' : '';
+        };
         return `<div class="rq-ans rq-ans-table"><span>${esc(label)}</span>
-          <table class="li-view"><tr>${cols.map(c=>`<th>${esc(c[1]||c[0])}</th>`).join('')}</tr>
-          ${v.map(row=>`<tr>${cols.map(c=>`<td>${esc(row[c[0].trim()]||'')}</td>`).join('')}</tr>`).join('')}
-          </table></div>`;
+          <div class="li-view-wrap"><table class="li-view"><tr>${cols.map((c) => `<th class="${cls(c)}">${esc(c[1] || c[0])}</th>`).join('')}</tr>
+          ${v.map((row) => `<tr>${cols.map((c) => `<td class="${cls(c)}">${esc(row[c[0].trim()] ?? '')}</td>`).join('')}</tr>`).join('')}
+          </table></div></div>`;
       }
       const isDate = (f && f.FieldType === 'date') || k === 'std_date' || k === 'pr_date' || k === IF.okFrom || k === IF.okTo
         || /Date$/.test(k) || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v));
@@ -842,7 +849,7 @@ async function openRequest(req) {
   role.carPlates = isCarRequest(req) ? await carPlates() : [];
   openModal({
     title: `${req.Title} · ${req.FormName || ''}`,   // openModal escape ให้เองแล้ว
-    wide: true,
+    wide: 'xl',      // กว้างพิเศษ: ตารางรายการ (เช่น รายการเดินทาง) ไม่ถูกบีบ
     body: `
       <div class="rq-detail">
         <div class="rq-detail-head">
