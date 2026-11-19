@@ -108,7 +108,7 @@
 .kp-att { margin-top: 3mm; font-size: 9.5pt; }
 .kp-signs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin-top: 8mm; text-align: center; font-size: 9pt; }
 .kp-sigimg { height: 14mm; display: flex; align-items: flex-end; justify-content: center; }
-.kp-sigimg img { max-height: 14mm; max-width: 100%; }
+.kp-sigimg img { max-height: 14mm; max-width: 100%; mix-blend-mode: multiply; }
 .kp-line { border-top: 0.2mm dotted #000; padding-top: 1mm; }
 @media print {
   body.printing-pr .kp-doc { background: none; padding: 0; }
