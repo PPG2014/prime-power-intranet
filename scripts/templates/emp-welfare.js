@@ -83,7 +83,7 @@ export function renderEmpWelfare({ fields = [], values = {}, empCode = '', reque
     return `<td class="ew-sign">
       <div class="ew-st"><b>${esc(title)}</b></div>
       <div class="ew-ss">${esc(sub || '')}</div>
-      <div class="ew-sl"></div>
+      <div class="ew-sl"></div>   <!-- เส้นหมายเหตุ / ความเห็น -->
       <div>ลงชื่อ<span class="ew-fill ew-w-sign ew-sigfill">${p && p.sig ? sigImg(p.sig) : ''}</span></div>
       <div>(${fill(p && p.name ? p.name : fallbackName, 'ew-w-name')})</div>
       <div>วันที่ ${fill(p && p.at ? thaiDateShort(p.at) : '', 'ew-w-date')}</div>
