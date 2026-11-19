@@ -13,6 +13,13 @@ import { parsePpe, formatPpe, ppeApproversFor } from './ppe.js';
 
 export const PPC_PROJECT = 'Prime Power Construction Co., Ltd';
 export const PPC_SETTING = 'PPCJobs';
+/** ประเภทงานที่ผู้ยื่นเลือกก่อน แล้วค่อยเลือก/เพิ่มโครงการในประเภทนั้น (รายการสุดท้าย = อื่นๆ ระบุ) */
+export const PPC_SOLAR = 'โครงการโซลาร์ภาคประชาชน';
+export const PPC_OTHER = 'อื่นๆ';
+export const PPC_GROUPS = [PPC_SOLAR, PPC_OTHER];
+export const PPC_GROUP_LABEL = { [PPC_SOLAR]: 'โครงการโซลาร์ภาคประชาชน', [PPC_OTHER]: 'อื่นๆ (ระบุ)' };
+/** ประเภทของรายการ (ไม่ได้ตั้ง/ไม่รู้จัก = อื่นๆ) */
+export const ppcGroupOf = (p) => (PPC_GROUPS.includes(String((p && p.group) || '').trim()) ? String(p.group).trim() : PPC_OTHER);
 
 export const parsePpc = parsePpe;
 export const formatPpc = formatPpe;

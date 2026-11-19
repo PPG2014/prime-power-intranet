@@ -135,7 +135,7 @@ function statusPill(s) {
 }
 
 /** ช่องที่ระบบเติมให้ภายหลัง (ไม่ได้อยู่ในแบบฟอร์ม) — ชื่อที่แสดงในข้อมูลคำขอ */
-const SYSTEM_LABEL = { br_no: 'Delivered No.', om_site: 'โครงการ O&M', ppe_site: 'โครงการ PPE', ppc_site: 'งาน PPC', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ',
+const SYSTEM_LABEL = { br_no: 'Delivered No.', om_site: 'โครงการ O&M', ppe_site: 'โครงการ PPE', ppc_site: 'โครงการ PPC', ppc_group: 'ประเภทงาน PPC', om_group: 'กลุ่มโครงการ O&M', pr_no: 'PR No.', pr_date: 'วันที่ออก PR', car_plate: 'ทะเบียนรถที่ใช้', car_returned_at: 'คืนรถเมื่อ',
   inst_ok_from: 'วันเข้าติดตั้งที่กำหนด', inst_ok_to: 'ติดตั้งถึงวันที่ (ที่กำหนด)' };
 
 /** ช่องกรอกของแบบฟอร์ม (เรียงตามลำดับ) */

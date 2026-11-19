@@ -11,7 +11,7 @@ import { list, create, update } from '../services/data.js';
 import { toast } from '../components/toast.js';
 import { clearCaches } from '../utils/dept.js';
 import { PPE_PROJECT, PPE_SETTING, ppeConfig, formatPpe } from '../services/ppe.js';
-import { PPC_PROJECT, PPC_SETTING, ppcConfig } from '../services/ppc.js';
+import { PPC_PROJECT, PPC_SETTING, PPC_GROUPS, PPC_GROUP_LABEL, ppcConfig, ppcGroupOf } from '../services/ppc.js';
 
 const clone = (c) => ({ approvers: [...c.approvers], projects: c.projects.map((p) => ({ ...p, approvers: [...p.approvers] })) });
 const tidy = (c) => ({
@@ -52,6 +52,38 @@ function makeEditor(o) {
     const box = $(`#${boxId}`);
     if (!box) return;
     const shown = draft.projects.filter((p) => p.on).length;
+    const rowHtml = (p, i, first, last) => `<li class="${p.on ? '' : 'off'}">
+          <div class="ppe-row">
+            <input class="om-iname" data-i="${i}" value="${esc(p.name)}" placeholder="${esc(o.placeholder)}" maxlength="150">
+            ${p.on ? '' : '<span class="om-offtag">ซ่อนอยู่</span>'}
+            ${o.groups ? `<select class="ppe-grp" data-i="${i}" title="ย้ายไปประเภทอื่น">${o.groups.map((g) =>
+              `<option value="${esc(g)}" ${g === o.groupOf(p) ? 'selected' : ''}>${esc(o.groupLabel[g] || g)}</option>`).join('')}</select>` : ''}
+            <button class="btn-move" data-ppe="up" data-i="${i}" title="เลื่อนขึ้น" ${first ? 'disabled' : ''}>↑</button>
+            <button class="btn-move" data-ppe="down" data-i="${i}" title="เลื่อนลง" ${last ? 'disabled' : ''}>↓</button>
+            <button class="btn-mini" data-ppe="toggle" data-i="${i}" title="${p.on ? 'ซ่อนจากแบบฟอร์ม' : 'แสดงในแบบฟอร์ม'}">${p.on ? '👁 แสดง' : '🚫 ซ่อน'}</button>
+            <button class="btn-mini danger" data-ppe="del" data-i="${i}" title="ลบรายการนี้">✕</button>
+          </div>
+          <div class="ppe-sub"><span class="dim">ผู้อนุมัติเฉพาะ${o.unit}นี้ (ว่าง = ${o.noApproverOk && !draft.approvers.length ? 'ผู้บังคับบัญชาของผู้ยื่น' : 'ใช้ของบริษัท'})</span>${picker(p.approvers, 'p' + i, 'เพิ่มชื่อผู้อนุมัติ')}</div>
+        </li>`;
+    const sections = o.groups
+      ? o.groups.map((g, k) => {
+        const rows = draft.projects.map((p, i) => [p, i]).filter(([p]) => o.groupOf(p) === g);
+        return `<section class="om-group">
+      <div class="om-ghead"><b class="om-glabel">${k + 1}. ${esc(o.groupLabel[g] || g)}</b><span class="dim">${rows.length} ${o.unit}</span></div>
+      ${o.groupNote && o.groupNote[g] ? `<div class="dim ppe-gnote">${o.groupNote[g]}</div>` : ''}
+      <ol class="om-items ppe-items">
+        ${rows.map(([p, i], j) => rowHtml(p, i, j === 0, j === rows.length - 1)).join('') || `<div class="empty">${o.emptyText}</div>`}
+      </ol>
+      <button class="btn-mini om-add" data-ppe="add" data-g="${esc(g)}">＋ เพิ่ม${o.unit}</button>
+    </section>`;
+      }).join('')
+      : `<section class="om-group">
+      <div class="om-ghead"><b class="om-glabel">${o.unitTitle}</b><span class="dim">${draft.projects.length} ${o.unit}</span></div>
+      <ol class="om-items ppe-items">
+        ${draft.projects.map((p, i) => rowHtml(p, i, i === 0, i === draft.projects.length - 1)).join('') || `<div class="empty">${o.emptyText}</div>`}
+      </ol>
+      <button class="btn-mini om-add" data-ppe="add">＋ เพิ่ม${o.unit}</button>
+    </section>`;
     box.innerHTML = `
     <div class="om-bar">
       <span class="dim">${draft.projects.length} ${o.unit} · แสดงในแบบฟอร์ม ${shown} · ผู้อนุมัติของบริษัท ${draft.approvers.length} คน</span>
@@ -60,32 +92,22 @@ function makeEditor(o) {
     </div>
     ${dirty() ? '<div class="om-unsaved">มีการแก้ไขที่ยังไม่บันทึก</div>' : ''}
     <section class="om-group">
-      <div class="om-ghead"><b class="om-glabel">ผู้อนุมัติของบริษัท (เลือกได้หลายคน)</b></div>
+      <div class="om-ghead"><b class="om-glabel">${o.coTitle || 'ผู้อนุมัติของบริษัท (เลือกได้หลายคน)'}</b></div>
       ${picker(draft.approvers, 'co', 'พิมพ์ชื่อเพื่อค้นหา แล้วเลือก')}
-      ${draft.approvers.length ? '' : `<div class="om-unsaved">${o.noApprover}</div>`}
+      ${draft.approvers.length ? '' : `<div class="${o.noApproverOk ? 'ppe-default' : 'om-unsaved'}">${o.noApprover}</div>`}
     </section>
-    <section class="om-group">
-      <div class="om-ghead"><b class="om-glabel">${o.unitTitle}</b><span class="dim">${draft.projects.length} ${o.unit}</span></div>
-      <ol class="om-items ppe-items">
-        ${draft.projects.map((p, i) => `<li class="${p.on ? '' : 'off'}">
-          <div class="ppe-row">
-            <input class="om-iname" data-i="${i}" value="${esc(p.name)}" placeholder="${esc(o.placeholder)}" maxlength="150">
-            ${p.on ? '' : '<span class="om-offtag">ซ่อนอยู่</span>'}
-            <button class="btn-move" data-ppe="up" data-i="${i}" title="เลื่อนขึ้น" ${i === 0 ? 'disabled' : ''}>↑</button>
-            <button class="btn-move" data-ppe="down" data-i="${i}" title="เลื่อนลง" ${i === draft.projects.length - 1 ? 'disabled' : ''}>↓</button>
-            <button class="btn-mini" data-ppe="toggle" data-i="${i}" title="${p.on ? 'ซ่อนจากแบบฟอร์ม' : 'แสดงในแบบฟอร์ม'}">${p.on ? '👁 แสดง' : '🚫 ซ่อน'}</button>
-            <button class="btn-mini danger" data-ppe="del" data-i="${i}" title="ลบรายการนี้">✕</button>
-          </div>
-          <div class="ppe-sub"><span class="dim">ผู้อนุมัติเฉพาะ${o.unit}นี้ (ว่าง = ใช้ของบริษัท)</span>${picker(p.approvers, 'p' + i, 'เพิ่มชื่อผู้อนุมัติ')}</div>
-        </li>`).join('') || `<div class="empty">${o.emptyText}</div>`}
-      </ol>
-      <button class="btn-mini om-add" data-ppe="add">＋ เพิ่ม${o.unit}</button>
-    </section>
+    ${sections}
     <div class="panel-note">เก็บในตั้งค่าระบบ <b>${o.setting}</b> (JSON) — แก้ที่หน้านี้สะดวกกว่า</div>`;
   }
 
   const whoOf = (k) => (k === 'co' ? draft.approvers : draft.projects[+k.slice(1)].approvers);
-  const swap = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; };
+  /** เลื่อนขึ้น/ลง (แยกประเภท: สลับกับรายการก่อน/หลังในประเภทเดียวกัน) */
+  const swap = (arr, i, d) => {
+    let j = i + d;
+    if (o.groups) while (j >= 0 && j < arr.length && o.groupOf(arr[j]) !== o.groupOf(arr[i])) j += d;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  };
 
   async function save(btn) {
     const cfg = tidy(draft);
@@ -131,6 +153,13 @@ function makeEditor(o) {
         box.querySelector(`.ppe-add[data-k="${t.dataset.k}"]`)?.focus();
       }
     });
+    // ย้ายรายการไปประเภทอื่น
+    box.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t.classList.contains('ppe-grp')) return;
+      draft.projects[+t.dataset.i].group = t.value;
+      paint();
+    });
     box.addEventListener('keydown', (e) => {
       const t = e.target;
       if (!t.classList.contains('ppe-add') || e.key !== 'Enter') return;
@@ -149,7 +178,7 @@ function makeEditor(o) {
       if (a === 'save') { save(b); return; }
       if (a === 'unpick') whoOf(b.dataset.k).splice(i, 1);
       else if (a === 'add') {
-        draft.projects.push({ name: '', on: true, approvers: [] });
+        draft.projects.push({ name: '', on: true, approvers: [], ...(o.groups ? { group: b.dataset.g || o.groups[o.groups.length - 1] } : {}) });
         paint();
         box.querySelector(`.om-iname[data-i="${draft.projects.length - 1}"]`)?.focus();
         return;
@@ -195,18 +224,21 @@ export const ppeHasUnsaved = PPE.unsaved;
 const PPC = makeEditor({
   key: 'ppc', setting: PPC_SETTING, load: ppcConfig, label: 'งาน PPC',
   head: `🏗️ งาน PPC · ${esc(PPC_PROJECT)}`,
-  intro: `ในช่อง <b>โครงการ</b> ของทุกแบบฟอร์ม ผู้ยื่นเลือก <b>“${esc(PPC_PROJECT)}”</b> แล้วพิมพ์ค้นหาต่อได้ทั้ง
-      <b>โครงการหลัก</b> (จากทะเบียนโครงการ) และ <b>งานที่ไม่ใช่โครงการ</b> ในรายการนี้
-      — ไม่มีในรายการ พิมพ์ชื่องานใหม่ได้ (ระบบเพิ่มเข้ารายการนี้ให้เมื่อส่งคำขอ)
+  groups: PPC_GROUPS, groupLabel: PPC_GROUP_LABEL, groupOf: ppcGroupOf,
+  groupNote: { [PPC_GROUPS[1]]: 'ผู้ยื่นเลือก “อื่นๆ (ระบุ)” แล้วค้นหาได้ทั้งรายการนี้และโครงการหลักในทะเบียนโครงการ' },
+  intro: `ในช่อง <b>โครงการ</b> ของทุกแบบฟอร์ม ผู้ยื่นเลือก <b>“${esc(PPC_PROJECT)}”</b> → เลือกประเภท
+      <b>1. ${esc(PPC_GROUP_LABEL[PPC_GROUPS[0]])}</b> หรือ <b>2. ${esc(PPC_GROUP_LABEL[PPC_GROUPS[1]])}</b>
+      → แล้วเลือกโครงการที่มีอยู่แล้ว หรือพิมพ์ชื่อใหม่ (ระบบเพิ่มเข้ารายการของประเภทนั้นให้เมื่อส่งคำขอ)
       <ul>
-        <li>เลือก<b>โครงการหลัก</b> → คำขอใช้โครงการนั้นตามปกติ (ผู้รับผิดชอบ/ทีมโครงการอนุมัติ) · แก้โครงการหลักที่ <b>ทะเบียนโครงการ</b></li>
-        <li><b>ผู้อนุมัติของบริษัท</b> — ใช้กับงานในรายการนี้ ในลำดับ “ผู้รับผิดชอบหลักของโครงการ / ผู้จัดการโครงการ” (ไม่ตั้ง = ผู้บังคับบัญชาของผู้ยื่นอนุมัติ)</li>
-        <li>งานไหนต้องการผู้อนุมัติต่างจากบริษัท ตั้งในแถวของงานนั้นได้ (ว่าง = ใช้ของบริษัท)</li>
+        <li>ประเภท อื่นๆ ค้นหา<b>โครงการหลัก</b>ได้ด้วย → เลือกแล้วคำขอใช้โครงการนั้นตามปกติ (ผู้รับผิดชอบ/ทีมโครงการอนุมัติ) · แก้โครงการหลักที่ <b>ทะเบียนโครงการ</b></li>
+        <li><b>ผู้อนุมัติขั้นต้น</b> ตั้งต้นเป็น <b>ผู้บังคับบัญชาของผู้ยื่น</b> (ลำดับ “ผู้บังคับบัญชา / ผู้รับผิดชอบหลักของโครงการ / ผู้จัดการโครงการ” ในเส้นทางอนุมัติ)</li>
+        <li>โครงการไหนต้องการผู้อนุมัติเฉพาะ ใส่ชื่อในแถวของโครงการนั้นได้ (ว่าง = ใช้ค่าตั้งต้น)</li>
         <li>แก้เสร็จกด <b>💾 บันทึก</b> ครั้งเดียว — มีผลกับแบบฟอร์มและคำขอใหม่ทันที</li>
       </ul>`,
-  unit: 'งาน', unitTitle: 'งานที่ไม่ใช่โครงการหลัก', placeholder: 'ชื่องาน เช่น งานซ่อมบำรุงอาคาร…',
-  emptyText: 'ยังไม่มีงาน — ผู้ยื่นพิมพ์ชื่องานเองได้ ระบบจะเพิ่มเข้ารายการนี้ให้',
-  noApprover: 'ยังไม่ได้ตั้งผู้อนุมัติ — คำของาน PPC จะใช้ผู้บังคับบัญชาของผู้ยื่นแทน',
+  unit: 'โครงการ', unitTitle: 'โครงการ', placeholder: 'ชื่อโครงการ / งาน',
+  emptyText: 'ยังไม่มีรายการ — ผู้ยื่นพิมพ์ชื่อเองได้ ระบบจะเพิ่มเข้ารายการนี้ให้',
+  coTitle: 'ผู้อนุมัติขั้นต้น (ค่าตั้งต้น = ผู้บังคับบัญชาของผู้ยื่น)', noApproverOk: true,
+  noApprover: '✓ ค่าตั้งต้น: <b>ผู้บังคับบัญชาของผู้ยื่น</b> เป็นผู้อนุมัติขั้นต้น — ใส่ชื่อที่นี่เฉพาะเมื่อต้องการให้คนอื่นอนุมัติแทนทุกโครงการ',
   description: 'งานของ Prime Power Construction ที่ไม่ใช่โครงการหลัก + ผู้อนุมัติ — แก้ที่ จัดการข้อมูล → 🏗️ งาน PPC',
 });
 export const ppcEditorHtml = PPC.html;

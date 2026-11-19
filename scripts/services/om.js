@@ -75,6 +75,9 @@ export const projectText = (v = {}) => {
   const p = String(v.project ?? '').trim();
   if (p === OM_PROJECT && String(v.om_site || '').trim()) return `${p} · ${String(v.om_site).trim()}`;
   if (p === PPE_PROJECT && String(v.ppe_site || '').trim()) return `${p} · ${String(v.ppe_site).trim()}`;
-  if (p === PPC_PROJECT && String(v.ppc_site || '').trim()) return `${p} · ${String(v.ppc_site).trim()}`;
+  if (p === PPC_PROJECT && String(v.ppc_site || '').trim()) {
+    const g = String(v.ppc_group || '').trim();
+    return `${p} · ${g && g !== 'อื่นๆ' ? `${g} · ` : ''}${String(v.ppc_site).trim()}`;
+  }
   return p;
 };

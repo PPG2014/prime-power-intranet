@@ -10,7 +10,7 @@ import { uploadFile, fileSize, fileKind } from '../services/photos.js';
 import { toDateInput } from '../admin/entity-form.js';
 import { OM_PROJECT, OM_OTHER, OM_FORMS, omSites } from '../services/om.js';
 import { PPE_PROJECT, PPE_OTHER, ppeConfig } from '../services/ppe.js';
-import { PPC_PROJECT, ppcConfig } from '../services/ppc.js';
+import { PPC_PROJECT, PPC_OTHER, PPC_GROUPS, PPC_GROUP_LABEL, ppcConfig, ppcGroupOf } from '../services/ppc.js';
 import { mileageConfig, carRateFor, vehicleLabel, vehicleRate, isMileageVehicle, VEHICLE_RE, RATE_RE } from '../services/mileage.js';
 
 /** ตัวเลือกพิเศษของช่องโครงการ — ใช้เมื่อคำขอไม่เกี่ยวกับโครงการใด (ผู้บังคับบัญชาจะเป็นผู้อนุมัติ) */
@@ -42,7 +42,7 @@ export async function loadLookups(fields, { formCode = '' } = {}) {
   if (fields.some((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects')) {
     lookupData._ppe = (await ppeConfig()).projects.filter((p) => p.on).map((p) => p.name);
     // Prime Power Construction: โครงการหลัก (ทะเบียนโครงการ) + งานที่ไม่ใช่โครงการ (จัดการข้อมูล → 🏗️ งาน PPC)
-    lookupData._ppc = (await ppcConfig()).projects.filter((p) => p.on).map((p) => p.name);
+    lookupData._ppc = (await ppcConfig()).projects.filter((p) => p.on).map((p) => ({ name: p.name, group: ppcGroupOf(p) }));
   }
   // เบิกค่าเดินทาง: มีช่อง/คอลัมน์ประเภทพาหนะ → โหลดอัตรารถยนต์ส่วนบุคคลรายบุคคล
   if (fields.some((f) => (f.FieldType === 'choice' && VEHICLE_RE.test(f.Title || ''))
@@ -249,7 +249,7 @@ function control(f, value) {
           ${src === 'projects' && lookupData._ppe && !rows.some((r) => String(r.Title).trim() === PPE_PROJECT)
             ? `<option value="${esc(PPE_PROJECT)}">บริษัท PPE · เลือกโครงการ PPE ต่อ หรือเพิ่มชื่อเอง</option>` : ''}
           ${src === 'projects' && lookupData._ppc && !rows.some((r) => String(r.Title).trim() === PPC_PROJECT)
-            ? `<option value="${esc(PPC_PROJECT)}">บริษัท PPC · โครงการหลัก หรืองานที่ไม่ใช่โครงการ</option>` : ''}
+            ? `<option value="${esc(PPC_PROJECT)}">บริษัท PPC · เลือกประเภท แล้วเลือก/เพิ่มโครงการ</option>` : ''}
           ${rows.map((r) => `<option value="${esc(r.Title)}">${
             esc([r.ProjectCode, r.Position, r.Department].filter(Boolean)[0] || '')}</option>`).join('')}
         </datalist>${src === 'projects' && lookupData._om ? omBox(value) : ''}${src === 'projects' && lookupData._ppe ? ppeBox(value) : ''}${src === 'projects' && lookupData._ppc ? ppcBox(value) : ''}`;
@@ -327,17 +327,36 @@ function ppeBox(project) {
 /** ชื่อโครงการหลักในทะเบียนโครงการ (ไม่รวมตัวเลือกพิเศษ) */
 const mainProjects = () => (lookupData.projects || []).map((r) => String(r.Title || '').trim())
   .filter((t) => t && t !== PPC_PROJECT && t !== PPE_PROJECT && t !== OM_PROJECT);
-const ppcKnown = (v) => mainProjects().includes(v) || (lookupData._ppc || []).includes(v);
+/** ชื่อในรายการของประเภทนี้ (อื่นๆ = งานในรายการ + โครงการหลักในทะเบียนโครงการ) */
+const ppcNames = (g) => (lookupData._ppc || []).filter((x) => x.group === g).map((x) => x.name);
+const ppcKnown = (g, v) => ppcNames(g).includes(v) || (g === PPC_OTHER && mainProjects().includes(v));
+const ppcOptions = (g) => !g ? '' : [
+  ...ppcNames(g).map((n) => `<option value="${esc(n)}"></option>`),
+  ...(g === PPC_OTHER ? mainProjects().filter((n) => !ppcNames(g).includes(n)).map((n) => `<option value="${esc(n)}" label="โครงการหลัก"></option>`) : []),
+].join('');
+/** ประเภทที่เลือกไว้ (แก้คำขอเก่า: ไม่มีประเภท → หาจากรายการ ไม่พบ = อื่นๆ) */
+function ppcGroupNow() {
+  const g = String(currentValues.ppc_group || '').trim();
+  if (PPC_GROUPS.includes(g)) return g;
+  const site = String(currentValues.ppc_site || '').trim();
+  if (!site) return '';
+  return ((lookupData._ppc || []).find((x) => x.name === site) || { group: PPC_OTHER }).group;
+}
 function ppcBox(project) {
   const site = String(currentValues.ppc_site || '').trim();
+  const g = ppcGroupNow();
   return `<div class="q-om q-ppe q-ppc" id="q_ppc_box" ${project === PPC_PROJECT ? '' : 'hidden'}>
-    <label for="q_ppc_site">โครงการ / งานของ Prime Power Construction <b class="req">*</b></label>
-    <div class="q-help">พิมพ์ค้นหาได้ทั้งโครงการหลักและงานที่ไม่ใช่โครงการ · ไม่มีในรายการ พิมพ์ชื่องานใหม่ได้เลย (ระบบเพิ่มเข้ารายการให้เมื่อส่งคำขอ)</div>
-    <input id="q_ppc_site" list="q_ppc_dl" maxlength="150" autocomplete="off" value="${esc(site)}"
-      placeholder="🔍 พิมพ์ค้นหาโครงการ / งาน หรือพิมพ์ชื่องานใหม่">
-    <datalist id="q_ppc_dl">${mainProjects().map((n) => `<option value="${esc(n)}" label="โครงการหลัก"></option>`).join('')}${
-      (lookupData._ppc || []).filter((n) => !mainProjects().includes(n)).map((n) => `<option value="${esc(n)}" label="งานที่ไม่ใช่โครงการ"></option>`).join('')}</datalist>
-    <div class="q-site-note" id="q_ppc_note"></div>
+    <label>ประเภทงานของ Prime Power Construction <b class="req">*</b></label>
+    <div class="q-ppc-cats" role="radiogroup">${PPC_GROUPS.map((x, i) => `<label class="q-ppc-cat">
+      <input type="radio" name="q_ppc_group" value="${esc(x)}" ${x === g ? 'checked' : ''}><span>${i + 1}. ${esc(PPC_GROUP_LABEL[x] || x)}</span></label>`).join('')}</div>
+    <div class="q-ppc-pick" id="q_ppc_pick" ${g ? '' : 'hidden'}>
+      <label for="q_ppc_site" id="q_ppc_lbl">${g === PPC_OTHER ? 'ระบุโครงการ / งาน' : 'เลือกโครงการ'} <b class="req">*</b></label>
+      <div class="q-help">พิมพ์ค้นหาโครงการที่มีอยู่แล้ว · ไม่มีในรายการ พิมพ์ชื่อใหม่ได้เลย (ระบบเพิ่มเข้ารายการให้เมื่อส่งคำขอ)</div>
+      <input id="q_ppc_site" list="q_ppc_dl" maxlength="150" autocomplete="off" value="${esc(site)}"
+        placeholder="🔍 พิมพ์ค้นหาโครงการ หรือพิมพ์ชื่อใหม่">
+      <datalist id="q_ppc_dl">${ppcOptions(g)}</datalist>
+      <div class="q-site-note" id="q_ppc_note"></div>
+    </div>
   </div>`;
 }
 /** ป้ายใต้ช่อง: เลือกจากรายการแล้ว / ชื่อใหม่ (จะเพิ่มเข้ารายการ) */
@@ -444,12 +463,15 @@ export function collectForm(fields) {
     }
     // Prime Power Construction: โครงการหลัก → ใช้โครงการนั้นตามปกติ · งานที่ไม่ใช่โครงการ → เก็บชื่องานใน ppc_site
     if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._ppc) {
-      out.ppc_site = '';
+      out.ppc_site = ''; out.ppc_group = '';
       if (isPpc) {
+        const g = (($('input[name="q_ppc_group"]:checked') || {}).value) || '';
         const site = String(($('#q_ppc_site') || {}).value || '').trim().replace(/\s+/g, ' ');
-        if (!site) errors.push('โครงการ / งานของ Prime Power Construction (เลือกจากรายการ หรือพิมพ์ชื่องาน)');
-        else if (mainProjects().includes(site)) { v = site; out[f.FieldKey] = site; }
-        else out.ppc_site = site;
+        if (!g) errors.push('ประเภทงานของ Prime Power Construction (โครงการโซลาร์ภาคประชาชน หรือ อื่นๆ)');
+        else if (!site) errors.push(`โครงการของ Prime Power Construction · ${PPC_GROUP_LABEL[g] || g} (เลือกจากรายการ หรือพิมพ์ชื่อ)`);
+        // อื่นๆ + โครงการหลักในทะเบียนโครงการ → ใช้โครงการนั้นตามปกติ (ผู้รับผิดชอบ/ทีมโครงการอนุมัติ)
+        else if (g === PPC_OTHER && mainProjects().includes(site) && !ppcNames(g).includes(site)) v = site;
+        else { out.ppc_site = site; out.ppc_group = g; }
       }
     }
     // งาน O&M: ต้องเลือกโครงการ O&M (หรือพิมพ์เองเมื่อเลือก อื่นๆ)
@@ -710,12 +732,24 @@ export function bindForm(fields, folder) {
     const pf = fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
     const pEl = pf && $('#q_' + pf.FieldKey);
     const sel = $('#q_ppc_site'); const note = $('#q_ppc_note');
+    const grp = () => (($('input[name="q_ppc_group"]:checked') || {}).value) || '';
     const sync = () => {
       ppcBoxEl.hidden = !(pEl && pEl.value.trim() === PPC_PROJECT);
-      siteNote(sel, note, ppcKnown);
+      const g = grp();
+      siteNote(sel, note, (v) => ppcKnown(g, v));
       const v = String(sel.value || '').trim();
-      if (v && mainProjects().includes(v)) note.textContent = '✓ โครงการหลัก — ผู้รับผิดชอบ/ทีมโครงการนี้อนุมัติตามปกติ';
+      if (g === PPC_OTHER && v && mainProjects().includes(v) && !ppcNames(g).includes(v)) note.textContent = '✓ โครงการหลัก — ผู้รับผิดชอบ/ทีมโครงการนี้อนุมัติตามปกติ';
     };
+    // เลือกประเภท → แสดงช่องเลือกโครงการ พร้อมรายการของประเภทนั้น
+    ppcBoxEl.querySelectorAll('input[name="q_ppc_group"]').forEach((r) => r.addEventListener('change', () => {
+      const g = grp();
+      $('#q_ppc_pick').hidden = !g;
+      $('#q_ppc_dl').innerHTML = ppcOptions(g);
+      $('#q_ppc_lbl').firstChild.textContent = g === PPC_OTHER ? 'ระบุโครงการ / งาน ' : 'เลือกโครงการ ';
+      if (sel.value && !ppcKnown(g, sel.value.trim())) sel.value = '';
+      sel.dispatchEvent(new Event('input', { bubbles: true }));
+      sel.focus();
+    }));
     if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
     sel.addEventListener('input', sync); sel.addEventListener('change', sync);
     sync();

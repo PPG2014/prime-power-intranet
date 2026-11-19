@@ -516,8 +516,8 @@ function bindProjectHint() {
       const projs = await list('projects').catch(() => []);
       if (!job || !projs.some((p) => String(p.Title).trim() === job)) {
         const who = ppeApproversFor(await ppcConfig(), job);
-        hint.textContent = !job ? 'พิมพ์ค้นหาโครงการหลัก หรืองานที่ไม่ใช่โครงการด้านล่าง'
-          : who.length ? `ผู้อนุมัติงาน PPC: ${who.join(', ')} (คนใดคนหนึ่ง)` : `งานที่ไม่ใช่โครงการ — คำขอจะส่งให้${bossTxt}อนุมัติ`;
+        hint.textContent = who.length && job ? `ผู้อนุมัติขั้นต้น: ${who.join(', ')} (คนใดคนหนึ่ง)`
+          : `ผู้อนุมัติขั้นต้น: ${bossTxt}${job ? '' : ' · เลือกประเภทงาน แล้วเลือกหรือพิมพ์ชื่อโครงการด้านล่าง'}`;
         hint.classList.remove('warn');
         return;
       }

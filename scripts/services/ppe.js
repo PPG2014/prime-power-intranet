@@ -24,7 +24,8 @@ export function parsePpe(raw) {
   try { d = JSON.parse(String(raw || '').trim() || '{}') || {}; } catch (e) { d = {}; }
   const seen = new Set();
   const projects = (Array.isArray(d.projects) ? d.projects : [])
-    .map((p) => ({ name: String((p && p.name) || '').trim(), on: !(p && p.on === false), approvers: names(p && p.approvers) }))
+    .map((p) => ({ name: String((p && p.name) || '').trim(), on: !(p && p.on === false), approvers: names(p && p.approvers),
+      ...(String((p && p.group) || '').trim() ? { group: String(p.group).trim() } : {}) }))
     .filter((p) => { const k = p.name.toLowerCase(); if (!p.name || seen.has(k)) return false; seen.add(k); return true; });
   return { approvers: names(d.approvers), projects };
 }

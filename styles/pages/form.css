@@ -131,3 +131,14 @@
 .q-site-note { font-size: 12.5px; margin-top: 4px; min-height: 1em; }
 .q-site-note.ok { color: #1e7f4f; }
 .q-site-note.new { color: #9a5b00; }
+
+/* Prime Power Construction: เลือกประเภทงานก่อน แล้วค่อยเลือก/เพิ่มโครงการ */
+.q-ppc-cats { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.q-ppc-cat { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--line, #d9e1ec); border-radius: 10px; background: #fff; cursor: pointer; font-weight: 600; }
+.q-ppc-cat:has(input:checked) { border-color: var(--navy, #0b3a75); background: #eaf1fb; color: var(--navy, #0b3a75); }
+.q-ppc-cat input { margin: 0; accent-color: var(--navy, #0b3a75); }
+.q-ppc-pick { margin-top: 2px; }
+.q-ppc-cat input[type="radio"] { width: 18px; height: 18px; flex: none; padding: 0; }
+.q-ppc-cat span { white-space: nowrap; }
+.q-ppc-pick { display: flex; flex-direction: column; gap: 6px; }
+.q-ppc-pick[hidden] { display: none; }
