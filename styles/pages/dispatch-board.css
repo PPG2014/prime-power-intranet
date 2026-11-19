@@ -75,10 +75,37 @@
 .dp-legend i.done { background: #8a96a5; } .dp-legend i.dead { background: #c3cad3; }
 
 @media (max-width: 760px) {
-  .dp-sec { padding: 14px 12px; }
-  .dp-head h2 { font-size: 21px; }
-  .dp-time { font-size: 22px; }
-  .dp-cards { grid-template-columns: 1fr; }
+  /* มือถือ: ตัวหนังสือเล็กลง เห็นข้อมูลต่อจอได้มากขึ้น */
+  .dp-bar > b { font-size: 15px; }
+  .dp-bar .dim { font-size: 11.5px; min-width: 0; }
+  .dp-sec { padding: 12px 10px; border-radius: 12px; }
+  .dp-head { gap: 6px 8px; margin-bottom: 10px; }
+  .dp-head h2 { font-size: 17px; width: 100%; }
+  .dp-when { font-size: 13px; }
+  .dp-count { font-size: 12px; padding: 1px 10px; }
+  .dp-head .btn { font-size: 13px; padding: 6px 12px; }
+  .dp-head .btn-mini { font-size: 12px; }
+  .dp-plates { grid-template-columns: 1fr; gap: 6px; margin-bottom: 10px; }
+  .dp-plates .dp-pl { padding: 7px 10px; }
+  .dp-plates .dp-pl b { font-size: 13.5px; }
+  .dp-plates .dp-pl span { font-size: 12.5px; }
+  .dp-plates .dp-pl small { font-size: 11.5px; }
+  .dp-cards { grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; }
+  .dp-card { padding: 9px 12px; border-left-width: 6px; gap: 2px; }
+  .dp-time { font-size: 17px; }
+  .dp-st { font-size: 11px; padding: 1px 8px; }
+  .dp-plate { font-size: 14px; }
+  .dp-line { font-size: 13px; }
+  .dp-detail { font-size: 12px; }
+  .dp-clash, .dp-no { font-size: 11px; }
+  .dp-empty { font-size: 14px; padding: 14px; }
+  .dp-cal-head b { font-size: 15px; min-width: 0; }
+  .dp-cal-head { gap: 8px; }
+  .dp-cal-head .btn-mini { font-size: 12px; }
+  .dp-dow, .dp-grid { gap: 3px; }
+  .dp-dow span { font-size: 12px; }
+  .dp-d { font-size: 13px; }
+  .dp-legend { font-size: 11.5px; }
   .dp-cell { min-height: 64px; padding: 4px; }
   .dp-ev { font-size: 0; padding: 0; height: 6px; border-left-width: 0; background: var(--tone); }
   .dp-ev b { display: none; }

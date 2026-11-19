@@ -133,14 +133,14 @@ function section(kind) {
   const n = day.filter(live).length;
   const formCode = kind === 'car' ? s.code : s.code[0];
   return `<section class="dp-sec dp-${kind}">
-    <header class="dp-head">
+    <div class="dp-head">
       <h2>${s.title}</h2>
       <span class="dp-when">${isToday ? 'วันนี้ · ' : ''}${esc(thaiDate(s.picked))}</span>
       <span class="dp-count">${n} ${s.unit}</span>
       ${!isToday ? `<button type="button" class="btn-mini" data-dptoday="${kind}">↩ กลับวันนี้</button>` : ''}
       <span class="dp-gap"></span>
       ${formCode && active(formCode) ? `<a class="btn btn-primary" href="#/form/${esc(formCode)}">${kind === 'car' ? '+ ขอใช้รถ' : '+ จองคิว Messenger'}</a>` : ''}
-    </header>
+    </div>
     ${kind === 'car' && isToday ? plateStrip(s.rows) : ''}
     <div class="dp-cards">${day.length ? day.map((b) => card(b, kind)).join('')
       : `<div class="dp-empty">✓ ${isToday ? 'วันนี้' : 'วันนั้น'}ยังไม่มี${kind === 'car' ? 'การจองรถ' : 'คิว Messenger'}</div>`}</div>
