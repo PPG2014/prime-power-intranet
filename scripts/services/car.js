@@ -85,7 +85,7 @@ export async function carBookings(formCode, { fresh = false } = {}) {
       const returned = d.car_returned_at ? new Date(d.car_returned_at) : null;
       return { req: r, ...sp, end: returned && returned < sp.end ? returned : sp.end, returned,
         plate: String(d.car_plate || '').trim(), by: d.car_user || r.RequesterName || '',
-        place: d[CAR_PLACE] || '', status: String(r.Status || '').trim() };
+        place: d[CAR_PLACE] || '', purpose: d.purpose || d.car_purpose || d.objective || '', status: String(r.Status || '').trim() };
     })
     .filter(Boolean);
 }
