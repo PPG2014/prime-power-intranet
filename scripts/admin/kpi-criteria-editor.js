@@ -74,7 +74,8 @@ function verBar() {
     <button class="btn btn-primary om-save" data-kcact="save" ${dirty() ? '' : 'disabled'}>💾 บันทึก</button>
   </div>
   ${dirty() ? '<div class="om-unsaved">มีการแก้ไขที่ยังไม่บันทึก</div>' : ''}
-  ${readOnly() ? `<div class="panel-note kc-ro">ชุด <b>${esc(BUILTIN_VER)}</b> ติดมากับระบบ (ตามไฟล์ Excel ปี 2569) แก้ไม่ได้ — กด <b>＋ สร้างชุดใหม่</b> เพื่อคัดลอกไปแก้</div>` : ''}
+  ${readOnly() ? `<div class="panel-note kc-ro">ชุด <b>${esc(BUILTIN_VER)}</b> ติดมากับระบบ (ตามไฟล์ Excel ปี 2569) จึงแก้ตรง ๆ ไม่ได้
+      <button class="btn btn-primary kc-copy" data-kcact="new">✏️ แก้ไข (สร้างสำเนาจากชุดนี้)</button></div>` : ''}
   ${!readOnly() && (usage[ver] || 0) > 0 ? `<div class="panel-note kc-warn">⚠️ มีใบประเมิน ${usage[ver]} ใบใช้ชุดนี้อยู่ — แก้แล้วคะแนน/เกรดในใบเหล่านั้นจะคิดตามเกณฑ์ใหม่</div>` : ''}`;
 }
 
@@ -311,4 +312,4 @@ export function bindKpiCriteriaEditor() {
   });
 }
 
-export const kpiCriteriaUnsaved = () => !!$('#kc-editor') && dirty();
+export const kpiCriteriaUnsaved = () => !!$('#kc-editor:not(.pb-editor)') && dirty();

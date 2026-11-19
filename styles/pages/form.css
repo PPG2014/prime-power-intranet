@@ -126,3 +126,8 @@
 .li-eqinfo { font-size: 11.5px; line-height: 1.3; margin-top: 2px; }
 .li-eqinfo.ok { color: #1e7f4f; }
 .li-eqinfo.warn { color: #b7791f; }
+
+/* ช่องโครงการ PPE / O&M แบบพิมพ์ค้นหา: ป้ายบอกว่าเลือกจากรายการ หรือเป็นชื่อใหม่ */
+.q-site-note { font-size: 12.5px; margin-top: 4px; min-height: 1em; }
+.q-site-note.ok { color: #1e7f4f; }
+.q-site-note.new { color: #9a5b00; }

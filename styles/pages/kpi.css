@@ -192,3 +192,8 @@
   .kpi-sidecol { display: none; }
   .kpi-steps-in { display: block; }
 }
+
+/* ชุดที่ติดมากับระบบ: ปุ่มแก้ไข (สร้างสำเนา) เห็นชัด */
+.kc-ro { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kc-ro .kc-copy { font-size: 13px; padding: 6px 14px; }
+.pb-no { display: inline-block; min-width: 28px; text-align: center; color: #475569; font-weight: 600; }

@@ -63,6 +63,17 @@ function nextSeq(existing, formCode, year) {
  * นี่กันได้เกือบสมบูรณ์สำหรับการใช้งานจริง แต่ถ้าต้องการกันเด็ดขาด 100%
  * ให้ Power Automate เป็นคนออกเลขแทน (ดูหมายเหตุในคู่มือ)
  */
+/**
+ * ชื่อโครงการ PPE / O&M ที่พิมพ์เพิ่มเอง → เพิ่มเข้ารายการในหน้าจัดการข้อมูลให้อัตโนมัติ (ทำเบื้องหลัง ไม่หน่วงการส่ง)
+ * ครั้งหน้าเลือกจากรายการได้เลย ไม่ต้องพิมพ์ใหม่
+ */
+function rememberSite(values) {
+  import('../services/remember-site.js')
+    .then((m) => m.rememberTypedSite(values))
+    .then(async (msg) => { if (msg) (await import('../components/toast.js')).toast('📌 ' + msg); })
+    .catch(() => {});
+}
+
 async function createWithDocNo(formCode, payload) {
   const year = new Date().getFullYear();       // ปี ค.ศ. 4 หลัก
   let attempt = 0;
@@ -491,7 +502,7 @@ function bindProjectHint() {
     // Prime Power Engineering Pro: ผู้อนุมัติตามที่ตั้งไว้ในหน้า 🏠 โครงการ PPE
     if (v === PPE_PROJECT) {
       const sel = document.getElementById('q_ppe_site');
-      const site = sel && sel.value === PPE_OTHER ? (document.getElementById('q_ppe_other') || {}).value : (sel && sel.value);
+      const site = sel && String(sel.value || '').trim();
       const who = ppeApproversFor(await ppeConfig(), site);
       hint.textContent = who.length ? `ผู้อนุมัติโครงการ PPE: ${who.join(', ')} (คนใดคนหนึ่ง)` : `ยังไม่ได้ตั้งผู้อนุมัติโครงการ PPE — คำขอจะส่งให้${bossTxt}อนุมัติ`;
       hint.classList.toggle('warn', !who.length);
@@ -556,6 +567,7 @@ export async function saveRequest(values, { flds = fields, files = attachedFiles
     const w1 = [...uprob];
     if (missing.length) w1.push('ไม่พบอีเมลผู้อนุมัติในทะเบียนบุคลากร: ' + missing.join(', '));
     if (!route.length) w1.push('ฟอร์มนี้ยังไม่ได้ตั้งเส้นทางอนุมัติ (ApprovalMatrix)');
+    rememberSite(values);
     return { sentNo: 'แก้ไขแล้ว', warn: w1 };
   }
 
@@ -621,6 +633,7 @@ export async function saveRequest(values, { flds = fields, files = attachedFiles
     if (brNo) sentNo = `${r.no} · Delivered No. ${brNo}`;
   }
   if (afterCreate) sentNo = (await afterCreate(r.no, sentNo)) || sentNo;
+  rememberSite(values);
   return { sentNo, warn, no: r.no };
 }
 

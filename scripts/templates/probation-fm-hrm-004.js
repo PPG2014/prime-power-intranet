@@ -33,6 +33,20 @@ const box = (on) => `( <span class="pb-tick">${on ? '✓' : '&nbsp;'}</span> )`;
  * @param p.summary   { result, confirmDate, lastDate, other }
  * @param p.sign      { evaluator, hr, approver } แต่ละช่อง { name, date, sig, approved }
  */
+/** แถวอธิบายช่วงเกรด — ตามชุดเกณฑ์ของใบ (ไม่ส่งมา = ตามเอกสาร Rev.02) */
+function gradeLegend(grades) {
+  const g = (Array.isArray(grades) && grades.length ? grades
+    : [[91, 'A'], [86, 'B+'], [81, 'B'], [70, 'C'], [0, 'F']]).slice().sort((a, b) => b[0] - a[0]);
+  const sp = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+  const fmt = (v) => String(Math.round(v * 100) / 100);
+  const parts = g.map((x, i) => {
+    const hi = i === 0 ? 100 : g[i - 1][0] - 1;
+    if (i === g.length - 1 && i > 0) return `${esc(x[1])} = &lt; ${fmt(g[i - 1][0])} คะแนน`;
+    return `${esc(x[1])} = ${fmt(x[0])} - ${fmt(hi)} คะแนน`;
+  });
+  return `เกรด ${parts.slice(0, -1).join(sp)}${parts.length > 1 ? `${sp} และ ` : ''}${parts[parts.length - 1]}`;
+}
+
 export function renderProbation(p = {}) {
   const emp = p.employee || {};
   const ans = p.answers || {};
@@ -112,9 +126,7 @@ export function renderProbation(p = {}) {
 
     <table class="pb-tb">
       <tr><td class="pb-band green"><u>หมายเหตุ</u> : เกณฑ์การให้คะแนน&nbsp; (โปรดศึกษาในหน้าถัดไป)</td></tr>
-      <tr><td class="pb-grade">เกรด A = 91 - 100 คะแนน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        B+ = 86 - 90 คะแนน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B = 81 - 85 คะแนน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        C = 70 - 80 คะแนน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; และ F = &lt; 70 คะแนน</td></tr>
+      <tr><td class="pb-grade">${gradeLegend(p.grades)}</td></tr>
     </table>
 
     <table class="pb-tb">

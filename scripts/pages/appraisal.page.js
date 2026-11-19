@@ -11,6 +11,7 @@ import {
   canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, sheetIsKpi, schemeOf, belongsTo,
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
+import { loadPbConfig, pbSecs, pbSchemeKey, pbPass, pbScaleText, pbDef, PB_BUILTIN } from '../services/probation-config.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
 import { summarize, hasCustom, loadKpiConfig, kpiPhase, kpiFcBySelf } from '../services/kpi.js';
 import { signaturePad, bindSignaturePads, readSignature } from '../components/signature-pad.js';
@@ -68,18 +69,31 @@ const selfFix = (r) => (noSelf(r) ? '—' : fix(r.SelfScore));
 /** รอบของใบนี้ (ไม่พบใช้รอบหลัก) */
 const cycleOf = (r) => cycleOfSheet(r, liveCycles) || cycleOfSheet(r, allCycles) || cycle;
 /** หัวข้อประเมินของรอบ (จำไว้ ไม่โหลดซ้ำ) */
-async function criteriaOf(c) {
+async function criteriaOf(c, r = null) {
   const k = clean(c && c.FormSet);
+  // ใบแบบผ่านงานที่จำชุดเกณฑ์ไว้ → ใช้หัวข้อของชุดนั้น (แก้ชุดใหม่ไม่กระทบใบเก่า)
+  const v = pbVerOf(r, c);
+  if (v) return pbSecs(v);
   if (!secsCache[k]) secsCache[k] = await criteria(k);
   return secsCache[k];
 }
+/** ชุดเกณฑ์ผ่านงานของใบ (ใบเก่าที่ไม่ได้จำชุดไว้ = '' ใช้หัวข้อแบบเดิม) */
+const pbVerOf = (r, c = null) => (r && isProbation(clean((c || cycleOf(r) || {}).FormSet) || clean(r.FormSet)) ? clean(extraOf(r).pbVer) : '');
+/** เกณฑ์เกรดของใบ */
+const schemeFor = (c, r = null) => (pbVerOf(r, c) ? pbSchemeKey(pbVerOf(r, c)) : schemeOf(clean(c && c.FormSet) || clean(r && r.FormSet)));
+/** ผลทดลองงานตามเกรด (แสดงต่อท้ายเกรดในใบผ่านงาน) */
+const passText = (r, grade) => {
+  if (!r || !grade || grade === '—' || !isProbation(clean((cycleOf(r) || {}).FormSet) || clean(r.FormSet))) return '';
+  const ok = pbPass(pbVerOf(r) || PB_BUILTIN, grade);
+  return ok === null ? '' : ok ? ' <span class="ap-pass ok">ผ่านทดลองงาน</span>' : ' <span class="ap-pass no">ไม่ผ่านทดลองงาน</span>';
+};
 /** ตั้งรอบ/หัวข้อ/เกณฑ์เกรดให้ตรงกับใบที่กำลังเปิด */
 async function focusCycle(r) {
   const c = cycleOf(r);
   if (!c) return;
   cycle = c;
-  secs = await criteriaOf(c);
-  scheme = schemeOf(c.FormSet);
+  secs = await criteriaOf(c, r);
+  scheme = schemeFor(c, r);
 }
 
 /** ผู้ประเมินส่งผลแล้ว (เลยขั้นหัวหน้าประเมิน) */
@@ -90,7 +104,7 @@ function gradeText(r) {
   if (isKpiSet(r.FormSet)) return '—';   // KPI: เกรดสุดท้ายออกเมื่อผู้บริหารประเมินแล้ว
   const score = +r.FinalScore || +r.MgrScore || 0;
   if (!submitted(r) || !score) return '—';
-  return gradeOf(score, schemeOf(clean(r.FormSet) || clean(cycle && cycle.FormSet)))[1];
+  return gradeOf(score, schemeFor(cycleOf(r) || { FormSet: r.FormSet }, r))[1];
 }
 
 /** ผู้บริหารที่อนุมัติผลได้: ผู้ดูแลระบบ หรือระดับผู้จัดการฝ่ายขึ้นไป */
@@ -102,6 +116,7 @@ const who = () => ({ email: myEmail, person: me, isAdmin: state.isAdmin, isHR: s
 
 export async function render(ctx) {
   myEmail = String(state.user?.email || '').toLowerCase();
+  await loadPbConfig();   // เกณฑ์ประเมินผ่านงาน (ชุดที่ฝ่ายบุคคลแก้เอง)
   // ใช้ข้อมูลในแคชวาดทันที · startWatch() ดึงรอบ/ใบประเมินล่าสุดตอนเปิดหน้า ถ้าต่างจากที่วาดไว้จะวาดใหม่เอง
   const dir = await list('directory').catch(() => []);
   dirAll = dir;
@@ -376,7 +391,7 @@ function paneApprove() {
       ${wait.length ? `<table class="ap-table">
         <thead><tr><th>ชื่อ</th><th>ฝ่าย</th><th class="num">ตนเอง</th><th class="num">หัวหน้า</th><th class="num">เกรด</th><th></th></tr></thead>
         <tbody>${wait.map((r) => {
-          const gr = gradeOf(+r.MgrScore || 0, schemeOf(r.FormSet) || scheme);
+          const gr = gradeOf(+r.MgrScore || 0, schemeFor(cycleOf(r) || { FormSet: r.FormSet }, r));
           return `<tr>
             <td>${esc(clean(r.EmployeeName))}</td>
             <td>${esc(clean(r.Department))}</td>
@@ -479,7 +494,7 @@ function formTable(who, answers, editable, row, otherAnswers = null) {
     <div class="panel ap-form" data-who="${who}">
       <div class="panel-head">แบบประเมิน${who === 'self' ? 'ตนเอง' : 'โดยหัวหน้า'}
         <span class="panel-meta">ให้คะแนน 1–${secs[0]?.items[0]?.scale || 5}
-          (${secs[0]?.items[0]?.scale === 10 ? '10 = ดีมาก, 1 = ไม่ดี' : '5 = ดีเยี่ยม, 1 = ต้องปรับปรุง'})</span></div>
+          (${esc(pbVerOf(row) ? pbScaleText(pbVerOf(row)) : secs[0]?.items[0]?.scale === 10 ? '10 = ดีมาก, 1 = ไม่ดี' : '5 = ดีเยี่ยม, 1 = ต้องปรับปรุง')})</span></div>
 
       ${secs.map((sec) => `
         <h4 class="ap-sec">${esc(sec.name)}${sec.weight ? ` <span class="dim">น้ำหนัก ${sec.weight}%</span>` : ''}</h4>
@@ -634,7 +649,7 @@ function pickSignMode() {
 async function exportProbation(row, useSecs = null) {
   const withSign = await pickSignMode();
   if (withSign === null) return;
-  useSecs = useSecs || await criteriaOf(cycleOf(row));
+  useSecs = useSecs || await criteriaOf(cycleOf(row), row);
   const dir = await list('directory').catch(() => []);
   const person = dir.find((d) => clean(d.Email).toLowerCase() === clean(row.EmployeeEmail).toLowerCase()) || {};
   const sigOf = (name) => (dir.find((d) => clean(d.Title) === clean(name)) || {}).SignatureUrl || '';
@@ -655,7 +670,8 @@ async function exportProbation(row, useSecs = null) {
     sections: useSecs, answers: ans,
     notes: Object.fromEntries(Object.entries(ans)
       .filter(([k]) => k.endsWith('__note')).map(([k, v]) => [k.replace('__note', ''), v])),
-    total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, 'ทดลองงาน')[1],
+    grades: pbDef(pbVerOf(row) || PB_BUILTIN).grades,
+    total: total ? total.toFixed(1) : '', grade: clean(row.Grade) || gradeOf(total, schemeFor(cycleOf(row) || { FormSet: row.FormSet }, row))[1],
     attendance: x.attendance || {}, summary: x.summary || {},
     sign: stripSigns(withSign, {
       evaluator: {
@@ -777,8 +793,8 @@ export function mount(ctx) {
       || { Title: clean(r.CycleName), FormSet: clean(r.FormSet), Status: 'ปิด' };
     const saved = { cycle, secs, scheme };
     cycle = c;
-    secs = await criteria(clean(c.FormSet) || clean(r.FormSet));
-    scheme = schemeOf(clean(c.FormSet) || clean(r.FormSet));
+    secs = await criteriaOf(c.FormSet ? c : { ...c, FormSet: clean(r.FormSet) }, r);
+    scheme = schemeFor(c.FormSet ? c : { ...c, FormSet: clean(r.FormSet) }, r);
     try { await fn(); } finally { ({ cycle, secs, scheme } = saved); }
   };
   const hist = (id) => myHistory.find((x) => String(x.id) === String(id));
@@ -869,7 +885,7 @@ async function openSheet(row, rerender) {
         <div><b>${pill(st)}</b><span>สถานะ</span></div>
         ${noSelf(row) ? '' : `<div><b>${fix(row.SelfScore)}</b><span>ตนเอง</span></div>`}
         <div><b>${fix(row.MgrScore)}</b><span>ผู้ประเมิน</span></div>
-        <div><b>${esc(gradeText(row))}</b><span>เกรด</span></div>
+        <div><b>${esc(gradeText(row))}${passText(row, gradeText(row))}</b><span>เกรด</span></div>
       </div>
 
       ${statusTrack(row)}
