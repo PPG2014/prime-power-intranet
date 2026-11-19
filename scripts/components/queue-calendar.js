@@ -33,12 +33,24 @@ const todayKey = () => new Date().toLocaleDateString('sv-SE');
 /** โหลดคิวทั้งหมดของฟอร์มนี้ ทุกสถานะ (ใบที่ยกเลิก/ไม่อนุมัติเรียงไว้ท้ายวัน) */
 async function load(code) {
   formCode = code;
-  if (kind === 'car') { bookings = await loadCars(code); return; }
-  if (kind === 'install') { bookings = await loadInstalls(code); return; }
+  bookings = await bookingsOf(code, kind, { fresh });
+}
+
+/**
+ * รายการคิว/การจองของฟอร์ม (ไม่แตะสถานะของปฏิทินในหน้า) — ใช้ร่วมกับกระดานคิวในหน้าติดตามสถานะ
+ * k = 'queue' | 'car' | 'install' · แต่ละรายการ { day, from, to, by, place, plate?, detail?, status, title, id }
+ */
+export async function bookingsOf(code, k = 'queue', { fresh: fr = true } = {}) {
+  if (k === 'car') return loadCars(code);
+  if (k === 'install') return loadInstalls(code, fr);
+  return loadQueue(code, fr);
+}
+
+async function loadQueue(code, fr) {
   const codes = (Array.isArray(code) ? code : [code]).map((c) => String(c).trim());
-  const rows = await list('requests', { fresh }).catch(() => []);
+  const rows = await list('requests', { fresh: fr }).catch(() => []);
   // แสดงทุกสถานะ (รออนุมัติ / อนุมัติแล้ว / ส่งกลับแก้ไข / เสร็จสิ้น / ยกเลิก / ไม่อนุมัติ) — ใบที่ยกเลิก/ไม่อนุมัติขีดฆ่าไว้ ไม่นับเป็นคิว
-  bookings = rows
+  const out = rows
     .filter((r) => codes.includes(codeOf(r)))
     .map((r) => {
       let d = {};
@@ -52,14 +64,17 @@ async function load(code) {
         to: d[QUEUE_FIELDS.to] || '',
         by: d.requester || r.RequesterName || '',
         place: d.place || d.job_detail || '',
+        detail: d.place ? d.job_detail || '' : '',
         status: String(r.Status || '').trim(),
         title: r.Title || '',
+        id: r.id,
       };
     })
     .filter(Boolean)
     .sort((a, b) => a.day.localeCompare(b.day) || live(b) - live(a) || hhmm(a.from).localeCompare(hhmm(b.from)));
   // คิวที่เวลาชนกัน (ผู้ยื่นยืนยันจองทับ) แสดงเป็นอีกสี
-  markClashes(bookings, { live });
+  markClashes(out, { live });
+  return out;
 }
 
 /** จองรถ: หนึ่งคำขอแสดงทุกวันที่อยู่ในช่วง (วันแรกเริ่มตามเวลา · วันสุดท้ายถึงเวลา · วันกลางทั้งวัน) */
@@ -74,9 +89,9 @@ async function loadCars(code) {
         day,
         from: day === localDay(b.start) ? hm(b.start) : '00:00',
         to: day === last ? hm(b.end) : '24:00',
-        by: b.by, place: b.place, plate: b.plate,
+        by: b.by, place: b.place, plate: b.plate, detail: b.purpose || '',
         status: b.returned ? 'คืนรถแล้ว' : b.status,
-        title: b.req.Title || '',
+        title: b.req.Title || '', id: b.req.id,
       });
     }
   });
@@ -84,16 +99,16 @@ async function loadCars(code) {
 }
 
 /** คิวงานติดตั้ง: หนึ่งงานแสดงทุกวันในช่วงที่กันคิวไว้ (วันที่ผู้อนุมัติกำหนด หรือวันที่ขอ) */
-async function loadInstalls(code) {
+async function loadInstalls(code, fr = fresh) {
   const out = [];
-  (await installBookings(code, { fresh })).forEach((b) => {
+  (await installBookings(code, { fresh: fr })).forEach((b) => {
     const [y, m, d0] = b.from.split('-').map(Number);
     for (let d = new Date(y, m - 1, d0); localDay(d) <= b.to; d.setDate(d.getDate() + 1)) {
       const day = localDay(d);
       out.push({
         day, from: day === b.from ? (b.time || 'ติดตั้ง') : 'ติดตั้ง', to: '',
         by: b.by, place: [b.customer, b.place].filter(Boolean).join(' · '),
-        status: b.live ? (b.track || b.status) : b.status, title: b.req.Title || '',
+        status: b.live ? (b.track || b.status) : b.status, title: b.req.Title || '', id: b.req.id,
       });
     }
   });

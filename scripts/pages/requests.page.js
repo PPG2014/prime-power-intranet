@@ -47,6 +47,7 @@ let me = '';
 let meIds = [];
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
 let notInDir = false; // หาผู้ใช้ในทะเบียนบุคลากรไม่เจอ → ระบบไม่รู้ว่าเป็นผู้อนุมัติใบไหน
+let showBoard = false;   // แสดงกระดานคิว Messenger + การใช้รถ ด้านบนหน้า
 let calFor = null;    // ปฏิทินของแบบฟอร์มที่เลือก (จองรถ / คิว Messenger / คิวงานติดตั้ง) { code, kind } หรือ null
 let watchForms = [];  // ฟอร์มที่ผู้ใช้ติดตามได้ทุกใบตามฝ่าย (ดูอย่างเดียวถ้าไม่ได้อยู่ในเส้นทาง)
 
@@ -321,7 +322,11 @@ export async function render(ctx) {
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
-  notInDir = !mePerson && !state.isAdmin;   // บัญชีแอดมินกลาง (เช่น Intranet Prime) ไม่ต้องอยู่ในทะเบียน
+  // กระดานคิว Messenger + การใช้รถ (บัญชีที่ตั้งไว้ใน DispatchBoardEmails เช่นบัญชีพนักงานส่งเอกสาร/คนขับรถ)
+  const { boardEnabled } = await import('../components/dispatch-board.js');
+  showBoard = await boardEnabled(state.user?.email);
+  // บัญชีแอดมินกลาง (เช่น Intranet Prime) และบัญชีกระดานคิว (คนนอก) ไม่ต้องอยู่ในทะเบียน
+  notInDir = !mePerson && !state.isAdmin && !showBoard;
   watchForms = DEPT_WATCH_FORMS[deptName(mePerson && mePerson.Department)] || [];
 
   // ปกติดึงเฉพาะช่วงล่าสุด + ใบที่ยังเดินอยู่ (กรองที่ SharePoint) กันหน้าอืดเมื่อคำขอสะสมหลักพันใบ
@@ -446,6 +451,7 @@ export async function render(ctx) {
         <h1 class="page-title">${esc(meta.title)}</h1>
       </div>
 
+      ${showBoard ? '<div id="dp-board" class="dp-board"><div class="dp-loading">กำลังโหลดคิววันนี้…</div></div>' : ''}
       ${notInDir ? `<div class="rq-dir-warn">⚠ ไม่พบอีเมลที่คุณใช้ล็อกอิน (<b>${esc(myEmails().join(', '))}</b>) ในทะเบียนบุคลากร
         ระบบจึงไม่รู้ว่าคุณเป็นผู้อนุมัติของคำขอใด และคุณจะไม่ได้รับการ์ดอนุมัติ — แจ้งผู้ดูแลให้แก้ช่องอีเมลของคุณในหน้าบุคลากรให้ตรงกับอีเมลนี้</div>` : ''}
       <div class="rq-layout${solo ? ' solo' : ''}">
@@ -1775,6 +1781,12 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
 
 export function mount(ctx) {
   bindPersonCards();
+  if (showBoard) {
+    import('../components/dispatch-board.js').then((m) => m.mountBoard({ onOpen: (id) => {
+      const r = allRequests.find((x) => String(x.id) === String(id));
+      if (r) openRequest(r);
+    } })).catch(() => {});
+  }
   bindCalDrawer();   // ชื่อบุคลากรในรายละเอียดคำขอ: ชี้/คลิกแล้วเห็นการ์ด
   // เปลี่ยนแบบฟอร์ม/ตัวกรอง/คำค้น → กลับไปหน้า 1
   onClick('tab', (code) => quick({ reviewTab: code, reviewPage: 1 }));

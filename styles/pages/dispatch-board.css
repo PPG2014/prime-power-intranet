@@ -1,0 +1,86 @@
+/* กระดานคิววันนี้ (หน้าติดตามสถานะ) — คิว Messenger + การใช้รถประจำสำนักงาน · ตัวใหญ่ อ่านง่ายบนจอ */
+.dp-board { margin: 0 0 22px; }
+.dp-loading { padding: 30px; text-align: center; color: var(--muted, #6b7280); background: #fff; border-radius: 14px; }
+.dp-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.dp-bar > b { font-size: 18px; color: var(--navy, #0b3b7a); }
+.dp-bar .dim { font-size: 13px; flex: 1; min-width: 240px; }
+
+.dp-sec { background: #fff; border: 1px solid #dbe3ee; border-radius: 16px; padding: 18px 20px 20px; margin-bottom: 18px;
+  box-shadow: 0 2px 10px rgba(15, 40, 80, .05); scroll-margin-top: 90px; }
+.dp-queue { border-top: 6px solid #0b3b7a; }
+.dp-sec.dp-car { border-top-color: #1e7f4f; }
+.dp-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.dp-head h2 { margin: 0; font-size: 26px; color: var(--navy, #0b3b7a); }
+.dp-when { font-size: 18px; font-weight: 600; color: #334155; }
+.dp-count { font-size: 16px; font-weight: 700; background: #e3f0fb; color: #0b4f8a; padding: 3px 14px; border-radius: 999px; }
+.dp-gap { flex: 1; }
+.dp-head .btn { font-size: 15px; }
+
+/* รถแต่ละคันตอนนี้ */
+.dp-plates { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.dp-plates .dp-pl { border: 1px solid #dbe3ee; border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+.dp-plates .dp-pl b { font-size: 17px; color: #1f2937; }
+.dp-plates .dp-pl span { font-size: 15px; font-weight: 600; }
+.dp-plates .dp-pl small { font-size: 13px; color: var(--muted, #6b7280); }
+.dp-plates .dp-pl.free { background: #eefaf3; border-color: #bfe5cf; }
+.dp-plates .dp-pl.free span { color: #1e7f4f; }
+.dp-plates .dp-pl.busy { background: #fff6e8; border-color: #f3d29b; }
+.dp-plates .dp-pl.busy span { color: #9a5b00; }
+
+/* การ์ดรายละเอียดคิวของวัน */
+.dp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.dp-card { --tone: #1e7f4f; border: 1px solid #dbe3ee; border-left: 8px solid var(--tone); border-radius: 12px; padding: 12px 16px;
+  background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.dp-card:hover, .dp-card:focus-visible { box-shadow: 0 4px 14px rgba(15, 40, 80, .12); outline: none; }
+.dp-card.wait { --tone: #d69e2e; } .dp-card.back { --tone: #dd6b20; } .dp-card.clash { --tone: #805ad5; }
+.dp-card.done { --tone: #8a96a5; } .dp-card.dead { --tone: #c3cad3; opacity: .6; }
+.dp-card.dead .dp-time, .dp-card.dead .dp-by { text-decoration: line-through; }
+.dp-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dp-time { font-size: 26px; font-weight: 700; color: #0f172a; letter-spacing: .2px; }
+.dp-st { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #e9f7ef; color: #1e7f4f; white-space: nowrap; }
+.dp-st.wait { background: #fff4dc; color: #a86b00; } .dp-st.back { background: #ffeadb; color: #b4520f; }
+.dp-st.clash { background: #efe7fb; color: #6b46c1; } .dp-st.done { background: #eef1f5; color: #5b6676; } .dp-st.dead { background: #f1f3f6; color: #8a96a5; }
+.dp-plate { font-size: 18px; font-weight: 700; color: #0b4f8a; }
+.dp-line { font-size: 16px; color: #1f2937; line-height: 1.45; overflow-wrap: anywhere; }
+.dp-by { font-weight: 600; }
+.dp-detail { font-size: 14.5px; color: #475569; white-space: pre-line; }
+.dp-clash { font-size: 13px; font-weight: 700; color: #6b46c1; }
+.dp-no { font-size: 12px; color: var(--muted, #6b7280); margin-top: 2px; }
+.dp-empty { grid-column: 1 / -1; padding: 22px; text-align: center; font-size: 18px; font-weight: 600; color: #1e7f4f;
+  background: #eefaf3; border-radius: 12px; }
+
+/* ปฏิทินทั้งเดือน (เห็นรายการในช่องวัน) */
+.dp-cal-head { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px; }
+.dp-cal-head b { font-size: 20px; color: var(--navy, #0b3b7a); min-width: 180px; text-align: center; }
+.dp-dow, .dp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.dp-dow span { text-align: center; font-weight: 700; color: #64748b; font-size: 14px; padding: 4px 0; }
+.dp-cell { min-height: 118px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; padding: 6px 7px; text-align: left;
+  display: flex; flex-direction: column; gap: 3px; font: inherit; cursor: pointer; min-width: 0; }
+.dp-cell.blank { background: transparent; border: 0; cursor: default; }
+.dp-cell.has { background: #f3f8ff; }
+.dp-cell:hover { border-color: #93b4dc; }
+.dp-cell.today { border: 2px solid #0b3b7a; }
+.dp-cell.on { box-shadow: 0 0 0 3px #f6c343 inset; }
+.dp-d { font-weight: 700; font-size: 16px; color: #1f2937; display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+.dp-d em { font-style: normal; font-size: 11.5px; font-weight: 600; color: #0b4f8a; }
+.dp-ev { --tone: #1e7f4f; display: block; font-size: 12.5px; line-height: 1.3; background: #fff; border-left: 4px solid var(--tone);
+  border-radius: 5px; padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1f2937; }
+.dp-ev.wait { --tone: #d69e2e; } .dp-ev.back { --tone: #dd6b20; } .dp-ev.clash { --tone: #805ad5; }
+.dp-ev.done { --tone: #8a96a5; } .dp-ev.dead { --tone: #c3cad3; opacity: .6; text-decoration: line-through; }
+.dp-more { font-size: 11.5px; color: #64748b; font-weight: 600; }
+
+.dp-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: #475569; align-items: center; }
+.dp-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; background: #1e7f4f; }
+.dp-legend i.wait { background: #d69e2e; } .dp-legend i.back { background: #dd6b20; } .dp-legend i.clash { background: #805ad5; }
+.dp-legend i.done { background: #8a96a5; } .dp-legend i.dead { background: #c3cad3; }
+
+@media (max-width: 760px) {
+  .dp-sec { padding: 14px 12px; }
+  .dp-head h2 { font-size: 21px; }
+  .dp-time { font-size: 22px; }
+  .dp-cards { grid-template-columns: 1fr; }
+  .dp-cell { min-height: 64px; padding: 4px; }
+  .dp-ev { font-size: 0; padding: 0; height: 6px; border-left-width: 0; background: var(--tone); }
+  .dp-ev b { display: none; }
+  .dp-d em { display: none; }
+}
