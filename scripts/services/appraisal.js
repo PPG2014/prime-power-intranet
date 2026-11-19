@@ -539,6 +539,28 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
 }
 
 /**
+ * สร้างใบที่ยังขาดของคนอื่นในรอบที่เปิดอยู่ (เรียกตอนเปิดหน้าประเมิน)
+ *   all = true (ฝ่ายบุคคล/ผู้ดูแล) → ทุกคนในขอบเขตของรอบ
+ *   managerName → เฉพาะลูกทีมที่มีผู้บังคับบัญชาเป็นชื่อนี้ (ผู้ประเมินเห็นลูกทีมได้ทันที)
+ * ไม่มีใบที่ขาด = ไม่สร้างอะไร · คืนจำนวนใบที่สร้าง
+ */
+export async function autoCreateFor(cycle, { all = false, managerName = '', self = '' } = {}) {
+  if (!cycle || clean(cycle.Status) !== 'เปิด') return 0;
+  if (all) return (await generateSheets(cycle)).created;
+  if (!managerName) return 0;
+  const dir = await list('directory').catch(() => []);
+  const have = new Set((await sheetsOf(cycle)).map((r) => clean(r.EmployeeEmail).toLowerCase()));
+  const team = dir.filter((p) => p.IsActive !== false && clean(p.Manager) === managerName && clean(p.Email)
+    && clean(p.Email).toLowerCase() !== String(self).toLowerCase() && !have.has(clean(p.Email).toLowerCase()));
+  let n = 0;
+  for (const p of team) {
+    // eslint-disable-next-line no-await-in-loop
+    n += await autoCreate(cycle, { email: clean(p.Email) }).catch(() => 0);
+  }
+  return n;
+}
+
+/**
  * ขั้นแรกของใบที่สร้างใหม่: รอบที่ตั้งขั้นตอนเป็น "หัวหน้าประเมิน" (เช่นประเมินทดลองงาน)
  * เริ่มที่หัวหน้าเลย ไม่ต้องให้บุคลากรประเมินตนเองก่อน
  */

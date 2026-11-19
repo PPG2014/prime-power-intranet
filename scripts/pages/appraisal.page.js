@@ -3,7 +3,7 @@ import { state, setState } from '../core/state.js';
 import { list } from '../services/data.js';
 import { toCsv, downloadText } from '../utils/csv.js';
 import {
-  STAGES, DONE, activeCycle, openCycles, cycleOfSheet, criteria, scoreOf, sheets, mineOf, teamOf,
+  STAGES, DONE, activeCycle, openCycles, cycleOfSheet, criteria, scoreOf, sheets, mineOf, teamOf, autoCreateFor,
   answersOf, extraOf, logOf, stageOpen, gradeOf, clean, generateSheets, autoCreate, ROUND_DAYS,
   submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
   signsOf, empSigned, hrSigned, needsEmpSign,
@@ -128,11 +128,17 @@ export async function render(ctx) {
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
   // (สร้างเฉพาะใบของตัวเอง — ใบของคนอื่นสร้างตอนบันทึกแบบประเมิน หรือกดปุ่มในแท็บภาพรวม)
   let made = 0;
+  let madeOthers = 0;
   for (const c of liveCycles) {
     // eslint-disable-next-line no-await-in-loop
     try { made += await autoCreate(c, { isAdmin: false, email: myEmail }); } catch (e) { /* ข้ามได้ */ }
+    // ใบของคนอื่นที่ยังขาด → สร้างให้เลย สถานะ/ขั้นตอนจะขึ้นทันที ไม่ต้องรอผู้ถูกประเมินเปิดหน้าก่อน
+    //   ฝ่ายบุคคล/ผู้ดูแล = ทุกคนในขอบเขตของรอบ · ผู้ประเมิน = ลูกทีมที่ตนเป็นผู้บังคับบัญชา
+    // eslint-disable-next-line no-await-in-loop
+    try { madeOthers += await autoCreateFor(c, { all: state.isHR || state.isAdmin, managerName: me ? clean(me.Title) : '', self: myEmail }); }
+    catch (e) { /* ข้ามได้ */ }
   }
-  if (made) { autoMade = made; rows = await loadRows(); }
+  if (made || madeOthers) { autoMade = made; rows = await loadRows(); }
 
   // ใบของฉันที่แสดงเป็นหลัก: ใบที่รอฉันทำก่อน · ไม่มีก็ใบล่าสุด
   const myRows = rows.filter((r) => clean(r.EmployeeEmail).toLowerCase() === myEmail)
@@ -220,6 +226,14 @@ function paneMe(mine) {
 }
 
 /** ประวัติการประเมินของฉันในรอบก่อน ๆ พร้อมเปิดดู/ดาวน์โหลดเอกสาร */
+/** ป้ายชุดแบบประเมินของใบ: KPI ประจำปี / ผ่านงาน (FM-HRM-004) / อื่น ๆ ตามชื่อชุด */
+function setPill(r) {
+  if (isKpi(r)) return '<span class="ap-set kpi">KPI ประจำปี</span>';
+  const fs = clean(r.FormSet) || clean(cycleOfSheet(r, allCycles)?.FormSet);
+  if (/ผ่านงาน|ทดลองงาน/.test(fs)) return '<span class="ap-set prob">ผ่านงาน (FM-HRM-004)</span>';
+  return fs ? `<span class="ap-set">${esc(fs)}</span>` : '<span class="dim">—</span>';
+}
+
 function historyPanel() {
   if (!myHistory.length) return '';
   return `
@@ -227,9 +241,11 @@ function historyPanel() {
       <div class="panel-head">📚 ประวัติการประเมินของฉัน
         <span class="panel-meta">${myHistory.length} รอบ · เปิดดูและดาวน์โหลดเอกสารได้ตลอด</span></div>
       <table class="ap-table">
-        <thead><tr><th>แบบประเมิน</th><th>สถานะ</th><th class="num">คะแนน</th><th>เกรด</th><th></th></tr></thead>
+        <thead><tr><th>แบบประเมิน</th><th>ชุดแบบประเมิน</th><th>สถานะ</th><th class="num">คะแนน</th><th>เกรด</th><th></th></tr></thead>
         <tbody>${myHistory.map((r) => `<tr>
-          <td>${esc(clean(r.CycleName))}${r.id === shownId ? ' <span class="dim">· แสดงด้านบน</span>' : ''}</td>
+          <td>${esc(clean(r.CycleName))}${r.id === shownId ? ' <span class="dim">· แสดงด้านบน</span>' : ''}
+            ${r.Created ? `<div class="dim ap-hdate">สร้างเมื่อ ${esc(new Date(r.Created).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</div>` : ''}</td>
+          <td>${setPill(r)}</td>
           <td>${pill(r.Status, r)}</td>
           <td class="num">${submitted(r) ? fix(r.FinalScore || r.MgrScore) : '—'}</td>
           <td>${esc(gradeText(r))}</td>
