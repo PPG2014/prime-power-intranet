@@ -515,6 +515,12 @@ export function mount(ctx) {
   onClick('dirtab', (k) => setState({ dirTab: k }));
   onClick('diroffice', (v) => setState({ dirOffice: v === 'all' ? '' : v }));
   bindCompanyChart($('#app'), { onUnit: openUnit, onPosition: openPosition });
+  // ลิงก์จากที่อื่น (เช่นข้อความเตือนเพิ่มโครงการ): #/directory?unit=ชื่อฝ่าย → เปิดรายชื่อบุคลากรในฝ่าย
+  const unit = new URLSearchParams(location.hash.split('?')[1] || '').get('unit');
+  if (unit) {
+    history.replaceState(null, '', location.href.replace(/\?.*$/, ''));
+    openUnit(unit);
+  }
   const show = (id) => {
     const p = people.find((x) => String(x.id) === String(id));
     if (p) openPerson(p);

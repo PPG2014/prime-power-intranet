@@ -70,8 +70,7 @@ function nextSeq(existing, formCode, year) {
  */
 function rememberSite(values) {
   import('../services/remember-site.js')
-    .then((m) => m.rememberTypedSite(values))
-    .then(async (msg) => { if (msg) (await import('../components/toast.js')).toast('📌 ' + msg); })
+    .then(async (m) => m.notifyRemember(await m.rememberTypedSite(values)))
     .catch(() => {});
 }
 

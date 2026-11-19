@@ -15,3 +15,16 @@ export function toast(text, kind = 'ok') {
   box.appendChild(t);
   setTimeout(() => t.remove(), kind === 'bad' ? 10000 : 6000);
 }
+
+/** ข้อความแจ้งที่มีลิงก์ได้ (html ต้อง escape มาแล้ว) · ค้างนานกว่า · กด ✕ หรือกดลิงก์เพื่อปิด */
+export function toastHtml(html, kind = 'warn', ms = 20000) {
+  toast('', kind);
+  const box = document.getElementById('toast-box');
+  const t = box.lastElementChild;
+  t.onclick = null;
+  t.classList.add('toast-rich');
+  t.innerHTML = `<button type="button" class="toast-x" aria-label="ปิด">✕</button><div>${html}</div>`;
+  t.querySelector('.toast-x').onclick = () => t.remove();
+  t.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => t.remove()));
+  setTimeout(() => t.remove(), ms);
+}

@@ -128,3 +128,9 @@
 .pcard-dept { color: var(--muted); }
 .pcard-mail { display: block; margin-top: 4px; color: var(--blue); word-break: break-all; }
 .pcard-ext b { color: var(--green-dark, #1e7f4f); }
+
+/* ข้อความแจ้งแบบมีลิงก์ (เช่นเตือนให้ติดต่อฝ่ายเพื่อเพิ่มโครงการ) */
+.toast.toast-warn { background: #fff7e6; color: #6b4300; border: 1px solid #f3c66b; }
+.toast.toast-rich { position: relative; padding-right: 34px; max-width: min(460px, calc(100vw - 32px)); line-height: 1.55; cursor: default; }
+.toast.toast-rich a { display: inline-block; margin-top: 6px; color: #0b3a75; font-weight: 700; text-decoration: underline; }
+.toast-x { position: absolute; top: 6px; right: 6px; border: 0; background: none; cursor: pointer; font-size: 14px; color: inherit; opacity: .7; }

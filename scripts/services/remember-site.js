@@ -5,12 +5,16 @@
  * ครั้งหน้าเลือกจากรายการได้เลย ไม่ต้องพิมพ์ใหม่
  *
  * เรียกหลังส่งคำขอสำเร็จ · เพิ่มไม่สำเร็จ (เช่นไม่มีสิทธิ์แก้ตั้งค่าระบบ) ไม่กระทบการส่งคำขอ
+ *   แต่แจ้งเตือนให้ติดต่อฝ่ายประสานงานและอำนวยการเพื่อเพิ่มโครงการในระบบ (มีลิงก์ไปรายชื่อบุคลากรในฝ่าย)
  * ชื่อที่มีอยู่แล้ว (รวมที่ผู้ดูแลซ่อนไว้) ไม่เพิ่มซ้ำ — ผู้ดูแลซ่อน/ลบ/แก้ชื่อได้ที่หน้าจัดการข้อมูล
  */
 import { list, create, update } from './data.js';
 import { PPE_PROJECT, PPE_SETTING, parsePpe, formatPpe } from './ppe.js';
 import { PPC_PROJECT, PPC_SETTING, PPC_OTHER, PPC_GROUPS, PPC_GROUP_LABEL } from './ppc.js';
 import { OM_PROJECT, OM_OTHER, OM_SETTING, parseOmSites, formatOmSites, defaultOmGroups } from './om.js';
+
+/** ฝ่ายที่ดูแลรายการโครงการในระบบ (ลิงก์ในข้อความเตือนเปิดรายชื่อบุคลากรในฝ่ายนี้) */
+export const SITE_ADMIN_DEPT = 'ฝ่ายประสานงานและอำนวยการ';
 
 const key = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -29,12 +33,16 @@ async function rawSetting(title) {
   return row ? String(row.Value || '') : '';
 }
 
-/** คืนข้อความบอกผู้ใช้ (เช่น "เพิ่มโครงการ … ในรายการแล้ว") หรือ '' ถ้าไม่ได้เพิ่ม */
+/**
+ * คืนข้อความบอกผู้ใช้ (เช่น "เพิ่มโครงการ … ในรายการแล้ว") · '' ถ้าไม่ต้องเพิ่ม
+ * · { failed: true, site } ถ้าเพิ่มไม่สำเร็จ (ใช้ notifyRemember แสดงข้อความเตือน)
+ */
 export async function rememberTypedSite(values = {}) {
   const project = String(values.project || '').trim();
+  let site = '';
   try {
     if (project === PPE_PROJECT) {
-      const site = String(values.ppe_site || '').trim().replace(/\s+/g, ' ');
+      site = String(values.ppe_site || '').trim().replace(/\s+/g, ' ');
       if (!site) return '';
       const cfg = parsePpe(await rawSetting(PPE_SETTING));
       if (cfg.projects.some((p) => key(p.name) === key(site))) return '';
@@ -45,7 +53,7 @@ export async function rememberTypedSite(values = {}) {
     }
     // Prime Power Construction: งานที่ไม่ใช่โครงการหลัก (โครงการหลักไม่ได้เก็บใน ppc_site)
     if (project === PPC_PROJECT) {
-      const site = String(values.ppc_site || '').trim().replace(/\s+/g, ' ');
+      site = String(values.ppc_site || '').trim().replace(/\s+/g, ' ');
       if (!site) return '';
       const cfg = parsePpe(await rawSetting(PPC_SETTING));
       if (cfg.projects.some((p) => key(p.name) === key(site))) return '';
@@ -56,7 +64,7 @@ export async function rememberTypedSite(values = {}) {
       return `เพิ่ม "${site}" ในรายการ PPC · ${PPC_GROUP_LABEL[g] || g} แล้ว ครั้งหน้าเลือกจากรายการได้เลย`;
     }
     if (project === OM_PROJECT && String(values.om_group || '').trim() === OM_OTHER) {
-      const site = String(values.om_site || '').trim().replace(/\s+/g, ' ');
+      site = String(values.om_site || '').trim().replace(/\s+/g, ' ');
       if (!site) return '';
       const raw = (await rawSetting(OM_SETTING)).trim();
       const groups = raw ? parseOmSites(raw) : [];
@@ -72,6 +80,18 @@ export async function rememberTypedSite(values = {}) {
   } catch (e) {
     // ไม่มีสิทธิ์แก้ตั้งค่าระบบ ฯลฯ — คำขอส่งสำเร็จแล้ว แค่ไม่ได้จำชื่อไว้
     console.warn('จำชื่อโครงการที่พิมพ์เองไม่สำเร็จ:', e.message);
+    if (site) return { failed: true, site };
   }
   return '';
+}
+
+/** แสดงผลการจำชื่อโครงการ: สำเร็จ = แจ้งสั้น ๆ · ไม่สำเร็จ = เตือนให้ติดต่อฝ่ายที่ดูแล พร้อมลิงก์รายชื่อบุคลากรในฝ่าย */
+export async function notifyRemember(res) {
+  const { toast, toastHtml } = await import('../components/toast.js');
+  if (typeof res === 'string') { if (res) toast('📌 ' + res); return; }
+  if (!res || !res.failed) return;
+  const { esc } = await import('../core/dom.js');
+  toastHtml(`⚠️ ยังเพิ่ม <b>“${esc(res.site)}”</b> เข้ารายการโครงการในระบบไม่ได้ (คำขอส่งเรียบร้อยแล้ว)<br>
+    กรุณาติดต่อ <b>${esc(SITE_ADMIN_DEPT)}</b> เพื่อเพิ่มโครงการในระบบ ครั้งหน้าจะได้เลือกจากรายการได้เลย<br>
+    <a href="#/directory?unit=${encodeURIComponent(SITE_ADMIN_DEPT)}">👥 ดูรายชื่อบุคลากรใน${esc(SITE_ADMIN_DEPT)} →</a>`, 'warn', 30000);
 }
