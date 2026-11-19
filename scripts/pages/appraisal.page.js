@@ -293,10 +293,12 @@ function paneMeCurrent(mine) {
       <button class="btn btn-primary" data-apopen="${mine.id}">✍ เปิดใบเพื่อลงนามรับทราบ</button>
     </div>` : ''}
 
-    ${statusTrack(mine)}
+    ${/* ขั้นตอน/สถานะรายขั้น แสดงในใบประเมินเมื่อกดเปิดดู ไม่แสดงบนหน้านี้ */
+      (submitted(mine) && !needsEmpSign(mine)) || needsEmpSign(mine) ? '' : `<div class="ap-docbar">
+      <button class="btn-mini" data-apopen="${mine.id}">📄 เปิดดูใบประเมิน · ขั้นตอนและสถานะ</button></div>`}
 
     ${editable ? '' : `<div class="panel-note ap-note">${skip
-      ? 'รอบนี้หัวหน้าเป็นผู้ประเมิน ไม่ต้องประเมินตนเอง · ติดตามสถานะได้จากแถบด้านบน'
+      ? 'รอบนี้หัวหน้าเป็นผู้ประเมิน ไม่ต้องประเมินตนเอง · กดเปิดดูใบประเมินเพื่อดูขั้นตอนและสถานะ'
       : st === S_SELF
         ? esc(g.why || 'ยังไม่เปิดให้กรอกในขณะนี้')
         : 'ส่งแบบประเมินตนเองแล้ว ดูคะแนนที่กรอกไว้ด้านล่าง'}</div>`}
@@ -323,7 +325,6 @@ function kpiMine(mine) {
       <div><b>${seeAll && sum.final !== null ? sum.final.toFixed(2) : '—'}</b><span>คะแนนสุดท้าย</span></div>
       <div><b>${seeAll ? esc(clean(mine.Grade) || sum.grade || '—') : '—'}</b><span>เกรด</span></div>
     </div>
-    ${kpiTrackHtml(mine)}
     <div class="panel ap-ack kpi-mine">
       <h3>แบบประเมิน KPI ประจำปี</h3>
       <p class="dim">${canSelf ? `ประเมินตนเองได้แล้ว${due ? ` · <b>ภายในวันที่ ${esc(new Date(due).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</b>` : ''} · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency`
