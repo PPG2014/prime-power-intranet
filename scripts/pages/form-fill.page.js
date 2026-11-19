@@ -502,7 +502,7 @@ function bindProjectHint() {
     // Prime Power Engineering Pro: ผู้อนุมัติตามที่ตั้งไว้ในหน้า 🏠 โครงการ PPE
     if (v === PPE_PROJECT) {
       const sel = document.getElementById('q_ppe_site');
-      const site = sel && sel.value === PPE_OTHER ? (document.getElementById('q_ppe_other') || {}).value : (sel && sel.value);
+      const site = sel && String(sel.value || '').trim();
       const who = ppeApproversFor(await ppeConfig(), site);
       hint.textContent = who.length ? `ผู้อนุมัติโครงการ PPE: ${who.join(', ')} (คนใดคนหนึ่ง)` : `ยังไม่ได้ตั้งผู้อนุมัติโครงการ PPE — คำขอจะส่งให้${bossTxt}อนุมัติ`;
       hint.classList.toggle('warn', !who.length);

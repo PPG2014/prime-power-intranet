@@ -293,36 +293,37 @@ function control(f, value) {
 /** ช่องเลือกโครงการ O&M (แสดงเมื่อช่องโครงการเป็น "งาน O&M") */
 function omBox(project) {
   const site = String(currentValues.om_site || '').trim();
-  const known = (lookupData._om || []).some(([, names]) => names.includes(site));
   return `<div class="q-om" id="q_om_box" ${project === OM_PROJECT ? '' : 'hidden'}>
     <label for="q_om_site">โครงการ O&amp;M <b class="req">*</b></label>
-    <select id="q_om_site">
-      <option value="">— เลือกโครงการ O&amp;M —</option>
-      ${(lookupData._om || []).map(([g, names]) => `<optgroup label="${esc(g)}">${names.map((n) =>
-        `<option value="${esc(n)}" data-group="${esc(g)}" ${n === site ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}
-      <option value="__other" ${site && !known ? 'selected' : ''}>➕ ${OM_OTHER} — เพิ่มโครงการที่ไม่มีในรายการ</option>
-    </select>
-    <input id="q_om_other" type="text" maxlength="120" placeholder="พิมพ์ชื่อโครงการ O&amp;M" autocomplete="off"
-      value="${esc(site && !known ? site : '')}" ${site && !known ? '' : 'hidden'}>
+    <div class="q-help">พิมพ์ค้นหาได้ · ไม่มีในรายการ พิมพ์ชื่อโครงการใหม่ได้เลย (ระบบเพิ่มเข้ารายการให้เมื่อส่งคำขอ)</div>
+    <input id="q_om_site" list="q_om_dl" maxlength="120" autocomplete="off" value="${esc(site)}"
+      placeholder="🔍 พิมพ์ค้นหาโครงการ O&amp;M หรือพิมพ์ชื่อใหม่">
+    <datalist id="q_om_dl">${(lookupData._om || []).flatMap(([g, names]) => names.map((n) =>
+      `<option value="${esc(n)}" label="${esc(g)}"></option>`)).join('')}</datalist>
+    <div class="q-site-note" id="q_om_note"></div>
   </div>`;
 }
+/** กลุ่มของโครงการ O&M ที่อยู่ในรายการ ('' = ไม่มีในรายการ) */
+const omGroupOf = (site) => ((lookupData._om || []).find(([, names]) => names.includes(site)) || [''])[0];
 
 /** เลือก Prime Power Engineering Pro → เลือกโครงการ PPE หรือพิมพ์ชื่อโครงการเอง */
 function ppeBox(project) {
   const site = String(currentValues.ppe_site || '').trim();
   const list = lookupData._ppe || [];
-  const known = list.includes(site);
-  const typed = !!site && !known;
   return `<div class="q-om q-ppe" id="q_ppe_box" ${project === PPE_PROJECT ? '' : 'hidden'}>
     <label for="q_ppe_site">โครงการของ Prime Power Engineering Pro <b class="req">*</b></label>
-    <select id="q_ppe_site">
-      <option value="">— เลือกโครงการ —</option>
-      ${list.map((n) => `<option value="${esc(n)}" ${n === site ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-      <option value="${PPE_OTHER}" ${typed || !list.length ? 'selected' : ''}>➕ เพิ่มชื่อโครงการเอง</option>
-    </select>
-    <input id="q_ppe_other" type="text" maxlength="150" placeholder="พิมพ์ชื่อโครงการ เช่น บ้านคุณ… 23.94 kWp" autocomplete="off"
-      value="${esc(typed ? site : '')}" ${typed || !list.length ? '' : 'hidden'}>
+    <div class="q-help">พิมพ์ค้นหาได้ · ไม่มีในรายการ พิมพ์ชื่อโครงการใหม่ได้เลย (ระบบเพิ่มเข้ารายการให้เมื่อส่งคำขอ)</div>
+    <input id="q_ppe_site" list="q_ppe_dl" maxlength="150" autocomplete="off" value="${esc(site)}"
+      placeholder="🔍 พิมพ์ค้นหาโครงการ หรือพิมพ์ชื่อใหม่ เช่น บ้านคุณ… 23.94 kWp">
+    <datalist id="q_ppe_dl">${list.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+    <div class="q-site-note" id="q_ppe_note"></div>
   </div>`;
+}
+/** ป้ายใต้ช่อง: เลือกจากรายการแล้ว / ชื่อใหม่ (จะเพิ่มเข้ารายการ) */
+function siteNote(el, note, known) {
+  const v = String(el.value || '').trim();
+  note.className = `q-site-note${v ? (known(v) ? ' ok' : ' new') : ''}`;
+  note.textContent = !v ? '' : known(v) ? '✓ เลือกจากรายการ' : '＋ ชื่อใหม่ — ระบบจะเพิ่มเข้ารายการให้เมื่อส่งคำขอ';
 }
 
 export function renderForm(fields, me, values = {}) {
@@ -414,8 +415,7 @@ export function collectForm(fields) {
     // Prime Power Engineering Pro: ต้องเลือกโครงการ PPE หรือพิมพ์ชื่อเอง
     if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._ppe) {
       if (isPpe) {
-        const sel = $('#q_ppe_site');
-        const site = sel && sel.value === PPE_OTHER ? String(($('#q_ppe_other') || {}).value || '').trim() : (sel ? sel.value : '');
+        const site = String(($('#q_ppe_site') || {}).value || '').trim().replace(/\s+/g, ' ');
         if (!site) errors.push('โครงการของ Prime Power Engineering Pro (เลือกจากรายการ หรือพิมพ์ชื่อโครงการ)');
         out.ppe_site = site;
       } else out.ppe_site = '';
@@ -423,12 +423,10 @@ export function collectForm(fields) {
     // งาน O&M: ต้องเลือกโครงการ O&M (หรือพิมพ์เองเมื่อเลือก อื่นๆ)
     if (f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects' && lookupData._om) {
       if (isOm) {
-        const sel = $('#q_om_site');
-        const opt = sel && sel.selectedOptions[0];
-        const site = sel && sel.value === '__other' ? String(($('#q_om_other') || {}).value || '').trim() : (sel ? sel.value : '');
-        if (!site) errors.push('โครงการ O&M (เลือกจากรายการ หรือเลือก "อื่นๆ" แล้วพิมพ์ชื่อ)');
+        const site = String(($('#q_om_site') || {}).value || '').trim().replace(/\s+/g, ' ');
+        if (!site) errors.push('โครงการ O&M (เลือกจากรายการ หรือพิมพ์ชื่อโครงการ)');
         out.om_site = site;
-        out.om_group = sel && sel.value === '__other' ? OM_OTHER : ((opt && opt.dataset.group) || '');
+        out.om_group = omGroupOf(site) || OM_OTHER;   // ไม่มีในรายการ = พิมพ์ชื่อใหม่ (กลุ่ม อื่นๆ)
       } else { out.om_site = ''; out.om_group = ''; }
     }
     out[f.FieldKey] = v;
@@ -649,14 +647,14 @@ export function bindForm(fields, folder) {
   if (omBoxEl) {
     const pf = fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
     const pEl = pf && $('#q_' + pf.FieldKey);
-    const sel = $('#q_om_site'); const other = $('#q_om_other');
+    const sel = $('#q_om_site'); const note = $('#q_om_note');
     const sync = () => {
       omBoxEl.hidden = !(pEl && pEl.value.trim() === OM_PROJECT);
-      other.hidden = sel.value !== '__other';
-      if (!other.hidden && !omBoxEl.hidden && document.activeElement === sel) other.focus();
+      siteNote(sel, note, (v) => !!omGroupOf(v));
     };
     if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
-    sel.addEventListener('change', sync);
+    sel.addEventListener('input', sync); sel.addEventListener('change', sync);
+    sync();
   }
 
   // Prime Power Engineering Pro: เลือกในช่องโครงการแล้วแสดงช่องโครงการ PPE · เลือก เพิ่มชื่อเอง แล้วแสดงช่องพิมพ์
@@ -664,14 +662,14 @@ export function bindForm(fields, folder) {
   if (ppeBoxEl) {
     const pf = fields.find((f) => f.FieldType === 'lookup' && String(f.Options || '').trim() === 'projects');
     const pEl = pf && $('#q_' + pf.FieldKey);
-    const sel = $('#q_ppe_site'); const other = $('#q_ppe_other');
+    const sel = $('#q_ppe_site'); const note = $('#q_ppe_note');
     const sync = () => {
       ppeBoxEl.hidden = !(pEl && pEl.value.trim() === PPE_PROJECT);
-      other.hidden = sel.value !== PPE_OTHER;
-      if (!other.hidden && !ppeBoxEl.hidden && document.activeElement === sel) other.focus();
+      siteNote(sel, note, (v) => (lookupData._ppe || []).includes(v));
     };
     if (pEl) { pEl.addEventListener('input', sync); pEl.addEventListener('change', sync); }
-    sel.addEventListener('change', sync);
+    sel.addEventListener('input', sync); sel.addEventListener('change', sync);
+    sync();
   }
 
   // ช่องที่แสดงตามเงื่อนไข ต้องอัปเดตทันทีเมื่อค่าที่อ้างถึงเปลี่ยน
