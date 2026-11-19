@@ -19,7 +19,7 @@ import { eqManagersHost, bindEqManagers, saveEqManagers } from '../components/eq
 import { cycleGridHost, bindCycleGrid, readCycleGrid, saveCycleGrid, gridProblems } from '../components/attendance-grid.js';
 import { omEditorHtml, bindOmEditor, omHasUnsaved } from '../admin/om-editor.js';
 import { solarPriceHtml, bindSolarPriceEditor, solarPriceUnsaved } from '../admin/solar-price-editor.js';
-import { ppeEditorHtml, bindPpeEditor, ppeHasUnsaved } from '../admin/ppe-editor.js';
+import { ppeEditorHtml, bindPpeEditor, ppeHasUnsaved, ppcEditorHtml, bindPpcEditor, ppcHasUnsaved } from '../admin/ppe-editor.js';
 import { mileageEditorHtml, bindMileageEditor, mileageHasUnsaved } from '../admin/mileage-editor.js';
 import { holidayEditorHtml, bindHolidayEditor, holidayHasUnsaved } from '../admin/holiday-editor.js';
 import { kpiCriteriaHtml, bindKpiCriteriaEditor, kpiCriteriaUnsaved } from '../admin/kpi-criteria-editor.js';
@@ -29,6 +29,7 @@ import { pbCriteriaHtml, bindPbCriteriaEditor, pbCriteriaUnsaved } from '../admi
 const VIRTUAL = {
   omProjects: { icon: '🔧', title: 'โครงการ O&M', html: omEditorHtml, bind: bindOmEditor, unsaved: omHasUnsaved, label: 'โครงการ O&M' },
   ppeProjects: { icon: '🏠', title: 'โครงการ PPE', html: ppeEditorHtml, bind: bindPpeEditor, unsaved: ppeHasUnsaved, label: 'โครงการ PPE' },
+  ppcJobs: { icon: '🏗️', title: 'งาน PPC', html: ppcEditorHtml, bind: bindPpcEditor, unsaved: ppcHasUnsaved, label: 'งาน PPC' },
   mileage: { icon: '🚗', title: 'ค่าพาหนะ', html: mileageEditorHtml, bind: bindMileageEditor, unsaved: mileageHasUnsaved, label: 'ค่าพาหนะ' },
   holidays: { icon: '📅', title: 'วันหยุดบริษัทฯ', html: holidayEditorHtml, bind: bindHolidayEditor, unsaved: holidayHasUnsaved, label: 'วันหยุดบริษัทฯ' },
   pbCriteria: { icon: '📋', title: 'เกณฑ์ประเมินผ่านงาน', html: pbCriteriaHtml, bind: bindPbCriteriaEditor, unsaved: pbCriteriaUnsaved, label: 'เกณฑ์ประเมินผ่านงาน' },
@@ -38,7 +39,7 @@ const VIRTUAL = {
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
 /** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
 const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers', 'EquipmentManagers'];
-const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'MileageRates', 'CompanyHolidays', 'KpiCriteria', 'ProbationCriteria'];
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'PPCJobs', 'MileageRates', 'CompanyHolidays', 'KpiCriteria', 'ProbationCriteria'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -57,7 +58,7 @@ function allowedSets() {
   if (!state.isAdmin) return [...withKpi(all.filter((k) => SCHEMA[k].hr)), 'mileage', 'holidays'];   // ฝ่ายบุคคลตั้งค่าพาหนะ/วันหยุด/เกณฑ์ KPI ได้
   withKpi(all);
   const i = all.indexOf('projects');
-  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'solarPrices', 'mileage', 'holidays');   // ต่อจากทะเบียนโครงการ
+  all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'ppcJobs', 'solarPrices', 'mileage', 'holidays');   // ต่อจากทะเบียนโครงการ
   return all;
 }
 
