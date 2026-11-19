@@ -149,7 +149,7 @@ export async function formBody(schema, record = {}) {
     } else if (f.type === 'photo') {
       draftPhotos[f.key] = v || '';
       input = `<div class="photo-field">
-        <div class="photo-preview" id="${id}_prev">${v
+        <div class="photo-preview${f.keepRatio ? ' keep' : ''}" id="${id}_prev">${v
           ? `<img data-photo="${esc(v)}" alt="">` : '<span>ยังไม่มีรูป</span>'}</div>
         <div class="photo-actions">
           <label class="btn-mini upload-btn" for="${id}_file">เลือกรูป</label>
@@ -157,8 +157,9 @@ export async function formBody(schema, record = {}) {
           <button type="button" class="btn-mini danger" id="${id}_clear">ลบรูป</button>
         </div>
         <div class="photo-status" id="${id}_status"></div>
-        <div class="field-help">รูปติดบัตรแนวตั้ง ถ่ายจากมือถือได้เลย ไม่ต้องย่อมาก่อน<br>
-          ระบบครอปเป็นสัดส่วน 3:4 และย่อให้อัตโนมัติ</div>
+        <div class="field-help">${f.keepRatio
+          ? 'เซ็นบนกระดาษขาวแล้วถ่ายรูป หรือใช้ไฟล์ PNG/JPG ได้เลย<br>ระบบคงสัดส่วนเดิม (ไม่ครอป) เติมพื้นขาว และย่อให้อัตโนมัติ'
+          : 'รูปติดบัตรแนวตั้ง ถ่ายจากมือถือได้เลย ไม่ต้องย่อมาก่อน<br>ระบบครอปเป็นสัดส่วน 3:4 และย่อให้อัตโนมัติ'}</div>
       </div>
       <input type="hidden" id="${id}">`;
     } else if (f.type === 'multilookup') {

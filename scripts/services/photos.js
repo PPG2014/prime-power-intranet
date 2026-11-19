@@ -40,6 +40,9 @@ export function resizeImage(file, mode = 'card') {
         const scale = Math.min(1, KEEP_MAX / Math.max(img.width, img.height));
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
+        // รูปพื้นใส (เช่นลายเซ็น PNG) บันทึกเป็น JPG แล้วพื้นจะกลายเป็นสีดำ → เติมพื้นขาวก่อน
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       } else {
         // ครอปจากกลางภาพให้ได้สัดส่วน 3:4 ก่อน แล้วค่อยย่อ

@@ -45,6 +45,7 @@ let allRequests = [];
 let stepCache = {};
 let me = '';
 let meIds = [];
+let mySig = '';        // ลายเซ็นของผู้ใช้ในทะเบียนบุคลากร (ใช้เป็นลายเซ็นผู้อนุมัติอัตโนมัติ)
 let olderCount = 0;   // จำนวนคำขอเก่าที่ถูกซ่อนไว้
 let notInDir = false; // หาผู้ใช้ในทะเบียนบุคลากรไม่เจอ → ระบบไม่รู้ว่าเป็นผู้อนุมัติใบไหน
 let showBoard = false;   // แสดงกระดานคิว Messenger + การใช้รถ ด้านบนหน้า
@@ -319,6 +320,7 @@ export async function render(ctx) {
   const dirAll = await list('directory').catch(() => []);
   const mePerson = findMe(dirAll);
   me = (mePerson && mePerson.Title) || state.user?.name || '';
+  mySig = String((mePerson && mePerson.SignatureUrl) || '').trim();
   meIds = [me, state.user?.name, state.user?.email].filter(Boolean);
   const isAdmin = !!state.isAdmin;
   const seeAll = isAdmin || !!state.isViewer;   // แอดมิน + ผู้บริหาร เห็นคำขอทุกใบ
@@ -1305,8 +1307,8 @@ function purchaseBox(req, role) {
       <textarea id="rq-note" rows="2" placeholder="รายละเอียดเพิ่มเติม"></textarea>
       ${signed ? '' : `<details class="rq-sign" open>
         <summary><b>✍ ลายเซ็นฝ่ายจัดซื้อ</b> <b class="req">*</b>
-          <span class="dim">— เซ็นครั้งแรกครั้งเดียว ลงช่องฝ่ายจัดซื้อในใบขอสั่งซื้อ</span></summary>
-        ${signaturePad('approver', '', true)}
+          <span class="dim">— เซ็นครั้งแรกครั้งเดียว ลงช่องฝ่ายจัดซื้อในใบขอสั่งซื้อ${mySig ? ' · ใช้ลายเซ็นในทะเบียนบุคลากรให้อัตโนมัติ (เซ็นใหม่เพื่อเปลี่ยน)' : ''}</span></summary>
+        ${signaturePad('approver', mySig, true)}
       </details>`}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
@@ -1407,10 +1409,12 @@ function actionBox(req, role) {
       <textarea id="rq-note" rows="3" placeholder="พิมพ์เหตุผลหรือความเห็นประกอบการพิจารณา"></textarea>
       ${isCarRequest(req) && role.isLastStep ? platePicker(role.carPlates, carData(req).car_plate, 'rq-plate') : ''}
       ${role.wantsSign ? `<details class="rq-sign"${isWelfareRoom({ Title: req.FormName }) || isPR(req.FormCode) ? ' open' : ''}>
-        <summary><b>✍ ลายเซ็นผู้อนุมัติ</b>${isPR(req.FormCode)
-          ? ' <b class="req">*</b> <span class="dim">— จำเป็น: วาดหรืออัปโหลดลายเซ็นก่อนกดอนุมัติ ลงช่องของขั้นนี้ในใบขอสั่งซื้อ</span>'
-          : ' <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span>'}</summary>
-        ${signaturePad('approver', '', true)}
+        <summary><b>✍ ลายเซ็นผู้อนุมัติ</b>${mySig
+          ? `${isPR(req.FormCode) ? ' <b class="req">*</b>' : ''} <span class="dim">— ใช้ลายเซ็นในทะเบียนบุคลากรให้อัตโนมัติ ไม่ต้องอัปโหลดซ้ำ (เซ็นใหม่เฉพาะเมื่อต้องการเปลี่ยน)</span>`
+          : isPR(req.FormCode)
+            ? ' <b class="req">*</b> <span class="dim">— จำเป็น: วาดหรืออัปโหลดลายเซ็นก่อนกดอนุมัติ ลงช่องของขั้นนี้ในใบขอสั่งซื้อ · เพิ่มลายเซ็นในทะเบียนบุคลากรไว้ ครั้งหน้าจะใช้ให้อัตโนมัติ</span>'
+            : ' <span class="dim">— ใส่ในเอกสารที่ส่งออก (ไม่เซ็นใหม่ใช้ลายเซ็นในทะเบียน)</span>'}</summary>
+        ${signaturePad('approver', mySig, true)}
       </details>` : ''}
       <div class="field-error" id="rq-err" hidden></div>
       <div class="rq-buttons">
@@ -1470,7 +1474,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
   const note = () => $('#rq-note').value.trim();
   // ใบขอสั่งซื้อ: ทุกขั้นต้องวาด/อัปโหลดลายเซ็นก่อนอนุมัติ (ข้ามขั้น/ส่งกลับ/ไม่อนุมัติ ไม่ต้องเซ็น)
   const signedNow = () => {
-    if (!isPR(req.FormCode) || !role.wantsSign || previewSignature('approver')) return true;
+    if (!isPR(req.FormCode) || !role.wantsSign || previewSignature('approver') || mySig) return true;
     fail('กรุณาลงลายเซ็นก่อนกดอนุมัติ — ลากเมาส์/นิ้วเซ็นในกรอบ "ลายเซ็นผู้อนุมัติ" หรือกด "อัปโหลดรูป"');
     const pad = $('.sig-pad[data-sig="approver"]');
     if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1509,7 +1513,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     if (action === 'ส่งกลับแก้ไข' && !confirm('ส่งกลับให้ผู้ยื่นแก้ไข? เมื่อยื่นใหม่จะเริ่มอนุมัติตั้งแต่ลำดับแรก')) return;
     busy(true);
     try {
-      const sig = action === 'อนุมัติ' && role.wantsSign ? await readSignature('approver', signFolder) : '';
+      const sig = action === 'อนุมัติ' && role.wantsSign ? (await readSignature('approver', signFolder) || mySig) : '';
       // ใบขอสั่งซื้อ: อัปโหลดลายเซ็นไม่สำเร็จ = ห้ามอนุมัติ
       if (action === 'อนุมัติ' && isPR(req.FormCode) && role.wantsSign && !sig) {
         busy(false); fail('บันทึกลายเซ็นไม่สำเร็จ กรุณาเซ็นหรืออัปโหลดลายเซ็นใหม่ แล้วกดอนุมัติอีกครั้ง'); return;
@@ -1544,7 +1548,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     }
     if (pv.pr_no && !prNo && !confirm(`ลบเลข PR "${pv.pr_no}" ออกจากใบขอสั่งซื้อนี้?`)) return;
     const needSign = !!document.querySelector('.sig-pad[data-sig="approver"]');
-    if (needSign && !previewSignature('approver')) {
+    if (needSign && !previewSignature('approver') && !mySig) {
       fail('กรุณาลงลายเซ็นฝ่ายจัดซื้อก่อนบันทึกครั้งแรก — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"');
       return;
     }
@@ -1570,7 +1574,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
           return;
         }
       }
-      const sig = needSign ? await readSignature('approver', signFolder) : '';
+      const sig = needSign ? (await readSignature('approver', signFolder) || mySig) : '';
       if (needSign && !sig) { busy(false); ps.disabled = false; fail('บันทึกลายเซ็นไม่สำเร็จ กรุณาเซ็นหรืออัปโหลดลายเซ็นใหม่'); return; }
       const extra = note();
       const parts = [stChanged || (!prChanged && st && st !== '-') ? st : '',
@@ -1599,7 +1603,7 @@ function bindActions(req, steps, role, formRow = { FormCode: req.FormCode, Title
     const teams = await import('../services/teams-notify.js');
     const tokenP = teams.teamsToken().catch((e) => e);
     try {
-      const sig = role.wantsSign ? await readSignature('approver', signFolder) : '';
+      const sig = role.wantsSign ? (await readSignature('approver', signFolder) || mySig) : '';
       const msg = note();
       await decide(req, steps, { action: 'อนุมัติ', by: me, note: msg, sig, slip: pendingSlip, closeAfter: true });
       // แจ้งผู้ยื่นทาง Teams พร้อมรูปสลิป — ไม่สำเร็จก็ไม่กระทบการอนุมัติที่บันทึกแล้ว
