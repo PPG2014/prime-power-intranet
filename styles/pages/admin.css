@@ -356,3 +356,7 @@ td[data-col="Badge"] { white-space: nowrap; }
 .ppe-grp { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; background: #fff; }
 .ppe-gnote { font-size: 13px; margin: -2px 0 6px; }
 .ppe-default { font-size: 13px; color: #1e7f4f; background: #e9f7ef; border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
+
+/* ช่องรูปที่คงสัดส่วน (ลายเซ็น): กรอบกว้าง แสดงทั้งรูปไม่ครอป บนพื้นขาว */
+.photo-preview.keep { width: 240px; height: 96px; background: #fff; }
+.photo-preview.keep img { object-fit: contain; }
