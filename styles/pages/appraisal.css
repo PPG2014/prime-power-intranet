@@ -210,3 +210,9 @@
 .ap-sum-locked .ap-sum2 input { background: #e9ecef; color: #6c757d; border-color: #dee2e6; cursor: not-allowed; }
 .ap-sum-locked .ap-sum input[type=radio] { cursor: not-allowed; }
 .ap-sum-locked .ap-sum label { cursor: not-allowed; }
+
+/* ประวัติการประเมิน: ป้ายชุดแบบประเมิน + วันที่สร้าง */
+.ap-set { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: .82em; font-weight: 600; background: #eef2f7; color: #475569; white-space: nowrap; }
+.ap-set.kpi { background: #e3f0fb; color: #0b4f8a; }
+.ap-set.prob { background: #e9f7ef; color: #1e7f4f; }
+.ap-hdate { font-size: .8em; }
