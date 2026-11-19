@@ -19,6 +19,9 @@ $('#fs').onclick = () => document.fullscreenElement ? document.exitFullscreen() 
 document.addEventListener('keydown', e => { if (e.key === 'f') $('#fs').click(); });
 
 const dec = () => Number(S.event?.decimals ?? 2);
+/** ซ่อนตัวเลขคะแนนระหว่างประกวด (ตั้งที่ แอดมิน → หน้าจอแสดงผล) · โหมดประกาศผล/สรุปผล/ผลโหวตแสดงตัวเลขเสมอ */
+const hideNums = () => S.event?.display?.hideScores !== false;
+const CHECK = (cls = '') => `<span class="ok-check ${cls}">✓</span>`;
 const fmtT = n => fmt(n, dec());
 
 // ---------- background: theme / chroma / looping image-GIF-video ----------
@@ -169,13 +172,21 @@ function updateLowerThird() {
   if ($$('.lt-j[data-j]').length !== C.judges.length || $$('.lt-j[data-j]').some((el, i) => el.dataset.j !== C.judges[i]?.id)) { curView = null; return render(); }
   e.per.forEach(p => {
     const el = $(`.lt-j[data-j="${p.judge.id}"]`); if (!el) return;
-    const sc = $('.lt-sc', el), txt = jtxt(p.total);
-    if (sc.textContent !== txt) { sc.textContent = txt; if (p.total != null) popIn(el); }
+    const sc = $('.lt-sc', el), txt = hideNums() ? (p.total != null ? CHECK() : '–') : esc(jtxt(p.total));
+    if (sc._h !== txt) { sc._h = txt; sc.innerHTML = txt; if (p.total != null) popIn(el); }
     el.classList.toggle('done', p.total != null);
     const src = mediaSrc(S, p.judge.photo); setImg($('img', el), src); $('.lt-av', el).classList.toggle('has', !!src);
   });
-  const avg = $('#ltAvg'), t = e.total;
-  if (t == null) { avg.textContent = '–'; avg._v = 0; }
+  const avg = $('#ltAvg'), t = e.total, nJ = C.judges.length;
+  $('.lt-jn', avg.closest('.lt-j')).textContent = hideNums() ? 'สถานะ' : C.aggLabel;
+  $('.lt-av span', avg.closest('.lt-j')).textContent = hideNums() ? '✓' : (C.method === 'sum' ? 'Σ' : 'AVG');
+  if (hideNums()) {
+    const done = nJ && e.count >= nJ, h = done ? CHECK('lg') : `${e.count}/${nJ}`;
+    if (avg._h !== h) { avg._h = h; avg.innerHTML = h; avg._v = undefined; if (done) popIn(avg.closest('.lt-j')); }
+    avg.closest('.lt-j').classList.toggle('lt-done', !!done);
+  } else if (avg._h !== undefined) { avg._h = undefined; avg.textContent = '–'; avg._v = 0; avg.closest('.lt-j').classList.remove('lt-done'); }
+  if (hideNums()) { /* ซ่อนตัวเลข */ }
+  else if (t == null) { avg.textContent = '–'; avg._v = 0; }
   else if (avg._v !== t) { tween(avg, t, 700); popIn(avg.closest('.lt-j')); }
   const photo = mediaSrc(S, e.photo); setImg($('#ltImg'), photo); $('.lt-photo').classList.toggle('has', !!photo);
 }
@@ -228,8 +239,11 @@ function updateBoard(ranked, reveal, pop = false) {
       setImg(th, mediaSrc(S, r.photo));
       nameB.textContent = (r.code ? r.code + ' · ' : '') + r.name; nameS.textContent = r.owner || '';
       $('.bar i', el).style.width = Math.min(100, (r.total ?? 0) / maxT * 100) + '%';
-      $('.score small', el).textContent = pop ? 'โหวต' : reveal ? 'คะแนน' : `${r.count}/${nJ} กรรมการ`;
-      if (r.total == null) { sc.textContent = '–'; sc._v = 0; }
+      const noNum = !pop && !reveal && hideNums();   // อันดับสด: แสดงแค่แถบ ไม่บอกตัวเลข
+      el.classList.toggle('nonum', noNum);
+      $('.score small', el).textContent = noNum ? '' : pop ? 'โหวต' : reveal ? 'คะแนน' : `${r.count}/${nJ} กรรมการ`;
+      if (noNum) { sc.textContent = ''; sc._v = 0; }
+      else if (r.total == null) { sc.textContent = '–'; sc._v = 0; }
       else if (sc._v !== r.total) {
         const changed = sc._v != null && sc._v !== 0 && !reveal;
         tween(sc, r.total, 1300, pop);
@@ -314,13 +328,23 @@ function updateSpotlight() {
   const nJ = C.judges.length;
   e.per.forEach(p => {
     const el = $(`.sj[data-j="${p.judge.id}"]`); if (!el) return;
-    const s = $('.sj-s', el), txt = jtxt(p.total);
-    if (s.textContent !== txt) { s.textContent = txt; if (p.total != null) popIn(el); }
+    const s = $('.sj-s', el), txt = hideNums() ? (p.total != null ? CHECK() : '–') : esc(jtxt(p.total));
+    if (s._h !== txt) { s._h = txt; s.innerHTML = txt; if (p.total != null) popIn(el); }
     el.classList.toggle('done', p.total != null);
   });
   setRing($('#spRing'), nJ ? e.count / nJ : 0);
   $('.val', $('#spRing')).innerHTML = `${e.count}/${nJ}<small>กรรมการ</small>`;
   const tv = $('#spTotal');
+  if (hideNums()) {
+    // ระหว่างประกวด: ไม่บอกคะแนน — ครบทุกกรรมการ = ติ๊กถูกใหญ่เรืองแสง
+    const done = nJ && e.count >= nJ, h = done ? CHECK('xl') : '<span class="sp-wait"><i></i><i></i><i></i></span>';
+    if (tv._h !== h) { tv._h = h; tv.innerHTML = h; tv._v = undefined; if (done) popIn(tv); }
+    $('.sp-tl').textContent = done ? 'โหวตเสร็จสิ้น' : 'รอกรรมการให้คะแนน';
+    $('#spOf').textContent = done ? `กรรมการครบ ${nJ} คน` : `ส่งแล้ว ${e.count}/${nJ} คน`;
+    return;
+  }
+  if (tv._h !== undefined) { tv._h = undefined; tv.textContent = '–'; tv._v = 0; }
+  $('.sp-tl').textContent = C.aggLabel;
   if (e.total == null) { tv.textContent = '–'; tv._v = 0; } else if (tv._v !== e.total) tween(tv, e.total);
   $('#spOf').textContent = `เต็ม ${fmtS(C.maxTotal)}`;
 }

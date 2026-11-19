@@ -127,7 +127,7 @@ export const statusPill = s => { const m = STATUS[s] || STATUS.setup; return `<s
 export const DEFAULT_EVENT = {
   title: DEFAULT_TITLE, voteOpen: false, subtitle: '', round: 'รอบตัดสิน', status: 'setup', view: 'lowerthird', method: 'avg', scale: 10,
   decimals: 2, step: '0.1', allowEdit: false, judgeMode: 'follow',
-  display: { bg: 'green', ltPos: 'bottom', ltScale: 100, showTitle: false },
+  display: { bg: 'green', ltPos: 'bottom', ltScale: 100, showTitle: false, hideScores: true },
   results: { title: 'สรุปผลการประกวด', subtitle: '', awards: ['ชนะเลิศ', 'รองชนะเลิศอันดับ 1', 'รองชนะเลิศอันดับ 2'], showJudges: false, limit: 0 },
 };
 
