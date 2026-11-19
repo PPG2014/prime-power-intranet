@@ -272,13 +272,8 @@ function paneMeCurrent(mine) {
   const skip = noSelf(mine);     // รอบที่หัวหน้าประเมินอย่างเดียว ไม่มีแบบประเมินตนเอง
   const editable = !skip && st === S_SELF && g.ok;
 
+  // การ์ดสรุป (สถานะ/คะแนน/เกรด) และแถบขั้นตอน แสดงในใบประเมินเมื่อกดเปิดดู ไม่แสดงบนหน้านี้
   return `
-    <div class="ap-stats">
-      <div><b>${pill(st, mine)}</b><span>สถานะของฉัน</span></div>
-      ${skip ? '' : `<div><b>${fix(mine.SelfScore)}</b><span>คะแนนประเมินตนเอง</span></div>`}
-      <div><b>${fix(mine.MgrScore)}</b><span>คะแนนจากหัวหน้า</span></div>
-      <div><b>${esc(gradeText(mine))}</b><span>เกรดสรุป</span></div>
-    </div>
 
     ${submitted(mine) && !needsEmpSign(mine) ? `<div class="ap-docbar">
       <button class="btn-mini" data-apopen="${mine.id}">📄 เปิดดูใบประเมิน</button>
@@ -316,15 +311,8 @@ function kpiMine(mine) {
   const canSelf = st === S_SELF && ph === 'self' && !noSelf(mine) && g.ok;
   const due = (extraOf(mine).kpi || {}).selfDue;
   const ownFc = st === S_SELF && ph === 'fc' && kpiFcBySelf(mine);   // MG: กำหนดหัวข้อเฉพาะตำแหน่งของตัวเอง
-  const seeAll = [S_ACK, DONE].includes(st);
-  const sum = summarize(mine);
+  // การ์ดสรุปและขั้นตอน แสดงในแบบประเมินเมื่อกดเปิดดู
   return `
-    <div class="ap-stats">
-      <div><b>${pill(st, mine)}</b><span>สถานะของฉัน</span></div>
-      ${noSelf(mine) ? '' : `<div><b>${sum.total.self === null ? '—' : sum.total.self.toFixed(2)}</b><span>คะแนนประเมินตนเอง</span></div>`}
-      <div><b>${seeAll && sum.final !== null ? sum.final.toFixed(2) : '—'}</b><span>คะแนนสุดท้าย</span></div>
-      <div><b>${seeAll ? esc(clean(mine.Grade) || sum.grade || '—') : '—'}</b><span>เกรด</span></div>
-    </div>
     <div class="panel ap-ack kpi-mine">
       <h3>แบบประเมิน KPI ประจำปี</h3>
       <p class="dim">${canSelf ? `ประเมินตนเองได้แล้ว${due ? ` · <b>ภายในวันที่ ${esc(new Date(due).toLocaleDateString('th-TH', { dateStyle: 'medium' }))}</b>` : ''} · ให้คะแนนรายข้อ 0–10 ทั้ง Part 1 Skill / Functional Competency และ Part 2 Behavioral Competency`
