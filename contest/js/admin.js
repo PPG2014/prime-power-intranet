@@ -439,6 +439,7 @@ function tDisplay(el) {
       <div class="card"><h3>แถบคะแนน</h3><p class="sub">ตำแหน่งและขนาดของแถบคะแนนกรรมการ</p>
         <div id="posSeg">${seg([['bottom', 'ล่าง'], ['center', 'กลาง'], ['top', 'บน']], d.ltPos || 'bottom', 'pos')}</div>
         <label class="field" style="margin-top:14px"><span>ขนาด <b id="scaleV">${d.ltScale || 100}%</b></span><input type="range" min="60" max="150" step="5" value="${d.ltScale || 100}" id="scale" style="width:100%;accent-color:var(--accent)"></label>
+        <label class="switch"><span>ซ่อนตัวเลขคะแนนระหว่างประกวด<br><small class="dim">แถบคะแนน/ทีมปัจจุบัน แสดง ✓ เมื่อกรรมการให้คะแนนแล้ว · อันดับสดแสดงแค่แถบ · ประกาศผลและสรุปผลยังแสดงคะแนน</small></span><input type="checkbox" id="hideScores" ${d.hideScores !== false ? 'checked' : ''}></label>
         <label class="switch"><span>แสดงชื่องานด้านบนในโหมดแถบคะแนน<br><small class="dim">เฉพาะจอที่ไม่ได้บังคับพื้นหลังด้วยลิงก์</small></span><input type="checkbox" id="showTitle" ${d.showTitle ? 'checked' : ''}></label>
       </div>
     </div></div>`;
@@ -450,6 +451,7 @@ function tDisplay(el) {
   $('#scale').oninput = x => { $('#scaleV').textContent = x.target.value + '%'; };
   $('#scale').onchange = x => store.set('event/display/ltScale', Number(x.target.value));
   $('#showTitle').onchange = x => store.set('event/display/showTitle', x.target.checked);
+  $('#hideScores').onchange = x => store.set('event/display/hideScores', x.target.checked);
   $('#bgUp').onchange = x => uploadBg('_global', x.target.files[0]);
   $('#bgLink').onclick = () => linkBg('_global');
   $('#bgRm').onclick = async () => { await removeBg('_global'); await store.remove('media/bg'); };
@@ -468,6 +470,7 @@ function updateDisplayTab() {
   if (document.activeElement !== $('#dim')) { $('#dim').value = d.dim ?? 30; $('#dimV').textContent = (d.dim ?? 30) + '%'; }
   if (document.activeElement !== $('#scale')) { $('#scale').value = d.ltScale || 100; $('#scaleV').textContent = (d.ltScale || 100) + '%'; }
   $('#showTitle').checked = !!d.showTitle;
+  $('#hideScores').checked = d.hideScores !== false;
   const gm = d.bgMedia, lg = mediaSrc(S, 'logo'), oldImg = mediaSrc(S, 'bg');
   const bgKey = JSON.stringify(gm || null) + (oldImg ? oldImg.length : 0);
   if ($('#bgThumb')._s !== bgKey) {
