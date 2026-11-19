@@ -115,7 +115,7 @@ export const SCHEMA = {
               Department: 'ฝ่าย', Section: 'แผนก' },
     fields: [
       { key: 'PhotoUrl', label: 'รูปภาพ', type: 'photo' },
-      { key: 'SignatureUrl', label: 'ลายเซ็น (ถ้าต้องการให้แสดงในเอกสาร)', type: 'photo', keepRatio: true,
+      { key: 'SignatureUrl', label: 'ลายเซ็น (ถ้าต้องการให้แสดงในเอกสาร)', type: 'photo', keepRatio: true, sign: true,
         help: 'ทางเลือก · ระบบบันทึกชื่อและวันเวลาอนุมัติอยู่แล้ว ลายเซ็นเป็นเพียงส่วนเสริม' },
       { key: 'Title', label: 'ชื่อ-สกุล (ไทย)', type: 'text', required: true },
       { key: 'Nickname', label: 'ชื่อเล่น', type: 'text' },
