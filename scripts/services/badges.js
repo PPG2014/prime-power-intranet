@@ -10,7 +10,7 @@ import { list, listRecent, RECENT_REQUESTS } from './data.js';
 import { findMe } from './me.js';
 import { state, setState } from '../core/state.js';
 import { stepsOf, loadResolved, roleOnRequest, parseLog } from './requests.js';
-import { openCycles, sheets, appraisalTodo, clean } from './appraisal.js';
+import { openCycles, sheets, appraisalTodo, clean, belongsTo } from './appraisal.js';
 
 const LIVE = ['รออนุมัติ'];
 const low = (v) => String(v || '').trim().toLowerCase();
@@ -97,8 +97,7 @@ async function countAppraisal(person) {
   // นับทุกรอบที่เปิดอยู่ ไม่ใช่แค่รอบแรก
   const cycles = await openCycles();
   if (!cycles.length) return 0;
-  const titles = new Set(cycles.map((c) => clean(c.Title)));
-  const rows = (await sheets('')).filter((r) => titles.has(clean(r.CycleName)));
+  const rows = (await sheets('')).filter((r) => cycles.some((c) => belongsTo(r, c)));
   return appraisalTodo({
     cycles, rows, email: state.user?.email, person, isAdmin: state.isAdmin, isHR: state.isHR,
   }).total;

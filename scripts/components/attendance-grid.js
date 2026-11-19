@@ -7,7 +7,7 @@
  */
 import { esc, $, $$ } from '../core/dom.js';
 import { list, update } from '../services/data.js';
-import { extraOf, clean, ROUND_DAYS, roundKey, isProbationSet, rolesOf, isKpiSet, kpiFormOf, afterCutoff } from '../services/appraisal.js';
+import { extraOf, clean, ROUND_DAYS, roundKey, isProbationSet, rolesOf, isKpiSet, kpiFormOf, afterCutoff, cycleOfSheet } from '../services/appraisal.js';
 
 /** ผู้รับผิดชอบแต่ละขั้นของใบ — คีย์ในตาราง, หัวคอลัมน์, คำอธิบายเมื่อเว้นว่าง */
 const ROLES = [
@@ -77,7 +77,7 @@ function historyOf(older) {
   [...older].sort((a, b) => (+a.id || 0) - (+b.id || 0)).forEach((r) => {
     const x = extraOf(r);
     if (x.startDate) out.start = x.startDate;
-    const cyc = cycles.find((c) => clean(c.Title) === clean(r.CycleName));
+    const cyc = cycleOfSheet(r, cycles);
     const k = cyc && roundKey(cyc.Round);
     if (k && cyc.RoundDate) out[k] = String(cyc.RoundDate).slice(0, 10);
     (x.rounds || []).forEach((o) => { if (o.date) out[o.key] = o.date; });
