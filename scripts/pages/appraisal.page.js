@@ -8,7 +8,7 @@ import {
   submitSelf, submitManager, hrReview, hrSign, executiveDecide, sendBack, acknowledge,
   signsOf, empSigned, hrSigned, needsEmpSign,
   S_SELF, S_MGR, S_HR, S_BOSS, S_ACK, isApproverLevel, appraisalTodo, noSelf,
-  canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, sheetIsKpi, schemeOf,
+  canHrReview, canBossApprove, inApproveScope, rolesOf, isKpiSet, sheetIsKpi, schemeOf, belongsTo,
 } from '../services/appraisal.js';
 import { openKpiSheet, kpiStatusLabel, kpiTrackHtml } from '../components/kpi-sheet.js';
 import { kpiDashboardHtml, bindKpiDashboard } from '../components/kpi-dashboard.js';
@@ -121,8 +121,8 @@ export async function render(ctx) {
   secs = await criteriaOf(cycle);
   scheme = schemeOf(cycle?.FormSet);
   if (liveCycles.some((c) => isKpiSet(c.FormSet)) || isKpiSet(cycle?.FormSet)) await loadKpiConfig();   // เกณฑ์ KPI รายปี
-  const titles = new Set(liveCycles.map((c) => clean(c.Title)));
-  const loadRows = async () => markKpi((await sheets('')).filter((r) => titles.has(clean(r.CycleName))), liveCycles);
+  // ใบของรอบที่เปิดอยู่: ชื่อรอบ + ชนิดแบบประเมินตรงกัน (ใบ KPI เก่าชื่อรอบซ้ำไม่ปนเข้ามา · ยังเห็นในประวัติ)
+  const loadRows = async () => markKpi((await sheets('')).filter((r) => liveCycles.some((c) => belongsTo(r, c))), liveCycles);
   rows = await loadRows();
 
   // สร้างใบประเมินที่ยังขาดให้เอง ไม่ต้องรอผู้ดูแลกดปุ่มทุกครั้ง
@@ -768,7 +768,7 @@ export function mount(ctx) {
   onClick('apexport', (id) => { const r = rows.find((x) => String(x.id) === String(id)); if (r) exportProbation(r); });
   // ใบของรอบเก่า: ใช้หัวข้อประเมินและสถานะของรอบนั้นชั่วคราว (รอบที่ปิดแล้วเปิดดูอย่างเดียว)
   const withCycleOf = async (r, fn) => {
-    const c = allCycles.find((x) => clean(x.Title) === clean(r.CycleName))
+    const c = cycleOfSheet(r, allCycles)
       || { Title: clean(r.CycleName), FormSet: clean(r.FormSet), Status: 'ปิด' };
     const saved = { cycle, secs, scheme };
     cycle = c;

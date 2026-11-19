@@ -76,7 +76,17 @@ export async function openCycles() {
 
 /** รอบของใบประเมินใบหนึ่ง (จับจากชื่อรอบในใบ) */
 export const cycleOfSheet = (row, cycles = []) =>
-  cycles.find((c) => clean(c.Title) === clean(row && row.CycleName)) || null;
+  cycles.find((c) => belongsTo(row, c)) || null;
+
+/**
+ * ใบนี้เป็นของรอบนี้หรือไม่: ชื่อรอบตรงกัน และชนิดแบบประเมินไม่ขัดกัน
+ * ใบที่สร้างตอนรอบเป็น KPI (มีข้อมูล KPI ในใบ) ไม่นับเป็นของรอบที่ไม่ใช่ KPI แม้ชื่อซ้ำกัน
+ * — กันกรณีแก้รอบเดิม/สร้างรอบใหม่ชื่อเดิม (เช่น "รอบที่ 1") จาก KPI เป็นแบบผ่านงาน แล้วระบบเปิดใบ KPI เก่าแทนใบใหม่
+ */
+export function belongsTo(row, cycle) {
+  if (!row || !cycle || clean(cycle.Title) !== clean(row.CycleName)) return false;
+  return !(extraOf(row).kpi && !isKpiSet(cycle.FormSet));
+}
 
 /** รอบประเมินที่เปิดใช้งานอยู่ (เอาแถวที่ IsActive ไม่ใช่ false และสถานะเปิด) */
 export async function activeCycle() {
@@ -179,6 +189,11 @@ export const logOf = (row) => { const x = parse(row.Log); return Array.isArray(x
 export async function sheets(cycleName) {
   const rows = await list('appraisals').catch(() => []);
   return rows.filter((r) => !cycleName || clean(r.CycleName) === clean(cycleName));
+}
+
+/** ใบประเมินของรอบนี้ (ชื่อรอบ + ชนิดแบบประเมินตรงกัน) */
+export async function sheetsOf(cycle) {
+  return (await sheets(clean(cycle && cycle.Title))).filter((r) => belongsTo(r, cycle));
 }
 
 /** ใบประเมินของฉัน / ของลูกทีม (เทียบด้วยอีเมล ชื่อไทยอาจสะกดต่างกัน) */
@@ -400,7 +415,7 @@ export function mergeRounds(startDate, cycle, previousSheets = []) {
 export async function generateSheets(cycle, onProgress = () => {}) {
   const [dir, existing, allSheets] = await Promise.all([
     list('directory').catch(() => []),
-    sheets(clean(cycle.Title)),
+    sheetsOf(cycle),
     sheets(''),                       // ใบของรอบก่อน ๆ ไว้ดึงวันที่ประเมินครั้งก่อนมาต่อ
   ]);
   const have = new Set(existing.map((r) => clean(r.EmployeeEmail).toLowerCase()));
@@ -483,7 +498,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
     return res.created;
   }
 
-  const mine = (await sheets(clean(cycle.Title)))
+  const mine = (await sheetsOf(cycle))
     .some((r) => clean(r.EmployeeEmail).toLowerCase() === String(email).toLowerCase());
   if (mine || !email) return 0;
 
