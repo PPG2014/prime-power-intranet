@@ -72,7 +72,7 @@ export function renderProbation(p = {}) {
 
   const sigCell = (s = {}, extra = '') => `
     ${extra}
-    <div class="pb-sigline">${s.sig ? `<img data-photo="${esc(s.sig)}" alt="">` : ''}</div>
+    <div class="pb-sigline pb-sigbox">${s.sig ? `<img data-photo="${esc(s.sig)}" alt="">` : ''}</div>
     <div class="pb-sigline"></div>
     <div class="pb-signame">( ${esc(s.name || '')} )</div>
     <div class="pb-sigdate">วันที่ ${esc(thDate(s.date))}</div>`;
@@ -177,7 +177,7 @@ export function renderProbation(p = {}) {
     </div>
     <div class="pb-ack">
       <div class="pb-acklabel">บุคลากรรับทราบ</div>
-      <div class="pb-sigline">${sg.employee.sig ? `<img data-photo="${esc(sg.employee.sig)}" alt="">` : ''}</div>
+      <div class="pb-sigline pb-sigbox">${sg.employee.sig ? `<img data-photo="${esc(sg.employee.sig)}" alt="">` : ''}</div>
       <div class="pb-signame">( ${esc(sg.employee.name || '')} )</div>
       <div class="pb-ackdate">วันที่ ${esc(thDate(sg.employee.date))}</div>
       ${sg.employee.note ? `<div class="pb-acknote">ความเห็น: ${esc(sg.employee.note)}</div>` : ''}

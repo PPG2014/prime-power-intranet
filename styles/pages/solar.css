@@ -161,7 +161,7 @@ body.sc-open .sc-tab { right: min(460px, 100vw); }
 .sd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sd-signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; text-align: center; break-inside: avoid; }
 .sd-sig { height: 46px; display: flex; align-items: flex-end; justify-content: center; }
-.sd-sig img { max-height: 46px; max-width: 100%; }
+.sd-sig img { max-height: 46px; max-width: 100%; mix-blend-mode: multiply; }
 .sd-one .sd-sig { height: 38px; } .sd-one .sd-sig img { max-height: 38px; }
 .sd-line { border-bottom: 1px dotted #555; margin: 0 10px 3px; }
 .sd-role { font-weight: 700; } .sd-date { color: #555; font-size: .92em; }
