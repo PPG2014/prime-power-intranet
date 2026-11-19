@@ -37,6 +37,7 @@
   gap: var(--gap-sm); }
 .field-grid > * { min-width: 0; }
 .field { display: flex; flex-direction: column; min-width: 0; }
+.field[hidden] { display: none; }   /* ช่องที่ซ่อนตามเงื่อนไข (showFor / showIfDeptIn) ต้องหายจริง ไม่ให้ display:flex ทับ */
 .field input, .field select, .field textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 
 /* จอแคบให้เหลือคอลัมน์เดียว ดีกว่าบีบสองคอลัมน์จนช่องล้นออกนอกกรอบ */
