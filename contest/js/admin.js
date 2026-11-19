@@ -587,7 +587,7 @@ function tSettings(el) {
   el.innerHTML = `<div class="grid2">
     <div class="stack">
       <div class="card"><h3>ข้อมูลงาน</h3><p class="sub">แสดงบนจอและหน้ากรรมการ</p>
-        <label class="field"><span>ชื่องาน</span><input class="input" id="title" value="${esc(e.title || '')}"></label>
+        <label class="field"><span>ชื่องาน (หัวข้อใหญ่บนจอแสดงผลและหน้ากรรมการ)</span><input class="input" id="title" value="${esc(e.title || '')}" placeholder="${esc(intranet?.title || 'เช่น Prime Power New Year 2027')}"><small class="dim">เว้นว่าง = ใช้ชื่องานที่ตั้งในเว็บภายใน (จัดการข้อมูล → ฟังก์ชันเสริม)</small></label>
         <label class="field"><span>ชื่อรอบ (แสดงบนหัวหน้ากรรมการ)</span><input class="input" id="round" value="${esc(e.round || '')}" placeholder="เช่น รอบคัดเลือก R1"></label>
         <label class="field"><span>คำบรรยายใต้ชื่อ</span><input class="input" id="subtitle" value="${esc(e.subtitle || '')}" placeholder="เช่น 20 พฤศจิกายน 2569 · หอประชุมใหญ่"></label>
       </div>

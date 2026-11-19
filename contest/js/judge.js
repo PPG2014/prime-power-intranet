@@ -1,5 +1,5 @@
 import { $, $$, esc, fmtS, initials, toast, vibrate, boot, compute, list, judgeTotal, statusPill, mediaSrc, setImg } from './common.js';
-import { myKey, backLink } from './intranet.js';
+import { myKey, backLink, titleOf } from './intranet.js';
 
 const app = $('#app');
 let S = {}, C = compute({}), me = null, pickJudge = null, pin = '', busy = false;
@@ -32,7 +32,7 @@ function renderLogin() {
       ${logo ? `<img src="${esc(logo)}" alt="" style="max-height:64px;max-width:200px;align-self:flex-start;margin-bottom:10px">` : ''}
       ${backLink()}
       <span class="pill off" style="align-self:flex-start">สำหรับกรรมการ${e.round ? ' · ' + esc(e.round) : ''}</span>
-      <h1 class="j-title" style="font-size:2.1rem;margin-top:18px">${esc(e.title || 'การประกวดแบบ')}</h1>
+      <h1 class="j-title" style="font-size:2.1rem;margin-top:18px">${esc(titleOf(e))}</h1>
       <p class="muted" style="margin:0">เลือกชื่อของคุณเพื่อเข้าสู่ระบบ</p>
       ${judges.length
         ? `<div class="judge-grid">${judges.map(j => { const src = mediaSrc(S, j.photo); return `<button class="judge-pick" data-j="${j.id}">${src ? `<span class="avatar" style="background:none"><img src="${esc(src)}" alt=""></span>` : `<span class="avatar">${esc(initials(j.name))}</span>`}<b>${esc(j.name)}</b></button>`; }).join('')}</div>`
@@ -117,7 +117,7 @@ function buildJudge() {
   const e = ev(), j = S.judges[me], logo = mediaSrc(S, 'logo');
   const head = `<header class="jk-head">
       <div class="jk-brand">${logo ? `<img src="${esc(logo)}" alt="">` : `<span class="avatar" style="width:34px;height:34px;border-radius:10px;font-size:.9rem">${esc(initials(e.title))}</span>`}</div>
-      <div class="jk-title"><b>${esc(e.round || e.title || 'การประกวด')}</b><span> · ${esc(j.name)} – <button class="linkbtn" id="logout">ออกจากระบบ</button></span></div>
+      <div class="jk-title"><b>${esc(e.round || titleOf(e))}</b><span> · ${esc(j.name)} – <button class="linkbtn" id="logout">ออกจากระบบ</button></span></div>
       <div class="jk-prog" id="jkProg"></div>
     </header>
     <div class="progress jk-bar"><i id="jkBar"></i></div>`;
