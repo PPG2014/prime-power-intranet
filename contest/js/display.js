@@ -1,3 +1,4 @@
+import { titleOf } from './intranet.js';
 import { $, $$, esc, fmt, fmtS, initials, boot, compute, statusPill, mediaSrc, setImg } from './common.js';
 
 const stage = $('#stage');
@@ -99,9 +100,9 @@ function render() {
   applyBg(view);
   const logo = mediaSrc(S, 'logo');
   setImg($('#dLogo'), logo);
-  $('#dTitle').textContent = ev.title || 'การประกวดแบบ';
+  $('#dTitle').textContent = titleOf(ev);
   $('#dSub').textContent = [ev.round, ev.subtitle].filter(Boolean).join(' · ');
-  document.title = (ev.title || 'การประกวดแบบ') + ' · Live';
+  document.title = titleOf(ev) + ' · Live';
   const showHead = view !== 'results' && (view !== 'lowerthird' || (ev.display?.showTitle && !Q.get('bg')));
   $('.d-head').classList.toggle('hidden', !showHead);
   $('#dPill').innerHTML = view === 'popular' ? '<span class="pill ok"><span class="dot"></span>❤️ โหวตขวัญใจ</span>'
