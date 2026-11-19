@@ -16,13 +16,78 @@ const MAX_W = 600;
 const MAX_H = 800;      // สัดส่วน 3:4 แบบรูปติดบัตร
 const QUALITY = 0.82;
 const KEEP_MAX = 1400;  // ด้านยาวสุดของรูปที่ไม่ครอป เช่น รูปประกาศแนวนอน
+const SIGN_W = 600;     // ลายเซ็นทุกคนออกมาขนาดเดียวกัน 600×200 (3:1)
+const SIGN_H = 200;
+
+/**
+ * จัดลายเซ็นให้พอดีกรอบ: หาพื้นหลังจากขอบภาพ → ตัดขอบว่างรอบลายเซ็น → ปรับพื้นเป็นสีขาว
+ * → วางกลางกรอบ 600×200 (ขยาย/ย่อให้พอดี เหลือขอบเล็กน้อย)
+ * ใช้ได้ทั้งรูปถ่ายบนกระดาษ (พื้นเทา) ไฟล์ PNG พื้นใส และรูปพื้นดำ
+ */
+export function fitSignature(img) {
+  const scale = Math.min(1, KEEP_MAX / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sx = src.getContext('2d', { willReadFrequently: true });
+  sx.drawImage(img, 0, 0, w, h);
+  const id = sx.getImageData(0, 0, w, h);
+  const d = id.data;
+  const lum = (i) => (d[i + 3] < 40 ? -1 : 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);   // -1 = พื้นใส
+
+  // สีพื้นหลัง = ค่ากลางของความสว่างตามขอบภาพ (พื้นใสนับเป็นพื้นหลัง)
+  const edge = [];
+  const step = Math.max(1, Math.floor((w + h) / 400));
+  for (let x = 0; x < w; x += step) edge.push(lum(x * 4), lum(((h - 1) * w + x) * 4));
+  for (let y = 0; y < h; y += step) edge.push(lum(y * w * 4), lum((y * w + w - 1) * 4));
+  const solid = edge.filter((v) => v >= 0).sort((a, b) => a - b);
+  const bg = solid.length > edge.length / 2 ? solid[Math.floor(solid.length / 2)] : -1;
+  const isInk = (i) => {
+    const v = lum(i);
+    if (v < 0) return false;
+    return bg < 0 ? true : Math.abs(v - bg) > 60;   // ต่างจากพื้นหลังชัดเจน = หมึก
+  };
+
+  // หาขอบเขตของลายเซ็น + ปรับพื้นหลังเป็นขาว · ขอบหมึกค่อย ๆ จางเข้าพื้นขาว (ไม่เป็นขั้นบันได)
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (isInk(i)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const v = lum(i);
+      // t = ความเข้มของหมึก 0 (พื้น) – 1 (หมึกเต็ม)
+      const t = bg < 0 ? d[i + 3] / 255 : v < 0 ? 0 : Math.min(1, Math.max(0, (Math.abs(v - bg) - 20) / 60));
+      d[i] = Math.round(255 - (255 - d[i]) * t);
+      d[i + 1] = Math.round(255 - (255 - d[i + 1]) * t);
+      d[i + 2] = Math.round(255 - (255 - d[i + 2]) * t);
+      d[i + 3] = 255;
+    }
+  }
+  sx.putImageData(id, 0, 0);
+  if (x1 < 0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }   // ไม่พบลายเซ็น → ใช้ทั้งภาพ
+
+  const out = document.createElement('canvas');
+  out.width = SIGN_W; out.height = SIGN_H;
+  const ox = out.getContext('2d');
+  ox.imageSmoothingQuality = 'high';
+  ox.fillStyle = '#fff';
+  ox.fillRect(0, 0, SIGN_W, SIGN_H);
+  const bw = x1 - x0 + 1; const bh = y1 - y0 + 1;
+  const pad = 0.08;                                        // ขอบว่างรอบลายเซ็น
+  const k = Math.min((SIGN_W * (1 - pad * 2)) / bw, (SIGN_H * (1 - pad * 2)) / bh);
+  const dw = bw * k; const dh = bh * k;
+  ox.drawImage(src, x0, y0, bw, bh, (SIGN_W - dw) / 2, (SIGN_H - dh) / 2, dw, dh);
+  return out;
+}
 const PHOTO_ROOT = 'Photos';
 const ATTACH_ROOT = 'Attachments';
 
 /**
  * ย่อรูปก่อนอัปโหลด
  *   mode 'card' (ค่าเริ่มต้น) — ครอปกลางภาพเป็น 3:4 สำหรับรูปติดบัตร
- *   mode 'keep' — คงสัดส่วนเดิม ไม่ครอป ใช้กับรูปประกาศแนวนอนและลายเซ็น
+ *   mode 'keep' — คงสัดส่วนเดิม ไม่ครอป ใช้กับรูปประกาศแนวนอน
+ *   mode 'sign' — ลายเซ็น: ตัดขอบว่าง พื้นขาว จัดกลางกรอบ 600×200 ทุกคนขนาดเท่ากัน
  */
 export function resizeImage(file, mode = 'card') {
   return new Promise((resolve, reject) => {
@@ -35,7 +100,11 @@ export function resizeImage(file, mode = 'card') {
       const ctx = canvas.getContext('2d');
       ctx.imageSmoothingQuality = 'high';
 
-      if (mode === 'keep') {
+      if (mode === 'sign') {
+        const fit = fitSignature(img);
+        canvas.width = fit.width; canvas.height = fit.height;
+        ctx.drawImage(fit, 0, 0);
+      } else if (mode === 'keep') {
         // ย่อให้ด้านยาวสุดไม่เกิน KEEP_MAX คงสัดส่วนเดิมไว้ทั้งแนวตั้งและแนวนอน
         const scale = Math.min(1, KEEP_MAX / Math.max(img.width, img.height));
         canvas.width = Math.max(1, Math.round(img.width * scale));

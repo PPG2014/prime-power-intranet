@@ -157,8 +157,9 @@ export async function formBody(schema, record = {}) {
           <button type="button" class="btn-mini danger" id="${id}_clear">ลบรูป</button>
         </div>
         <div class="photo-status" id="${id}_status"></div>
-        <div class="field-help">${f.keepRatio
-          ? 'เซ็นบนกระดาษขาวแล้วถ่ายรูป หรือใช้ไฟล์ PNG/JPG ได้เลย<br>ระบบคงสัดส่วนเดิม (ไม่ครอป) เติมพื้นขาว และย่อให้อัตโนมัติ'
+        <div class="field-help">${f.sign
+          ? 'เซ็นบนกระดาษขาวแล้วถ่ายรูป หรือใช้ไฟล์ PNG/JPG ได้เลย ไม่ต้องตัดรูปมาก่อน<br>ระบบตัดขอบว่าง ปรับพื้นเป็นสีขาว และจัดลายเซ็นไว้กลางกรอบขนาดเดียวกันทุกคน'
+          : f.keepRatio ? 'ระบบคงสัดส่วนเดิม (ไม่ครอป) เติมพื้นขาว และย่อให้อัตโนมัติ'
           : 'รูปติดบัตรแนวตั้ง ถ่ายจากมือถือได้เลย ไม่ต้องย่อมาก่อน<br>ระบบครอปเป็นสัดส่วน 3:4 และย่อให้อัตโนมัติ'}</div>
       </div>
       <input type="hidden" id="${id}">`;
@@ -373,7 +374,7 @@ export function bindPhoto(schema) {
       // ไม่จำกัดขนาดไฟล์ต้นทาง เพราะระบบย่อให้เองอยู่แล้ว
       setStatus('กำลังย่อรูปและอัปโหลด…');
       try {
-        const url = await uploadPhoto(img, hintName(), folderFor(schema), f.keepRatio ? 'keep' : 'card');
+        const url = await uploadPhoto(img, hintName(), folderFor(schema), f.sign ? 'sign' : f.keepRatio ? 'keep' : 'card');
         draftPhotos[f.key] = url;
         prev.innerHTML = `<img data-photo="${esc(url)}" alt="">`;
         hydratePhotos(prev);
