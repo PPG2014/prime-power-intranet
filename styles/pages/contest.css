@@ -1,0 +1,42 @@
+/* แถบฟังก์ชันเสริม ประกวดปีใหม่ — ฝังหน้าระบบประกวด (contest/) เต็มพื้นที่ใต้หัวเว็บ */
+.page-contest { padding: 0; background: #07070d; }
+.contest-frame { display: block; width: 100%; height: calc(100vh - 100px); min-height: 560px; border: 0; background: #07070d; }
+
+/* เมนูฟังก์ชันเสริมในหน้าจัดการข้อมูล (admin/addons-editor.js) */
+.ad-card { border: 1px solid var(--line, #e2e8f0); border-radius: 12px; padding: 14px 16px; margin: 12px 0; background: #fff; }
+.ad-top { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: start; }
+.ad-ic { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-size: 26px; background: linear-gradient(135deg, #7c3aed, #06b6d4); }
+.ad-card.off .ad-ic { filter: grayscale(1); opacity: .5; }
+.ad-top h3 { margin: 0; font-size: 16px; color: var(--brand, #0b3a75); }
+.ad-top p { margin: 3px 0 0; color: #64748b; font-size: 13px; }
+.ad-sw { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+.ad-sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ad-sw i { width: 50px; height: 28px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .2s; }
+.ad-sw i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.ad-sw input:checked + i { background: #16a34a; }
+.ad-sw input:checked + i::after { left: 25px; }
+.ad-sw input:focus-visible + i { outline: 2px solid #0b6bd6; outline-offset: 2px; }
+.ad-sw b { font-size: 12px; color: #64748b; }
+.ad-sw input:checked ~ b { color: #16a34a; }
+.ad-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; }
+.ad-opts > div { min-width: 0; }
+.ad-opts .full { grid-column: 1 / -1; }
+.ad-opts .ad-l { display: block; font-weight: 700; font-size: 13px; color: #475569; margin-bottom: 4px; }
+.ad-opts input[type=text], .ad-opts input[type=date], .ad-opts textarea { width: 100%; }
+.ad-opts textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+.ad-radio { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ad-radio label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; }
+.ad-radio input { width: 16px; height: 16px; margin: 0; }
+.ad-fb { font-size: 13px; margin-top: 6px; }
+.ad-fb.ok { color: #15803d; }
+.ad-fb.bad { color: #b91c1c; }
+.ad-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ad-help { font-size: 13px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+.ad-help ol { margin: 6px 0 0 18px; padding: 0; }
+.ad-help li { margin: 2px 0; }
+@media (max-width: 760px) {
+  .ad-opts { grid-template-columns: 1fr; }
+  .ad-top { grid-template-columns: 44px 1fr auto; }
+  .ad-ic { width: 44px; height: 44px; font-size: 22px; }
+  .contest-frame { height: calc(100vh - 80px); }
+}

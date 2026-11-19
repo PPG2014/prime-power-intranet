@@ -23,7 +23,8 @@ import * as access    from './access.page.js';
 import * as formRegister from './form-register.page.js';
 import * as formGuide from './form-guide.page.js';
 import * as equipmentPage from './equipment.page.js';
+import * as contest   from './contest.page.js';
 
-export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, feedback, admin, health, appraisal, search, prRegister, access, formRegister, formGuide, equipmentPage];
+export const pages = [home, policies, forms, formFill, requests, projects, rooms, documents, reports, directory, contact, feedback, admin, health, appraisal, search, prRegister, access, formRegister, formGuide, equipmentPage, contest];
 
 export const pageByRoute = (route) => pages.find((p) => p.meta.route === route);
