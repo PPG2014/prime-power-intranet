@@ -18,7 +18,7 @@ const card = ({ href, c, ico, h, p, blank, extra = '' }) => `<a class="role" hre
   <span class="go">${blank ? '↗' : '→'}</span><div class="ico">${ico}</div><h2>${h}</h2><p>${p}</p>${extra}</a>`;
 
 const cards = [];
-if (myJudge) cards.push(card({ href: 'judge.html', c: '#8b5cf6', ico: '📱', h: 'กรรมการ',
+if (myJudge) cards.push(card({ href: 'judge.html', c: '#22c55e', ico: '📱', h: 'กรรมการ',
   p: `${esc(withKhun(myJudge.name))} · ให้คะแนนทีละเกณฑ์แล้วกดยืนยัน (ใส่ PIN ครั้งแรกครั้งเดียวต่อเครื่อง)` }));
 cards.push(card({ href: 'vote.html', c: '#f43f5e', ico: '❤️', h: 'โหวตขวัญใจ',
   p: 'พนักงานทุกคนโหวตได้ 1 สิทธิ์ เลือกทีมที่ชอบที่สุด',

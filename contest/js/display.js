@@ -285,7 +285,7 @@ function updateResults(v) {
 
 // =============== RINGS ===============
 const RING_C = 2 * Math.PI * 54;
-const ringSVG = id => `<svg viewBox="0 0 120 120"><defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+const ringSVG = id => `<svg viewBox="0 0 120 120"><defs><linearGradient id="g${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22c55e"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
   <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="9"/>
   <circle class="arc" cx="60" cy="60" r="54" fill="none" stroke="url(#g${id})" stroke-width="9" stroke-linecap="round" stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C}" style="transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)"/></svg>`;
 const setRing = (root, frac) => { $('.arc', root).style.strokeDashoffset = RING_C * (1 - Math.max(0, Math.min(1, frac))); };
@@ -298,7 +298,7 @@ function buildSpotlight(v) {
   v.innerHTML = `<div class="spot2 ${photo ? '' : 'noimg'}">
     ${photo ? `<div class="sp-frame"><img id="spImg" alt=""></div>` : ''}
     <div class="sp-body">
-      <div class="sp-label"><span class="dot pulse" style="width:.6em;height:.6em;border-radius:50%;background:#a78bfa;color:#a78bfa"></span>กำลังนำเสนอ${e.code ? ' · ' + esc(e.code) : ''}</div>
+      <div class="sp-label"><span class="dot pulse" style="width:.6em;height:.6em;border-radius:50%;background:#4ade80;color:#4ade80"></span>กำลังนำเสนอ${e.code ? ' · ' + esc(e.code) : ''}</div>
       <div class="sp-name">${esc(e.name)}</div>
       <div class="sp-owner">${esc(e.owner || '')}</div>
       <div class="sp-judges">${C.judges.map(j => `<div class="sj" data-j="${j.id}"><div class="sj-av"><img alt=""><span>${esc(initials(j.name))}</span></div><div class="sj-n">${esc(j.name)}</div><div class="sj-s num">–</div></div>`).join('')}</div>
@@ -368,7 +368,7 @@ function ticker(view) {
 function confetti() {
   const cv = $('#confetti'), ctx = cv.getContext('2d');
   const W = cv.width = innerWidth * devicePixelRatio, H = cv.height = innerHeight * devicePixelRatio;
-  const colors = ['#f6c453', '#ffe9a8', '#8b5cf6', '#22d3ee', '#ffffff', '#f472b6'];
+  const colors = ['#f6c453', '#ffe9a8', '#22c55e', '#22d3ee', '#ffffff', '#f472b6'];
   const P = Array.from({ length: 260 }, () => ({
     x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35, vx: (Math.random() - .5) * 26 * devicePixelRatio,
     vy: (-Math.random() * 22 - 8) * devicePixelRatio, r: (4 + Math.random() * 6) * devicePixelRatio,

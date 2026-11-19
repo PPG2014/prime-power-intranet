@@ -5,7 +5,7 @@
 /* เมนูฟังก์ชันเสริมในหน้าจัดการข้อมูล (admin/addons-editor.js) */
 .ad-card { border: 1px solid var(--line, #e2e8f0); border-radius: 12px; padding: 14px 16px; margin: 12px 0; background: #fff; }
 .ad-top { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: start; }
-.ad-ic { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-size: 26px; background: linear-gradient(135deg, #7c3aed, #06b6d4); }
+.ad-ic { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-size: 26px; background: linear-gradient(135deg, #16a34a, #06b6d4); }
 .ad-card.off .ad-ic { filter: grayscale(1); opacity: .5; }
 .ad-top h3 { margin: 0; font-size: 16px; color: var(--brand, #0b3a75); }
 .ad-top p { margin: 3px 0 0; color: #64748b; font-size: 13px; }
