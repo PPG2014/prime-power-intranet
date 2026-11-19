@@ -8,6 +8,7 @@
  * แก้รายการได้ที่ จัดการข้อมูล → 🔧 โครงการ O&M (เก็บในตั้งค่าระบบ OMSites) ถ้ายังไม่ได้ตั้งใช้ DEFAULT_OM_SITES
  */
 import { PPE_PROJECT } from './ppe.js';
+import { PPC_PROJECT } from './ppc.js';
 
 export const OM_PROJECT = 'งาน O&M';
 export const OM_OTHER = 'อื่นๆ';
@@ -74,5 +75,9 @@ export const projectText = (v = {}) => {
   const p = String(v.project ?? '').trim();
   if (p === OM_PROJECT && String(v.om_site || '').trim()) return `${p} · ${String(v.om_site).trim()}`;
   if (p === PPE_PROJECT && String(v.ppe_site || '').trim()) return `${p} · ${String(v.ppe_site).trim()}`;
+  if (p === PPC_PROJECT && String(v.ppc_site || '').trim()) {
+    const g = String(v.ppc_group || '').trim();
+    return `${p} · ${g && g !== 'อื่นๆ' ? `${g} · ` : ''}${String(v.ppc_site).trim()}`;
+  }
   return p;
 };

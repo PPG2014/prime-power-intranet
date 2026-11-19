@@ -6,6 +6,7 @@
  * ประวัติการอนุมัติแต่ละครั้งเก็บใน ApprovalLog ของคำขอนั้น (JSON)
  */
 import { PPE_PROJECT, ppeConfig, ppeApproversFor, ppeSiteOf } from './ppe.js';
+import { PPC_PROJECT, ppcConfig, ppcSiteOf } from './ppc.js';
 import { OM_PROJECT } from './om.js';
 import { thaiName, thaiNote } from './names.js';
 import { list, update } from './data.js';
@@ -178,13 +179,18 @@ async function inProjectTeam(proj, req) {
   return (!!name && team.filter(Boolean).includes(name)) || (!!title && mine.includes(title));
 }
 
-/** คำขอโครงการ PPE → รายชื่อผู้อนุมัติที่ตั้งไว้ (อาจว่าง) · ไม่ใช่โครงการ PPE คืน null */
+/**
+ * คำขอโครงการ PPE / งาน PPC (ที่ไม่ใช่โครงการหลัก) → รายชื่อผู้อนุมัติที่ตั้งไว้ (อาจว่าง)
+ * ไม่ใช่ทั้งสองอย่าง คืน null
+ */
 async function ppeApproversOfRequest(req) {
   let d = {};
   try { d = JSON.parse(req.FormData || '{}') || {}; } catch (e) { return null; }
   const site = ppeSiteOf(d);
-  if (site === null) return null;
-  return ppeApproversFor(await ppeConfig(), site);
+  if (site !== null) return ppeApproversFor(await ppeConfig(), site);
+  const job = ppcSiteOf(d);
+  if (job !== null) return ppeApproversFor(await ppcConfig(), job);
+  return null;
 }
 
 /** โครงการที่เลือกในคำขอ (ช่อง project ในฟอร์ม) จากทะเบียนโครงการ · ไม่พบ/ไม่เกี่ยวกับโครงการ คืน null */
@@ -269,6 +275,7 @@ export const ROUTE_SET_FIELD = '__set';
 export const ROUTE_SETS = [
   { key: '', label: 'เส้นทางปกติ' },
   { key: 'PPE', label: 'Prime Power Engineering Pro', project: PPE_PROJECT },
+  { key: 'PPC', label: 'งาน PPC (ไม่ใช่โครงการหลัก)', project: PPC_PROJECT },
   { key: 'O&M', label: 'งาน O&M', project: OM_PROJECT },
 ];
 /** ชุดของแถวเส้นทาง ('' = เส้นทางปกติ) */

@@ -9,6 +9,7 @@
  */
 import { list, create, update } from './data.js';
 import { PPE_PROJECT, PPE_SETTING, parsePpe, formatPpe } from './ppe.js';
+import { PPC_PROJECT, PPC_SETTING, PPC_OTHER, PPC_GROUPS, PPC_GROUP_LABEL } from './ppc.js';
 import { OM_PROJECT, OM_OTHER, OM_SETTING, parseOmSites, formatOmSites, defaultOmGroups } from './om.js';
 
 const key = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -41,6 +42,18 @@ export async function rememberTypedSite(values = {}) {
       await writeSetting(PPE_SETTING, formatPpe(cfg),
         'โครงการของ Prime Power Engineering Pro (PPE) + ผู้อนุมัติ — แก้ที่ จัดการข้อมูล → 🏠 โครงการ PPE');
       return `เพิ่ม "${site}" ในรายการโครงการ PPE แล้ว ครั้งหน้าเลือกจากรายการได้เลย`;
+    }
+    // Prime Power Construction: งานที่ไม่ใช่โครงการหลัก (โครงการหลักไม่ได้เก็บใน ppc_site)
+    if (project === PPC_PROJECT) {
+      const site = String(values.ppc_site || '').trim().replace(/\s+/g, ' ');
+      if (!site) return '';
+      const cfg = parsePpe(await rawSetting(PPC_SETTING));
+      if (cfg.projects.some((p) => key(p.name) === key(site))) return '';
+      const g = PPC_GROUPS.includes(String(values.ppc_group || '').trim()) ? String(values.ppc_group).trim() : PPC_OTHER;
+      cfg.projects.push({ name: site, on: true, approvers: [], group: g });
+      await writeSetting(PPC_SETTING, formatPpe(cfg),
+        'งานของ Prime Power Construction ที่ไม่ใช่โครงการหลัก + ผู้อนุมัติ — แก้ที่ จัดการข้อมูล → 🏗️ งาน PPC');
+      return `เพิ่ม "${site}" ในรายการ PPC · ${PPC_GROUP_LABEL[g] || g} แล้ว ครั้งหน้าเลือกจากรายการได้เลย`;
     }
     if (project === OM_PROJECT && String(values.om_group || '').trim() === OM_OTHER) {
       const site = String(values.om_site || '').trim().replace(/\s+/g, ' ');

@@ -280,7 +280,7 @@ export async function bindRouteEditor(formCode) {
     && plain(f.FieldType) === 'lookup' && plain(f.Options) === 'projects');
   const present = [...new Set(existing.map(routeSetOf).filter(Boolean))];
   setKeys = ROUTE_SETS.map((x) => x.key).filter((k) => k === ''
-    || present.includes(k) || (hasProject && (k === 'PPE' || (k === 'O&M' && OM_FORMS.includes(code)))));
+    || present.includes(k) || (hasProject && (k === 'PPE' || k === 'PPC' || (k === 'O&M' && OM_FORMS.includes(code)))));
   sets = {};
   setKeys.forEach((k) => {
     sets[k] = existing.filter((r) => routeSetOf(r) === k && !isOff(r.IsActive)).slice(0, MAX_STEPS).map(toStep);

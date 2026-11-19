@@ -1,4 +1,5 @@
 import { PPE_PROJECT, PPE_OTHER, ppeConfig, ppeApproversFor } from '../services/ppe.js';
+import { PPC_PROJECT, ppcConfig } from '../services/ppc.js';
 import { esc, $ } from '../core/dom.js';
 import { list, create, update } from '../services/data.js';
 import { state, setState } from '../core/state.js';
@@ -508,7 +509,21 @@ function bindProjectHint() {
       hint.classList.toggle('warn', !who.length);
       return;
     }
-    const proj = (await list('projects').catch(() => [])).find((p) => String(p.Title).trim() === v);
+    // Prime Power Construction: งานที่ไม่ใช่โครงการ → ผู้อนุมัติตามหน้า 🏗️ งาน PPC · เลือกโครงการหลัก → ตามโครงการนั้น
+    let pv = v;
+    if (v === PPC_PROJECT) {
+      const job = String((document.getElementById('q_ppc_site') || {}).value || '').trim();
+      const projs = await list('projects').catch(() => []);
+      if (!job || !projs.some((p) => String(p.Title).trim() === job)) {
+        const who = ppeApproversFor(await ppcConfig(), job);
+        hint.textContent = who.length && job ? `ผู้อนุมัติขั้นต้น: ${who.join(', ')} (คนใดคนหนึ่ง)`
+          : `ผู้อนุมัติขั้นต้น: ${bossTxt}${job ? '' : ' · เลือกประเภทงาน แล้วเลือกหรือพิมพ์ชื่อโครงการด้านล่าง'}`;
+        hint.classList.remove('warn');
+        return;
+      }
+      pv = job;
+    }
+    const proj = (await list('projects').catch(() => [])).find((p) => String(p.Title).trim() === pv);
     // สำนักงานใหญ่ / สำนักงานชลบุรี / งาน O&M (ไม่ได้อยู่ในทะเบียนโครงการ) → ผู้บังคับบัญชาอนุมัติ
     if (!proj && (OFFICE_PROJECTS.includes(v) || v === 'งาน O&M')) { hint.textContent = `คำขอนี้จะส่งให้${bossTxt}อนุมัติ`; hint.classList.remove('warn'); return; }
     if (!proj) { hint.textContent = ''; return; }
@@ -516,7 +531,7 @@ function bindProjectHint() {
     const plain = (x) => String((x && typeof x === 'object' ? (x.LookupValue ?? x.Title) : x) || '').trim();
     const team = [plain(proj.Owner), ...(Array.isArray(proj.Team) ? proj.Team : String(proj.Team || '').split(',')).map(plain)];
     const mine = (Array.isArray(me && me.Project) ? me.Project : String((me && me.Project) || '').split(',')).map(plain);
-    const inTeam = (!!name && team.filter(Boolean).includes(name)) || mine.filter(Boolean).includes(v);
+    const inTeam = (!!name && team.filter(Boolean).includes(name)) || mine.filter(Boolean).includes(pv);
     hint.textContent = inTeam ? 'คุณอยู่ในทีมโครงการนี้ · ผู้จัดการ/ผู้รับผิดชอบโครงการจะเป็นผู้อนุมัติ'
       : `⚠ คุณไม่ได้อยู่ในทีมของโครงการนี้ — คำขอจะส่งให้${bossTxt}อนุมัติด้วย`;
     hint.classList.toggle('warn', !inTeam);
@@ -524,7 +539,7 @@ function bindProjectHint() {
   input.addEventListener('change', show);
   input.addEventListener('input', show);
   // เปลี่ยนโครงการ PPE → ผู้อนุมัติอาจต่างกัน (ตั้งเฉพาะโครงการได้)
-  ['q_ppe_site', 'q_ppe_other'].forEach((id) => { const el = document.getElementById(id); if (el) { el.addEventListener('change', show); el.addEventListener('input', show); } });
+  ['q_ppe_site', 'q_ppe_other', 'q_ppc_site'].forEach((id) => { const el = document.getElementById(id); if (el) { el.addEventListener('change', show); el.addEventListener('input', show); } });
   show();
 }
 
