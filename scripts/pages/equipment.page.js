@@ -336,6 +336,7 @@ async function exportXlsx() {
   const list2 = filtered();
   downloadXlsx(`ทะเบียนเครื่องมือและอุปกรณ์ ${new Date().toLocaleDateString('th-TH')}.xlsx`, {
     sheet: 'เครื่องมือ',
+    page: { orientation: 'portrait', fitWidth: true },   // พิมพ์ A4 แนวตั้ง ย่อพอดีความกว้าง หัวตารางซ้ำทุกหน้า
     columns: [{ title: 'รหัสเครื่อง', width: 16 }, { title: 'รหัสเครื่องจักร', width: 14 }, { title: 'รายการ', width: 36 },
       { title: 'ยี่ห้อ', width: 14 }, { title: 'รุ่น', width: 14 }, { title: 'Serial no.', width: 18 }, { title: 'จำนวน', width: 8, type: 'number' },
       { title: 'หน่วย', width: 8 }, { title: 'Status', width: 16 }, { title: 'ผู้ใช้งาน', width: 22 }, { title: 'โครงการ', width: 14 },
@@ -347,7 +348,8 @@ async function exportXlsx() {
   });
 }
 
-/** ส่งออก PDF: ตารางทะเบียนตามตัวกรองปัจจุบัน · A4 แนวนอน · หัวตารางซ้ำทุกหน้า */
+/** ส่งออก PDF: ตารางทะเบียนตามตัวกรองปัจจุบัน · A4 แนวตั้ง · หัวตารางซ้ำทุกหน้า
+ *  แนวตั้งแคบ จึงรวมคอลัมน์: รายการ + ยี่ห้อ/รุ่น/S/N · จำนวน + หน่วย · ผู้ใช้งาน + โครงการ · เลขที่ใบยืม + วันที่ยืม */
 async function exportPdf() {
   const list2 = filtered();
   const cond = [f.q && `ค้นหา "${f.q}"`, f.status && `สถานะ ${f.status}`, f.project && `โครงการ ${f.project}`, f.holder && `ผู้ใช้งาน ${f.holder}`].filter(Boolean);
@@ -358,12 +360,20 @@ async function exportPdf() {
         <div class="eqp-sub">ข้อมูล ณ วันที่ ${esc(new Date().toLocaleDateString('th-TH', { dateStyle: 'long' }))}${cond.length ? ` · ${esc(cond.join(' · '))}` : ' · ทั้งหมด'}</div></div>
       <div class="eqp-sum">ทั้งหมด <b>${list2.length}</b> · ${EQ_INUSE} <b>${count(EQ_INUSE)}</b> · ${EQ_READY} <b>${count(EQ_READY)}</b>
         · ส่งซ่อม/Cal. <b>${count('ส่งซ่อม') + count('ส่ง Calibration')}</b> · เสีย <b>${count('เสีย')}</b></div></div>
-    <table class="eqp-t"><thead><tr><th>ลำดับ</th><th>รหัสเครื่อง</th><th>รายการ</th><th>ยี่ห้อ</th><th>รุ่น</th><th>Serial no.</th><th>จำนวน</th><th>หน่วย</th>
-      <th>Status</th><th>ผู้ใช้งาน</th><th>โครงการ</th><th>เลขที่ใบยืม</th><th>วันที่ยืม</th><th>Cert. Date</th><th>หมายเหตุ</th></tr></thead>
-    <tbody>${list2.map((e, i) => `<tr><td class="n">${i + 1}</td><td>${esc(eqCode(e))}</td><td>${esc(clean(e.ItemName))}</td><td>${esc(clean(e.Brand))}</td>
-      <td>${esc(clean(e.Model))}</td><td>${esc(clean(e.SerialNo))}</td><td class="n">${esc(clean(e.Qty))}</td><td>${esc(clean(e.Unit))}</td>
-      <td>${esc(clean(e.Status))}</td><td>${esc(holderOf(e))}</td><td>${esc(clean(e.Project))}</td><td>${esc(clean(e.LoanNo))}</td>
-      <td>${esc(day(e.LoanDate))}</td><td>${esc(day(e.CertDate))}</td><td>${esc(clean(e.Remark))}</td></tr>`).join('')}</tbody></table>
+    <table class="eqp-t"><colgroup><col class="p-no"><col class="p-code"><col class="p-item"><col class="p-qty"><col class="p-st"><col class="p-who">
+      <col class="p-loan"><col class="p-cert"><col class="p-rm"></colgroup>
+    <thead><tr><th>ลำดับ</th><th>รหัสเครื่อง</th><th>รายการ / ยี่ห้อ / รุ่น / Serial no.</th><th>จำนวน</th><th>Status</th>
+      <th>ผู้ใช้งาน / โครงการ</th><th>เลขที่ใบยืม / วันที่ยืม</th><th>Cert. Date</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>${list2.map((e, i) => {
+      const sub = [clean(e.Brand), clean(e.Model)].filter(Boolean).join(' · ');
+      const qty = [clean(e.Qty), clean(e.Unit)].filter(Boolean).join(' ');
+      return `<tr><td class="n">${i + 1}</td><td class="nw">${esc(eqCode(e))}</td>
+      <td><b>${esc(clean(e.ItemName))}</b>${sub ? `<div class="s">${esc(sub)}</div>` : ''}${clean(e.SerialNo) ? `<div class="s">S/N ${esc(clean(e.SerialNo))}</div>` : ''}</td>
+      <td class="n nw">${esc(qty)}</td><td>${esc(clean(e.Status))}</td>
+      <td>${esc(holderOf(e))}${clean(e.Project) ? `<div class="s">${esc(clean(e.Project))}</div>` : ''}</td>
+      <td>${esc(clean(e.LoanNo))}${day(e.LoanDate) ? `<div class="s">${esc(day(e.LoanDate))}</div>` : ''}</td>
+      <td class="nw">${esc(day(e.CertDate))}</td><td>${esc(clean(e.Remark))}</td></tr>`;
+    }).join('')}</tbody></table>
   </div></div>`;
   const { openPRWindow } = await import('../templates/pr-fm-pur-004.js');
   openPRWindow(html, 'ทะเบียนเครื่องมือและอุปกรณ์ (PDF)');

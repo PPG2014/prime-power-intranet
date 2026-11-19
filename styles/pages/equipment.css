@@ -50,16 +50,24 @@
 .eq-perm { font-size: .88em; color: var(--muted, #6b7280); margin: -4px 0 10px; }
 .eq-perm.on { color: #1e7f4f; }
 
-/* ส่งออก PDF ทะเบียนเครื่องมือ (A4 แนวนอน · หัวตารางซ้ำทุกหน้า) */
+/* ส่งออก PDF ทะเบียนเครื่องมือ (A4 แนวตั้ง · หัวตารางซ้ำทุกหน้า) */
 .eqp-doc { background: #e9edf2; padding: 6mm 0; }
-.eqp-page { page: eqreg; width: 297mm; min-height: 210mm; box-sizing: border-box; margin: 0 auto; padding: 8mm 8mm 10mm;
-  background: #fff; color: #000; font-size: 8.5pt; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
-@page eqreg { size: A4 landscape; margin: 8mm; }
-.eqp-head { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; border-bottom: 2px solid #003462; padding-bottom: 5px; margin-bottom: 5px; }
+.eqp-page { page: eqreg; width: 210mm; min-height: 297mm; box-sizing: border-box; margin: 0 auto; padding: 8mm 8mm 10mm;
+  background: #fff; color: #000; font-size: 7.5pt; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
+@page eqreg { size: A4 portrait; margin: 8mm; }
+.eqp-head { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; align-items: center; border-bottom: 2px solid #003462; padding-bottom: 5px; margin-bottom: 5px; }
+.eqp-head .eqp-sum { grid-column: 1 / -1; }
 .eqp-head img { height: 12mm; }
 .eqp-title { font-size: 14pt; font-weight: 700; }
 .eqp-sub, .eqp-sum { font-size: 8.5pt; color: #333; }
-.eqp-t { width: 100%; border-collapse: collapse; }
+.eqp-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.eqp-t td { overflow-wrap: anywhere; line-height: 1.3; font-size: 7.5pt; }
+.eqp-t th { font-size: 7pt; line-height: 1.2; vertical-align: bottom; }
+.eqp-t .s { font-size: 6.5pt; color: #444; }
+.eqp-t .nw { white-space: nowrap; overflow-wrap: normal; }
+.eqp-t col.p-no { width: 8mm; } .eqp-t col.p-code { width: 25mm; } .eqp-t col.p-item { width: auto; }
+.eqp-t col.p-qty { width: 11mm; } .eqp-t col.p-st { width: 22mm; } .eqp-t col.p-who { width: 27mm; }
+.eqp-t col.p-loan { width: 22mm; } .eqp-t col.p-cert { width: 16mm; } .eqp-t col.p-rm { width: 20mm; }
 .eqp-t th, .eqp-t td { border: 0.2mm solid #555; padding: 0.8mm 1.2mm; vertical-align: top; text-align: left; }
 .eqp-t th { background: #ffe598; font-weight: 700; }
 .eqp-t thead { display: table-header-group; }

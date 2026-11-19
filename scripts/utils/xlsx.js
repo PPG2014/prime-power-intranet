@@ -48,19 +48,27 @@ function cellXml(ref, v, type) {
   return `<c r="${ref}" s="${type === 'wrap' ? 3 : 0}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
 }
 
-function sheetXml(columns, rows) {
+/**
+ * page (ไม่บังคับ): { orientation: 'portrait' | 'landscape', fitWidth: true }
+ *   fitWidth = ย่อให้ทุกคอลัมน์พอดีความกว้างกระดาษ 1 หน้า (จำนวนหน้าตามความยาว) + พิมพ์แถวหัวซ้ำทุกหน้า + ขอบแคบ
+ */
+function sheetXml(columns, rows, page = {}) {
+  const orient = page.orientation === 'portrait' ? 'portrait' : 'landscape';
   const last = colName(columns.length - 1);
   const head = `<row r="1" ht="24" customHeight="1">${columns.map((c, i) =>
     `<c r="${colName(i)}1" s="1" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(c.title)}</t></is></c>`).join('')}</row>`;
   const body = rows.map((r, ri) => `<row r="${ri + 2}">${columns.map((c, i) =>
     cellXml(`${colName(i)}${ri + 2}`, r[i], c.type)).join('')}</row>`).join('');
   return XML_HEAD + `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+${page.fitWidth ? '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' : ''}
 <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>
 <cols>${columns.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.width || 14}" customWidth="1"/>`).join('')}</cols>
 <sheetData>${head}${body}</sheetData>
 ${rows.length ? `<autoFilter ref="A1:${last}${rows.length + 1}"/>` : ''}
-<pageSetup orientation="landscape" paperSize="9"/>
+${page.fitWidth ? '<printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>' : ''}
+<pageSetup orientation="${orient}" paperSize="9"${page.fitWidth ? ' fitToWidth="1" fitToHeight="0"' : ''}/>
+${page.fitWidth ? '<headerFooter><oddFooter>&amp;Rหน้า &amp;P / &amp;N</oddFooter></headerFooter>' : ''}
 </worksheet>`;
 }
 
@@ -92,7 +100,7 @@ function zip(files) {
 }
 
 /** สร้างไฟล์ .xlsx (Blob) */
-export function buildXlsx({ sheet = 'Sheet1', columns, rows }) {
+export function buildXlsx({ sheet = 'Sheet1', columns, rows, page = {} }) {
   const name = xmlEsc(String(sheet).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Sheet1');
   return zip([
     { name: '[Content_Types].xml', data: XML_HEAD + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -104,12 +112,12 @@ export function buildXlsx({ sheet = 'Sheet1', columns, rows }) {
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
     { name: 'xl/workbook.xml', data: XML_HEAD + `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <sheets><sheet name="${name}" sheetId="1" r:id="rId1"/></sheets>
-${rows.length ? `<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${name}'!$A$1:$${colName(columns.length - 1)}$${rows.length + 1}</definedName></definedNames>` : ''}</workbook>` },
+${rows.length || page.fitWidth ? `<definedNames>${rows.length ? `<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${name}'!$A$1:$${colName(columns.length - 1)}$${rows.length + 1}</definedName>` : ''}${page.fitWidth ? `<definedName name="_xlnm.Print_Titles" localSheetId="0">'${name}'!$1:$1</definedName>` : ''}</definedNames>` : ''}</workbook>` },
     { name: 'xl/_rels/workbook.xml.rels', data: XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
     { name: 'xl/styles.xml', data: STYLES },
-    { name: 'xl/worksheets/sheet1.xml', data: sheetXml(columns, rows) },
+    { name: 'xl/worksheets/sheet1.xml', data: sheetXml(columns, rows, page) },
   ]);
 }
 
