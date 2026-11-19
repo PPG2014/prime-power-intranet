@@ -61,7 +61,8 @@ export const toArray = (v) => {
  * ถ้าช่องนี้ผูกกับช่องอื่น (dependsOn) จะกรองให้เหลือเฉพาะที่ตรงกับค่าของช่องแม่
  */
 export async function optionsFor(field, parentValue) {
-  if (field.type === 'choice') return field.options.map((o) => ({ value: o, label: o }));
+  // emptyChoice: เริ่มเป็น "ยังไม่เลือก" (ช่องบังคับกรอกจะเตือนตอนบันทึก) แทนการเลือกตัวแรกให้เอง
+  if (field.type === 'choice') return [...(field.emptyChoice ? [{ value: '', label: field.emptyChoice }] : []), ...field.options.map((o) => ({ value: o, label: o }))];
   if (field.type !== 'lookup') return [];
 
   let rows = (await list(field.from))
@@ -112,6 +113,8 @@ export function optionHtml(opts, value, emptyHint) {
 
 /** ช่องที่แสดงเฉพาะบางฝ่าย เช่นช่องโครงการ — อ่านรายชื่อฝ่ายจากตั้งค่าระบบ */
 export async function fieldVisible(field, record) {
+  // แสดงตามค่าของช่องอื่นในฟอร์ม เช่น ช่อง KPI แสดงเฉพาะเมื่อเลือกชุดแบบประเมิน KPI
+  if (field.showFor) return !!field.showFor.test(String(record[field.showFor.key] ?? '').trim());
   if (!field.showIfDeptIn) return true;
   const cfg = await settings();
   const allow = String(cfg[field.showIfDeptIn] || '')
@@ -274,9 +277,16 @@ export async function formBody(schema, record = {}) {
 /** อ่านค่าจากฟอร์ม คืน null ถ้ากรอกไม่ครบ พร้อมแสดงข้อความบอกจุดที่ผิด */
 export function collect(schema) {
   const out = {};
+  const hiddenNow = new Set();
   for (const f of schema.fields) {
     const el = $('#f_' + f.key);
     if (!el) continue;
+    // ช่องที่ซ่อนอยู่เพราะไม่เกี่ยวกับตัวเลือกปัจจุบัน (showFor) → ล้างค่า ไม่บันทึกค่าค้าง และไม่บังคับกรอก
+    if (f.showFor && $(`[data-field="${f.key}"]`)?.hidden) {
+      out[f.key] = f.type === 'date' ? null : f.type === 'number' ? 0 : '';
+      hiddenNow.add(f.key);
+      continue;
+    }
     if (f.type === 'photo') { out[f.key] = draftPhotos[f.key] || ''; continue; }
     if (f.type === 'files') { out[f.key] = JSON.stringify(draftFiles); continue; }
     if (f.type === 'people') {
@@ -308,7 +318,7 @@ export function collect(schema) {
   }
 
   const err = $('#form-error');
-  const missing = schema.fields.find((f) => f.required && !String(out[f.key] || '').trim());
+  const missing = schema.fields.find((f) => f.required && !hiddenNow.has(f.key) && !String(out[f.key] || '').trim());
   if (missing) {
     err.textContent = `กรอก${missing.label}ก่อนบันทึก`;
     err.hidden = false;
@@ -544,6 +554,23 @@ export function bindPeoplePickers() {
       items.forEach((it) => { it.querySelector('input').checked = false; });
       apply();
     };
+    apply();
+  });
+}
+
+/** ช่องที่แสดงตามค่าของช่องอื่น (showFor) — เปลี่ยนค่าแล้วแสดง/ซ่อนทันที */
+export function bindShowFor(schema) {
+  const keys = [...new Set(schema.fields.filter((f) => f.showFor).map((f) => f.showFor.key))];
+  keys.forEach((k) => {
+    const src = $('#f_' + k);
+    if (!src) return;
+    const apply = () => {
+      schema.fields.filter((f) => f.showFor && f.showFor.key === k).forEach((f) => {
+        const box = $(`[data-field="${f.key}"]`);
+        if (box) box.hidden = !f.showFor.test(String(src.value || '').trim());
+      });
+    };
+    src.addEventListener('change', apply);
     apply();
   });
 }

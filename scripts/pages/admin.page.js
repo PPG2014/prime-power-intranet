@@ -1,7 +1,7 @@
 import { esc, $, $$, onClick } from '../core/dom.js';
 import { list, create, update, remove } from '../services/data.js';
 import { SCHEMA } from '../admin/schema.js';
-import { formBody, collect, bindDependents, bindPhoto, bindFiles, bindFilters, bindPeoplePickers, bindCustomChoices, bindChipPickers, toFiles } from '../admin/entity-form.js';
+import { formBody, collect, bindDependents, bindShowFor, bindPhoto, bindFiles, bindFilters, bindPeoplePickers, bindCustomChoices, bindChipPickers, toFiles } from '../admin/entity-form.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { state, setState } from '../core/state.js';
 import { CONFIG } from '../core/config.js';
@@ -391,6 +391,7 @@ async function openEditor(key, record) {
   });
   if (isNew && !s.readOnly && !isCycle) bindImport(s);
   bindDependents(s);
+  bindShowFor(s);
   bindPhoto(s);
   bindFiles(s);
   bindFilters(s);
