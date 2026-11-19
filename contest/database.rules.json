@@ -1,0 +1,73 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "meta": {
+      ".read": true,
+      "adminReady": {
+        ".write": "auth != null && (!data.exists() || (root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()))"
+      }
+    },
+
+    "secret": {
+      ".read": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      "adminPin": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.isString() && newData.val().length >= 4"
+      },
+      "pins": { "$judge": { ".validate": "newData.isString() && newData.val().length === 4" } }
+    },
+
+    "adminClaims": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (newData.child('pin').isString() && newData.child('pin').val() === root.child('secret/adminPin').val()))"
+      }
+    },
+
+    "claims": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (newData.child('judge').isString() && newData.child('pin').isString() && newData.child('pin').val() === root.child('secret/pins').child(newData.child('judge').val()).val()))"
+      }
+    },
+
+    "event":    { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()" },
+    "entries":  { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()" },
+    "judges":   { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()" },
+    "criteria": { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()" },
+    "bgm":      { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      "$key": { ".validate": "newData.isString() && newData.val().length < 10000000" } },
+    "media":    { ".read": true, ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      "$key": { ".validate": "newData.isString() && newData.val().length < 2000000" } },
+
+    "votes": {
+      ".read": true,
+      ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      "$voter": {
+        ".write": "auth != null && $voter.matches(/^[0-9a-f]{24}$/) && root.child('event/voteOpen').val() === true && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['e', 'ts']) && root.child('entries/' + newData.child('e').val()).exists()",
+        "e": { ".validate": "newData.isString()" },
+        "ts": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "scores": {
+      ".read": true,
+      ".write": "auth != null && root.child('adminClaims/' + auth.uid + '/pin').val() != null && root.child('adminClaims/' + auth.uid + '/pin').val() === root.child('secret/adminPin').val()",
+      "$judge": {
+        "$entry": {
+          ".write": "auth != null && root.child('claims/' + auth.uid + '/judge').val() === $judge && root.child('event/status').val() === 'open' && !root.child('event/locked/' + $entry).exists() && (!data.exists() || root.child('event/allowEdit').val() === true) && newData.exists() && root.child('judges/' + $judge).exists() && root.child('entries/' + $entry).exists()",
+          "v": {
+            "$c": { ".validate": "newData.isNumber() && newData.val() >= 0 && root.child('criteria/' + $c).exists() && newData.val() <= root.child('criteria/' + $c + '/max').val()" }
+          },
+          "ts": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

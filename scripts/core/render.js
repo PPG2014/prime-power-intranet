@@ -14,9 +14,11 @@ function badgeOf(route) {
 export function renderNav() {
   // ผู้ดูแล/ฝ่ายบุคคลมีเมนู "จัดการข้อมูล" เพิ่ม → ใช้ชื่อเมนูแบบสั้น (navTitle) กันแถบเมนูพับเป็น ☰ · ผู้ใช้ทั่วไปเห็นชื่อเต็ม
   const short = state.isAdmin || state.isHR;
-  const label = (m) => (short && m.navTitle ? m.navTitle : m.title);
+  // ชื่อเมนูตั้งได้จากข้อมูล (เช่นแถบฟังก์ชันเสริม) → meta.navLabel(state)
+  const label = (m) => (m.navLabel ? m.navLabel(state) : short && m.navTitle ? m.navTitle : m.title);
   $('#nav').innerHTML = pages
-    .filter((p) => p.meta.nav && (!p.meta.adminOnly || state.isAdmin || (p.meta.hrAllowed && state.isHR)))
+    // meta.visible(state): เมนูที่เปิด/ปิดได้ เช่นฟังก์ชันเสริม (services/addons.js)
+    .filter((p) => p.meta.nav && (!p.meta.visible || p.meta.visible(state)) && (!p.meta.adminOnly || state.isAdmin || (p.meta.hrAllowed && state.isHR)))
     .sort((a, b) => a.meta.order - b.meta.order)
     .map((p) => `<a href="#/${p.meta.route}"
         ${state.route === p.meta.route ? 'aria-current="page"' : ''}${label(p.meta) !== p.meta.title ? ` title="${esc(p.meta.title)}"` : ''}>${esc(label(p.meta))}${badgeOf(p.meta.route)}</a>`)

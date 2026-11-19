@@ -24,6 +24,7 @@ import { mileageEditorHtml, bindMileageEditor, mileageHasUnsaved } from '../admi
 import { holidayEditorHtml, bindHolidayEditor, holidayHasUnsaved } from '../admin/holiday-editor.js';
 import { kpiCriteriaHtml, bindKpiCriteriaEditor, kpiCriteriaUnsaved } from '../admin/kpi-criteria-editor.js';
 import { pbCriteriaHtml, bindPbCriteriaEditor, pbCriteriaUnsaved } from '../admin/probation-criteria-editor.js';
+import { addonsEditorHtml, bindAddonsEditor, addonsHasUnsaved } from '../admin/addons-editor.js';
 
 /** เมนูพิเศษที่ไม่ใช่ตาราง List ตรง ๆ — มีหน้าแก้ไขของตัวเอง (เก็บในตั้งค่าระบบ) */
 const VIRTUAL = {
@@ -35,11 +36,12 @@ const VIRTUAL = {
   pbCriteria: { icon: '📋', title: 'เกณฑ์ประเมินผ่านงาน', html: pbCriteriaHtml, bind: bindPbCriteriaEditor, unsaved: pbCriteriaUnsaved, label: 'เกณฑ์ประเมินผ่านงาน' },
   kpiCriteria: { icon: '🎯', title: 'เกณฑ์ประเมิน KPI', html: kpiCriteriaHtml, bind: bindKpiCriteriaEditor, unsaved: kpiCriteriaUnsaved, label: 'เกณฑ์ประเมิน KPI' },
   solarPrices: { icon: '💲', title: 'ราคาโซลาร์เซลล์', html: solarPriceHtml, bind: bindSolarPriceEditor, unsaved: solarPriceUnsaved, label: 'ราคาโซลาร์เซลล์' },
+  addons: { icon: '🧩', title: 'ฟังก์ชันเสริม', html: addonsEditorHtml, bind: bindAddonsEditor, unsaved: addonsHasUnsaved, label: 'ฟังก์ชันเสริม' },
 };
 /** แถวในตั้งค่าระบบที่แก้ผ่านเมนูพิเศษ ไม่แสดงปนในตารางตั้งค่าระบบ */
 /** ตั้งค่าระบบที่เป็นรายชื่ออีเมล — บันทึกเป็นบรรทัดเดียว คั่นด้วย ", " เสมอ */
 const EMAIL_LIST_SETTINGS = ['Admins', 'FeedbackRecipients', 'RequestViewers', 'EquipmentManagers'];
-const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'PPCJobs', 'MileageRates', 'CompanyHolidays', 'KpiCriteria', 'ProbationCriteria'];
+const VIRTUAL_SETTINGS = ['OMSites', 'SolarPriceList', 'SolarCalcAssumptions', 'PPEProjects', 'PPCJobs', 'MileageRates', 'CompanyHolidays', 'KpiCriteria', 'ProbationCriteria', 'Addons'];
 
 export const meta = { route: 'admin', title: 'จัดการข้อมูล', nav: true, order: 11, adminOnly: true, hrAllowed: true };
 
@@ -55,10 +57,11 @@ function allowedSets() {
   const all = Object.keys(SCHEMA);
   // เกณฑ์ประเมินผ่านงาน + เกณฑ์ KPI แทนที่เมนูหัวข้อประเมินแบบตาราง (ข้อมูลเดิมใน List AppraisalCriteria ยังใช้กับใบเก่าได้)
   const withKpi = (arr) => { const j = arr.indexOf('appraisalCriteria'); arr.splice(j < 0 ? arr.length : j, j < 0 ? 0 : 1, 'pbCriteria', 'kpiCriteria'); return arr; };
-  if (!state.isAdmin) return [...withKpi(all.filter((k) => SCHEMA[k].hr)), 'mileage', 'holidays'];   // ฝ่ายบุคคลตั้งค่าพาหนะ/วันหยุด/เกณฑ์ KPI ได้
+  if (!state.isAdmin) return [...withKpi(all.filter((k) => SCHEMA[k].hr)), 'mileage', 'holidays', 'addons'];   // ฝ่ายบุคคลจัดกิจกรรม → เปิด/ปิดฟังก์ชันเสริมได้   // ฝ่ายบุคคลตั้งค่าพาหนะ/วันหยุด/เกณฑ์ KPI ได้
   withKpi(all);
   const i = all.indexOf('projects');
   all.splice(i < 0 ? all.length : i + 1, 0, 'omProjects', 'ppeProjects', 'ppcJobs', 'solarPrices', 'mileage', 'holidays');   // ต่อจากทะเบียนโครงการ
+  all.push('addons');   // ท้ายสุด: ฟังก์ชันเสริม
   return all;
 }
 

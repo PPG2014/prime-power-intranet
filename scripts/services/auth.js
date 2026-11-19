@@ -165,6 +165,8 @@ export async function getTokenFor(scopes, label = '', { silent = false } = {}) {
 }
 
 export async function signOut() {
+  // หน้าประกวด (contest/) ใช้ค่าที่เว็บนี้ฝากไว้ → ออกจากระบบแล้วต้องปิดด้วย
+  try { localStorage.setItem('pp-contest', JSON.stringify({ on: false })); } catch (e) { /* ไม่เป็นไร */ }
   if (CONFIG.dataSource === 'mock') {
     location.reload();   // โหมดตัวอย่างไม่มีเซสชันจริง แค่กลับไปหน้าเข้าสู่ระบบ
     return;

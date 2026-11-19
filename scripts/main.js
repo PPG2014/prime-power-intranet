@@ -46,6 +46,8 @@ async function enter(user) {
     user.emails = await loadMyEmails(user);
   }
   setState({ user, isAdmin: role.isAdmin, isHR: role.isHR, isViewer: role.isViewer, adminUnconfigured: role.unconfigured }, { silent: true });
+  // ฟังก์ชันเสริม (เช่น แถบประกวดปีใหม่) — ต้องรู้ก่อนวาดเมนู
+  await import('./services/addons.js').then((m) => m.loadAddons()).catch((e) => console.warn('โหลดฟังก์ชันเสริมไม่สำเร็จ:', e.message));
 
   $('#topbar-actions').innerHTML = `
     ${CONFIG.dataSource === 'mock' ? '<span class="mode-tag">โหมดข้อมูลตัวอย่าง</span>' : ''}
