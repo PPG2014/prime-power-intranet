@@ -233,11 +233,11 @@ export async function render(ctx) {
                 typeof r[c] === 'boolean' ? (r[c] ? 'ใช่' : 'ไม่')
                 : Array.isArray(r[c]) ? (r[c].length ? r[c].length + ' รายการ' : '—')
                 : c === 'Files' ? (toFiles(r[c]).length ? '📎 ' + toFiles(r[c]).length : '—')
-                : c === 'At' ? (thaiDateTime(r[c]) || '—')   // บันทึกการใช้งาน ต้องเห็นเวลาด้วย
+                : c === 'At' || c === 'Created' ? (thaiDateTime(r[c]) || '—')   // บันทึกการใช้งาน / วันที่สร้าง ต้องเห็นเวลาด้วย
                 : /Date|Updated/.test(c) ? (thaiDateShort(r[c]) || '—')
                 : (r[c] ?? '—'))}</td>`).join('')}
               <td class="col-actions">
-                ${s.readOnly ? '<span class="dim">อ่านอย่างเดียว</span>' : ''}
+                ${s.readOnly && !s.deletable ? '<span class="dim">อ่านอย่างเดียว</span>' : ''}
                 ${s.sortField ? `<span class="move-group">
                   <button class="btn-move" data-up="${r.id}" title="เลื่อนขึ้น"
                     ${i === 0 ? 'disabled' : ''}>↑</button>
@@ -245,8 +245,8 @@ export async function render(ctx) {
                     ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
                 </span>` : ''}
                 ${key === 'announcements' ? `<button class="btn-mini" data-prev="${r.id}" title="ดูว่า Popup ประกาศนี้หน้าตาแบบไหน">👁 ดูตัวอย่าง</button>` : ''}
-                ${s.readOnly ? '' : `<button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>
-                <button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
+                ${s.readOnly ? '' : `<button class="btn-mini" data-edit="${r.id}">✎ แก้ไข</button>`}
+                ${s.readOnly && !s.deletable ? '' : `<button class="btn-mini danger" data-del="${r.id}">🗑 ลบ</button>`}
               </td></tr>`).join('')
               : `<tr><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ยังไม่มีข้อมูล กด “เพิ่มรายการ” เพื่อเริ่มต้น</div></td></tr>`}
               <tr id="admin-nomatch" style="display:none"><td colspan="${s.columns.length + (s.sortField ? 2 : 1)}"><div class="empty">ไม่พบรายการที่ตรงกับการค้นหา</div></td></tr>
@@ -775,7 +775,11 @@ export function mount(ctx) {
   onClick('del', async (id) => {
     const r = rows.find((x) => String(x.id) === String(id));
     if (!r) return;
-    if (!confirm(`ต้องการลบ "${r.Title}" ออกจาก${s.title} ใช่หรือไม่`)) return;
+    // ใบประเมิน: บอกรายละเอียดให้ชัดก่อนลบ (คะแนน/ลายเซ็น/ประวัติในใบหายทั้งหมด)
+    const ask = s.list === 'appraisals'
+      ? `ลบใบประเมินนี้ใช่หรือไม่\n\nผู้ถูกประเมิน: ${r.EmployeeName || '—'}\nรอบ: ${r.CycleName || '—'}\nชุดแบบประเมิน: ${r.FormSet || '—'}\nสถานะ: ${r.Status || '—'}\n\nคะแนน ลายเซ็น และประวัติในใบนี้จะหายทั้งหมด กู้คืนไม่ได้`
+      : `ต้องการลบ "${r.Title}" ออกจาก${s.title} ใช่หรือไม่`;
+    if (!confirm(ask)) return;
     try {
       await remove(s.list, id);
       const sync = s.list === 'projects' ? syncSummary(await syncFromProject(r, null), 'ช่องโครงการของบุคลากร')

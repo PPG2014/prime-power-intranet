@@ -467,11 +467,12 @@ export const SCHEMA = {
   appraisals: {
     hr: true,
     title: 'ใบประเมินรายบุคคล', icon: '📊', list: 'appraisals', spName: 'Appraisals',
-    readOnly: true, search: true, facets: ['CycleName', 'FormSet', 'Department', 'Status'],
-    hint: 'ดูอย่างเดียว · การให้คะแนนทำที่หน้าประเมินผลบุคลากร',
-    columns: ['CycleName', 'FormSet', 'EmployeeName', 'Department', 'EvaluatorName', 'Status', 'FinalScore', 'Grade'],
+    readOnly: true, deletable: true, search: true, facets: ['CycleName', 'FormSet', 'Department', 'Status'],
+    hint: 'แก้ไขไม่ได้ (การให้คะแนนทำที่หน้าประเมินผลบุคลากร) · ลบใบที่สร้างผิดได้ด้วยปุ่ม 🗑 ลบ — ลบแล้วกู้คืนไม่ได้ ถ้ารอบยังเปิดอยู่ ระบบจะสร้างใบใหม่ให้เมื่อผู้ถูกประเมินเปิดหน้าประเมิน',
+    // สร้างเมื่อ: แยกใบที่ชื่อรอบซ้ำกันได้ (เช่นใบ KPI เก่ากับใบผ่านงานใหม่ของ "รอบที่ 1")
+    columns: ['CycleName', 'FormSet', 'EmployeeName', 'Department', 'EvaluatorName', 'Status', 'FinalScore', 'Grade', 'Created'],
     labels: { CycleName: 'แบบประเมิน', FormSet: 'ชุดแบบประเมิน', EmployeeName: 'ผู้ถูกประเมิน', Department: 'ฝ่าย',
-              EvaluatorName: 'ผู้ประเมิน', Status: 'สถานะ', FinalScore: 'คะแนนสรุป', Grade: 'เกรด' },
+              EvaluatorName: 'ผู้ประเมิน', Status: 'สถานะ', FinalScore: 'คะแนนสรุป', Grade: 'เกรด', Created: 'สร้างเมื่อ' },
     fields: [],
   },
 
