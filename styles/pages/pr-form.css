@@ -135,8 +135,8 @@
 .pr-fill { display: inline-block; min-width: 26mm; border-bottom: 0.2mm dotted #000; }
 .pr-name { display: inline-block; min-width: 24mm; text-align: center; }
 .pr-sig  { position: absolute; left: 2mm; bottom: 1mm; height: 11mm; max-width: 30mm; object-fit: contain; mix-blend-mode: multiply; }
-/* ช่องฝ่ายจัดซื้อ: หัวข้ออยู่ใกล้เส้นเซ็น → ลายเซ็นเตี้ยลงและเลื่อนลงทับเส้นเล็กน้อย ไม่ทับหัวข้อ */
-.pr-sg.c.r1s .pr-sig { height: 8.5mm; bottom: -1.2mm; max-width: 28mm; }
+/* ช่องฝ่ายจัดซื้อ: หัวข้ออยู่ใกล้เส้นเซ็น → ลายเซ็นเตี้ยลง วางเหนือเส้นปะพอดี ไม่ทับหัวข้อและเส้นปะ */
+.pr-sg.c.r1s .pr-sig { height: 7mm; bottom: 2.4mm; max-width: 28mm; }
 .pr-dir-name { position: absolute; left: 22mm; top: 5mm; font-size: 12pt; }
 
 /* ท้ายกระดาษ */
