@@ -13,6 +13,7 @@
  */
 import { list, create, update } from './data.js';
 import { loadKpiConfig, currentKpiVer } from './kpi-config.js';
+import { pbDef, loadPbConfig, currentPbVer, PB_SCHEME } from './probation-config.js';
 
 export const STAGES = ['ประเมินตนเอง', 'หัวหน้าประเมิน', 'ฝ่ายบุคคลตรวจสอบ', 'ผู้บริหารอนุมัติ', 'พนักงานรับทราบ'];
 export const [S_SELF, S_MGR, S_HR, S_BOSS, S_ACK] = STAGES;
@@ -59,7 +60,13 @@ export const afterCutoff = (person, cycle) => {
 };
 export const GRADES = GRADE_SCHEMES['มาตรฐาน'];
 export const gradeOf = (score, scheme = 'มาตรฐาน') => {
-  const t = GRADE_SCHEMES[clean(scheme)] || GRADES;
+  // แบบผ่านงาน: "ทดลองงาน" = ชุดมาตรฐาน · "ทดลองงาน@ชื่อชุด" = ชุดที่ฝ่ายบุคคลแก้เอง (จัดการข้อมูล → เกณฑ์ประเมินผ่านงาน)
+  const sc = clean(scheme);
+  if (sc === PB_SCHEME || sc.startsWith(`${PB_SCHEME}@`)) {
+    const pg = pbDef(sc.slice(PB_SCHEME.length + 1) || '').grades;
+    return pg.find((g) => score >= g[0]) || pg[pg.length - 1];
+  }
+  const t = GRADE_SCHEMES[sc] || GRADES;
   return t.find((g) => score >= g[0]) || t[t.length - 1];
 };
 
@@ -427,6 +434,8 @@ export async function generateSheets(cycle, onProgress = () => {}) {
 
   const kpi = isKpiSet(cycle.FormSet);
   if (kpi) await loadKpiConfig({ fresh: true });     // ใบใหม่จำชุดเกณฑ์ปัจจุบันไว้
+  const pb = isProbationSet(cycle.FormSet);
+  if (pb) await loadPbConfig({ fresh: true });
   const staff = dir.filter((p) => p.IsActive !== false && clean(p.Email)
     && !have.has(clean(p.Email).toLowerCase())
     && (!onlyList || wanted.has(clean(p.Email).toLowerCase()) || wanted.has(clean(p.Title).toLowerCase()))
@@ -455,6 +464,7 @@ export async function generateSheets(cycle, onProgress = () => {}) {
         rounds: mergeRounds(p.StartDate, cycle,
           allSheets.filter((r) => clean(r.EmployeeEmail).toLowerCase() === clean(p.Email).toLowerCase())),
         ...(kpi ? { kpi: { form: kpiFormOf(p), ver: currentKpiVer() } } : {}),
+        ...(pb ? { pbVer: currentPbVer() } : {}),
       }),
     }).catch((e) => { failed.push(`${clean(p.Title)} — ${e.message}`); return null; });
     if (row) made.push(row);
@@ -514,6 +524,8 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
   const kpi = isKpiSet(cycle.FormSet);
   if (kpi && afterCutoff(me, cycle)) return 0;
   if (kpi) await loadKpiConfig();
+  const pb = isProbationSet(cycle.FormSet);
+  if (pb) await loadPbConfig();
 
   const byName = new Map(dir.map((p) => [clean(p.Title), p]));
   const ev = evaluatorFor(me, byName, kpi);
@@ -533,6 +545,7 @@ export async function autoCreate(cycle, { isAdmin = false, email = '' } = {}) {
       startDate: me.StartDate ? String(me.StartDate).slice(0, 10) : '',
       rounds: mergeRounds(me.StartDate, cycle, prev),
       ...(kpi ? { kpi: { form: kpiFormOf(me), ver: currentKpiVer() } } : {}),
+      ...(pb ? { pbVer: currentPbVer() } : {}),
     }),
   });
   return 1;

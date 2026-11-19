@@ -216,3 +216,8 @@
 .ap-set.kpi { background: #e3f0fb; color: #0b4f8a; }
 .ap-set.prob { background: #e9f7ef; color: #1e7f4f; }
 .ap-hdate { font-size: .8em; }
+
+/* ผลทดลองงานตามเกรด (ตั้งในเกณฑ์ประเมินผ่านงาน) */
+.ap-pass { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; font-size: .62em; vertical-align: middle; font-weight: 600; }
+.ap-pass.ok { background: #e9f7ef; color: #1e7f4f; }
+.ap-pass.no { background: #fdecec; color: #b42318; }
