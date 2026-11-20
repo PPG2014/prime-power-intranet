@@ -88,8 +88,7 @@ export function renderMemo({ fields = [], values = {}, empCode = '', requester =
     </div>
 
     <div class="mm-reason-h"><b>ระบุเหตุผล</b></div>
-    <div class="mm-reason">${reason
-      ? `<div class="mm-reason-text">${esc(reason)}</div>` : ''}${'<div class="mm-rline"></div>'.repeat(4)}</div>
+    <div class="mm-reason">${esc(String(reason).replace(/\r/g, '').replace(/\n[ \t]*(\n[ \t]*)+/g, '\n').trim())}</div>
 
     <div class="mm-close"><b>จึงเรียนมาเพื่อขอชี้แจงและอนุมัติ</b></div>
 
