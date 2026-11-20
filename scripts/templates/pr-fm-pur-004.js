@@ -6,6 +6,10 @@
  * ข้อมูลจากคำขอจะถูกเติมลงช่องว่างเท่านั้น
  *
  * รายการเกิน 20 แถว จะขึ้นหน้าใหม่ด้วยฟอร์มเดิมทั้งใบ และเลขหน้ามุมขวาบนนับให้อัตโนมัติ
+ *
+ * รายละเอียด/REMARK ยาวเกินช่อง → ตัดขึ้นบรรทัดใหม่ภายในรายการเดียวกัน (ไม่ตัดทิ้งเป็น …)
+ *   1 หน้ามี 20 บรรทัดเท่าเดิม รายการที่ยาว 3 บรรทัดใช้ 3 บรรทัด · ตารางสูงเท่าเดิม ช่องเหตุผล/ลายเซ็นไม่เลื่อน
+ *   วัดความกว้างข้อความด้วยฟอนต์เดียวกับเอกสาร แล้วแบ่งบรรทัดตามคำภาษาไทย (Intl.Segmenter)
  */
 import { esc } from '../core/dom.js';
 import { projectText } from '../services/om.js';
@@ -15,6 +19,56 @@ export const isPR = (code) => String(code || '').trim().toUpperCase() === PR_COD
 
 const LOGO = 'assets/img/ppc-logo-2024.png';
 const ROWS_PER_PAGE = 20;
+const ROW_MM = 5.79;            // ความสูง 1 บรรทัดในตาราง (เท่าต้นฉบับ)
+const DESC_MM = 99.6 - 2.4;     // ความกว้างที่พิมพ์ได้จริงของช่องรายละเอียด (หักขอบซ้าย-ขวา)
+const REM_MM = 26.1 - 2.4;      // ช่อง REMARK
+const MAX_LINES = 8;            // รายการเดียวยาวสุดกี่บรรทัด (เกินกว่านี้ตัดเป็น …)
+const FONT = "14pt 'PR Digits', 'TH SarabunPSK', 'TH Sarabun PSK', 'TH Sarabun New', 'PPC Sarabun', sans-serif";
+
+/** โหลดฟอนต์ของเอกสารก่อนวัดความกว้างข้อความ (เรียกก่อน renderPR) */
+export async function prFontsReady() {
+  try { await Promise.all([document.fonts.load("14pt 'PPC Sarabun'"), document.fonts.load("14pt 'PR Digits'", '0123456789')]); } catch (e) { /* ใช้ฟอนต์สำรอง */ }
+}
+
+let ctx2d = null;
+const PX_PER_MM = 96 / 25.4;
+/** ความกว้างข้อความเป็นมิลลิเมตร */
+function textMm(s) {
+  if (!ctx2d) { ctx2d = document.createElement('canvas').getContext('2d'); }
+  ctx2d.font = FONT;
+  return ctx2d.measureText(s).width / PX_PER_MM;
+}
+
+/** แบ่งข้อความเป็นบรรทัดให้พอดีความกว้าง (ตัดตามคำภาษาไทย/ช่องว่าง) */
+export function wrapLines(text, widthMm, maxLines = MAX_LINES) {
+  const out = [];
+  String(text || '').split(/\r?\n/).forEach((para) => {
+    const t = para.replace(/\s+/g, ' ').trim();
+    if (!t) return;
+    const segs = typeof Intl !== 'undefined' && Intl.Segmenter
+      ? [...new Intl.Segmenter('th', { granularity: 'word' }).segment(t)].map((x) => x.segment)
+      : t.split(/(\s+)/);
+    // วงเล็บเปิด/เครื่องหมายคำพูดเปิด ให้ติดกับคำถัดไป (ไม่เหลือ "(" ค้างท้ายบรรทัด)
+    for (let i = segs.length - 2; i >= 0; i--) if (/[(\[{“"']$/.test(segs[i]) && !/\s$/.test(segs[i])) { segs[i] += segs[i + 1]; segs.splice(i + 1, 1); }
+    let line = '';
+    const push = () => { if (line.trim()) out.push(line.trim()); line = ''; };
+    segs.forEach((seg) => {
+      if (textMm(line + seg) <= widthMm) { line += seg; return; }
+      if (line.trim()) push();
+      // คำเดียวยาวกว่าช่อง (เช่นรหัสสินค้ายาว ๆ) → ตัดทีละตัวอักษร
+      let w = seg.replace(/^\s+/, '');
+      while (textMm(w) > widthMm) {
+        let n = w.length;
+        while (n > 1 && textMm(w.slice(0, n)) > widthMm) n -= 1;
+        out.push(w.slice(0, n)); w = w.slice(n);
+      }
+      line = w;
+    });
+    push();
+  });
+  if (out.length > maxLines) { out.length = maxLines; out[maxLines - 1] = out[maxLines - 1].replace(/.{0,2}$/, '') + '…'; }
+  return out;
+}
 
 const clean = (v) => (v && typeof v === 'object'
   ? String(v.LookupValue ?? v.Title ?? v.Value ?? '') : String(v ?? '')).trim();
@@ -45,7 +99,20 @@ const withOther = (main, other) => {
 export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '', sign = {} }) {
   const items = (Array.isArray(values.items) ? values.items : [])
     .filter((r) => r && Object.values(r).some((x) => String(x ?? '').trim()));
-  const pages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
+  // แต่ละรายการใช้กี่บรรทัด แล้วจัดลงหน้า หน้าละไม่เกิน 20 บรรทัด
+  const laid = items.map((r, i) => {
+    const desc = wrapLines(clean(r.detail), DESC_MM);
+    const rem = wrapLines(clean(r.remark), REM_MM);
+    return { r, no: i + 1, desc, rem, lines: Math.max(1, desc.length, rem.length) };
+  });
+  const pageItems = [[]];
+  let used = 0;
+  laid.forEach((it) => {
+    if (used + it.lines > ROWS_PER_PAGE && pageItems[pageItems.length - 1].length) { pageItems.push([]); used = 0; }
+    pageItems[pageItems.length - 1].push(it);
+    used += it.lines;
+  });
+  const pages = pageItems.length;
 
   const left = [
     ['โครงการ', clean(projectText(values))],
@@ -68,17 +135,22 @@ export function renderPR({ values = {}, requester = {}, submitted = '', prNo = '
   const nameIn = (s) => (s && s.name ? esc(s.name) : '');
 
   const page = (p) => {
-    const slice = items.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
-    const body = Array.from({ length: ROWS_PER_PAGE }, (_, i) => {
-      const r = slice[i] || {};
-      return `<tr>
-        <td class="c-no">${p * ROWS_PER_PAGE + i + 1}</td>
-        <td class="c-desc">${esc(clean(r.detail))}</td>
-        <td class="c-qty">${esc(clean(r.qty))}</td>
-        <td class="c-unit">${esc(clean(r.unit))}</td>
-        <td class="c-rem">${esc(clean(r.remark))}</td>
-      </tr>`;
-    }).join('');
+    const list = pageItems[p];
+    const lines = (arr) => arr.map((l) => `<div class="pr-ln">${esc(l)}</div>`).join('');
+    const rows = list.map((it) => `<tr style="height:${(ROW_MM * it.lines).toFixed(2)}mm">
+        <td class="c-no">${lines([String(it.no)])}</td>
+        <td class="c-desc">${lines(it.desc)}</td>
+        <td class="c-qty">${lines([clean(it.r.qty)])}</td>
+        <td class="c-unit">${lines([clean(it.r.unit)])}</td>
+        <td class="c-rem">${lines(it.rem)}</td>
+      </tr>`);
+    // เติมแถวว่างให้ครบ 20 บรรทัด เลขรายการนับต่อจากรายการสุดท้าย (นับรวมทุกหน้า)
+    const usedHere = list.reduce((a, it) => a + it.lines, 0);
+    const startNo = items.length + 1;
+    for (let i = 0; i < ROWS_PER_PAGE - usedHere; i++) {
+      rows.push(`<tr><td class="c-no">${p === pages - 1 ? lines([String(startNo + i)]) : ''}</td><td class="c-desc"></td><td class="c-qty"></td><td class="c-unit"></td><td class="c-rem"></td></tr>`);
+    }
+    const body = rows.join('');
 
     return `
     <div class="pr-page">
