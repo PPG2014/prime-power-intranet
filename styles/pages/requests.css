@@ -241,9 +241,11 @@
 .mm-irow { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 14px; }
 .mm-il { width: 104px; flex: none; } .mm-il2 { width: 36px; flex: none; margin-left: 30px; }
 .mm-reason-h { margin: 4px 0 4px; }
-.mm-reason { position: relative; }
-.mm-reason-text { position: absolute; left: 0; right: 0; top: 6px; white-space: pre-wrap; line-height: 42px; padding: 0 4px; }
-.mm-rline { border-bottom: 1px dotted #000; height: 42px; }
+/* เหตุผลยาวแค่ไหนก็ได้: ข้อความอยู่ในเนื้อเอกสาร (ไม่ลอยทับ) ช่องยืดตามข้อความ อย่างน้อย 4 บรรทัด
+   เส้นประใต้ทุกบรรทัดวาดด้วยพื้นหลัง จึงมีเส้นเท่าจำนวนบรรทัดจริงเสมอ */
+.mm-reason { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 42px; min-height: 168px; padding: 0 4px;
+  background-image: radial-gradient(circle, #000 0.75px, transparent 1px); background-size: 4px 42px;
+  background-position: 0 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .mm-close { margin: 58px 0 16px; }
 .mm-signs { display: flex; gap: 20px; }
 .mm-col { flex: 1; line-height: 2.1; }
