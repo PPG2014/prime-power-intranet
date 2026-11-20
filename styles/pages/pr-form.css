@@ -86,13 +86,17 @@
 .pr-items tbody tr { height: 5.79mm; }
 .pr-items tbody td {
   border-left: 0.3mm solid #000; padding: 0 1.2mm; font-size: 14pt; line-height: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top;
 }
+/* 1 บรรทัดในช่อง = สูงเท่า 1 แถวของฟอร์ม · รายการยาวใช้หลายบรรทัด (pr-fm-pur-004.js wrapLines) */
+.pr-items .pr-ln { height: 5.79mm; line-height: 5.79mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ทุกช่องห่อข้อความด้วย .pr-ln ที่สูงตายตัว — ตัวเลข (PR Digits) ปนตัวอักษรไทยคนละฟอนต์ทำให้บรรทัดสูงเกินแถว */
+.pr-items .pr-ln:last-child { height: calc(5.79mm - 1px); }   /* เผื่อเส้นขอบล่างของช่อง 1px ไม่ให้แถวสูงเกิน */
 .pr-items .c-no   { width: 14.6mm; text-align: center; font-size: 15pt; }
-.pr-items .c-desc { width: 84.6mm; }
+.pr-items .c-desc { width: 99.6mm; }   /* กว้างขึ้นจากต้นฉบับ 84.6 → รายละเอียดยาวได้มากขึ้น (ลดช่อง REMARK) */
 .pr-items .c-qty  { width: 18.8mm; text-align: center; }
 .pr-items .c-unit { width: 19mm;   text-align: center; }
-.pr-items .c-rem  { width: 41.1mm; }
+.pr-items .c-rem  { width: 26.1mm; }
 .pr-items th:first-child, .pr-items td:first-child { border-left: 0; }
 
 /* ระบุเหตุผล */

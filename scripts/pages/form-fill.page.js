@@ -10,7 +10,7 @@ import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
 import { isEmpWelfare, empWelfareFields, EW, SHOE_MAX } from '../templates/emp-welfare.js';
 import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
-import { isPR, renderPR, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
+import { isPR, renderPR, prFontsReady, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
 import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
 import { isCarForm, CAR_FIELDS, CAR_PLACE, carProblem, mapLink } from '../services/car.js';
@@ -428,6 +428,7 @@ async function downloadBlankForm(form, fields) {
   // ใบขอสั่งซื้อใช้แม่แบบเอกสารจริง เติมค่าที่พิมพ์ไว้แล้วให้ ที่เหลือเว้นว่างให้เขียนมือ
   if (isPR(form.FormCode)) {
     const values = readLiveValues(fields);
+    await prFontsReady();
     return openPRWindow(renderPR({
       values,
       requester: { name: (me && me.Title) || state.user?.name || '', dept: (me && me.Department) || '', position: (me && me.Position) || '' },

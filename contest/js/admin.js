@@ -62,7 +62,27 @@ async function renderAuth() {
 // ---------------- Shell ----------------
 const TABS = [['control', 'ควบคุม'], ['entries', 'ทีมประกวด'], ['judges', 'กรรมการ'], ['criteria', 'เกณฑ์คะแนน'], ['display', 'หน้าจอแสดงผล'], ['results', 'ผลคะแนน'], ['summary', 'หน้าสรุปผล'], ['settings', 'ตั้งค่า']];
 
+// ตัวอย่างจอ (สด) ในแท็บควบคุม: แท็บนี้วาดใหม่ทุกครั้งที่ข้อมูลเปลี่ยน ถ้าใส่ iframe ในแท็บ จอจะโหลดใหม่ตลอด
+// → สร้าง iframe ครั้งเดียววางลอยไว้นอก #app แล้วจัดตำแหน่งให้ทับช่อง #pvSlot ในการ์ด
+let ctlPv = null;
+function placeCtlPreview() {
+  const slot = tab === 'control' && authed ? $('#pvSlot') : null;
+  if (!slot) { if (ctlPv) ctlPv.style.display = 'none'; return; }
+  if (!ctlPv) {
+    ctlPv = document.createElement('div');
+    ctlPv.className = 'preview-wrap pv-float';
+    ctlPv.innerHTML = '<iframe src="display.html" title="ตัวอย่างจอ" loading="lazy"></iframe>';
+    document.body.appendChild(ctlPv);
+  }
+  const r = slot.getBoundingClientRect();
+  Object.assign(ctlPv.style, { display: 'block', left: (r.left + scrollX) + 'px', top: (r.top + scrollY) + 'px', width: r.width + 'px' });
+  $('iframe', ctlPv).style.transform = `scale(${r.width / 1920})`;
+}
+addEventListener('resize', () => requestAnimationFrame(placeCtlPreview));
+if ('ResizeObserver' in window) new ResizeObserver(() => requestAnimationFrame(placeCtlPreview)).observe(app);
+
 function render() {
+  queueMicrotask(placeCtlPreview);
   if (!authed) { builtTab = null; return renderAuth(); }
   if (tab === 'display' && builtTab === 'display' && $('#tab')) { updateDisplayTab(); return; }
   if (tab === 'summary' && builtTab === 'summary' && $('#tab')) { updateSummaryTab(); return; }
@@ -127,6 +147,8 @@ function tControl(el) {
       </div>
     </div>
     <div class="stack">
+      <div class="card"><h3>ตัวอย่างจอ (สด)</h3><p class="sub">สิ่งที่ผู้ชมเห็นตอนนี้ · <a href="display.html" target="_blank" rel="noopener">เปิดจอแสดงผล ↗</a></p>
+        <div class="preview-wrap" id="pvSlot"></div></div>
       <div class="card"><h3>หน้าจอแสดงผล</h3><p class="sub">เปลี่ยนสิ่งที่ผู้ชมเห็นได้ทันที · ตั้งพื้นหลัง/ขนาดที่แท็บ "หน้าจอแสดงผล"</p>
         ${seg(VIEWS, view, 'view')}
         ${view === 'reveal' ? `<div style="margin-top:16px" class="row-flex">

@@ -8,7 +8,7 @@ import { openModal, closeModal } from '../components/modal.js';
 import { uploadFile, fileSize, fileKind, formFolder } from '../services/photos.js';
 import { stepsOf, stepDiag, roleOnRequest, applicableSteps, parseLog, decide, loadResolved, buildRoute, flowFieldsFor,
   PURCHASE_ACTION, PURCHASE_DONE, PURCHASE_CANCEL, PURCHASE_STATUSES, purchaseStatusOf, purchaseStatusBy, stepProgress, slipOf, trackOf, reqCode } from '../services/requests.js';
-import { isPR, renderPR, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
+import { isPR, renderPR, prFontsReady, mapSignatures, openPRWindow, thaiNumDate } from '../templates/pr-fm-pur-004.js';
 import { prValues, normPR, todayISO, findDuplicatePR, duplicateMessage } from '../services/pr.js';
 import { isCarRequest, dataOf as carData, spanOf, spanText, carPlates, plateClash, changePlate, cancelCar, returnCar, mapLink, CAR_PLACE, localDay } from '../services/car.js';
 import { standardLabel, withStandard, NO_PROJECT } from '../components/form-renderer.js';
@@ -1639,6 +1639,7 @@ async function exportRequest(req, steps, answerRows, doc = {}) {
     const who = dir.find((p) => String(p.Email || '').toLowerCase() === em)
       || dir.find((p) => p.Title === req.RequesterName) || {};
     const reqName = who.Title || req.RequesterName || '';
+    await prFontsReady();   // วัดความกว้างข้อความด้วยฟอนต์จริง (ตัดบรรทัดรายละเอียดยาว)
     const html = renderPR({
       values,
       requester: { name: reqName, dept: req.RequesterDept || who.Department || '', position: who.Position || '' },

@@ -610,3 +610,6 @@ body.chroma .rs-row,body.chroma .pod-card{background:#101020;backdrop-filter:non
 .sp-wait i:nth-child(2){animation-delay:.2s}.sp-wait i:nth-child(3){animation-delay:.4s}
 @keyframes spDot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-.08em)}}
 .row.nonum .score{visibility:hidden}
+
+/* ตัวอย่างจอ (สด) ในแท็บควบคุม — ลอยทับช่อง #pvSlot (admin.js placeCtlPreview) */
+.pv-float{position:absolute;z-index:5;width:auto;height:auto;aspect-ratio:16/9;pointer-events:none}
