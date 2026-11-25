@@ -106,3 +106,25 @@ export function previewSignature(role) {
   const canvas = box.querySelector('.sig-canvas');
   return canvas && box.isDirty && box.isDirty() ? canvas.toDataURL('image/png') : '';
 }
+
+/**
+ * บังคับลงลายเซ็นก่อนส่ง: ต้องวาดหรืออัปโหลดใหม่ในช่องนี้ (ลายเซ็นเดิม/ในทะเบียนไม่นับ)
+ * ไม่เซ็น → แจ้งเตือนทุกครั้ง (กล่องข้อความ + ข้อความในฟอร์ม) เลื่อนไปที่ช่องเซ็นแล้วคืน false
+ */
+export function requireSignature(role, who = 'ผู้ยื่น', errBox = null) {
+  const box = $(`.sig-pad[data-sig="${role}"]`);
+  if (!box) return true;
+  if (previewSignature(role)) { box.classList.remove('sig-missing'); return true; }
+  const msg = `กรุณาลงลายเซ็น${who}ก่อนส่งคำขอ — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"`;
+  if (errBox) { errBox.innerHTML = '✍️ ' + esc(msg); errBox.classList.remove('q-warn'); errBox.hidden = false; }
+  box.classList.add('sig-missing');
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  alert(`ยังไม่ได้ลงลายเซ็น\n\n${msg}\n\nทุกแบบฟอร์มต้องวาดหรืออัปโหลดลายเซ็นทุกครั้ง ไม่เซ็นจะส่งคำขอไม่ได้`);
+  if (!box.dataset.missBound) {
+    box.dataset.missBound = '1';
+    const clear = () => box.classList.remove('sig-missing');
+    box.addEventListener('pointerdown', clear);
+    box.addEventListener('change', clear);
+  }
+  return false;
+}
