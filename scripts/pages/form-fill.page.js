@@ -221,8 +221,11 @@ export async function render(ctx) {
         </div>` : ''}
         ${`<section class="q-group q-sign">
           <h3 class="q-group-title">ลายเซ็นผู้ยื่น <b class="req">*</b></h3>
-          <div class="q-help"><b>ต้องวาดหรืออัปโหลดลายเซ็นทุกครั้งก่อนส่งคำขอ</b> · ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป" · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก</div>
-          ${signaturePad('requester', '', true)}
+          <div class="q-help">${me && me.SignatureUrl
+            ? '<b>ใช้ลายเซ็นในหน้าบุคลากรให้อัตโนมัติ</b> (ที่แสดงด้านล่าง) · ต้องการเปลี่ยน วาดใหม่ในกรอบ หรือกด "อัปโหลดรูป"'
+            : '<b>ต้องวาดหรืออัปโหลดลายเซ็นก่อนส่งคำขอ</b> · ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป" · เพิ่มลายเซ็นในหน้าบุคลากรไว้ ครั้งหน้าระบบดึงมาใช้ให้อัตโนมัติ'}
+            · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก</div>
+          ${signaturePad('requester', (me && me.SignatureUrl) || '', true)}
         </section>`}
         <div class="form-foot">
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
@@ -753,8 +756,9 @@ export function mount(ctx) {
         v._queueOverlap = q.clash.map((c) => c.title);   // บันทึกว่าผู้ยื่นยืนยันจองทับใบไหน
       }
     }
-    // ทุกแบบฟอร์ม: ผู้ยื่นต้องวาดหรืออัปโหลดลายเซ็นใหม่ทุกครั้ง (ไม่ใช้ลายเซ็นเดิม/ในทะเบียนแทน) ไม่เซ็น = ส่งไม่ได้
-    if (!requireSignature('requester', isWelfareRoom(form) ? 'ผู้เบิกจ่าย' : isPR(form.FormCode) ? 'ผู้ขอสั่งซื้อ' : 'ผู้ยื่น', err)) return;
+    // ทุกแบบฟอร์ม: ต้องมีลายเซ็นผู้ยื่น — ลายเซ็นในหน้าบุคลากร (ใช้อัตโนมัติ) หรือวาด/อัปโหลดใหม่ · ไม่มีเลย = ส่งไม่ได้
+    if (!(me && me.SignatureUrl)
+      && !requireSignature('requester', isWelfareRoom(form) ? 'ผู้เบิกจ่าย' : isPR(form.FormCode) ? 'ผู้ขอสั่งซื้อ' : 'ผู้ยื่น', err)) return;
     err.hidden = true;
 
     // สรุปข้อมูลทั้งใบให้ตรวจทาน แล้วกดยืนยันก่อนส่งจริง
@@ -772,7 +776,7 @@ export function mount(ctx) {
     try {
       // ลายเซ็นผู้ยื่น: เซ็นใหม่ → อัปโหลด · ไม่เซ็นใหม่ → ใช้ของเดิม/ลายเซ็นในทะเบียน
       {
-        const url = await readSignature('requester', formFolder(form, 'ลายเซ็น'));
+        const url = await readSignature('requester', formFolder(form, 'ลายเซ็น')) || (me && me.SignatureUrl) || '';
         if (!url) throw new Error('อัปโหลดลายเซ็นไม่สำเร็จ กรุณาเซ็นใหม่แล้วกดส่งอีกครั้ง');
         if (url) {
           res.values._requesterSign = { name: (me && me.Title) || state.user?.name || '',
