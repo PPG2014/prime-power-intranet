@@ -9,7 +9,7 @@ import { buildRoute, flowFieldsFor, stepsOf, applicableSteps } from '../services
 import { renderFormDoc } from '../templates/form-doc.js';
 import { isWelfareRoom } from '../templates/welfare-room.js';
 import { isEmpWelfare, empWelfareFields, EW, SHOE_MAX } from '../templates/emp-welfare.js';
-import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
+import { signaturePad, bindSignaturePads, readSignature, previewSignature, requireSignature } from '../components/signature-pad.js';
 import { isPR, renderPR, prFontsReady, readLiveValues, openPRWindow } from '../templates/pr-fm-pur-004.js';
 import { isQueueForm, QUEUE_FIELDS, queueConflicts, freeSlots } from '../services/booking.js';
 import { isSolar, SOLAR_FIELDS } from '../services/solar.js';
@@ -220,10 +220,9 @@ export async function render(ctx) {
           <b>หมายเหตุ</b> ${esc(form.FormNote)}
         </div>` : ''}
         ${`<section class="q-group q-sign">
-          <h3 class="q-group-title">ลายเซ็นผู้ยื่น${isWelfareRoom(form) || isPR(form.FormCode) || isInstallForm(fields) ? ' <b class="req">*</b>' : ''}</h3>
-          <div class="q-help">ลากเมาส์/นิ้วเซ็นในกรอบ หรืออัปโหลดรูปลายเซ็น · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก${
-            (editSign && editSign.url) || (me && me.SignatureUrl) ? ' · ถ้าไม่เซ็นใหม่ ระบบใช้ลายเซ็นที่แสดงอยู่' : ''}</div>
-          ${signaturePad('requester', (editSign && editSign.url) || (me && me.SignatureUrl) || '', true)}
+          <h3 class="q-group-title">ลายเซ็นผู้ยื่น <b class="req">*</b></h3>
+          <div class="q-help"><b>ต้องวาดหรืออัปโหลดลายเซ็นทุกครั้งก่อนส่งคำขอ</b> · ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป" · ใช้ในเอกสารที่ดาวน์โหลดและส่งออก</div>
+          ${signaturePad('requester', '', true)}
         </section>`}
         <div class="form-foot">
           <span class="dim">ยื่นโดย ${esc(state.user?.name || '')} · ${
@@ -754,30 +753,8 @@ export function mount(ctx) {
         v._queueOverlap = q.clash.map((c) => c.title);   // บันทึกว่าผู้ยื่นยืนยันจองทับใบไหน
       }
     }
-    // ใบรับรองแทนใบเสร็จต้องมีลายเซ็นผู้เบิกจ่าย (เซ็นใหม่ หรือมีลายเซ็นในทะเบียนแล้ว)
-    if (isWelfareRoom(form) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
-      err.innerHTML = 'กรุณาลงลายเซ็นผู้เบิกจ่ายก่อนส่ง — ลากเมาส์เซ็นในกรอบ หรือกด "อัปโหลดรูป"';
-      err.hidden = false;
-      const pad = $('.sig-pad[data-sig="requester"]');
-      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    // คิวงานติดตั้ง PPE: ต้องมีลายเซ็นผู้ยื่น (เซ็นใหม่ หรือมีลายเซ็นเดิม/ในทะเบียน)
-    if (isInstallForm(fields) && !previewSignature('requester') && !(editSign && editSign.url) && !(me && me.SignatureUrl)) {
-      err.innerHTML = 'กรุณาลงลายเซ็นผู้ยื่นก่อนส่ง — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"';
-      err.hidden = false;
-      const pad = $('.sig-pad[data-sig="requester"]');
-      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    // ใบขอสั่งซื้อ: ผู้ยื่นต้องวาดหรืออัปโหลดลายเซ็นทุกครั้ง (ลงช่อง ผู้ขอสั่งซื้อ)
-    if (isPR(form.FormCode) && !previewSignature('requester')) {
-      err.innerHTML = 'กรุณาลงลายเซ็นผู้ขอสั่งซื้อก่อนส่ง — ลากเมาส์/นิ้วเซ็นในกรอบ หรือกด "อัปโหลดรูป"';
-      err.hidden = false;
-      const pad = $('.sig-pad[data-sig="requester"]');
-      if (pad) pad.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+    // ทุกแบบฟอร์ม: ผู้ยื่นต้องวาดหรืออัปโหลดลายเซ็นใหม่ทุกครั้ง (ไม่ใช้ลายเซ็นเดิม/ในทะเบียนแทน) ไม่เซ็น = ส่งไม่ได้
+    if (!requireSignature('requester', isWelfareRoom(form) ? 'ผู้เบิกจ่าย' : isPR(form.FormCode) ? 'ผู้ขอสั่งซื้อ' : 'ผู้ยื่น', err)) return;
     err.hidden = true;
 
     // สรุปข้อมูลทั้งใบให้ตรวจทาน แล้วกดยืนยันก่อนส่งจริง
@@ -795,8 +772,8 @@ export function mount(ctx) {
     try {
       // ลายเซ็นผู้ยื่น: เซ็นใหม่ → อัปโหลด · ไม่เซ็นใหม่ → ใช้ของเดิม/ลายเซ็นในทะเบียน
       {
-        const url = await readSignature('requester', formFolder(form, 'ลายเซ็น'))
-          || (editSign && editSign.url) || (me && me.SignatureUrl) || '';
+        const url = await readSignature('requester', formFolder(form, 'ลายเซ็น'));
+        if (!url) throw new Error('อัปโหลดลายเซ็นไม่สำเร็จ กรุณาเซ็นใหม่แล้วกดส่งอีกครั้ง');
         if (url) {
           res.values._requesterSign = { name: (me && me.Title) || state.user?.name || '',
             url, at: new Date().toISOString() };

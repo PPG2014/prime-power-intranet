@@ -9,7 +9,7 @@
 import { esc, $, $$ } from '../core/dom.js';
 import { state } from '../core/state.js';
 import { toast } from '../components/toast.js';
-import { signaturePad, bindSignaturePads, readSignature, previewSignature } from '../components/signature-pad.js';
+import { signaturePad, bindSignaturePads, readSignature, requireSignature, previewSignature } from '../components/signature-pad.js';
 import {
   SOLAR_FIELDS, TYPICAL_KWP, ROOF_TYPES, BANK_ACCOUNT, INCENTIVES, TERMS, SCHEDULE,
   loadSolarPrices, computeQuote, sizesFor, panelsFor, previewQuoteNo, assignQuoteNo,
@@ -437,6 +437,8 @@ export function solarMount({ form, saveRequest, onSaved }) {
     const miss = problems(v, q);
     if (miss.length) { err.innerHTML = `กรอกข้อมูลให้ครบก่อนบันทึก<br>ยังขาด: ${esc(miss.join(', '))}`; err.hidden = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (q.missing.length) { err.innerHTML = `คำนวณราคาไม่ได้: ไม่พบ${esc(q.missing.join(', '))} ใน Price List`; err.hidden = false; return; }
+    // ทุกแบบฟอร์ม: ผู้ยื่น (ฝ่ายขาย) ต้องวาดหรืออัปโหลดลายเซ็นทุกครั้งก่อนบันทึก
+    if (!requireSignature('solar_sales', 'ฝ่ายขาย (ผู้ยื่น)', err)) return;
     if (q.belowMin && !confirm(`ราคาสุทธิ ${baht(q.net)} บาท ต่ำกว่าราคาขั้นต่ำ ${baht(q.minimum)} บาท\n\nยืนยันบันทึกราคานี้หรือไม่?`)) return;
     err.hidden = true;
     const btnHtml = btn.innerHTML;

@@ -115,6 +115,10 @@
 }
 .sig-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sig-upload { cursor: pointer; }
+/* ยังไม่ได้ลงลายเซ็นตอนกดส่ง → กรอบแดงกระพริบให้เห็นชัด */
+.sig-pad.sig-missing .sig-canvas { border-color: #dc2626 !important; box-shadow: 0 0 0 3px rgba(220,38,38,.25); animation: sigBlink 1s ease-in-out 3; }
+.sig-pad.sig-missing .sig-head { color: #b91c1c; }
+@keyframes sigBlink { 50% { box-shadow: 0 0 0 6px rgba(220,38,38,.12); } }
 .sig-status { font-size: .82em; }
 .ap-attpanel { margin-top: 16px; overflow-x: auto; }
 .ap-attpanel .panel-head { margin-top: 12px; }
