@@ -108,7 +108,7 @@ export function previewSignature(role) {
 }
 
 /**
- * บังคับลงลายเซ็นก่อนส่ง: ต้องวาดหรืออัปโหลดใหม่ในช่องนี้ (ลายเซ็นเดิม/ในทะเบียนไม่นับ)
+ * บังคับลงลายเซ็นก่อนส่ง: ต้องวาดหรืออัปโหลดในช่องนี้ (ผู้เรียกตรวจลายเซ็นในหน้าบุคลากรเองก่อน)
  * ไม่เซ็น → แจ้งเตือนทุกครั้ง (กล่องข้อความ + ข้อความในฟอร์ม) เลื่อนไปที่ช่องเซ็นแล้วคืน false
  */
 export function requireSignature(role, who = 'ผู้ยื่น', errBox = null) {
@@ -119,7 +119,7 @@ export function requireSignature(role, who = 'ผู้ยื่น', errBox = n
   if (errBox) { errBox.innerHTML = '✍️ ' + esc(msg); errBox.classList.remove('q-warn'); errBox.hidden = false; }
   box.classList.add('sig-missing');
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  alert(`ยังไม่ได้ลงลายเซ็น\n\n${msg}\n\nทุกแบบฟอร์มต้องวาดหรืออัปโหลดลายเซ็นทุกครั้ง ไม่เซ็นจะส่งคำขอไม่ได้`);
+  alert(`ยังไม่ได้ลงลายเซ็น\n\n${msg}\n\nทุกแบบฟอร์มต้องมีลายเซ็นผู้ยื่น ไม่เซ็นจะส่งคำขอไม่ได้ (เพิ่มลายเซ็นในหน้าบุคลากรไว้ ระบบจะดึงมาใช้ให้อัตโนมัติ)`);
   if (!box.dataset.missBound) {
     box.dataset.missBound = '1';
     const clear = () => box.classList.remove('sig-missing');
