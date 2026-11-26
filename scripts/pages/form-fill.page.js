@@ -444,7 +444,9 @@ async function downloadBlankForm(form, fields) {
   // ใบยืม-คืน / ใบโอนย้าย: แบบฟอร์มต้นฉบับ ISO (PDF + Excel) เติมค่าที่กรอกแล้ว ที่เหลือเว้นว่างให้เขียนมือ
   if (eqFormKind(form)) {
     const { openEqDoc } = await import('../templates/eq-xlsx.js');
-    return openEqDoc({ FormCode: form.FormCode, Title: '', FormData: JSON.stringify(values),
+    const sig = previewSignature('requester') || (me && me.SignatureUrl) || '';
+    return openEqDoc({ FormCode: form.FormCode, Title: '',
+      FormData: JSON.stringify(sig ? { ...values, _requesterSign: { url: sig } } : values),
       RequesterName: (me && me.Title) || state.user?.name || '', SubmittedDate: new Date().toISOString() },
     { steps: [], log: [], title: `ดาวน์โหลดแบบฟอร์ม — ${form.Title}` }).catch((e) => alert('เตรียมแบบฟอร์มไม่สำเร็จ — ' + e.message));
   }

@@ -6,6 +6,9 @@
  *   FM-PUR-006  ผู้เบิก = ผู้ยื่น · ผู้จ่าย = คนที่อัปเดต "จ่ายอุปกรณ์แล้ว" · ผู้คืน = ผู้ยื่น · ผู้รับคืน = คนที่อัปเดต "คืนครบแล้ว"
  *   FM-PUR-008  ผู้เบิก = ผู้ยื่น · ผู้ตรวจสอบ = ลำดับอนุมัติแรก · ผู้อนุมัติ = ลำดับอนุมัติสุดท้าย
  *               ผู้ส่ง / ผู้รับ = ช่องในแบบฟอร์ม · วันที่ = วันที่อัปเดต "ส่งมอบแล้ว"
+ *
+ * ลายเซ็น (เฉพาะหน้า PDF): วางรูปบนเส้นจุดของช่องลงนาม — sigs: { เซลล์เส้นจุด: url }
+ *   ผู้เบิก = ลายเซ็นผู้ยื่น (_requesterSign) · ผู้จ่าย/ผู้รับคืน/ผู้ตรวจสอบ/ผู้อนุมัติ = ลายเซ็นในประวัติของขั้นนั้น
  */
 import { fillXlsxTemplate } from '../utils/xlsx-template.js';
 import { eqFormKind, LOAN_ST, MOVE_ST, findEq, equipment, eqCode } from '../services/equipment.js';
@@ -30,6 +33,8 @@ const paren = (name) => {
 /** บันทึกล่าสุดที่อัปเดตเป็นสถานะนี้ */
 const statusLog = (log, st) => log.filter((l) => l.action === PURCHASE_ACTION && String(l.note || '').split(' — ')[0].trim() === st).slice(-1)[0] || null;
 const num = (v) => (String(v ?? '').trim() !== '' && !isNaN(+v) ? +v : clean(v));
+const sigOf = (v) => String((v && v._requesterSign && v._requesterSign.url) || '').trim();
+const pick = (o) => Object.fromEntries(Object.entries(o).filter(([, u]) => u));
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out.length ? out : [[]]; };
 
 /* ───────── FM-PUR-006 ใบยืม - คืนอุปกรณ์ ───────── */
@@ -65,7 +70,8 @@ function loanPages(req, log) {
       cells[`I${r}`] = num(it.qty); cells[`L${r}`] = clean(it.unit);
       cells[`O${r}`] = clean(it.status); cells[`P${r}`] = clean(it.remark);
     });
-    return { name: p ? `${br || 'BR'} (${p + 1})` : (br || 'BR'), cells };
+    const sigs = pick({ B50: sigOf(v), H50: out && out.sig, H56: back && back.sig });
+    return { name: p ? `${br || 'BR'} (${p + 1})` : (br || 'BR'), cells, sigs };
   });
 }
 
@@ -104,7 +110,8 @@ function movePages(req, log, steps, eqRows) {
       if (e && clean(e.SerialNo)) cells[`E${r + 3}`] = `S/N : ${clean(e.SerialNo)}`;
       cells[`I${r}`] = num(it.qty); cells[`J${r}`] = clean(it.unit); cells[`K${r}`] = clean(it.remark);
     });
-    return { name: p ? `Template (${p + 1})` : 'Template', cells };
+    const sigs = pick({ A33: sigOf(v), E33: check && check.sig, I33: approve && approve.sig });
+    return { name: p ? `Template (${p + 1})` : 'Template', cells, sigs };
   });
 }
 
@@ -138,7 +145,7 @@ export async function openEqPdf(req, opts = {}) {
   const s = await sheetsOf(req, opts);
   const blob = await fillXlsxTemplate(s.url, s.pages);
   const { xlsxToHtml } = await import('../utils/xlsx-html.js');
-  const { html } = await xlsxToHtml(blob);
+  const { html } = await xlsxToHtml(blob, { overlays: s.pages.map((pg) => pg.sigs || {}) });
   const { openPRWindow } = await import('./pr-fm-pur-004.js');
   await openPRWindow(html, opts.title || s.name);
   // ปุ่มดาวน์โหลดไฟล์ Excel ต้นฉบับ (ไฟล์เดียวกับที่แสดง) ข้างปุ่มพิมพ์

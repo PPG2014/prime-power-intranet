@@ -143,7 +143,10 @@ function headerParts(code, theme, imgs, page, pages) {
   return out;
 }
 
-export async function xlsxToHtml(data) {
+/**
+ * overlays[หน้า] = { 'B50': url } → วางรูปลายเซ็นบนเซลล์นั้น (ชิดล่าง กึ่งกลาง ไม่ดันความสูงแถว)
+ */
+export async function xlsxToHtml(data, { overlays = [] } = {}) {
   const JSZip = await loadScript('assets/vendor/jszip.min.js', 'JSZip');
   const zip = await JSZip.loadAsync(data instanceof Blob ? await data.arrayBuffer() : data);
   const read = async (p) => (zip.file(p) ? zip.file(p).async('string') : '');
@@ -235,6 +238,8 @@ export async function xlsxToHtml(data) {
     const widths = cols.map((c) => wpx(colW[c] ?? defW));
     const tableW = widths.reduce((a, b) => a + b, 0);
 
+    const ov = {};
+    Object.entries(overlays[pagesHtml.length] || {}).forEach(([a1, url]) => { const p = ref(a1); if (p && url) ov[`${p.r},${p.c}`] = url; });
     const body = rows.map((r) => {
       const tds = cols.map((c) => {
         const key = `${r},${c}`;
@@ -261,8 +266,9 @@ export async function xlsxToHtml(data) {
           bd.l ? `border-left:${bd.l}` : '', bd.r ? `border-right:${bd.r}` : '', bd.t ? `border-top:${bd.t}` : '', bd.b ? `border-bottom:${bd.b}` : '',
           x.wrap ? 'white-space:pre-wrap;word-break:break-word' : 'white-space:pre', x.indent ? `padding-left:${x.indent * 9}px` : '',
         ].filter(Boolean).join(';');
-        return `<td${colspan > 1 ? ` colspan="${colspan}"` : ''}${rowspan > 1 ? ` rowspan="${rowspan}"` : ''} style="${st}">${
-          cell.v === '' ? '' : `<div class="xh-v${x.wrap ? ' w' : ''}${h === 'right' ? ' r' : h === 'center' ? ' c' : ''}">${esc(cell.v)}</div>`}</td>`;
+        const sig = ov[key] ? `<img class="xh-sig" data-photo="${esc(ov[key])}" alt="" style="position:absolute;${h === 'center' ? 'left:50%;transform:translateX(-50%)' : 'left:14px'};bottom:-3px;height:36px;max-width:150px;object-fit:contain;mix-blend-mode:multiply;pointer-events:none">` : '';
+        return `<td${colspan > 1 ? ` colspan="${colspan}"` : ''}${rowspan > 1 ? ` rowspan="${rowspan}"` : ''} style="${st}${sig ? ';position:relative' : ''}">${
+          cell.v === '' ? '' : `<div class="xh-v${x.wrap ? ' w' : ''}${h === 'right' ? ' r' : h === 'center' ? ' c' : ''}">${esc(cell.v)}</div>`}${sig}</td>`;
       }).join('');
       return `<tr style="height:${((rowH[r] ?? defH) * PX_PT).toFixed(1)}px">${tds}</tr>`;
     }).join('');
